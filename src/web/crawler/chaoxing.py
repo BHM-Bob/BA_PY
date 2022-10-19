@@ -5,11 +5,13 @@ LastEditors: BHM-Bob G
 LastEditTime: 2022-07-12 16:20:24
 Description: 
 '''
-from PIL import Image
 from io import BytesIO
+
 import requests
+from PIL import Image
 
 from ba.web import *
+
 
 def getImg(taskQue, doneDataQue, sig, statuesQue):
     while True:
@@ -22,7 +24,7 @@ def getImg(taskQue, doneDataQue, sig, statuesQue):
         doneDataQue.put((idx, Image.open(BytesIOObj).convert( "RGB" )))
     return sig.put(0)
 
-imgHref = 'https://s3.ananas.chaoxing.com/doc/31/a1/b8/e181b5a08384a9df472773b8ab672508/thumb/110.png'
+imgHref = 'https://s3.ananas.chaoxing.com/sv-w7/doc/fe/2d/19/eb1a0985c1b9381c4168b080eaed9c03/thumb/2.png'
 imgList = []
 iscontinue = True
 tp = ThreadsPool(8, getImg, statuesQue)

@@ -6,16 +6,16 @@ LastEditTime: 2022-05-29 17:31:54
 Description: get media contents info
 '''
 import ssl
+
 ssl._create_default_https_context = ssl._create_unverified_context
-import time, os, re
+import os
+import re
+import time
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+
 from ba.web import *
 
 desired_capabilities = DesiredCapabilities.CHROME # 修改页面加载策略

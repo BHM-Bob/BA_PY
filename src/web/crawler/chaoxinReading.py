@@ -1,20 +1,15 @@
 ﻿'''
 Author: BHM-Bob G 2262029386@qq.com
 Date: 2022-05-15 20:10:04
-LastEditors: BHM-Bob G
-LastEditTime: 2022-07-12 18:23:04
+LastEditors: BHM-Bob
+LastEditTime: 2022-10-19 22:53:28
 Description: 
 '''
-#from urllib.request import urlopen
-#from bs4 import BeautifulSoup
-import time, os
-from bs4 import BeautifulSoup
+import time
+
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+
 from ba.web import *
 
 browser = webdriver.Chrome(CHROMEDRIVERPATH)
