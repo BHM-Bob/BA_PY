@@ -82,11 +82,14 @@ def GetBetweenFromHead(string:str, head:str, tail:str):
     headIdx = string.find(head)
     tailIdx = string.find(tail)
     return string[headIdx+len(head):tailIdx]
-def GetBetween(string:str, head:str, tail:str):
-    """ret not include head and tail"""
-    headIdx = string.find(head)
-    tailIdx = string.rfind(tail)
-    return string[headIdx+len(head):tailIdx]
+def GetBetween(string:str, head:str, tail:str,
+               headRFind:bool = False, tailRFind:bool = True,
+               retHead:bool = False, retTail:bool = False):
+    headIdx = string.rfind(head) if headRFind else string.find(head)
+    tailIdx = string.rfind(tail) if tailRFind else string.find(tail)
+    idx1 = headIdx if retHead else headIdx+len(head)
+    idx2 = tailIdx+len(tail) if retTail else tailIdx
+    return string[idx1:idx2]
 
 
 
