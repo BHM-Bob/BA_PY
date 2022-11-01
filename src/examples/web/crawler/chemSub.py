@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
-from ba.web import *
+from mbapy.web import *
 
 desired_capabilities = DesiredCapabilities.CHROME # 修改页面加载策略
 desired_capabilities["pageLoadStrategy"] = "none" 

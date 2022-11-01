@@ -16,7 +16,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
-from ba.web import *
+from mbapy.web import *
 
 dataRoot = "D:\AI\DataSet\AlphaMedia\mediaDataBase_v2"
 dbPath = os.path.join(dataRoot, "contentsInfo.xlsx")

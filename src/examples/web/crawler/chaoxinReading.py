@@ -10,7 +10,7 @@ import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
-from ba.web import *
+from mbapy.web import *
 
 browser = webdriver.Chrome(CHROMEDRIVERPATH)
 myID = ReadObjFromJSON('_ID.json')['chaoxing']

@@ -10,8 +10,9 @@ from io import BytesIO
 import requests
 from PIL import Image
 
-from ba.web import *
-
+from mbapy.web import *
+import mbapy
+print(mbapy.__version__.__author__)
 
 def getImg(taskQue, doneDataQue, sig, statuesQue):
     while True:

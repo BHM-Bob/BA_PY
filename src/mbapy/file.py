@@ -1,10 +1,4 @@
-'''
-Author: BHM-Bob 2262029386@qq.com
-Date: 2022-04-06 09:20:45
-LastEditors: BHM-Bob
-LastEditTime: 2022-10-19 23:06:34
-Description: 
-'''
+
 import chardet
 
 

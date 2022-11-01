@@ -70,8 +70,6 @@ def ReadDFFromEXCEL(path:str, ignoreHead:bool = True,
         return df
     return invalidPathReturn
 
-
-
 def GetBetweenAndHT(string:str, head:str, tail:str):
     """ret include head and tail"""
     headIdx = string.find(head)
