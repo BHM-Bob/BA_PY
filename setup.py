@@ -25,12 +25,11 @@ requires = [
     "cn2an>=0.5.17",
     "holoviews>=1.13.1",
     "imageio>=2.20.2",
-    "importlib-metadata>=4.12.0",
     "jieba>=0.42.1",
     "Markdown>=3.4.1",
     "matplotlib>=3.5.3",
     "multiprocess>=0.70.13",
-    "numpy>=1.20.3",
+    # "numpy>=1.22.1",
     "pandas>=1.4.3",
     "pathtools>=0.1.2",
     "pdfkit>=1.0.0",
@@ -46,7 +45,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.0.2",
+    version = "0.0.3",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -74,7 +73,7 @@ setup(
     author_email = "bhmfly@foxmail.com",
     
     # package_dir={"": "src"},
-    packages=["src/mbapy"],
+    packages=["mbapy"],
     
     include_package_data = True,
     platforms = "any",
