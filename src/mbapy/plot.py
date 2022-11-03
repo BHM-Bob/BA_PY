@@ -80,6 +80,7 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     bar_space = 0.2
     xrotations = [0]*len(factors)
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]
     """
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     

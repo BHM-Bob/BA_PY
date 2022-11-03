@@ -19,12 +19,12 @@ here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / "README.md").read_text(encoding="utf-8")
 
 requires = [
-    "beautifulsoup4>=4.11.1",
-    "bokeh>=2.4.3",
+    "beautifulsoup4>=4.10.1",
+    "bokeh>=2.3.3",
     "chardet>=5.0.0",
     "cn2an>=0.5.17",
-    "holoviews>=1.15.1",
-    "imageio>=2.22.2",
+    "holoviews>=1.13.1",
+    "imageio>=2.20.2",
     "importlib-metadata>=4.12.0",
     "jieba>=0.42.1",
     "Markdown>=3.4.1",
@@ -62,7 +62,7 @@ setup(
         "Programming Language :: Python :: 3 :: Only",
     ],
         
-    keywords = ("pip", "mbapy", "Utilities", "scripts"),
+    keywords = ("mbapy", "Utilities", "plot"),
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',

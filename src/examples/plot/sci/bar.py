@@ -4,9 +4,9 @@ import pandas as pd
 
 from mbapy import plot
 
-plt.rcParams['axes.titlesize'] = 15
-plt.rcParams['axes.labelsize'] = 15
-plt.rcParams['font.size'] = 15
+plt.rcParams['axes.titlesize'] = 20
+plt.rcParams['axes.labelsize'] = 20
+plt.rcParams['font.size'] = 20
 plt.rcParams['figure.figsize'] = (7, 7)
     
 df = pd.read_excel(r"E:\HC\Desktop\学科笔记\植物生理学\植物生理学实验\2-缺素\data\data.xlsx", sheet_name="ym")
@@ -32,7 +32,7 @@ for solution, group in snk:
              y = 2+np.array(ndf.loc[(ndf['solution'] == solution) & (ndf['time'] == 'after'), ['whole']])[0],
              fontweight = 'bold')
 # print
-ax.legend(loc='upper left', title = "Organ",
+ax.legend(loc='upper left', title = "organ",
         title_fontsize = 20, ncol = 3, columnspacing = 0.6, handletextpad = 0.1)
 title = f'A : Mean value of whole length to each solution'
 # ax.set_title(title, fontsize=18, fontweight = 'bold')
