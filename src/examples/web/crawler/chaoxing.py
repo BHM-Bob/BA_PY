@@ -10,8 +10,9 @@ from io import BytesIO
 import requests
 from PIL import Image
 
-from mbapy.web import *
 import mbapy
+from mbapy.web import *
+
 print(mbapy.__version__.__author__)
 
 def getImg(taskQue, doneDataQue, sig, statuesQue):
@@ -30,7 +31,7 @@ imgList = []
 iscontinue = True
 tp = ThreadsPool(8, getImg, statuesQue)
 while iscontinue:
-    lastPageLink = str(GetInput("input last png 's link:"))
+    lastPageLink = str(get_input("input last png 's link:"))
     imgHref = '/'.join(lastPageLink.split('/')[:-1]) + '/'
     sumPages = int(lastPageLink.replace(imgHref,'').replace('.png','')) + 1
     name = lastPageLink.split('/')[-3]
@@ -41,5 +42,5 @@ while iscontinue:
     dataList.sort(key = lambda x : x[0])
     imgList = [ i[1] for i in dataList ]
     imgList[0].save("E:/"+name+".pdf", "pdf", save_all=True, append_images=imgList[1:])
-    iscontinue = GetInput("input 1 means continue, others means quit:") == '1'
+    iscontinue = get_input("input 1 means continue, others means quit:") == '1'
 

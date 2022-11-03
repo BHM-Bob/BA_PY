@@ -25,20 +25,20 @@ dataRoot = r"D:\AI\DataSet\AlphaMedia\mediaDataBase_v2"
 dbPath = os.path.join(dataRoot, "^record.json")
 url = "http://chemsub.online.fr/"
 url2 = "http://www.basechem.org"
-db = ReadObjFromJSON(dbPath) if os.path.isfile(dbPath) else []
+db = read_json(dbPath) if os.path.isfile(dbPath) else []
 browser = webdriver.Chrome(CHROMEDRIVERPATH)
-contents = ReadObjFromJSON(os.path.join(dataRoot, 'raw_cFreq0.json'))['content2pos']
+contents = read_json(os.path.join(dataRoot, 'raw_cFreq0.json'))['content2pos']
 
 for idx, content in enumerate(contents.keys()):
-    ShowProgInfo(idx, len(contents))
+    show_prog_info(idx, len(contents))
     browser.get(url)
     print('got page')
-    SendKeysByCSS(browser, 'input[type=text][name=which][id=which]', content)
-    ClickByCSS(browser, 'input[id=inphow01][type=submit][name=how]')
+    send_browser_key(browser, content, 'input[type=text][name=which][id=which]', 'css')
+    click_browser(browser, 'input[id=inphow01][type=submit][name=how]', 'css')
     bs = BeautifulSoup(browser.page_source, 'html.parser')
     items = bs.findAll('td', {'class':"list", })
     if len(items) > 0:
-        ClickByCSS(browser, 'a[target=_top][class=list]')
+        click_browser(browser, 'a[target=_top][class=list]', 'css')
         bs = BeautifulSoup(browser.page_source, 'html.parser')
         names, chNames = bs.findAll('tr', {'class':'vtop', }), []
         for idx, nDot in enumerate(names[10:]):
@@ -76,5 +76,5 @@ for idx, content in enumerate(contents.keys()):
         db.append([content, content, 'None', 'None', -1])
     
 browser.quit()
-SaveObjAsJSON(dbPath, db, encoding = 'gbk')
+save_json(dbPath, db, encoding = 'gbk')
 print("All Done")

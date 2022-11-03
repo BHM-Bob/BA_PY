@@ -30,23 +30,23 @@ requires = [
     "Markdown>=3.4.1",
     "matplotlib>=3.5.3",
     "multiprocess>=0.70.13",
-    "numpy>=1.23.3",
+    "numpy>=1.20.3",
     "pandas>=1.4.3",
     "pathtools>=0.1.2",
     "pdfkit>=1.0.0",
     "Pillow>=9.2.0",
     "plotly>=5.10.0",
-    "requests>=2.28.1",
+    "requests>=2.25.1",
     "scikit-learn>=1.1.2",
-    "scipy>=1.9.1",
+    "scipy>=1.5.1",
     "seaborn>=0.11.2",
-    "selenium>=4.5.0",
-    "urllib3>=1.26.12",
+    "selenium>=4.2.0",
+    "urllib3>=1.22.12",
 ]
 
 setup(
     name = "mbapy",
-    version = "0.0.1",
+    version = "0.0.2",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -81,3 +81,6 @@ setup(
     
     install_requires=requires,
 )
+
+# python setup.py sdist
+# twine upload dist/*

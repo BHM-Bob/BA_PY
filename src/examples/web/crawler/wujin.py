@@ -25,7 +25,7 @@ url2 = "http://www.basechem.org"
 db = []
 browser = webdriver.Chrome(CHROMEDRIVERPATH)
 
-d = ReadObjFromJSON(r"D:\AI\DataSet\AlphaMedia\mediaDataBase_v2\raw_cFreq0.json")
+d = read_json(r"D:\AI\DataSet\AlphaMedia\mediaDataBase_v2\raw_cFreq0.json")
 contents = d['content2pos']
 f2n = d['contentFullName2Name']
 d2 = [l[0] for l in db]
@@ -81,7 +81,7 @@ def SearchAKey(key:str, browser):
         
     
 for idx, content in enumerate(contents.keys()):
-    ShowProgInfo(idx, len(contents))
+    show_prog_info(idx, len(contents))
     if content not in d2:
         result = SearchAKey(content, browser)
         if result[-1] == -1:
@@ -89,7 +89,7 @@ for idx, content in enumerate(contents.keys()):
         db.append(result)
     
 browser.quit()
-Save2DAsEXCEL(dbPath, db, columns=['key', 'name', 'explaination', 'formula', 'mr',
+save_excel(dbPath, db, columns=['key', 'name', 'explaination', 'formula', 'mr',
                                    'character', 'density', 'solobility', 'usage'],
             encoding='gbk')
 print("All Done")

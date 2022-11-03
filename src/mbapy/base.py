@@ -5,7 +5,7 @@ from functools import wraps
 import numpy as np
 
 
-def TimeCosts( runTimes = 1 ):
+def TimeCosts(runTimes:int = 1):
     """
     @TimeCosts(9)
     def f(r):
@@ -27,7 +27,7 @@ def TimeCosts( runTimes = 1 ):
         return Wrapper_1
     return Wrapper_0
 
-def RandChooce4Times(choicesRange = [0,10], times = 100):
-    randSeq = np.random.randint(low = choicesRange[0], high = choicesRange[1]+1, size = [times])
-    count = [ np.sum(np.equal(randSeq,i)) for i in range(choicesRange[0],choicesRange[1]+1) ]
+def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
+    randSeq = np.random.randint(low = choices_range[0], high = choices_range[1]+1, size = [times])
+    count = [ np.sum(np.equal(randSeq,i)) for i in range(choices_range[0],choices_range[1]+1) ]
     return np.argmax(np.array(count))
