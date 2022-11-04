@@ -15,6 +15,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from base import put_err
+
 CHROMEDRIVERPATH = r"C:\Users\BHMfly\AppData\Local\Google\Chrome\Application\chromedriver.exe"
 
 def get_url_page(url:str, coding = 'gbk'):
@@ -75,6 +77,10 @@ def get_between(string:str, head:str, tail:str,
                retHead:bool = False, retTail:bool = False):
     headIdx = string.rfind(head) if headRFind else string.find(head)
     tailIdx = string.rfind(tail) if tailRFind else string.find(tail)
+    if headIdx == -1 or tailIdx == -1:
+        return put_err(f"{head if headIdx == -1 else tail:s} not found, return string", string)
+    if headIdx == tailIdx:
+        return put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return string", string)
     idx1 = headIdx if retHead else headIdx+len(head)
     idx2 = tailIdx+len(tail) if retTail else tailIdx
     return string[idx1:idx2]

@@ -1,9 +1,10 @@
-
+import sys
 import time
 from functools import wraps
 
 import numpy as np
 
+__NO_ERR__ = False
 
 def TimeCosts(runTimes:int = 1):
     """
@@ -31,3 +32,8 @@ def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
     randSeq = np.random.randint(low = choices_range[0], high = choices_range[1]+1, size = [times])
     count = [ np.sum(np.equal(randSeq,i)) for i in range(choices_range[0],choices_range[1]+1) ]
     return np.argmax(np.array(count))
+
+def put_err(info:str, ret = None):
+    if not __NO_ERR__:
+        print(f'\nERR : {sys._getframe().f_code.co_name:s} : {info:s}\n')
+    return ret
