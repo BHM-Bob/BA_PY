@@ -31,16 +31,17 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
     for tag in tags:
         ndf[0] += [tag, tag+'_SE', tag+'_N']
     for factorCombi in itertools.product(*factor_contents):
-        line = []
-        for idx, tag in enumerate(tags):
-            factorMask = df[factors[0]] == factorCombi[0]
-            for i in range(1, len(factors)):
-                factorMask &= df[factors[i]] == factorCombi[i]
-            values = np.array(df.loc[factorMask, [tag]])
-            line.append(values.mean())
-            line.append(values.std(ddof = 1)/np.sqrt(values.shape[0]))
-            line.append(values.shape[0])
-        ndf.append(list(factorCombi) + line)
+        factorMask = np.array(df[factors[0]] == factorCombi[0])
+        for i in range(1, len(factors)):
+            factorMask &= np.array(df[factors[i]] == factorCombi[i])
+        if(factorMask.sum() > 0):
+            line = []
+            for idx, tag in enumerate(tags):
+                values = np.array(df.loc[factorMask, [tag]])
+                line.append(values.mean())
+                line.append(values.std(ddof = 1)/np.sqrt(values.shape[0]))
+                line.append(values.shape[0])
+            ndf.append(list(factorCombi) + line)
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
 def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
@@ -69,6 +70,13 @@ def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
         ndf.append(list(factorCombi) + np.array(df.loc[factorMask, tags].values))
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
+class AxisLable():
+    def __init__(self, name:str, hold_space:int = 1) -> None:
+        self.name = name
+        self.hold_space = hold_space
+    def add_space(self, space:int = 1):
+        self.hold_space += space
+
 def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     """
     stack bar plot with hue style\n
@@ -96,25 +104,29 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     colors = get_arg('colors', kwargs, plt.rcParams['axes.prop_cycle'].by_key()['color'])
     offset = get_arg('offset', kwargs, [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))])
     
-    factor_uc_sum = [ len(df[f].unique()) for f in factors ]
-    factor_contents, fc_old, pos = [], '', []
-    for i, f in enumerate(factors):
-        factor_contents.append([])
-        for fc in df[f]:
+    xlabels, fc_old, pos = [ [] for _ in range(len(factors))], '', []
+    for f_i, f in enumerate(factors):
+        for fc_i, fc in enumerate(df[f]):
             if fc != fc_old:
-                factor_contents[i].append(fc)
+                xlabels[f_i].append(AxisLable(fc))
                 fc_old = fc
-    factor_contents.append([factors[-1]])#master level has an extra total axis as x_title
-    for axis_idx, fc in enumerate(factor_contents[:-1]):
+            else:
+                xlabels[f_i][-1].add_space()
+    xlabels.append([AxisLable(factors[-1], df.shape[0])])#master level has an extra total axis as x_title
+    for axis_idx in range(len(xlabels)):
         pos.append([])
         if axis_idx == 0:
-            for fc_idx in range(len(factor_contents[axis_idx+1])):
-                st_pos = bar_space + (factor_uc_sum[axis_idx]*width+bar_space) * fc_idx
-                pos[axis_idx] += [st_pos+width*(i+0.5) for i in range(factor_uc_sum[axis_idx])]
+            st_pos = bar_space
+            for h_fc_idx in range(len(xlabels[axis_idx+1])):
+                sum_this_hue_bar = xlabels[axis_idx+1][h_fc_idx].hold_space
+                pos[axis_idx] += [st_pos+width*(i+0.5) for i in range(sum_this_hue_bar)]
+                st_pos += (sum_this_hue_bar*width+bar_space)
         else:
-            sum_c, half_width = len(factor_contents[axis_idx]), 0.5/len(factor_contents[axis_idx])
-            pos[axis_idx] = (np.arange(sum_c)/sum_c + half_width).tolist()
-    pos.append([0.5])#master level has an extra total axis as x_title
+            st_pos = 0
+            for fc_idx in range(len(xlabels[axis_idx])):
+                this_hue_per = xlabels[axis_idx][fc_idx].hold_space / df.shape[0]
+                pos[axis_idx].append(st_pos+this_hue_per/2)
+                st_pos += this_hue_per
     bottom = get_arg('bottom', kwargs, np.zeros(len(pos[0])))
     
     for yIdx, yName in enumerate(tags):
@@ -123,15 +135,18 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
         bottom += df[yName]
         
     ax1.set_xlim(0, pos[0][-1]+bar_space+width/2)
-    ax1.set_xticks(pos[0], factor_contents[0])
+    ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=xrotations[0])
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
         axs.append(ax1.twiny())
-        axs[-1].set_xticks(sub_pos, factor_contents[idx+1])
+        axs[-1].set_xticks(sub_pos, [l.name for l in xlabels[idx+1]])
         new_axisline = axs[-1].get_grid_helper().new_fixed_axis
         axs[-1].axis["bottom"] = new_axisline(loc="bottom", axes=axs[-1], offset=(0, -offset[idx]))
         plt.setp(axs[-1].axis["bottom"].major_ticklabels, rotation=xrotations[idx+1])
+        axs[-1].axis["top"].major_ticks.set_ticksize(0)
+        # TODO : do not work
+        axs[-1].axis["right"].major_ticks.set_ticksize(0)
     
     return np.array(pos[0]), ax1

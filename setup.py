@@ -45,7 +45,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.0.3",
+    version = "0.0.4",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -57,7 +57,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
+        # "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3 :: Only",
     ],
         

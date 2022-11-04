@@ -82,9 +82,9 @@ def get_between(string:str, head:str, tail:str,
 
 def transfer_str2by(by:str):
     if by == 'class':
-        by = By.CLASS_NAME
+        return By.CLASS_NAME
     elif by == 'css':
-        by = By.CSS_SELECTOR
+        return By.CSS_SELECTOR
     else:
         raise Exception("unkown by : "+by)
 def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int = 5):
