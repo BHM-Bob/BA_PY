@@ -73,7 +73,8 @@ setup(
     author_email = "bhmfly@foxmail.com",
     
     # package_dir={"": "src"},
-    packages=["mbapy"],
+    # packages=["mbapy"],
+    packages=find_packages("mbapy"),
     
     include_package_data = True,
     platforms = "any",

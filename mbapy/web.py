@@ -9,15 +9,14 @@ import urllib.request
 from queue import Queue
 
 import pandas as pd
+from base import put_err
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from base import put_err
-
-CHROMEDRIVERPATH = r"C:\Users\BHMfly\AppData\Local\Google\Chrome\Application\chromedriver.exe"
+CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
 
 def get_url_page(url:str, coding = 'gbk'):
     req = urllib.request.Request(url)
