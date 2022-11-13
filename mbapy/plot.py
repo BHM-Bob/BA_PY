@@ -165,9 +165,9 @@ def plot_positional_hue(factors:list[str], tags:list[str], df:pd.DataFrame, **kw
     def ret_wrapper(core_plot_func):
         def core_wrapper(**kwargs):
             ax1 = host_subplot(111, axes_class=axisartist.Axes)
-            # TODO : way err, not find tags
-            # if len(tags) == 0:
-            #     tags = list(df.columns)[len(factors):]    
+            nonlocal tags
+            if len(tags) == 0:
+                tags = list(df.columns)[len(factors):]    
             margs = get_wanted_args({'width':0.4, 'bar_space':0.2, 'xrotations':[0]*len(factors),
                                     'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
                                     'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]},
