@@ -2,6 +2,7 @@ import _thread
 import http.cookiejar
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -83,6 +84,18 @@ def get_between(string:str, head:str, tail:str,
     idx1 = headIdx if retHead else headIdx+len(head)
     idx2 = tailIdx+len(tail) if retTail else tailIdx
     return string[idx1:idx2]
+def get_between_re(string:str, head:str, tail:str,
+               head_r:bool = False, tail_r:bool = True,
+                ret_head:bool = False, ret_tail:bool = False):
+    """support re
+    """
+    h = re.compile(head).search(string) if len(head) > 0 else ''
+    t = re.compile(tail).search(string)
+    if h is None or t is None:
+        return put_err(f"not found with head:{head:s} and tail:{tail:s}, return string", string)
+    else:
+        h, t = h.group(0) if h is not '' else '', t.group(0)
+    return get_between(string, h, t, head_r, tail_r, ret_head, ret_tail)
 
 
 def transfer_str2by(by:str):
@@ -101,6 +114,8 @@ def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int 
         elem = browser.find_element(by, 'which')  # Find the search box
         elem.send_keys(keys)        
 def click_browser(browser, element:str, by:str = 'class', wait = 5):
+    """by = calss | css
+    """
     by = transfer_str2by(by)
     try:
         element = WebDriverWait(browser, wait).\

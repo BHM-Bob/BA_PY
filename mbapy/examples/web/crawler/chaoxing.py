@@ -5,15 +5,15 @@ LastEditors: BHM-Bob G
 LastEditTime: 2022-07-12 16:20:24
 Description: 
 '''
+import sys
 from io import BytesIO
 
 import requests
 from PIL import Image
 
-import mbapy
-from mbapy.web import *
+sys.path.append(r'../../../../mbapy/')
+from web import *
 
-print(mbapy.__version__.__author__)
 
 def getImg(taskQue, doneDataQue, sig, statuesQue):
     while True:

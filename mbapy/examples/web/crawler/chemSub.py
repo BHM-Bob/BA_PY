@@ -6,6 +6,7 @@ LastEditTime: 2022-05-29 17:31:54
 Description: get media contents info
 '''
 import ssl
+import sys
 
 ssl._create_default_https_context = ssl._create_unverified_context
 import os
@@ -15,6 +16,9 @@ import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+sys.path.append(r'../../../../mbapy/')
+from web import *
 
 from mbapy.web import *
 

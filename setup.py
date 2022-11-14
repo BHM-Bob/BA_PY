@@ -57,7 +57,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
-        # "Programming Language :: Python :: 3.11",
+        # "Programming Language :: Python :: 3.11",# wait to numpy
         "Programming Language :: Python :: 3 :: Only",
     ],
         
@@ -65,7 +65,7 @@ setup(
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',
-    python_requires=">=3.7.0",
+    python_requires=">=3.7, <=3.10",
     license = "MIT Licence",
 
     url = "https://github.com/BHM-Bob/BA_PY",
