@@ -48,6 +48,21 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
             ndf.append(list(factorCombi) + line)
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
+def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
+                include_factors:bool = False):
+    #sub_df = ndf.loc[(ndf['size'] == size) & (ndf['light'] == light), ['c', 'w', 'SE']]
+    #sub_df = get_df_data([('size', size), ('light', light)], ['c', 'w', 'SE'])
+    if include_factors:
+        raise NotImplementedError
+    first_run = True
+    for factor_name in factors:
+        for sub_factor in factors[factor_name]:
+            if first_run:
+                factorMask = np.array(df[factor_name] == sub_factor)
+            else:
+                factorMask &= np.array(df[factor_name] == sub_factor)
+    return df.loc[factorMask, tags]
+
 def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
     """UnTested
     sort each combinations of facotors\n

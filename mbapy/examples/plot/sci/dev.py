@@ -1,3 +1,10 @@
+'''
+Author: BHM-Bob 2262029386@qq.com
+Date: 2022-11-04 12:33:19
+LastEditors: BHM-Bob
+LastEditTime: 2022-12-04 01:12:22
+Description: 
+'''
 import sys
 
 sys.path.append(r'../../../../mbapy/')
@@ -14,6 +21,7 @@ plt.rcParams['figure.figsize'] = (7, 7)
 df = pd.read_excel(r"data/plot.xlsx", sheet_name="xm")
 solutions = df['solution'].unique().tolist()
 ndf = plot.pro_bar_data(['type', 'solution'], [], df)
+# print(plot.get_df_data({'type':['single', 'full'], 'solution':['KCl']}, ['root', 'leaf'], df))
 
 @plot.plot_positional_hue(['solution', 'type'], ['root'], ndf)
 def plot_a_bar(ax, x, y, label, label_idx, margs, **kwargs):
