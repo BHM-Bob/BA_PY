@@ -1,3 +1,10 @@
+'''
+Author: BHM-Bob 2262029386@qq.com
+Date: 2022-11-01 18:30:01
+LastEditors: BHM-Bob
+LastEditTime: 2022-12-03 16:41:06
+Description: 
+'''
 """
 something is from https://github.com/pypa/sampleproject
 """
@@ -41,6 +48,7 @@ requires = [
     "seaborn>=0.11.2",
     "selenium>=4.2.0",
     "urllib3>=1.22.12",
+    "openpyxl",
 ]
 
 setup(
