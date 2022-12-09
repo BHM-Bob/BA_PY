@@ -49,19 +49,20 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
 def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
-                include_factors:bool = False):
-    #sub_df = ndf.loc[(ndf['size'] == size) & (ndf['light'] == light), ['c', 'w', 'SE']]
-    #sub_df = get_df_data([('size', size), ('light', light)], ['c', 'w', 'SE'])
+                include_factors:bool = True):
+    #sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
+    #sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
+    def update_mask(mask, other:np.ndarray, method:str = '&'):
+        return other if mask is None else (mask&other if method == '&' else mask|other)
     if include_factors:
-        raise NotImplementedError
-    first_run = True
+        tags = list(factors.keys()) + tags
+    mask = None
     for factor_name in factors:
+        sub_mask = None
         for sub_factor in factors[factor_name]:
-            if first_run:
-                factorMask = np.array(df[factor_name] == sub_factor)
-            else:
-                factorMask &= np.array(df[factor_name] == sub_factor)
-    return df.loc[factorMask, tags]
+            sub_mask = update_mask(sub_mask, np.array(df[factor_name] == sub_factor), '|')
+        mask = update_mask(mask, sub_mask, '&')
+    return df.loc[mask, tags]
 
 def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
     """UnTested
