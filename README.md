@@ -1,3 +1,10 @@
+<!--
+ * @Author: BHM-Bob 2262029386@qq.com
+ * @Date: 2022-10-19 22:16:22
+ * @LastEditors: BHM-Bob
+ * @LastEditTime: 2022-12-09 17:23:24
+ * @Description: 
+-->
 # BA_PY
 some helpful python scripts. (Basic for All in Python)
 
@@ -19,7 +26,8 @@ some helpful python scripts. (Basic for All in Python)
 1. pro_bar_data: func to calcu bar data as mean value and SE value
 2. sort_df_factors: func
 3. plot_bar: func to create a stack bar plot with hue style
-4. plot_positional_hue: wrapper to create a pos-y plot with hue style
+4. get_df_data: func to make extracting data from dataFrame more easily based on df.loc
+5. plot_positional_hue: wrapper to create a pos-y plot with hue style
 
 
 ##### web
