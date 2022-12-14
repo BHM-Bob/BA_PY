@@ -124,7 +124,7 @@ def click_browser(browser, element:str, by:str = 'class', wait = 5):
         rc = browser.find_element_by_class_name(element)
 
 
-def wait_for_quit(statuesQue,):
+def _wait_for_quit(statuesQue,):
     flag = 1
     while flag:
         s = input()
@@ -245,4 +245,4 @@ statuesQue.put(
         "input": None,
     }
 )
-_thread.start_new_thread(wait_for_quit, (statuesQue,))
+_thread.start_new_thread(_wait_for_quit, (statuesQue,))

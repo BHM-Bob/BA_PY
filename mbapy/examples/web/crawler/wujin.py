@@ -2,7 +2,7 @@
 Author: BHM-Bob G 2262029386@qq.com
 Date: 2022-05-12 13:22:15
 LastEditors: BHM-Bob
-LastEditTime: 2022-10-19 22:53:54
+LastEditTime: 2022-12-10 11:23:58
 Description: 
 '''
 import os
@@ -19,8 +19,6 @@ from selenium.webdriver.common.keys import Keys
 
 sys.path.append(r'../../../../mbapy/')
 from web import *
-
-from mbapy.web import *
 
 dataRoot = "D:\AI\DataSet\AlphaMedia\mediaDataBase_v2"
 dbPath = os.path.join(dataRoot, "contentsInfo.xlsx")
