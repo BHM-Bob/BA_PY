@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob
-LastEditTime: 2022-12-15 00:44:24
+LastEditTime: 2022-12-15 01:41:58
 Description: 
 '''
 """
@@ -51,9 +51,10 @@ requires = [
     "urllib3>=1.22.12",
     "openpyxl",
 ]
+
 setup(
     name = "mbapy",
-    version = "0.0.6",
+    version = "0.0.8",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -90,4 +91,4 @@ setup(
 )
 
 # python setup.py sdist
-# twine upload dist/*
+# twine upload dist/mbapy-0.0.8.tar.gz

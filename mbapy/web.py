@@ -10,12 +10,13 @@ import urllib.request
 from queue import Queue
 
 import pandas as pd
-from base import put_err
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
+from mbapy.base import put_err
 
 CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
 
@@ -94,7 +95,7 @@ def get_between_re(string:str, head:str, tail:str,
     if h is None or t is None:
         return put_err(f"not found with head:{head:s} and tail:{tail:s}, return string", string)
     else:
-        h, t = h.group(0) if h is not '' else '', t.group(0)
+        h, t = h.group(0) if h != '' else '', t.group(0)
     return get_between(string, h, t, head_r, tail_r, ret_head, ret_tail)
 
 

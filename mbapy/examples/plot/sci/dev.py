@@ -2,16 +2,17 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2022-12-09 17:18:42
+LastEditTime: 2022-12-15 01:01:11
 Description: 
 '''
 import sys
 
-sys.path.append(r'../../../../mbapy/')
+sys.path.append(r'../../../')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plot
+
+import mbapy.plot as plot
 
 plt.rcParams['axes.titlesize'] = 20
 plt.rcParams['axes.labelsize'] = 20
