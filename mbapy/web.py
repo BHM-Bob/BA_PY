@@ -28,7 +28,7 @@ def get_url_page(url:str, coding = 'gbk'):
                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36")
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     urllib.request.install_opener(opener)
-    return opener.open(url,timeout = 30).read().decode(coding,errors = 'ignore')
+    return opener.open(req,timeout = 30).read().decode(coding,errors = 'ignore')
 def get_url_page_s(url:str, coding = 'gbk'):
     try:
         return get_url_page(url, coding)
