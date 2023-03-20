@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob
-LastEditTime: 2022-12-15 01:41:58
+LastEditTime: 2023-03-21 00:37:37
 Description: 
 '''
 """
@@ -54,7 +54,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.0.8",
+    version = "0.0.9",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -82,7 +82,7 @@ setup(
     author_email = "bhmfly@foxmail.com",
     
     # packages=["mbapy"],
-    packages=["mbapy", "mbapy/stats"],
+    packages=["mbapy", "mbapy/stats", "mbapy/dl_torch"],
     
     include_package_data = True,
     platforms = "any",
