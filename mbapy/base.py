@@ -1,8 +1,16 @@
+'''
+Author: BHM-Bob 2262029386@qq.com
+Date: 2022-10-19 22:46:30
+LastEditors: BHM-Bob
+LastEditTime: 2023-03-21 00:36:28
+Description: 
+'''
 import sys
 import time
 from functools import wraps
 
 import numpy as np
+
 
 __NO_ERR__ = False
 
@@ -55,6 +63,11 @@ class MyArgs():
         return self
     def add_arg(self, arg_name:str, arg_value, force_update = True):
         setattr(self, arg_name, arg_value)
+    def toDict(self):
+        dic = {}
+        for attr in vars(self):
+            dic[attr] = getattr(self,attr)
+        return dic   
 
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """

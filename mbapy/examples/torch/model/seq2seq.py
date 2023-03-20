@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-import torch
+import dl_torch
 
 SEQ_MAX_LEN = 522
 
@@ -17,7 +17,7 @@ class Encoder(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-        self.scale = torch.sqrt(torch.FloatTensor([hid_dim])).to(device)
+        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([hid_dim])).to(device)
         
     def forward(self, src, src_mask):
         
@@ -27,7 +27,7 @@ class Encoder(nn.Module):
         batch_size = src.shape[0]
         src_len = src.shape[1]
         
-        pos = torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
+        pos = dl_torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
         
         #pos = [batch size, src len]
         
@@ -54,7 +54,7 @@ class PositionwiseFeedforwardLayer(nn.Module):
         
         #x = [batch size, seq len, hid dim]
         
-        x = self.dropout(torch.relu(self.fc_1(x)))
+        x = self.dropout(dl_torch.relu(self.fc_1(x)))
         
         #x = [batch size, seq len, pf dim]
         
@@ -82,7 +82,7 @@ class MultiHeadAttentionLayer(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-        self.scale = torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
+        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([self.head_dim])).to(device)
         
     def forward(self, query, key, value, mask = None):
         
@@ -108,18 +108,18 @@ class MultiHeadAttentionLayer(nn.Module):
         #K = [batch size, n heads, key len  , head dim]
         #V = [batch size, n heads, value len, head dim]
                 
-        energy = torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
+        energy = dl_torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
         
         #energy = [batch size, n heads, query len, key len]
         
         if mask is not None:
             energy = energy.masked_fill(mask == 0, -1e10)
         
-        attention = torch.softmax(energy, dim = -1)
+        attention = dl_torch.softmax(energy, dim = -1)
                 
         #attention = [batch size, n heads, query len, key len]
                 
-        x = torch.matmul(self.dropout(attention), V)
+        x = dl_torch.matmul(self.dropout(attention), V)
         
         #x = [batch size, n heads, query len, head dim]
         
@@ -251,7 +251,7 @@ class Decoder(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-        self.scale = torch.sqrt(torch.FloatTensor([hid_dim])).to(device)
+        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([hid_dim])).to(device)
         
     def forward(self, trg, enc_src, trg_mask, src_mask):
         
@@ -263,7 +263,7 @@ class Decoder(nn.Module):
         batch_size = trg.shape[0]
         trg_len = trg.shape[1]
         
-        pos = torch.arange(0, trg_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
+        pos = dl_torch.arange(0, trg_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
                             
         #pos = [batch size, trg len]
             
@@ -313,7 +313,7 @@ class Seq2Seq(nn.Module):
         
         trg_len = trg.shape[1]
         
-        trg_sub_mask = torch.tril(torch.ones((trg_len, trg_len), device = self.device)).bool()
+        trg_sub_mask = dl_torch.tril(dl_torch.ones((trg_len, trg_len), device = self.device)).bool()
         
         #trg_sub_mask = [trg len, trg len]
             

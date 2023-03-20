@@ -1,6 +1,5 @@
 import _thread
 import http.cookiejar
-import json
 import os
 import re
 import time
@@ -17,6 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from mbapy.base import put_err
+from mbapy.file import save_json, read_json, save_excel, read_excel
 
 CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
 
@@ -48,30 +48,6 @@ def get_url_page(browser, url:str, return_html_text:bool = False, debug = False)
     if return_html_text:
         return BeautifulSoup(html, 'html.parser'), html
     return BeautifulSoup(html, 'html.parser')
-
-
-def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
-    if forceUpdate or not os.path.isfile(path):
-        json_str = json.dumps(obj, indent=1)
-        with open(path, 'w' ,encoding=encoding, errors='ignore') as json_file:
-            json_file.write(json_str)
-def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
-    if os.path.isfile(path):
-        with open(path, 'r' ,encoding=encoding, errors='ignore') as json_file:
-            json_str = json_file.read()
-        return json.loads(json_str)
-    return invalidPathReturn
-def save_excel(path:str, obj:list[list[str]], columns:list[str], encoding:str = 'utf-8', forceUpdate = True):
-    if forceUpdate or not os.path.isfile(path):
-        df = pd.DataFrame(obj, columns=columns)
-        df.to_excel(path, encoding = encoding)
-def read_excel(path:str, ignoreHead:bool = True,
-                  ignoreFirstCol:bool = True, invalidPathReturn = None):
-    if os.path.isfile(path):
-        df = pd.read_excel(path, )
-        return df
-    return invalidPathReturn
-
 
 def get_between(string:str, head:str, tail:str,
                headRFind:bool = False, tailRFind:bool = True,
