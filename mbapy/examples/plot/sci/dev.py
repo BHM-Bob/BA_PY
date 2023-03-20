@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2022-12-15 01:01:11
+LastEditTime: 2023-03-20 23:06:04
 Description: 
 '''
 import sys
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import mbapy.plot as plot
+import plot
 
 plt.rcParams['axes.titlesize'] = 20
 plt.rcParams['axes.labelsize'] = 20
@@ -23,6 +23,11 @@ df = pd.read_excel(r"data/plot.xlsx", sheet_name="xm")
 solutions = df['solution'].unique().tolist()
 ndf = plot.pro_bar_data(['type', 'solution'], [], df)
 # print(plot.get_df_data({'type':['single', 'full'], 'solution':['KCl']}, ['root', 'leaf'], df))
+@plot.pro_bar_data_R(['type', 'solution'], [], df, ['', '_SUM'])
+def get_sum(values):
+    return [values.mean(), values.sum()]
+ndf2 = get_sum()
+print(ndf2)
 
 @plot.plot_positional_hue(['solution', 'type'], ['root'], ndf)
 def plot_a_bar(ax, x, y, label, label_idx, margs, **kwargs):

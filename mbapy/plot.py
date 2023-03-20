@@ -48,6 +48,39 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
             ndf.append(list(factorCombi) + line)
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
+def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:list[str], **kwargs):
+    """
+    wrapper\n
+    @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf)\n
+    def plot_func(values, **kwargs):
+        return produced vars in list format whose length equal to len(suffix)
+    """
+    def ret_wrapper(core_func):
+        def core_wrapper(**kwargs):
+            nonlocal tags
+            if len(tags) == 0:
+                tags = list(df.columns)[len(factors):]
+            factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
+            ndf = [factors.copy()]
+            for tag in tags:
+                for suffix in suffixs:
+                    ndf[0] += [tag+suffix]
+            for factorCombi in itertools.product(*factor_contents):
+                factorMask = np.array(df[factors[0]] == factorCombi[0])
+                for i in range(1, len(factors)):
+                    factorMask &= np.array(df[factors[i]] == factorCombi[i])
+                if(factorMask.sum() > 0):
+                    line = []
+                    for idx, tag in enumerate(tags):
+                        values = np.array(df.loc[factorMask, [tag]])
+                        ret_line = core_func(values)
+                        assert len(ret_line) == len(suffixs), 'length of return value of core_func != len(suffixs)'
+                        line += ret_line
+                    ndf.append(list(factorCombi) + line)
+            return pd.DataFrame(ndf[1:], columns=ndf[0])
+        return core_wrapper
+    return ret_wrapper
+
 def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
                 include_factors:bool = True):
     #sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
