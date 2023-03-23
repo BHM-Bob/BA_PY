@@ -13,6 +13,9 @@ import numpy as np
 
 
 __NO_ERR__ = False
+Params = {
+    'LAUNCH_WEB_SUB_THREAD':False,
+}
 
 def TimeCosts(runTimes:int = 1):
     """

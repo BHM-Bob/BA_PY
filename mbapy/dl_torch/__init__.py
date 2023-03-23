@@ -5,6 +5,8 @@ LastEditors: BHM-Bob
 LastEditTime: 2023-03-21 00:06:31
 Description: 
 '''
+from . import *
+
 Params = {
     'USE_VIZDOM':True,
 }

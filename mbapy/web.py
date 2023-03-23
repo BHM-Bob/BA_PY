@@ -15,6 +15,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+import base
 from mbapy.base import put_err
 from mbapy.file import save_json, read_json, save_excel, read_excel
 
@@ -215,11 +216,12 @@ class ThreadsPool:
                 retList.append(que.get())
         return retList
 
-statuesQue = Queue()
-statuesQue.put(
-    {
-        "quit": False,
-        "input": None,
-    }
-)
-_thread.start_new_thread(_wait_for_quit, (statuesQue,))
+if base.Params['LAUNCH_WEB_SUB_THREAD']:
+    statuesQue = Queue()
+    statuesQue.put(
+        {
+            "quit": False,
+            "input": None,
+        }
+    )
+    _thread.start_new_thread(_wait_for_quit, (statuesQue,))
