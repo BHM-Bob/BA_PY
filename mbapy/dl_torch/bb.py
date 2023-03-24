@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-23 23:51:01
+LastEditTime: 2023-03-24 12:41:33
 Description: Basic Blocks
 '''
 
@@ -186,12 +186,12 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
     self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
     """
     def __init__(self, q_len, class_num, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
-        super(MultiHeadAttentionLayer).__init__(hid_dim, n_heads, dropout, device, kwargs)
-        if kwargs['use_enhanced_fc_q'] and 'q_len' in kwargs and 'out_len' in kwargs:
-            self.fc_q = nn.Sequential(nn.Linear(kwargs['q_len'], hid_dim),
+        super().__init__(hid_dim, n_heads, dropout, device, **kwargs)
+        if kwargs['use_enhanced_fc_q']:
+            self.fc_q = nn.Sequential(nn.Linear(q_len, hid_dim),
                                       nn.GELU(),
                                       nn.Dropout(dropout),
-                                      nn.Linear(hid_dim, kwargs['out_len']))
+                                      nn.Linear(hid_dim, class_num))
     def forward(self, query, key, value):
         # query = [batch size, query len, hid dim]
         # key = [batch size, key len, hid dim]
@@ -217,7 +217,7 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
         return self.fc_o(x)
     
 class EncoderLayer(nn.Module):
-    def __init__(self, hid_dim, n_heads, pf_dim, dropout, device = 'cuda', **kwargs):
+    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device = 'cuda', **kwargs):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
         if not 'do_not_ff' in kwargs:
@@ -240,10 +240,11 @@ class EncoderLayer(nn.Module):
 
 class OutEncoderLayer(EncoderLayer):
     def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device = 'cuda', **kwargs):
-        super(EncoderLayer).__init__(hid_dim, n_heads, pf_dim, dropout, device, kwargs, do_not_ff = True)
+        kwargs.update({'do_not_ff':True})
+        super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.class_num = class_num
         self.self_attention = OutMultiHeadAttentionLayer(
-            q_len, class_num, hid_dim, n_heads, dropout, device, kwargs
+            q_len, class_num, hid_dim, n_heads, dropout, device, **kwargs
         )
         self.fc_out = nn.Linear(hid_dim, 1)
     def forward(self, src):
@@ -258,29 +259,31 @@ class OutEncoderLayer(EncoderLayer):
         return self.fc_out(src).reshape(-1, self.class_num)
 
 class Trans(nn.Module):
+    """[batch size, src len, hid dim]"""
     def __init__(self, q_len:int, class_num:int, hid_dim:int, n_layers:int, n_heads:int, pf_dim:int,
                  dropout:float, device:str, out_encoder_layer = OutEncoderLayer, **kwargs):
-        super(Trans, self).__init__()
+        super().__init__()
         assert n_layers > 0
         self.nn = nn.Sequential(
-            [EncoderLayer(hid_dim, n_heads, pf_dim, dropout, device, kwargs) for _ in range(n_layers - 1)]+\
-            [out_encoder_layer(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, kwargs)])
+            *([EncoderLayer(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs) \
+                for _ in range(n_layers - 1)]+\
+                [out_encoder_layer(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)]))
     def forward(self, src):
         return self.nn(src)
     
-class OutEncoderLayerRAvg2(nn.Module):
-    def __init__(self, k1, k2, newShape):
-        super(OutEncoderLayerRAvg2, self).__init__()
-        self.newShape = newShape
-        self.avg1 = nn.AvgPool1d(k1, 1, 0)
-        self.avg2 = nn.AvgPool1d(k2, k2, 0)
-    def forward(self, x):
-        x = self.avg1(x)
-        x = self.avg2(x.reshape(self.newShape))
-        return x
-class OutEncoderLayerR(nn.Module):
-    def __init__(self,q_len,class_num, hid_dim, n_heads, pf_dim, dropout, device):
+class OutEncoderLayerRAvg(nn.Module):
+    def __init__(self, k1, k2, new_shape):
         super().__init__()
+        self.nn = nn.Sequential(
+            nn.AvgPool1d(k1, 1, 0),
+            lambda x : x.reshape(new_shape),
+            nn.AvgPool1d(k2, k2, 0),
+        )
+    def forward(self, x):
+        return self.nn(x)
+class OutEncoderLayerR(OutEncoderLayer):
+    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs):
+        super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.q_len = q_len
         self.class_num = class_num
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
@@ -289,7 +292,7 @@ class OutEncoderLayerR(nn.Module):
         self.dropout = nn.Dropout(dropout)
         if q_len > class_num:
             assert q_len % class_num == 0
-            self.avgOut = OutEncoderLayerRAvg2(hid_dim, int(q_len/class_num),
+            self.avgOut = OutEncoderLayerRAvg(hid_dim, int(q_len/class_num),
                                                newShape = (-1, q_len))
         elif q_len < class_num:
             assert class_num % q_len == 0
