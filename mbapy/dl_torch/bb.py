@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-24 12:41:33
+LastEditTime: 2023-03-24 22:11:07
 Description: Basic Blocks
 '''
 
@@ -13,8 +13,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class reshape(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super(reshape, self).__init__()
+        self.shape = args
+    def forward(self, x):
+        return x.reshape(self.shape)
 
 class ScannCore(nn.Module):
+    """MHSA 单头版"""
     def __init__(self, inc, s, way="linear", dropout=0.2):
         super(ScannCore, self).__init__()
         self.inc = inc
@@ -78,7 +85,7 @@ class SCANN(nn.Module):
 
         self.SAcnn = nn.ModuleList(
             [
-                ScannCore(self.patch_num * self.group, self.patch_size, outway)
+                ScannCore(self.patch_num * self.group, self.patch_size, outway, dropout)
                 for _ in range(inc // group)
             ]
         )
@@ -187,7 +194,8 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
     """
     def __init__(self, q_len, class_num, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
         super().__init__(hid_dim, n_heads, dropout, device, **kwargs)
-        if kwargs['use_enhanced_fc_q']:
+        self.fc_q = nn.Linear(q_len, class_num)
+        if 'use_enhanced_fc_q' in kwargs and kwargs['use_enhanced_fc_q']:
             self.fc_q = nn.Sequential(nn.Linear(q_len, hid_dim),
                                       nn.GELU(),
                                       nn.Dropout(dropout),
@@ -220,10 +228,10 @@ class EncoderLayer(nn.Module):
     def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device = 'cuda', **kwargs):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
+        self.ff_layer_norm = nn.LayerNorm(hid_dim)
         if not 'do_not_ff' in kwargs:
-            self.ff_layer_norm = nn.LayerNorm(hid_dim)
+            self.positionwise_feedforward = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
         self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
-        self.positionwise_feedforward = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
         self.dropout = nn.Dropout(dropout)
     def forward(self, src):
         # src = [batch size, src len, hid dim]
@@ -246,17 +254,20 @@ class OutEncoderLayer(EncoderLayer):
         self.self_attention = OutMultiHeadAttentionLayer(
             q_len, class_num, hid_dim, n_heads, dropout, device, **kwargs
         )
+        self.ff_layer_norm = nn.LayerNorm(class_num)
         self.fc_out = nn.Linear(hid_dim, 1)
     def forward(self, src):
         # src = [batch size, src len, hid dim]
         # self attention
         # src = [batch size, class num, hid dim]
         src = self.self_attention(src, src, src)
-        # dropout, and layer norm
+        # dropout, residual connection and layer norm
         # src = [batch size, class num, hid dim]
-        src = self.self_attn_layer_norm(self.dropout(src))
+        src = self.self_attn_layer_norm(src + self.dropout(src))
+        # src = [batch size, class num]
+        _src = self.fc_out(src).reshape(-1, self.class_num)
         # ret = [batch size, class num]
-        return self.fc_out(src).reshape(-1, self.class_num)
+        return self.ff_layer_norm(self.dropout(_src))
 
 class Trans(nn.Module):
     """[batch size, src len, hid dim]"""
@@ -271,51 +282,6 @@ class Trans(nn.Module):
     def forward(self, src):
         return self.nn(src)
     
-class OutEncoderLayerRAvg(nn.Module):
-    def __init__(self, k1, k2, new_shape):
-        super().__init__()
-        self.nn = nn.Sequential(
-            nn.AvgPool1d(k1, 1, 0),
-            lambda x : x.reshape(new_shape),
-            nn.AvgPool1d(k2, k2, 0),
-        )
-    def forward(self, x):
-        return self.nn(x)
-class OutEncoderLayerR(OutEncoderLayer):
-    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs):
-        super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
-        self.q_len = q_len
-        self.class_num = class_num
-        self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
-        self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device, **kwargs)
-        #self.positionwise_feedforward = PositionwiseFeedforwardLayer(hid_dim,pf_dim,dropout)
-        self.dropout = nn.Dropout(dropout)
-        if q_len > class_num:
-            assert q_len % class_num == 0
-            self.avgOut = OutEncoderLayerRAvg(hid_dim, int(q_len/class_num),
-                                               newShape = (-1, q_len))
-        elif q_len < class_num:
-            assert class_num % q_len == 0
-            ks = int(q_len * hid_dim / class_num)
-            self.avgOut = nn.AvgPool1d(ks, ks, 0)
-        elif q_len == class_num:
-            self.avgOut = nn.AvgPool1d(hid_dim, 1, 0)
-    def forward(self, src):
-        batchSize = src.shape[0]
-        #src = [batch size, src len, hid dim]  
-        src = self.self_attention(src, src, src)
-        #src = [batch size, src len, hid dim] 
-        src = self.self_attn_layer_norm(self.dropout(src))      
-        #x: [b, l', c'//avgKernelSize]
-        src = self.avgOut(src).reshape(batchSize, self.class_num)
-        #retrun [batch size, class_num]   
-        return src
-class TransR(nn.Module):
-    def __init__(self, q_len:int, class_num:int, hid_dim:int, n_layers:int, n_heads:int, pf_dim:int,
-                 dropout:float, device:str, **kwargs):
-        super(Trans).__init__(q_len,class_num, hid_dim, n_layers, n_heads, pf_dim,
-                              dropout, device, OutEncoderLayerR, kwargs)
-
 class TransPE(Trans):
     def __init__(self, q_len:int, class_num:int, hid_dim:int, n_layers:int, n_heads:int, pf_dim:int,
                  dropout:float, device:str, **kwargs):
@@ -326,186 +292,139 @@ class TransPE(Trans):
         src = self.pos_embedding(src)
         # src = [batch size, class_num]
         return self.nn(src)
+    
+class OutEncoderLayerAvg(OutEncoderLayer):
+    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs):
+        super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
+        self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+        if q_len > class_num:
+            assert q_len % class_num == 0
+            self.fc_out = nn.Sequential(
+                nn.AvgPool1d(hid_dim, 1, 0),
+                reshape(-1, q_len),
+                nn.AvgPool1d(int(q_len/class_num), int(q_len/class_num), 0),
+            )
+        elif q_len < class_num:
+            assert class_num % q_len == 0
+            ks = int(q_len * hid_dim / class_num)
+            self.fc_out = nn.AvgPool1d(ks, ks, 0)
+        elif q_len == class_num:
+            self.fc_out = nn.AvgPool1d(hid_dim, 1, 0)
+class TransAvg(Trans):
+    def __init__(self, q_len:int, class_num:int, hid_dim:int, n_layers:int, n_heads:int, pf_dim:int,
+                 dropout:float, device:str, **kwargs):
+        super().__init__(q_len, class_num, hid_dim, n_layers, n_heads, pf_dim,
+                         dropout, device, OutEncoderLayerAvg, **kwargs)
 
 
 class SeparableConv2d(nn.Module):
     def __init__(self, inc, outc, kernel_size, stride, padding, depth = 1):
         super(SeparableConv2d, self).__init__()
-        self.nn = (
+        self.nn = nn.Sequential(
             nn.Conv2d(inc, outc*depth, kernel_size, stride, padding, groups=inc),# depthwise 
-            nn.Conv2d(outc*depth, outc, kernel_size=1),# pointwise 
-        )
+            nn.Conv2d(outc*depth, outc, kernel_size=1),# pointwise
+            )
     def forward(self, x):
         return self.nn(x)
 
 class ResBlock(nn.Module):
+    """Identity Mappings in Deep Residual Networks : proposed"""
     def __init__(self, ch_in, ch_out, stride=1):
         super(ResBlock, self).__init__()
-        self.conv1 = SeparableConv2d(ch_in, ch_out, kernel_size=3, stride=stride, padding=1)
-        self.bnl = nn.BatchNorm2d(ch_out)
-        self.conv2 = SeparableConv2d(ch_out, ch_out, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(ch_out)
+        self.nn = nn.Sequential(# full pre-activation
+            nn.BatchNorm2d(ch_in),
+            nn.ReLU(True),
+            SeparableConv2d(ch_in, ch_out, kernel_size=3, stride=stride, padding=1),
+            nn.BatchNorm2d(ch_out),
+            nn.ReLU(True),
+            SeparableConv2d(ch_out, ch_out, kernel_size=3, stride=1, padding=1),
+        )
         if ch_out != ch_in:
-            self.extra = nn.Sequential(
-                nn.Conv2d(ch_in, ch_out, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(ch_out),
-            )
+            self.extra = nn.Conv2d(ch_in, ch_out, kernel_size=1, stride=stride)
         else:
-            self.extra = nn.Sequential(
-                nn.Conv2d(ch_in, ch_out, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(ch_out),
-            )
-
-    def forward( self, inputs ):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
-        out = F.leaky_relu(self.bnl(self.conv1(inputs)))
-        out = self.bn2(self.conv2(out))
-        t = self.extra(inputs)
-        out = t + out
-        return out
-
+            self.extra = lambda x : x
+    def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
+        return self.nn(x)+self.extra(x)
+    
+class ResBlockR(ResBlock):
+    """Identity Mappings in Deep Residual Networks : exclusive gating"""
+    def __init__(self, ch_in, ch_out, stride=1):
+        super().__init__(ch_in, ch_out, stride)
+        self.extra = nn.Conv2d(ch_in, ch_out, kernel_size=1, stride=stride)
+    def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
+        t = self.extra(x)
+        return t.mul(self.nn(x))+(1.-torch.sigmoid_(t)).mul(self.extra(x))
 
 class SABlock(nn.Module):
-    def __init__(self, inc, outc):
-        super(SABlock, self).__init__()
-        # [ B , C , H , W ]
-        self.convh1 = nn.Conv2d(inc, outc // 4, (7, 5), stride=1, padding="same")
-        self.convh1_ = nn.Conv2d(
-            inc + outc // 4, outc // 4, (7, 5), stride=1, padding="same"
-        )
-        self.bnh1 = nn.BatchNorm2d(inc + outc // 4)
-        self.bnh2 = nn.BatchNorm2d(inc + outc // 4)
-        self.convh2 = nn.Conv2d(inc, outc // 4, (5, 3), stride=1, padding="same")
-        self.convh2_ = nn.Conv2d(
-            inc + outc // 4, outc // 4, (5, 3), stride=1, padding="same"
-        )
-
-        self.convw1 = nn.Conv2d(inc, outc // 4, (5, 7), stride=1, padding="same")
-        self.convw1_ = nn.Conv2d(
-            inc + outc // 4, outc // 4, (5, 7), stride=1, padding="same"
-        )
-        self.bnw1 = nn.BatchNorm2d(inc + outc // 4)
-        self.bnw2 = nn.BatchNorm2d(inc + outc // 4)
-        self.convw2 = nn.Conv2d(inc, outc // 4, (3, 5), stride=1, padding="same")
-        self.convw2_ = nn.Conv2d(
-            inc + outc // 4, outc // 4, (3, 5), stride=1, padding="same"
-        )
-
-    def forward(self, inputs):  # [b,inc,h,w] => [b,outc,h,w]
-        outh1 = self.convh1(inputs)
-        outh1 = self.convh1_(F.leaky_relu(self.bnh1(torch.cat([outh1, inputs], dim=1))))
-        outh2 = self.convh2(inputs)
-        outh2 = self.convh2_(F.leaky_relu(self.bnh2(torch.cat([outh2, inputs], dim=1))))
-
-        outw1 = self.convw1(inputs)
-        outw1 = self.convw1_(F.leaky_relu(self.bnw1(torch.cat([outw1, inputs], dim=1))))
-        outw2 = self.convw2(inputs)
-        outw2 = self.convw2_(F.leaky_relu(self.bnw2(torch.cat([outw2, inputs], dim=1))))
-
-        return torch.cat([outh1, outh2, outw1, outw2], dim=1)
-
-class SABlockR(nn.Module):
+    """异形卷积核的并行，外加残差结构"""
     def __init__(self, inc, outc, minCnnKSize = 3):
-        super(SABlockR, self).__init__()
+        super().__init__()
         mS = minCnnKSize
         self.cnnK = [(mS+4, mS+2), (mS+2, mS+0), (mS+2, mS+4), (mS+0, mS+2)]
         def GenCnn(inChannles: int, outChannles: int, cnnKernel):
-            ret = nn.ModuleList([
+            return nn.ModuleList([
                 nn.Sequential(
-                    nn.Conv2d(inChannles, outChannles, k, stride=1, padding="same"),
-                    nn.BatchNorm2d(outChannles),
-                    nn.LeakyReLU()
+                    nn.BatchNorm2d(inChannles),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Conv2d(inChannles, outChannles, k,
+                              stride=1, padding="same"),
                 )
                 for k in cnnKernel
             ])
-            return ret if len(cnnKernel) > 1 else ret[0]
         self.cnn1 = GenCnn(inc, outc // 4, self.cnnK)
         self.cnn2 = GenCnn(outc, outc // 4, self.cnnK)
-        self.shortCut = GenCnn(inc, outc, [(1, 1)])
-    def forward(self, inputs):  # [b,inc,h,w] => [b,outc,h,w]
-        out = torch.cat([ cnn(inputs) for cnn in self.cnn1 ], dim=1)
+        if inc != outc:
+            self.extra = nn.Conv2d(inc, outc, kernel_size=1, stride=1, padding="same")
+        else:
+            self.extra = lambda x : x
+    def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
+        out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
         out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
-        shortCut = self.shortCut(inputs)
-        return out + shortCut
-
-
-class SABlock1D(nn.Module):
-    def __init__(self, inc, outc, avgK, minCnnKSize):
-        super(SABlock1D, self).__init__()
-        # [ B , L , C]
-        self.convh1 = nn.Conv1d(inc, outc // 4, 9, stride=1, padding="same")
-        self.convh2 = nn.Conv1d(inc, outc // 4, 7, stride=1, padding="same")
-        self.convh3 = nn.Conv1d(inc, outc // 4, 5, stride=1, padding="same")
-        self.convh4 = nn.Conv1d(inc, outc // 4, 3, stride=1, padding="same")
-        self.bnh1 = nn.BatchNorm1d(outc // 4)
-        self.bnh2 = nn.BatchNorm1d(outc // 4)
-        self.bnh3 = nn.BatchNorm1d(outc // 4)
-        self.bnh4 = nn.BatchNorm1d(outc // 4)
-
-        self.shortCut = nn.Sequential(
-            nn.Conv1d(inc, outc, 1, stride=1, padding="same"),
-            nn.BatchNorm1d(outc),
-            nn.LeakyReLU(),
-        )
-
-        self.out = nn.AvgPool1d(avgK, avgK)
-
-    def forward(self, inputs):  # [b, c, l] => [b, c', l']
-        out1 = F.leaky_relu(self.bnh1(self.convh1(inputs)))
-        out2 = F.leaky_relu(self.bnh2(self.convh2(inputs)))
-        out3 = F.leaky_relu(self.bnh3(self.convh3(inputs)))
-        out4 = F.leaky_relu(self.bnh4(self.convh4(inputs)))
-        out = torch.cat([out1, out2, out3, out4], dim=1)
-
-        shortCut = self.shortCut(inputs)
-
-        return self.out(out + shortCut)
+        return out + self.extra(x)
     
-class SABlock1DR(nn.Module):
-    def __init__(self, inc, outc, avgK, minCnnKSize):
-        super(SABlock1DR, self).__init__()
-        # [ B , L , C]
-        self.cnn = nn.ModuleList([
-            nn.Sequential(
-            nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
-            nn.BatchNorm1d(outc // 4),
-            nn.LeakyReLU()
-            )
-            for k in range(minCnnKSize, minCnnKSize+2*4, 2)
-        ])
-        self.shortCut = nn.Sequential(
-            nn.Conv1d(inc, outc, 1, stride=1, padding="same"),
-            nn.BatchNorm1d(outc),
-            nn.LeakyReLU(),
-        )
-
-        self.out = nn.AvgPool1d(avgK, avgK)
-    def forward(self, inputs):  # [b, c, l] => [b, c', l']
-        out = torch.cat([ cnn(inputs) for cnn in self.cnn ], dim=1)
-        shortCut = self.shortCut(inputs)
-        return self.out(out + shortCut)
+class SABlockR(SABlock):
+    def __init__(self, inc, outc, minCnnKSize = 3):
+        super().__init__(inc, outc, minCnnKSize)
+        self.extra = nn.Conv2d(inc, outc, kernel_size=1, stride=1, padding="same")
+    def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
+        out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
+        out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
+        t = self.extra(x)
+        return t.mul(out)+(1.-torch.sigmoid_(t)).mul(self.extra(x))
     
-class SABlock1DR2(nn.Module):
-    """SABlock Res Construction"""
-    def __init__(self, inc, outc, avgK, minCnnKSize):
-        super(SABlock1DR2, self).__init__()
-        mS = minCnnKSize
-        self.cnnK = [(mS+4, mS+2), (mS+2, mS+0), (mS+2, mS+4), (mS+0, mS+2)]
-        def GenCnn(inChannles: int, outChannles: int, cnnKernel):
-            ret = nn.ModuleList([
+class SABlock1D(SABlock):
+    """[b, c, l] => [b, c', l']"""
+    def __init__(self, inc, outc, minCnnKSize = 1):
+        super().__init__(inc, outc)
+        def GenCnn(inc: int, outc: int, minCnnKSize:int):
+            return nn.ModuleList([
                 nn.Sequential(
-                    nn.Conv1d(inChannles, outChannles, k, stride=1, padding="same"),
-                    nn.BatchNorm1d(outChannles),
-                    nn.LeakyReLU()
+                    nn.BatchNorm1d(inc),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
                 )
-                for k in cnnKernel
+                for k in range(minCnnKSize, minCnnKSize+2*4, 2)
             ])
-            return ret if len(cnnKernel) > 1 else ret[0]
-        self.cnn = GenCnn(inc, outc // 4, range(minCnnKSize, minCnnKSize+2*4, 2))
-        self.cnn2 = GenCnn(outc, outc // 4, range(minCnnKSize, minCnnKSize+2*4, 2))
-        self.shortCut = GenCnn(inc, outc, [1, ])
-        self.out = nn.AvgPool1d(avgK, avgK)
-    def forward(self, inputs):  # [b, c, l] => [b, c', l']
-        out = torch.cat([ cnn(inputs) for cnn in self.cnn ], dim=1)
-        out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
-        shortCut = self.shortCut(inputs)
-        return self.out(out + shortCut)
+        self.cnn1 = GenCnn(inc, outc, minCnnKSize)
+        self.cnn2 = GenCnn(outc, outc, minCnnKSize)
+        if inc != outc:
+            self.extra = nn.Conv1d(inc, outc, kernel_size=1, stride=1, padding="same")
+        else:
+            self.extra = lambda x : x
+    
+class SABlock1DR(SABlockR):
+    """[b, c, l] => [b, c', l']"""
+    def __init__(self, inc, outc, minCnnKSize = 3):
+        super().__init__(inc, outc)
+        def GenCnn(inc: int, outc: int, minCnnKSize:int):
+            return nn.ModuleList([
+                nn.Sequential(
+                    nn.BatchNorm1d(inc),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
+                )
+                for k in range(minCnnKSize, minCnnKSize+2*4, 2)
+            ])
+        self.cnn1 = GenCnn(inc, outc, minCnnKSize)
+        self.cnn2 = GenCnn(outc, outc, minCnnKSize)
+        self.extra = nn.Conv1d(inc, outc, kernel_size=1, stride=1, padding="same")
