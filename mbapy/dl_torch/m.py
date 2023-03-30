@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-24 22:14:33
+LastEditTime: 2023-03-30 14:07:27
 Description: Model
 '''
 
@@ -13,116 +13,81 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import bb
 
-def CacuQLenOneD(a:list[int]):
-    """Cacu q_len for Conv1D model
-    a: list of each stride
+def calcu_q_len(input_size:int, strides:list[int], dims:int = 1):
     """
-    ret = 1
-    for i in a:
-        ret *= i
-    return ret
-
-def CacuQLenTwoD(picSize:int, a:int):
-    """Cacu q_len for Conv2D model
-    picSize: W or H
-    a: num of sum downsample cnn layers(size = 3, stride = 2, padding = 1)
+    calcu q_len for Conv model
+    strides: list of each layers' stride
+    input_size : when dim is 2, it must be set as img 's size (w==h)
     """
-    ret = picSize
-    for i in range(a):
-        while not ret % 2 == 0:
+    ret = input_size
+    for s in range(strides):
+        while not ret % s == 0:
             ret += 1
         ret /= 2
-    return int(ret**2)
-
+    return int(ret**dims)
 
 class COneDLayer(nn.Module):
-    def __init__(self, conv):
-        super(COneDLayer, self).__init__()
-        self.inc = conv[0]
-        self.outc = conv[1]
-        self.avgK = conv[2]
-        self.isTrans = conv[3]
-        self.cnnKSize = conv[4]
-        self.downSampler = SABlock1DR2(self.inc, self.outc, self.avgK, self.cnnKSize)
-        if self.isTrans:
-            self.trans = EncoderLayer(self.outc, 8, 2 * self.outc, 0.3, 'cuda')
-            self.extra = nn.LeakyReLU()
+    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.SABlock1DR,
+                 use_trans:bool = True, trans_layer = bb.EncoderLayer, device = 'cuda', **kwargs):
+        self.layer = layer(inc, outc, cnn_kernel)
+        self.use_trans = use_trans
+        if self.use_trans:
+            self.trans = trans_layer(outc, 8, 2 * self.outc, 0.3, device, **kwargs)
     def forward(self, x):
-        batchSize = x.shape[0]
         # [b, c', l']
-        x = self.downSampler(x)
-
-        if self.isTrans:
-            # shortCut: [b, c', l']
-            shortCut = self.extra(x)
+        x = self.layer(x)
+        if self.use_trans:
             # x: [b, c', l'] => [b, l', c'] => [b, c', l']
             x = self.trans(x.permute(0, 2, 1)).permute(0, 2, 1)
-            # Res
-            x = x + shortCut
         # [b, c', l']
         return x
 
-
-class MAlayer(nn.Module):  # Cifar10 [b,3,32,32] => [b,10]
-    def __init__(self, conv):
+class MAlayer(nn.Module):
+    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.ResBlock,
+                 use_SA:bool = True, SA_layer = bb.SABlockR, device = 'cuda', **kwargs):
         super(MAlayer, self).__init__()
-        self.inc = conv[0]
-        self.outc = conv[1]
-        self.isSA = conv[2]
-        if self.isSA:
-            self.SA = SABlock(self.inc, self.outc)
-            self.layer = nn.Sequential(ResBlock(self.outc, self.outc, 2),
-                                       ResBlock(self.outc, self.outc, 1))
+        self.use_SA = use_SA
+        if self.use_SA:
+            self.SA = SA_layer(inc, outc, cnn_kernel)
+            self.layer = nn.Sequential(layer(outc, outc, 2),
+                                       layer(outc, outc, 1))
         else:
-            self.layer = nn.Sequential(ResBlock(self.inc, self.outc, 2),
-                                       ResBlock(self.outc, self.outc, 1))
+            self.layer = nn.Sequential(layer(inc, outc, 2),
+                                       layer(outc, outc, 1))
     def forward(self, x):
-        if self.isSA:
+        if self.use_SA:
             x = self.SA(x)
         return self.layer(x)
 
-
-class MAvlayer(nn.Module):  # Cifar10 [b,3,32,32] => [b,10]
-    def __init__(self, conv):
-        super(MAvlayer, self).__init__()
-        self.inc = conv[0]
-        self.outc = conv[1]
-        self.isSA = conv[2]
-        self.minCnnKSize = conv[3]
-        if self.isSA:
+class MAvlayer(MAlayer):
+    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.ResBlock,
+                 use_SA:bool = True, SA_layer = bb.SABlockR, device = 'cuda', **kwargs):
+        super().__init__(inc, outc, cnn_kernel, layer, use_SA, SA_layer, device = 'cuda', **kwargs)
+        if self.use_SA:
+            self.SA = SA_layer(inc, outc, minCnnKSize=self.minCnnKSize)
             self.layer = nn.Sequential(nn.AvgPool2d((2, 2), 2),
-                                       nn.Conv2d(self.inc, self.inc, 1, 1, 0))
-            self.SA = SABlockR(self.inc, self.outc, minCnnKSize=self.minCnnKSize)
+                                       layer(outc, outc, 1))
         else:
             self.layer = nn.Sequential(nn.AvgPool2d((2, 2), 2),
-                                       nn.Conv2d(self.inc, self.outc, 1, 1, 0))
-    def forward(self, x):
-        x = self.layer(x)
-        if self.isSA:
-            x = self.SA(x)
-        return x
+                                       layer(inc, outc, 1))
 
-
-class SCANlayer(nn.Module):  # Cifar10 [b,3,32,32] => [b,10]
-    def __init__(self, conv):
+class SCANlayer(nn.Module):
+    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.SCANN,
+                 use_SA:bool = True, SA_layer = bb.SABlockR, device = 'cuda', **kwargs):
         super(SCANlayer, self).__init__()
-        self.inc = conv[0]
-        self.outc = conv[1]
-        self.pic_size = conv[2]
-        self.isSA = conv[3]
         if self.isSA:
-            self.layer = SABlock(self.inc, self.outc)
+            self.layer = SA_layer(self.inc, self.outc)
         else:
             self.layer = nn.Conv2d(self.inc, self.outc, 1, 1, 0)
-        self.SCAN = SCANN(self.pic_size, self.inc, padding="half", outway="avg")
+        self.scann = layer(self.pic_size, self.inc, padding="half", outway="avg")
         self.shoutCut = nn.AvgPool2d((2, 2), stride=2, padding=0)
     def forward(self, x):
         t = self.shoutCut(x)
-        x = self.SCAN(x)
+        x = self.scann(x)
         x = self.layer(t + x)
         return x
-
 
 
 
