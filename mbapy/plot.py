@@ -18,7 +18,7 @@ plt.rcParams["font.family"] = 'Times New Roman'
 plt.rcParams['axes.unicode_minus'] = False #用来正常显示负号
 
 # TODO : not use itertools.product
-def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
+def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     """
     cacu mean and SE for each combinations of facotors\n
     data should be like this:\n
@@ -27,7 +27,13 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
     after process\n
     | factor1 | factor2 | y1(mean) | y1_SE(SE) | y1_N(sum_data) |...\n
     |  f1_1   |   f2_1  |2.1       |   -2      |   32           |...\n
+    kwargs:
+        min_sample_N:int : min N threshold(>=)
     """
+    # kwargs
+    min_sample_N = 0 if 'min_sample_N' not in kwargs else kwargs['min_sample_N']
+    assert min_sample_N >= 0, 'min_sample_N < 0'
+    # pro
     if len(tags) == 0:
         tags = list(df.columns)[len(factors):]
     factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
@@ -38,7 +44,7 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame):
         factorMask = np.array(df[factors[0]] == factorCombi[0])
         for i in range(1, len(factors)):
             factorMask &= np.array(df[factors[i]] == factorCombi[i])
-        if(factorMask.sum() > 0):
+        if factorMask.sum() >= min_sample_N:
             line = []
             for idx, tag in enumerate(tags):
                 values = np.array(df.loc[factorMask, [tag]])
