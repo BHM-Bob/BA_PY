@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-04 17:26:13
+LastEditTime: 2023-04-04 17:37:34
 Description: 
 '''
 import scipy
@@ -31,4 +31,18 @@ def ttest_ind(x1, x2):
 
 #配对样本T检验:比较从同一总体下分出的两组样本在不同场景下，均值是否存在差异(两个样本的样本量要相同)
 from scipy.stats import ttest_rel
+
+#正态性检验：p > 0.05 为正态性
+from scipy.stats import shapiro
+
+#pearsonr相关系数：p > 0.05 为独立（不相关）
+from scipy.stats import pearsonr
+"""检验两个样本是否有线性关系"""
+
+#卡方检验 Chi-Squared Test：p > 0.05 为独立（不相关）
+from scipy.stats import chi2_contingency
+
+# 方差分析检验（ANOVA） Analysis of Variance Test (ANOVA)：p < 0.05 为显著差异
+from scipy.stats import f_oneway
+"""检验两个或多个独立样本的均值是否有显著差异"""
 
