@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 22:16:49
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-06 21:30:46
+LastEditTime: 2023-04-06 21:34:17
 Description: 
 '''
 from . import base, file, plot, web, dl_torch, stats
@@ -14,6 +14,7 @@ from .__version__ import (
     __license__,
     __title__,
     __version__,
+    __url__,
 )
 
 # def main():

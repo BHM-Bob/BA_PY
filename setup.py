@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-06 20:52:44
+LastEditTime: 2023-04-06 21:34:46
 Description: 
 '''
 """
@@ -55,7 +55,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.0.10",
+    version = "0.0.11",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -92,4 +92,4 @@ setup(
 )
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.0.10.tar.gz
+# twine upload dist/mbapy-0.0.11.tar.gz
