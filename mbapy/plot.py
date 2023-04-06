@@ -271,3 +271,8 @@ def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
         if 'label_size' in kwargs:
             axs[-1].set_xlabel('Theoretical Quantiles', fontsize = kwargs['label_size'])
             axs[-1].set_ylabel('Sample Quantiles', fontsize = kwargs['label_size'])
+            
+def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
+    plt.tight_layout()
+    plt.gcf().savefig("QQPlot.png", dpi=300, bbox_inches = 'tight')
+    plt.show()
