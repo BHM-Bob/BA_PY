@@ -274,5 +274,5 @@ def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
             
 def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
     plt.tight_layout()
-    plt.gcf().savefig("QQPlot.png", dpi=300, bbox_inches = 'tight')
+    plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
     plt.show()
