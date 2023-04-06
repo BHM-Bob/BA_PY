@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-21 15:07:11
+LastEditTime: 2023-04-06 20:52:44
 Description: 
 '''
 """
@@ -50,6 +50,7 @@ requires = [
     "selenium>=4.2.0",
     "urllib3>=1.22.12",
     "openpyxl",
+    "statsmodels",
 ]
 
 setup(

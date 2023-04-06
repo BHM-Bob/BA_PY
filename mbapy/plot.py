@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
+import statsmodels as sm
 import seaborn as sns
 from mpl_toolkits import axisartist
 from mpl_toolkits.axes_grid1 import host_subplot
@@ -251,3 +252,22 @@ def plot_positional_hue(factors:list[str], tags:list[str], df:pd.DataFrame, **kw
             return np.array(pos[0]), ax1
         return core_wrapper
     return ret_wrapper
+
+def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
+    axs = []
+    fig = plt.figure(figsize = (12, 6))
+    for fig_idx in range(1, ncols*nrows+1):
+        axs.append(fig.add_subplot(nrows, ncols, fig_idx))
+        if 'xlim' in kwargs:
+            axs[-1].set_xlim(kwargs['xlim'])
+        if 'ylim' in kwargs:
+            axs[-1].set_ylim(kwargs['ylim'])            
+        sm.graphics.gofplots.qqplot(np.array(df[tags[fig_idx-1]]), fit=True, line="45", ax=axs[-1])
+        axs[-1].set_title(tags[fig_idx-1]+' - QQPlot', fontdict={'fontsize':15})
+        if 'title' in kwargs:
+            axs[-1].set_ylim(kwargs['title'][fig_idx-1])
+        if 'tick_size' in kwargs:
+            axs[-1].tick_params(labelsize = kwargs['tick_size'])
+        if 'label_size' in kwargs:
+            axs[-1].set_xlabel('Theoretical Quantiles', fontsize = kwargs['label_size'])
+            axs[-1].set_ylabel('Sample Quantiles', fontsize = kwargs['label_size'])

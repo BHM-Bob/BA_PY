@@ -2,10 +2,10 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-09 17:24:18
 LastEditors: BHM-Bob
-LastEditTime: 2022-12-09 17:24:37
+LastEditTime: 2023-04-06 20:50:50
 Description: 
 '''
-# import geography
+from . import geography, reg, test
 
 # def main():
 #     pass
