@@ -15,7 +15,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-import base
+from . import base
 from mbapy.base import put_err
 from mbapy.file import save_json, read_json, save_excel, read_excel
 

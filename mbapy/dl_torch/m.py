@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-30 14:07:27
+LastEditTime: 2023-04-06 21:33:20
 Description: Model
 '''
 
@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import bb
+from . import bb
 
 def calcu_q_len(input_size:int, strides:list[int], dims:int = 1):
     """
