@@ -17,6 +17,7 @@ from mbapy.base import get_wanted_args
 # plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文
 plt.rcParams["font.family"] = 'Times New Roman'
 plt.rcParams['axes.unicode_minus'] = False #用来正常显示负号
+colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 # TODO : not use itertools.product
 def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
