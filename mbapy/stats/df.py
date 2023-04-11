@@ -1,15 +1,15 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
-LastEditors: BHM-Bob
-LastEditTime: 2023-04-11 00:17:20
+LastEditors: BHM-Bob G
+LastEditTime: 2023-04-11 10:32:45
 Description: pd.dataFrame utils
 '''
 
 import pandas as pd
 import numpy as np
 
-def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,  backend:str = 'numpy'):
+def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,  backend:str = 'numpy', tensor = None):
     """
     给定一组数，去除一些(最小数目)数，使任意两数差的绝对值大于或等于阈值\n
     Given a set of numbers, remove some (minimum number) of numbers so that the absolute value of the difference between any two numbers is greater than or equal to the threshold\n
@@ -17,9 +17,9 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,  backend:str = 'numpy')
     Parameters
     ----------
     backend : 
-        'numpy': a n-n mat will be alloc
-        'numpy-cheap':
-        'torch':
+        'numpy': a n-n mat will be alloc\n
+        'numpy-cheap':\n
+        'torch':\n
     Examples
     --------
     >>> df = pd.DataFrame({'d':[1, 2, 3, 3, 5, 6, 8, 13]})\n
@@ -50,7 +50,26 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,  backend:str = 'numpy')
         try:
             import torch
         except:
-            assert 0, 'no torch or cuda available'
+            raise ImportError('no torch available')
+        arr = tensor if tensor is not None else torch.tensor(ndf[tag], dtype = torch.float32).view(-1)
+        @torch.jit.script
+        def step_scan(x:torch.Tensor, to_remove:list[int], sh:float):
+            i = 0
+            while i < x.shape[0]-1:
+                if x[i+1] - x[i] < sh:
+                    x[i+1] = x[i]
+                    to_remove.append(i+1)
+                i += 1
+            return to_remove
+        to_remove_idx = step_scan(arr, to_remove_idx, sh)
+    elif backend == 'numpy-cheap':
+        arr = np.array(ndf[tag]).reshape([len(ndf[tag])])
+        i = 0
+        while i < arr.shape[0]-1:
+            if arr[i+1] - arr[i] < sh:
+                arr[i+1] = arr[i]
+                to_remove_idx.append(i+1)
+            i += 1
     ndf.drop(labels = to_remove_idx, inplace=True)
     return ndf, to_remove_idx
 
