@@ -51,7 +51,10 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
             for idx, tag in enumerate(tags):
                 values = np.array(df.loc[factorMask, [tag]])
                 line.append(values.mean())
-                line.append(values.std(ddof = 1)/np.sqrt(values.shape[0]))
+                if values.shape[0] > 1:
+                    line.append(values.std(ddof = 1)/np.sqrt(values.shape[0]))
+                else:
+                    line.append(np.NaN)
                 line.append(values.shape[0])
             ndf.append(list(factorCombi) + line)
     return pd.DataFrame(ndf[1:], columns=ndf[0])
