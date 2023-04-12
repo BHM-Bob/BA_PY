@@ -33,8 +33,8 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
         min_sample_N:int : min N threshold(>=)
     """
     # kwargs
-    min_sample_N = 0 if 'min_sample_N' not in kwargs else kwargs['min_sample_N']
-    assert min_sample_N >= 0, 'min_sample_N < 0'
+    min_sample_N = 1 if 'min_sample_N' not in kwargs else kwargs['min_sample_N']
+    assert min_sample_N > 0, 'min_sample_N <= 0'
     # pro
     if len(tags) == 0:
         tags = list(df.columns)[len(factors):]
