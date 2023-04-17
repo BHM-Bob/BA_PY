@@ -2,13 +2,14 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-17 15:25:28
+LastEditTime: 2023-04-17 16:33:20
 Description: 
 '''
 import scipy
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+import scikit_posthocs as sp
 
 import mbapy.plot as mp
 
@@ -19,8 +20,10 @@ def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
     kwargs = {
         'scale':se if se is not None else scipy.stats.sem(data)       
     }
+    if mean is not None:
+        kwargs.update({'loc':mean})
     if data is not None:
-        kwargs.update({'df':len(data) - 1, 'mean':np.mean(data)})
+        kwargs.update({'df':len(data) - 1, 'loc':np.mean(data)})
     return scipy.stats.norm.interval(alpha = alpha, **kwargs)
 
 #单样本T检验
@@ -62,3 +65,11 @@ def multicomp_dunnett(factor:str, exp:list[str], control:str, df:pd.DataFrame, *
     factors means colum name for expiremental factor and control factor"""
     exps = [np.array(df[factor][df[factor]==e]) for e in exp]
     return scipy.stats.dunnett(*exps, np.array(df[factor][df[factor]==control]), **kwargs)
+
+def multicomp_bonferroni(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
+    """using scikit_posthocs.posthoc_dunn\n
+    Bonferroni"""
+    sub_df = mp.get_df_data(factors, [tag], df)
+    return sp.posthoc_dunn(sub_df, val_col=tag, group_col=list(factors.keys())[0],
+                           p_adjust='bonferroni')
+    

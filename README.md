@@ -2,10 +2,12 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob
- * @LastEditTime: 2023-03-20 23:11:05
+ * @LastEditTime: 2023-04-17 16:09:42
  * @Description: 
 -->
 # BA_PY
+[![Downloads](https://static.pepy.tech/badge/mbapy)](https://pepy.tech/project/mbapy)
+
 some helpful python scripts. (Basic for All in Python)
 
 ## contain  

@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
-LastEditors: BHM-Bob G
-LastEditTime: 2023-04-11 10:36:54
+LastEditors: BHM-Bob
+LastEditTime: 2023-04-17 16:30:09
 Description: 
 '''
 """
@@ -51,6 +51,7 @@ requires = [
     "urllib3>=1.22.12",
     "openpyxl",
     "statsmodels",
+    "scikit_posthocs",
 ]
 
 setup(
