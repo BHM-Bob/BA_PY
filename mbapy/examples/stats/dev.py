@@ -2,15 +2,22 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-05 16:18:43
 LastEditors: BHM-Bob
-LastEditTime: 2022-12-05 16:23:17
+LastEditTime: 2023-04-17 14:47:25
 Description: 
 '''
+import sys
+sys.path.append(r'../../../')
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy import stats
 
-data=[[25,21,10],[82,88,30],[223,16,5]]
-df=pd.DataFrame(data,index=['美式咖啡','拿铁咖啡','卡布奇诺'],columns=['IT','行政','工程'])
-kt=stats.chi2_contingency(df)
-# stats.chisquare()
-print('卡方值=%.4f, p值=%.4f, 自由度=%i expected_frep=%s'%kt)
+import plot
+import stats
+
+# create bars
+df = pd.read_excel(r"data/plot.xlsx", sheet_name="MWM")
+df['Animal Type'] = df['Animal Type'].astype('str')
+result = stats.test.multicomp_turkeyHSD({'Animal Type':['Control', '0.0003', '0.001', '0.003']}, 'First Entry Len', df)
+print(result)
+result.plot_simultaneous()
+plt.show()

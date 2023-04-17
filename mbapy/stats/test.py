@@ -2,11 +2,15 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-04 17:37:34
+LastEditTime: 2023-04-17 14:40:19
 Description: 
 '''
 import scipy
 import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+
+import mbapy.plot as mp
 
 #置信区间
 def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
@@ -46,3 +50,9 @@ from scipy.stats import chi2_contingency
 from scipy.stats import f_oneway
 """检验两个或多个独立样本的均值是否有显著差异"""
 
+def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
+    """using statsmodels.stats.multicomp.pairwise_tukeyhsd\n
+    Tukey的HSD法要求各样本的样本相等或者接近，在样本量相差很大的情况下还是建议使用其他方法\n
+    Tukey的HSD检验比Bonferroni法更加的保守"""
+    sub_df = mp.get_df_data(factors, [tag], df)
+    return sm.stats.multicomp.pairwise_tukeyhsd(sub_df[tag], sub_df[list(factors.keys())[0]], alpha)
