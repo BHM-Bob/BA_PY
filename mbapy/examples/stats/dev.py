@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-05 16:18:43
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-17 14:47:25
+LastEditTime: 2023-04-17 15:26:17
 Description: 
 '''
 import sys
@@ -20,4 +20,7 @@ df['Animal Type'] = df['Animal Type'].astype('str')
 result = stats.test.multicomp_turkeyHSD({'Animal Type':['Control', '0.0003', '0.001', '0.003']}, 'First Entry Len', df)
 print(result)
 result.plot_simultaneous()
-plt.show()
+# plt.show()
+
+result = stats.test.multicomp_dunnett('Animal Type', ['Control', '0.0003', '0.001', '0.003'], 'First Entry Len', df)
+print(result)

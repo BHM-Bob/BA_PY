@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-17 14:40:19
+LastEditTime: 2023-04-17 15:25:28
 Description: 
 '''
 import scipy
@@ -56,3 +56,9 @@ def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, 
     Tukey的HSD检验比Bonferroni法更加的保守"""
     sub_df = mp.get_df_data(factors, [tag], df)
     return sm.stats.multicomp.pairwise_tukeyhsd(sub_df[tag], sub_df[list(factors.keys())[0]], alpha)
+
+def multicomp_dunnett(factor:str, exp:list[str], control:str, df:pd.DataFrame, **kwargs):
+    """using SciPy 1.11 scipy.stats.dunnett\n
+    factors means colum name for expiremental factor and control factor"""
+    exps = [np.array(df[factor][df[factor]==e]) for e in exp]
+    return scipy.stats.dunnett(*exps, np.array(df[factor][df[factor]==control]), **kwargs)
