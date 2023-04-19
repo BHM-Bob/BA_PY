@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-24 22:11:07
+LastEditTime: 2023-04-19 16:19:22
 Description: Basic Blocks
 '''
 
@@ -177,7 +177,7 @@ class MultiHeadAttentionLayer(nn.Module):
         V = self.fc_v(value).\
             reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)        
         # attention = [batch size, n heads, query len, key len]
-        attention = Q.matmul(K.permute(0, 1, 3, 2)).multiply(self.scale). softmax(dim=-1)
+        attention = Q.matmul(K.permute(0, 1, 3, 2)).multiply(self.scale).softmax(dim=-1)
         # x = [batch size, query len, hid dim]
         x = self.dropout(attention).matmul(V).\
             permute(0, 2, 1, 3).contiguous().\
