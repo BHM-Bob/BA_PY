@@ -19,6 +19,14 @@ plt.rcParams["font.family"] = 'Times New Roman'
 plt.rcParams['axes.unicode_minus'] = False #用来正常显示负号
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
+def rgb2hex(r, g, b):
+  return '#'+('{:02X}' * 3).format(r, g, b)
+def hex2rgb(hex:str):
+  return [int(hex[i:i+2], 16) for i in (1, 3, 5)]
+def get_palette(n:int = 10):
+    return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
+                    sns.color_palette('hls', n)))
+    
 # TODO : not use itertools.product
 def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     """
