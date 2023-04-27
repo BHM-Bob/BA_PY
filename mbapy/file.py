@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-26 23:27:11
+LastEditTime: 2023-04-27 13:01:20
 Description: 
 '''
 import chardet
@@ -43,6 +43,11 @@ def read_excel(path:str, ignoreHead:bool = True,
         return df
     return invalidPathReturn
 
+def write_sheets(path:str, sheets:dict[str, pd.DataFrame]):
+    with pd.ExcelWriter(path) as f:
+        for sheet in sheets:
+            sheets[sheet].to_excel(path, sheet_name=sheet)    
+
 def update_excel(path:str, sheets:dict[str, pd.DataFrame] = None):
     if os.path.isfile(path):
         dfs = pd.read_excel(path, sheet_name=None)
@@ -52,8 +57,7 @@ def update_excel(path:str, sheets:dict[str, pd.DataFrame] = None):
             for sheet in sheets:
                 if isinstance(sheets[sheet], pd.DataFrame):
                     dfs[sheet] = sheets[sheet]
-            with pd.ExcelWriter(path) as f:
-                for sheet in dfs:
-                    dfs[sheet].to_excel(path, sheet_name=sheet)
-    else:
-        raise IOError(f'path is not a file : {path:s}')
+            write_sheets(path, dfs)
+    elif sheets is not None:
+        print(f'path is not a file : {path:s}, writing sheets to the file of path')
+        write_sheets(path, sheets)

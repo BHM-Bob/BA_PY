@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-26 23:27:29
+LastEditTime: 2023-04-26 23:38:38
 Description: pd.dataFrame utils
 '''
 
@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 from mbapy.plot import pro_bar_data, get_df_data, sort_df_factors
-from mbapy.file import update_excel
+from file import update_excel
 
 def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1., 
                 backend:str = 'numpy-array', tensor = None, device = 'cuda'):
