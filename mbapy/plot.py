@@ -23,9 +23,18 @@ def rgb2hex(r, g, b):
   return '#'+('{:02X}' * 3).format(r, g, b)
 def hex2rgb(hex:str):
   return [int(hex[i:i+2], 16) for i in (1, 3, 5)]
-def get_palette(n:int = 10):
+def rgbs2hexs(rgbs:list[tuple[float]]):
     return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
-                    sns.color_palette('hls', n)))
+                    rgbs))
+def get_palette(n:int = 10):
+    return rgbs2hexs(sns.color_palette('hls', n))
+def get_palette_R(n:int = 10, mode:str = 'sigle'):
+    if n <= 9:
+        return rgbs2hexs(plt.get_cmap('Set1').colors)
+    elif n <= 12:
+        return rgbs2hexs(plt.get_cmap('Set3').colors)
+    elif n <= 20 and mode == 'pair':
+        return rgbs2hexs(plt.get_cmap('tab20').colors)
     
 # TODO : not use itertools.product
 def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
@@ -106,6 +115,8 @@ def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
     #sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
     def update_mask(mask, other:np.ndarray, method:str = '&'):
         return other if mask is None else (mask&other if method == '&' else mask|other)
+    if len(tags) == 0:
+        tags = list(set(df.columns.to_list())-set(factors.keys()))
     if include_factors:
         tags = list(factors.keys()) + tags
     mask = None
