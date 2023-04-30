@@ -1,6 +1,7 @@
 import itertools
 import sys
 from functools import wraps
+from typing import Union
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -26,10 +27,24 @@ def hex2rgb(hex:str):
 def rgbs2hexs(rgbs:list[tuple[float]]):
     return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
                     rgbs))
-def get_palette(n:int = 10):
-    return rgbs2hexs(sns.color_palette('hls', n))
-def get_palette_R(n:int = 10, mode:str = 'sigle'):
-    if n <= 9:
+    
+def get_palette(n:int = 10, mode:Union[None, str] = None) -> list[str]:
+    """get a seq of hex colors    
+    Parameters
+    ----------
+    n: how many colors required
+    mode: kind of colors
+        - hls : [default] sns.color_palette('hls', n)
+        - green : sum 5 grenns
+        - pair : plt.get_cmap('tab20')
+        - None : plt.get_cmap('Set1') for n<=9 or plt.get_cmap('Set3') for n<= 12
+    """
+    assert n >= 1
+    if mode == 'hls':
+        return rgbs2hexs(sns.color_palette('hls', n))
+    if n <= 5 and mode == 'green':
+        return ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87'][0:n]
+    elif n <= 9:
         return rgbs2hexs(plt.get_cmap('Set1').colors)
     elif n <= 12:
         return rgbs2hexs(plt.get_cmap('Set3').colors)
