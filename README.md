@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob
- * @LastEditTime: 2023-04-19 14:04:43
+ * @LastEditTime: 2023-04-30 18:51:17
  * @Description: 
 -->
 # BA_PY
@@ -30,6 +30,7 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 3. read_json: func to read a json file
 4. save_excel: func to save list\[list\[str]] as xlsx
 5. read_excel: func to read xlsx
+6. update_excel : update a excel(xlsx) file with multi sheets
 
 #### plot
 *pandas.dataFrame utils for plot and some simple plot based on plt*
@@ -41,6 +42,7 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 6. plot_positional_hue: wrapper to create a pos-y plot with hue style
 7. qqplot: func to plot a qq-plot using statsmodels
 8. save_show: func for save and show plt fig
+9. get_palette: func, get a seq of hex colors
 
 #### web
 *utils for web-crawler*
@@ -55,6 +57,7 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 9. ThreadsPool: a tiny threads pool for web-crawler task
 
 #### stats
+1. pca : func, wrap of sklearn.decomposition.PCA
 ##### df
 *pandas.dataFrame utils for stats*
 1. remove_simi: func for remove similar data in a pandas.Series
@@ -82,14 +85,32 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 *pytorch utils for deeplearning*
 ##### bb
 *basic blocks : tiny network structures*
+1. NonLocalBlock: Non-local Neural Networks (CVPR 2018)
+2. FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness, just import flash_attn package
+3. HydraAttention: Efficient Attention with Many Heads, arXiv:2209.07484v1
 ##### data
 *utils for dataset loading*
+1. denarmalize_img: func,  denarmalize a tensor type img.
+2. DataSetRAM: a class to load dataset to memory with some options.
 ##### loss
 *some loss function*
+1. AsymmetricLossOptimized, just from Alibaba-MIIL/ASL
 ##### m
 *model : deeplearning model constructed with basic blocks*
 ##### utils
 *deeplearning training utils*
+1. Mprint: logging tools
+2. GlobalSettings: global setting tools for deeplearning pipeline
+3. init_model_parameter: func, initialize model weigths
+4. adjust_learning_rate: from MoCo
+5. format_secs: func, format secs from a sum secs to h,m,s
+6. AverageMeter: from MoCo
+7. ProgressMeter: from MoCo
+8. TimeLast: calcu time last
+9. save_checkpoint: func, save checkpoint to a pytorch style file
+10. resume: func, load checkpoint from a pytorch style file
+11. VizLine: func, draw a line by visdom
+12. re_viz_from_json_record: load visualization data and re-draw them using visdom
 
 ## examples
 #### file
