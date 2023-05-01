@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 00:50:43
+LastEditTime: 2023-05-02 00:55:07
 Description: 
 '''
 import scipy
@@ -13,9 +13,11 @@ import scikit_posthocs as sp
 
 import mbapy.plot as mp
 
-#置信区间
 def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
-    """± 1.96 * SE or other depends on alpha"""
+    """
+    置信区间\n
+    ± 1.96 * SE or other depends on alpha
+    """
     assert se is not None or data is not None, 'se is None and data is None'
     kwargs = {
         'scale':se if se is not None else scipy.stats.sem(data)       
@@ -27,7 +29,7 @@ def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
     return scipy.stats.norm.interval(alpha = alpha, **kwargs)
 
 def _get_x1_x2(x1 = None, x2 = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+               factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
     if factors is not None and tag is not None and df is not None:
         sub_df = mp.get_df_data(factors, [tag], df)
         fac_name = list(factors.keys())[0]
@@ -73,19 +75,31 @@ def mannwhitneyu(x1 = None, x2 = None,
     x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     return scipy.stats.mannwhitneyu(x1, x2, **kwargs)
 
-#正态性检验：p > 0.05 为正态性
-from scipy.stats import shapiro
 
-#pearsonr相关系数：p > 0.05 为独立（不相关）
-from scipy.stats import pearsonr
-"""检验两个样本是否有线性关系"""
+def pearsonr(x1 = None, x2 = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    pearsonr相关系数:检验两个样本是否有线性关系
+    p > 0.05 为独立（不相关）
+    """
+    x1, _ = _get_x1_x2(x1, None, factors, tag, df)
+    return scipy.stats.shapiro(x1)
 
 #卡方检验 Chi-Squared Test：p > 0.05 为独立（不相关）
 from scipy.stats import chi2_contingency
 
-# 方差分析检验（ANOVA） Analysis of Variance Test (ANOVA)：p < 0.05 为显著差异
-from scipy.stats import f_oneway
-"""检验两个或多个独立样本的均值是否有显著差异"""
+def f_oneway(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
+    """
+    方差分析检验(ANOVA) Analysis of Variance Test (ANOVA):p < 0.05 为显著差异\n
+    检验两个或多个独立样本的均值是否有显著差异
+    """
+    sub_df = mp.get_df_data(factors, [tag], df)
+    fac_name = list(factors.keys())[0]
+    sub_facs = factors[fac_name]
+    d = {}
+    for f in sub_facs:
+        d[f] = sub_df.loc[sub_df[fac_name] == f, [tag]].values
+    return scipy.stats.f_oneway(**f)
 
 def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """using statsmodels.stats.multicomp.pairwise_tukeyhsd\n
