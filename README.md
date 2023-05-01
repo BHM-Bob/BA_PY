@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob
- * @LastEditTime: 2023-04-30 18:51:17
+ * @LastEditTime: 2023-04-30 19:06:19
  * @Description: 
 -->
 # BA_PY
@@ -85,9 +85,6 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 *pytorch utils for deeplearning*
 ##### bb
 *basic blocks : tiny network structures*
-1. NonLocalBlock: Non-local Neural Networks (CVPR 2018)
-2. FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness, just import flash_attn package
-3. HydraAttention: Efficient Attention with Many Heads, arXiv:2209.07484v1
 ##### data
 *utils for dataset loading*
 1. denarmalize_img: func,  denarmalize a tensor type img.
@@ -111,6 +108,11 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 10. resume: func, load checkpoint from a pytorch style file
 11. VizLine: func, draw a line by visdom
 12. re_viz_from_json_record: load visualization data and re-draw them using visdom
+##### paper
+1. NonLocalBlock: Non-local Neural Networks (CVPR 2018)
+2. FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness, just import flash_attn package
+3. HydraAttention: Efficient Attention with Many Heads, arXiv:2209.07484v1
+
 
 ## examples
 #### file

@@ -5,6 +5,7 @@ import time
 from queue import Queue
 
 import math
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -97,7 +98,13 @@ class GlobalSettings(base.MyArgs):
         self.resumePathList = glob.glob(os.path.join(modelRoot,'*.tar'))
         self.resume = self.resumePathList[0] if len(self.resumePathList) > 0 else 'None'
         # other
-        self.mp = mp#Mp
+        self.mp = mp#Mp        
+        if self.seed is not None:
+            import random
+            import torch.backends.cudnn as cudnn
+            random.seed(self.seed)
+            torch.manual_seed(self.seed)
+            cudnn.deterministic = True
     def toDict(self, printOut = False, mp = None):
         dic = {}
         for attr in vars(self):
