@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-17 16:33:20
+LastEditTime: 2023-05-02 00:50:43
 Description: 
 '''
 import scipy
@@ -26,18 +26,52 @@ def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
         kwargs.update({'df':len(data) - 1, 'loc':np.mean(data)})
     return scipy.stats.norm.interval(alpha = alpha, **kwargs)
 
-#单样本T检验
-from scipy.stats import ttest_1samp
+def _get_x1_x2(x1 = None, x2 = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+    if factors is not None and tag is not None and df is not None:
+        sub_df = mp.get_df_data(factors, [tag], df)
+        fac_name = list(factors.keys())[0]
+        x1 = sub_df.loc[sub_df[fac_name] == factors[fac_name][0], [tag]].values
+        if len(factors[fac_name]) == 2:
+            x2 = sub_df.loc[sub_df[fac_name] == factors[fac_name][1], [tag]].values
+        elif len(factors[fac_name]) > 2:
+            raise ValueError('Only support 1 or 2 value of factors')
+    return x1, x2
 
-def ttest_ind(x1, x2):
-    """独立样本t检验(双样本T检验):检验两组独立样本均值是否相等"""
+def ttest_1samp(x1 = None, x2:float = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """单样本T检验"""
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
+    return scipy.stats.ttest_1samp(x1, x2, **kwargs)
+
+def ttest_ind(x1 = None, x2 = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    独立样本t检验(双样本T检验):检验两组独立样本均值是否相等\n
+    要求正太分布，正太检验结果由scipy.stats.levene计算并返回\n
+    levene 检验P值 > 0.05，接受原假设，认为两组方差相等\n
+    如不相等， scipy.stats.ttest_ind() 函数中的参数 equal_var 会设置成 False
+    """
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     levene = scipy.stats.levene(x1, x2)
-    #levene 检验P值 > 0.05，接受原假设，认为两组方差相等
-    #如不相等， scipy.stats.ttest_ind() 函数中的参数 equal_var 需要设置成 False
     return levene.pvalue, scipy.stats.ttest_ind(x1, x2, equal_var=levene.pvalue > 0.05)
 
-#配对样本T检验:比较从同一总体下分出的两组样本在不同场景下，均值是否存在差异(两个样本的样本量要相同)
-from scipy.stats import ttest_rel
+def ttest_rel(x1 = None, x2 = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """配对样本T检验:比较从同一总体下分出的两组样本在不同场景下，均值是否存在差异(两个样本的样本量要相同)"""
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
+    return scipy.stats.ttest_rel(x1, x2, **kwargs)
+
+def mannwhitneyu(x1 = None, x2 = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    Mann-Whitney U检验:数据不具有正态分布时使用。\n
+    评估了两个抽样群体是否可能来自同一群体，这两个群体在数据方面是否具有相同的形状？\n
+    证明这两个群体是否来自于具有不同水平的相关变量的人群。\n
+    此包装函数同时支持直接输入和mbapy-style数据输入
+    """
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
+    return scipy.stats.mannwhitneyu(x1, x2, **kwargs)
 
 #正态性检验：p > 0.05 为正态性
 from scipy.stats import shapiro

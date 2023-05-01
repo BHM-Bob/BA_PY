@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-05 16:18:43
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-17 16:29:22
+LastEditTime: 2023-05-02 00:40:17
 Description: 
 '''
 import sys
@@ -26,4 +26,7 @@ print(result)
 # print(result)
 
 result = stats.test.multicomp_bonferroni({'Animal Type':['Control', '0.0003', '0.001', '0.003']}, 'First Entry Len', df)
+print(result)
+
+result = stats.test.mannwhitneyu(factors = {'Animal Type':['Control', '0.003']}, tag = 'First Entry Len', df = df)
 print(result)
