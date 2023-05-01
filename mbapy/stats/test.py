@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 00:55:07
+LastEditTime: 2023-05-02 01:12:08
 Description: 
 '''
 import scipy
@@ -96,10 +96,7 @@ def f_oneway(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float
     sub_df = mp.get_df_data(factors, [tag], df)
     fac_name = list(factors.keys())[0]
     sub_facs = factors[fac_name]
-    d = {}
-    for f in sub_facs:
-        d[f] = sub_df.loc[sub_df[fac_name] == f, [tag]].values
-    return scipy.stats.f_oneway(**f)
+    return scipy.stats.f_oneway(*[sub_df.loc[sub_df[fac_name] == f, [tag]].values for f in sub_facs])
 
 def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """using statsmodels.stats.multicomp.pairwise_tukeyhsd\n

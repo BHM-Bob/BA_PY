@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-05 16:18:43
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 00:40:17
+LastEditTime: 2023-05-02 01:09:10
 Description: 
 '''
 import sys
@@ -29,4 +29,7 @@ result = stats.test.multicomp_bonferroni({'Animal Type':['Control', '0.0003', '0
 print(result)
 
 result = stats.test.mannwhitneyu(factors = {'Animal Type':['Control', '0.003']}, tag = 'First Entry Len', df = df)
+print(result)
+
+result = stats.test.f_oneway(factors = {'Animal Type':['Control', '0.0003', '0.001', '0.003']}, tag = 'First Entry Len', df = df)
 print(result)
