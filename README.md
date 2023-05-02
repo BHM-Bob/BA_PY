@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob
- * @LastEditTime: 2023-04-30 19:06:19
+ * @LastEditTime: 2023-05-02 13:03:03
  * @Description: 
 -->
 # BA_PY
@@ -68,18 +68,23 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 1. linear_reg: do linear regression using sklearn.linear_model.LinearRegression
 
 ##### test
-*some test func(and some of them are just simply using scipy)*
+*some test func(using scipy and mostly give a support for mbapy-style data input)*
 1. get_interval: func to get interval
-2. ttest_1samp: scipy.stats.ttest_1samp
-3. ttest_ind: func to make scipy.stats.ttest_ind with scipy.stats.levene
-4. ttest_rel: scipy.stats.ttest_rel
-5. shapiro: scipy.stats.shapiro
-6. pearsonr: scipy.stats.pearsonr
-7. chi2_contingency: scipy.stats.chi2_contingency
-8. f_oneway: scipy.stats.f_oneway
-9. multicomp_turkeyHSD: do multicomp(turkeyHSD) using statsmodels(pairwise_tukeyhsd)
-10. multicomp_dunnett: do multicomp(dunnett) using scipy.stats.dunnett
-11. multicomp_bonferroni: do multicomp(bonferroni) using scikit_posthocs
+2. _get_x1_x2: inner tool func: get x1 and x2 from a mbapy-style data input
+3. _get_x1_x2_R: inner tool func: get x1 and ... from a mbapy-style data input
+4. ttest_1samp: scipy.stats.ttest_1samp
+5. ttest_ind: func to make scipy.stats.ttest_ind with scipy.stats.levene
+6. ttest_rel: scipy.stats.ttest_rel
+7. mannwhitneyu: scipy.stats.mannwhitneyu
+8. shapiro: scipy.stats.shapiro
+9. pearsonr: scipy.stats.pearsonr
+10. _get_observe: inner tool func: get observe table from a mbapy-style data input
+11. chi2_contingency: scipy.stats.chi2_contingency
+12. fisher_exact: scipy.stats.fisher_exact
+13. f_oneway: scipy.stats.f_oneway
+14. multicomp_turkeyHSD: do multicomp(turkeyHSD) using statsmodels(pairwise_tukeyhsd)
+15. multicomp_dunnett: do multicomp(dunnett) using scipy.stats.dunnett
+16. multicomp_bonferroni: do multicomp(bonferroni) using scikit_posthocs
 
 #### dl-torch
 *pytorch utils for deeplearning*

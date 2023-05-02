@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 12:16:00
+LastEditTime: 2023-05-02 13:01:21
 Description: 
 '''
 import scipy
@@ -30,6 +30,7 @@ def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
 
 def _get_x1_x2(x1 = None, x2 = None,
                factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+    """以同一列factors提取同一列tag的x1和x2，其余factors仅作筛选作用"""
     if factors is not None and tag is not None and df is not None:
         sub_df = mp.get_df_data(factors, [tag], df)
         fac_name = list(factors.keys())[0]
@@ -39,6 +40,19 @@ def _get_x1_x2(x1 = None, x2 = None,
         elif len(factors[fac_name]) > 2:
             raise ValueError('Only support 1 or 2 value of factors')
     return x1, x2
+
+def _get_x1_x2_R(x1 = None, x2 = None,
+               factors:dict[str, list[str]] = None, tags:list[str] = None, df:pd.DataFrame = None):
+    """
+    提取多列tag的x1和x2，factors仅作筛选作用
+    tags为x1和x2...的tag
+    """
+    ret = [x1, x2]
+    if factors is not None and tags is not None and df is not None:
+        ret = []
+        sub_df = mp.get_df_data(factors, tags, df)
+        ret = [sub_df.loc[:, [tag]].values.reshape(-1) for tag in tags]
+    return ret
 
 def ttest_1samp(x1 = None, x2:float = None,
                  factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
@@ -75,15 +89,26 @@ def mannwhitneyu(x1 = None, x2 = None,
     x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     return scipy.stats.mannwhitneyu(x1, x2, **kwargs)
 
-
-def pearsonr(x1 = None, x2 = None,
-             factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+def shapiro(x1 = None,
+            factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
-    pearsonr相关系数:检验两个样本是否有线性关系\n
-    p > 0.05 为独立（不相关）
+    shapiro正态检验:\n
+    p > 0.05 为正态分布
     """
     x1, _ = _get_x1_x2(x1, None, factors, tag, df)
-    return scipy.stats.shapiro(x1)
+    return scipy.stats.shapiro(x1, **kwargs)
+
+def pearsonr(x1 = None, x2 = None,
+             factors:dict[str, list[str]] = None, tags:list[str] = None, df:pd.DataFrame = None, **kwargs):
+    """
+    pearsonr相关系数:检验两个样本是否有线性关系\n
+    p > 0.05 为独立(不相关)\n
+    mbapy-style数据输入:\n
+    提取多列tag的x1和x2，factors仅作筛选作用
+    tags为x1和x2...的tag
+    """
+    x1, x2 = _get_x1_x2_R(x1, x2, factors, tags, df)
+    return scipy.stats.pearsonr(x1, x2, **kwargs)
 
 def _get_observe(observed = None,
                  factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
@@ -123,7 +148,7 @@ def fisher_exact(observed = None,
     Fisher确切概率法 Fisher's exact test:\n
     2x2 contingency table, p > 0.05 为独立(不相关)\n
     支持直接输入和mbapy-style数据输入\n
-    mbapy-style: factors={'a':['a1', 'a2'], 'b':['b1', 'b2']}
+    mbapy-style: factors={'a':['a1', 'a2'], 'b':['b1', 'b2']}, tag is value of 0/1 or number
     """
     observed = _get_observe(observed, factors, tag, df)
     return scipy.stats.fisher_exact(observed, **kwargs), observed
@@ -133,7 +158,10 @@ def f_oneway(Xs:list = None,
     """
     方差分析检验(ANOVA) Analysis of Variance Test (ANOVA):p < 0.05 为显著差异\n
     检验两个或多个独立样本的均值是否有显著差异\n
-    支持直接输入(Xs)和
+    1. 每个样本中的观测值都是独立和相同分布的(iid)。
+    2. 每个样本中的观测值都是正态分布。
+    3. 每个样本中的观测值具有相同的方差。\n
+    支持直接输入(Xs)和mbapy-style数据输入
     """
     if Xs is None and factors is not None and tag is not None and df is not None:
         sub_df = mp.get_df_data(factors, [tag], df)

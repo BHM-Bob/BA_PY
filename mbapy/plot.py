@@ -138,7 +138,7 @@ def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
     for factor_name in factors:
         sub_mask = None
         if len(factors[factor_name]) == 0:
-            # factors[factor_name] asigned with []
+            # factors[factor_name] asigned with [], get all sub factors
             factors[factor_name] = df[factor_name].unique().tolist()
         for sub_factor in factors[factor_name]:
             sub_mask = update_mask(sub_mask, np.array(df[factor_name] == sub_factor), '|')

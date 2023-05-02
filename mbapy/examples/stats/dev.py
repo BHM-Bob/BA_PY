@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-05 16:18:43
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 12:13:32
+LastEditTime: 2023-05-02 12:47:33
 Description: 
 '''
 import sys
@@ -24,6 +24,13 @@ print(result)
 
 # result = stats.test.multicomp_dunnett('Animal Type', ['Control', '0.0003', '0.001', '0.003'], 'First Entry Len', df)
 # print(result)
+
+result = stats.test.shapiro(factors = {'Animal Type':['0.003']}, tag = 'First Entry Len', df = df)
+print(result)
+
+result = stats.test.pearsonr(factors = {'Animal Type':['0.003'], 'Day':[2]},
+                             tags = ['First Entry Len', 'Duration'], df = df)
+print(result)
 
 result = stats.test.multicomp_bonferroni({'Animal Type':['Control', '0.0003', '0.001', '0.003']}, 'First Entry Len', df)
 print(result)
