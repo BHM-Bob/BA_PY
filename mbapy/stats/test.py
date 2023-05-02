@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 01:12:08
+LastEditTime: 2023-05-02 12:16:00
 Description: 
 '''
 import scipy
@@ -77,26 +77,70 @@ def mannwhitneyu(x1 = None, x2 = None,
 
 
 def pearsonr(x1 = None, x2 = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+             factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
-    pearsonr相关系数:检验两个样本是否有线性关系
+    pearsonr相关系数:检验两个样本是否有线性关系\n
     p > 0.05 为独立（不相关）
     """
     x1, _ = _get_x1_x2(x1, None, factors, tag, df)
     return scipy.stats.shapiro(x1)
 
-#卡方检验 Chi-Squared Test：p > 0.05 为独立（不相关）
-from scipy.stats import chi2_contingency
+def _get_observe(observed = None,
+                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+    if observed is None and factors is not None and tag is not None and df is not None:
+        @mp.pro_bar_data_R(list(factors.keys()), [tag], df, [''])
+        def get_sum(values):
+            return [values.sum()]
+        ndf = get_sum()
+        col = list(factors.keys())[0]
+        rol = list(factors.keys())[1]
+        mat = pd.DataFrame(np.zeros(shape = (len(factors[rol]), len(factors[col]))),
+                           index=factors[rol], columns=factors[col])
+        for c in factors[col]:
+            for r in factors[rol]:
+                mat[c][r] = sum(ndf.loc[(ndf[col] == c) & (ndf[rol] == r), [tag]].values)
+        observed = mat
+    return observed
 
-def f_oneway(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
+def chi2_contingency(observed = None,
+                      factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    卡方检验 Chi-Squared Test:\n
+    p > 0.05 为独立(不相关)。\n
+    若存在某一个格子的理论频数T<5或p值与规定的显著性水平(如0.05)相近时，改用Fisher's exact test\n
+    1. 样本来自简单随机抽样
+    2. 各个格子是相互独立的;
+    3. 样本量应尽可能大。总观察数应不小于40，且每个格子的频数应大于等于5\n
+    支持直接输入和mbapy-style数据输入\n
+    mbapy-style: factors={'a':['a1', 'a2', ...], 'b':['b1', 'b2', ...]}, tag is value of 0/1 or number
+    """
+    observed = _get_observe(observed, factors, tag, df)
+    return scipy.stats.chi2_contingency(observed, **kwargs), observed
+
+def fisher_exact(observed = None,
+                      factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    Fisher确切概率法 Fisher's exact test:\n
+    2x2 contingency table, p > 0.05 为独立(不相关)\n
+    支持直接输入和mbapy-style数据输入\n
+    mbapy-style: factors={'a':['a1', 'a2'], 'b':['b1', 'b2']}
+    """
+    observed = _get_observe(observed, factors, tag, df)
+    return scipy.stats.fisher_exact(observed, **kwargs), observed
+
+def f_oneway(Xs:list = None,
+             factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
     """
     方差分析检验(ANOVA) Analysis of Variance Test (ANOVA):p < 0.05 为显著差异\n
-    检验两个或多个独立样本的均值是否有显著差异
+    检验两个或多个独立样本的均值是否有显著差异\n
+    支持直接输入(Xs)和
     """
-    sub_df = mp.get_df_data(factors, [tag], df)
-    fac_name = list(factors.keys())[0]
-    sub_facs = factors[fac_name]
-    return scipy.stats.f_oneway(*[sub_df.loc[sub_df[fac_name] == f, [tag]].values for f in sub_facs])
+    if Xs is None and factors is not None and tag is not None and df is not None:
+        sub_df = mp.get_df_data(factors, [tag], df)
+        fac_name = list(factors.keys())[0]
+        sub_facs = factors[fac_name]
+        Xs = [sub_df.loc[sub_df[fac_name] == f, [tag]].values for f in sub_facs]
+    return scipy.stats.f_oneway(*Xs)
 
 def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """using statsmodels.stats.multicomp.pairwise_tukeyhsd\n
