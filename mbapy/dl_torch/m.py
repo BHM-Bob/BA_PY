@@ -2,39 +2,52 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-06 21:33:20
+LastEditTime: 2023-05-03 18:44:24
 Description: Model
 '''
 
 import math
 from typing import Union
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .utils import GlobalSettings
 from . import bb
+from bb import CnnCfg
 
-def calcu_q_len(input_size:int, strides:list[int], dims:int = 1):
+class LayerCfg(CnnCfg):
+    def __init__(self, inc:int, outc:int, stride:int, kernel_size:int,
+                 use_SA:bool = False, use_trans:bool = False):
+        super().__init__(inc, outc, stride, kernel_size)
+        self.use_SA = use_SA
+        self.use_trans = use_trans
+
+def calcu_q_len(input_size:int, strides:list[LayerCfg], dims:int = 1):
     """
     calcu q_len for Conv model
     strides: list of each layers' stride
     input_size : when dim is 2, it must be set as img 's size (w==h)
     """
     ret = input_size
-    for s in range(strides):
-        while not ret % s == 0:
+    for s in strides:
+        while not ret % s.stride == 0:
             ret += 1
-        ret /= 2
+        ret /= s.stride
     return int(ret**dims)
 
 class COneDLayer(nn.Module):
-    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.SABlock1DR,
-                 use_trans:bool = True, trans_layer = bb.EncoderLayer, device = 'cuda', **kwargs):
-        self.layer = layer(inc, outc, cnn_kernel)
-        self.use_trans = use_trans
-        if self.use_trans:
-            self.trans = trans_layer(outc, 8, 2 * self.outc, 0.3, device, **kwargs)
+    def __init__(self, cfg:LayerCfg,
+                 layer = bb.SABlock1DR, trans_layer = bb.EncoderLayer,
+                 device = 'cuda', **kwargs):
+        super().__init__()
+        self.cfg = cfg
+        self.layer = layer(CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
+        if self.cfg.use_trans:
+            self.trans = trans_layer(cfg.outc, 8, 2 * cfg.outc, 0.3, device, **kwargs)
     def forward(self, x):
         # [b, c', l']
         x = self.layer(x)
@@ -45,43 +58,46 @@ class COneDLayer(nn.Module):
         return x
 
 class MAlayer(nn.Module):
-    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.ResBlock,
-                 use_SA:bool = True, SA_layer = bb.SABlockR, device = 'cuda', **kwargs):
-        super(MAlayer, self).__init__()
-        self.use_SA = use_SA
-        if self.use_SA:
-            self.SA = SA_layer(inc, outc, cnn_kernel)
-            self.layer = nn.Sequential(layer(outc, outc, 2),
-                                       layer(outc, outc, 1))
+    def __init__(self, cfg:LayerCfg,
+                 layer = bb.ResBlock, SA_layer = bb.SABlockR,
+                 device = 'cuda', **kwargs):
+        super().__init__()
+        self.cfg = cfg
+        if self.convs.use_SA:
+            self.SA = SA_layer(CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
+            self.layer = nn.Sequential(layer(CnnCfg(cfg.outc, cfg.outc, stride=2)),
+                                       layer(CnnCfg(cfg.outc, cfg.outc, stride=1)))
         else:
-            self.layer = nn.Sequential(layer(inc, outc, 2),
-                                       layer(outc, outc, 1))
+            self.layer = nn.Sequential(layer(CnnCfg(cfg.inc, cfg.outc, stride=2)),
+                                       layer(CnnCfg(cfg.outc, cfg.outc, stride=1)))
     def forward(self, x):
         if self.use_SA:
             x = self.SA(x)
         return self.layer(x)
 
 class MAvlayer(MAlayer):
-    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.ResBlock,
-                 use_SA:bool = True, SA_layer = bb.SABlockR, device = 'cuda', **kwargs):
-        super().__init__(inc, outc, cnn_kernel, layer, use_SA, SA_layer, device = 'cuda', **kwargs)
+    def __init__(self, cfg:LayerCfg,
+                 layer = bb.ResBlock, SA_layer = bb.SABlockR,
+                 device = 'cuda', **kwargs):
+        super().__init__(cfg, device = 'cuda', **kwargs)
         if self.use_SA:
-            self.SA = SA_layer(inc, outc, minCnnKSize=self.minCnnKSize)
             self.layer = nn.Sequential(nn.AvgPool2d((2, 2), 2),
-                                       layer(outc, outc, 1))
+                                       layer(CnnCfg(cfg.outc, cfg.outc, stride=1)))
         else:
             self.layer = nn.Sequential(nn.AvgPool2d((2, 2), 2),
-                                       layer(inc, outc, 1))
+                                       layer(CnnCfg(cfg.inc, cfg.outc, 1)))
 
 class SCANlayer(nn.Module):
-    def __init__(self, inc:int, outc:int, cnn_kernel:int, layer = bb.SCANN,
-                 use_SA:bool = True, SA_layer = bb.SABlockR, device = 'cuda', **kwargs):
-        super(SCANlayer, self).__init__()
-        if self.isSA:
-            self.layer = SA_layer(self.inc, self.outc)
+    def __init__(self, cfg:LayerCfg,
+                 layer = bb.SCANN, SA_layer = bb.SABlockR,
+                 device = 'cuda', **kwargs):
+        super().__init__()
+        self.cfg = cfg
+        if self.use_SA:
+            self.layer = SA_layer(CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
         else:
-            self.layer = nn.Conv2d(self.inc, self.outc, 1, 1, 0)
-        self.scann = layer(self.pic_size, self.inc, padding="half", outway="avg")
+            self.layer = nn.Conv2d(cfg.inc, cfg.outc, 1, 1, 0)
+        self.scann = layer(self.pic_size, cfg.inc, padding="half", outway="avg")
         self.shoutCut = nn.AvgPool2d((2, 2), stride=2, padding=0)
     def forward(self, x):
         t = self.shoutCut(x)
@@ -90,22 +106,19 @@ class SCANlayer(nn.Module):
         return x
 
 
-
 class MATTPBase(nn.Module):#MA TT with permute
-    def __init__(self, args: MyArgs, convnum:list, ConvLayer):
+    def __init__(self, args: GlobalSettings, convs:list[Convs], ConvLayer):
         super(MATTPBase, self).__init__()
-        self.picsize = int(math.sqrt(args.seqLen))
-        assert args.seqLen % self.picsize == 0
-        self.channels = args.channels
-        self.classnum = args.sumClass
-        self.stemconvnum = 32
+        self.args = args
+        self.in_shape = args.in_shape
+        self.out_shape = args.out_shape
         self.pf_dim = 256
         self.n_heads = 4
         self.n_layers = 2
-        self.convnum = convnum
-        self.q_len = CacuQLenTwoD(self.picsize, len(self.convnum))
-        mp.mprint('\nconvnum = {''}    \nq_len = {:2d}'.format(str(self.convnum), self.q_len))
-        self.MAlayers = nn.ModuleList([ ConvLayer(convnum) for convnum in self.convnum ])
+        self.convs = convs
+        self.q_len = calcu_q_len(self.in_shape[1], 2*np.ones(len(convs)))
+        args.mp.mprint('\nconvnum = {''}    \nq_len = {:2d}'.format(str(self.convs), self.q_len))
+        self.MAlayers = nn.ModuleList([ ConvLayer(convs) for convs in self.convs ])
         # self.tailTrans = nn.ModuleList(
         #         [
         #             EncoderLayer(args.dim, self.n_heads, self.pf_dim, 0.3, args.gpu)
@@ -120,18 +133,15 @@ class MATTPBase(nn.Module):#MA TT with permute
         for maLayer in self.MAlayers:
             x = maLayer(x)
         # x: [b, c', w', h'] => [b, c', l] => [b, l, c']
-        x = x.reshape(batchSize,self.convnum[-1][1],self.q_len).permute(0,2,1)
+        x = x.reshape(batchSize,self.convs[-1][1],self.q_len).permute(0,2,1)
         # # x: [b, l, c'] => [b, l, c']
         # for layer in self.tailTrans:
         #     x = layer(x)
         return x
 
 
-
-
-
 class COneD(MATTPBase):#MA TT with permute
-    def __init__(self, args: MyArgs):
+    def __init__(self, args: GlobalSettings):
         self.c = 32
         self.coAt = [
             [args.channels, 1 * self.c, 4, False, 7],  # [b, 16,  10*40]
@@ -141,9 +151,9 @@ class COneD(MATTPBase):#MA TT with permute
         ]  
         super(COneD, self).__init__(args, self.coAt, COneDLayer)
         self.q_len = int(
-            args.seqLen / CacuQLenOneD([cnn[2] for cnn in self.coAt])
+            args.seqLen / calcu_q_len([cnn[2] for cnn in self.coAt])
         )
-        mp.mprint('\ncnn = {''}    \nq_len = {:2d}'.format(str(self.coAt), self.q_len))
+        args.mp.mprint('\ncnn = {''}    \nq_len = {:2d}'.format(str(self.coAt), self.q_len))
     def forward(self, x):  # x: [512, 3, 1600]
         batchSize = x.shape[0]
         # x: [b, c, L] => [b, c', l]
@@ -158,7 +168,7 @@ class COneD(MATTPBase):#MA TT with permute
         return x
     
 class MATTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: MyArgs):
+    def __init__(self, args: GlobalSettings):
         self.stemconvnum = 32
         self.convnum = [
             [args.channels       , 1 * self.stemconvnum, True],  # [b,32, 20,20]
@@ -168,7 +178,7 @@ class MATTP(MATTPBase):#MA TT with permute
         super(MATTP, self).__init__(args, self.convnum, MAlayer)
          
 class MAvTTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: MyArgs):
+    def __init__(self, args: GlobalSettings):
         self.stemconvnum = 32
         self.convnum = [
             [args.channels       , 1 * self.stemconvnum, False, 7],  # [b,32,40,h]
@@ -178,7 +188,7 @@ class MAvTTP(MATTPBase):#MA TT with permute
         super(MAvTTP, self).__init__(args, self.convnum, MAvlayer)
          
 class MATTPE(MATTPBase):#MA TT with permute
-    def __init__(self, args: MyArgs):
+    def __init__(self, args: GlobalSettings):
         self.stemconvnum = 32
         self.convnum = [
             [args.channels       , 1 * self.stemconvnum, False],  # [b,32,40,h]
@@ -206,7 +216,7 @@ class MATTPE(MATTPBase):#MA TT with permute
         return x
     
 class SCANNTTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: MyArgs):
+    def __init__(self, args: GlobalSettings):
         self.stemconvnum = 32
         self.convnum = [
             [args.channels       , 1 * self.stemconvnum, 40, True],  # [b,32,20,h]

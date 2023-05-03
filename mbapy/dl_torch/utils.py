@@ -9,19 +9,19 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-import mbapy.dl_torch
+from . import _Params
 import mbapy.base as base
 from mbapy.file import save_json, read_json
 
 
-if mbapy.dl_torch.Params['USE_VIZDOM']:
+if _Params['USE_VIZDOM']:
     import visdom
     viz = visdom.Visdom()
     vizRecord = []
 
 class Mprint:
     """logging tools"""
-    def __init__(self, path="mp.txt", mode="lazy", cleanFirst=True):
+    def __init__(self, path="log.txt", mode="lazy", cleanFirst=True):
         self.path = path
         self.mode = mode
         self.topString = " "
@@ -65,19 +65,17 @@ class Mprint:
             
 class GlobalSettings(base.MyArgs):
     def __init__(self, mp:Mprint, modelRoot:str):
+        # data loading
         self.read = {}# for data reading
-        self.model = {
-            'model':None,
-            'arch':None,
-            'lr' : 0.01,
-            'in_shape' : [64, 128, 128, 3],
-            'out_dim' : [64, 128], 
-        }
-        self.input = {
-            'load_db_ratio' : 1,
-            'batch_size' : 64,
-            'single_shape':[128, 128, 3]
-        }
+        self.batch_size =  64
+        self.load_shape = [128, 128, 3]
+        # model
+        self.model = None
+        self.arch = None
+        self.lr =  0.01
+        self.in_shape =  [64, 128, 128, 3]
+        self.out_shape =  [64, 128]
+        self.load_db_ratio =  1
         # default var
         self.epochs = 1500
         self.print_freq = 40
@@ -241,7 +239,7 @@ def resume(args, model, optimizer, other:dict = {}):
         args.mp.logOnly(str(model))
         return model, optimizer, 0
     
-if mbapy.dl_torch.Params['USE_VIZDOM']:
+if _Params['USE_VIZDOM']:
     def VizLine(Y:float, X:float, win:str, title:str = 'N', name:str = 'N',
                 update:str = 'append', opts:dict = {}):
         global vizRecord

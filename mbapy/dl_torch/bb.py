@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-19 16:19:22
+LastEditTime: 2023-05-03 19:42:49
 Description: Basic Blocks
 '''
 
@@ -13,6 +13,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class CnnCfg:
+    def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
+        self.inc = inc
+        self.outc = outc
+        self.kernel_size = kernel_size 
+        self.stride = stride
+        self.padding = padding 
+        
 class reshape(nn.Module):
     def __init__(self, *args, **kwargs):
         super(reshape, self).__init__()
@@ -329,18 +337,21 @@ class SeparableConv2d(nn.Module):
 
 class ResBlock(nn.Module):
     """Identity Mappings in Deep Residual Networks : proposed"""
-    def __init__(self, ch_in, ch_out, stride=1):
+    def __init__(self, cfg:CnnCfg):
         super(ResBlock, self).__init__()
+        self.cfg = cfg
         self.nn = nn.Sequential(# full pre-activation
-            nn.BatchNorm2d(ch_in),
+            nn.BatchNorm2d(cfg.inc),
             nn.ReLU(True),
-            SeparableConv2d(ch_in, ch_out, kernel_size=3, stride=stride, padding=1),
-            nn.BatchNorm2d(ch_out),
+            SeparableConv2d(cfg.inc, cfg.outc,
+                            kernel_size=cfg.kernel_size, stride=cfg.stride, padding=cfg.padding),
+            nn.BatchNorm2d(cfg.outc),
             nn.ReLU(True),
-            SeparableConv2d(ch_out, ch_out, kernel_size=3, stride=1, padding=1),
+            SeparableConv2d(cfg.outc, cfg.outc,
+                            kernel_size=cfg.kernel_size, stride=1, padding=cfg.padding),
         )
-        if ch_out != ch_in:
-            self.extra = nn.Conv2d(ch_in, ch_out, kernel_size=1, stride=stride)
+        if cfg.outc != cfg.inc:
+            self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
         else:
             self.extra = lambda x : x
     def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
@@ -348,18 +359,18 @@ class ResBlock(nn.Module):
     
 class ResBlockR(ResBlock):
     """Identity Mappings in Deep Residual Networks : exclusive gating"""
-    def __init__(self, ch_in, ch_out, stride=1):
-        super().__init__(ch_in, ch_out, stride)
-        self.extra = nn.Conv2d(ch_in, ch_out, kernel_size=1, stride=stride)
+    def __init__(self, cfg:CnnCfg):
+        super().__init__(cfg)
+        self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
     def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
         t = self.extra(x)
         return t.mul(self.nn(x))+(1.-torch.sigmoid_(t)).mul(self.extra(x))
 
 class SABlock(nn.Module):
     """异形卷积核的并行，外加残差结构"""
-    def __init__(self, inc, outc, minCnnKSize = 3):
+    def __init__(self, cfg:CnnCfg):
         super().__init__()
-        mS = minCnnKSize
+        mS = cfg.kernel_size
         self.cnnK = [(mS+4, mS+2), (mS+2, mS+0), (mS+2, mS+4), (mS+0, mS+2)]
         def GenCnn(inChannles: int, outChannles: int, cnnKernel):
             return nn.ModuleList([
@@ -371,10 +382,10 @@ class SABlock(nn.Module):
                 )
                 for k in cnnKernel
             ])
-        self.cnn1 = GenCnn(inc, outc // 4, self.cnnK)
-        self.cnn2 = GenCnn(outc, outc // 4, self.cnnK)
-        if inc != outc:
-            self.extra = nn.Conv2d(inc, outc, kernel_size=1, stride=1, padding="same")
+        self.cnn1 = GenCnn(cfg.inc, cfg.outc // 4, self.cnnK)
+        self.cnn2 = GenCnn(cfg.outc, cfg.outc // 4, self.cnnK)
+        if cfg.inc != cfg.outc:
+            self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
         else:
             self.extra = lambda x : x
     def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
@@ -383,9 +394,9 @@ class SABlock(nn.Module):
         return out + self.extra(x)
     
 class SABlockR(SABlock):
-    def __init__(self, inc, outc, minCnnKSize = 3):
-        super().__init__(inc, outc, minCnnKSize)
-        self.extra = nn.Conv2d(inc, outc, kernel_size=1, stride=1, padding="same")
+    def __init__(self, cfg:CnnCfg):
+        super().__init__(cfg)
+        self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
     def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
         out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
         out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
@@ -394,8 +405,8 @@ class SABlockR(SABlock):
     
 class SABlock1D(SABlock):
     """[b, c, l] => [b, c', l']"""
-    def __init__(self, inc, outc, minCnnKSize = 1):
-        super().__init__(inc, outc)
+    def __init__(self, cfg:CnnCfg):
+        super().__init__(cfg)
         def GenCnn(inc: int, outc: int, minCnnKSize:int):
             return nn.ModuleList([
                 nn.Sequential(
@@ -405,17 +416,17 @@ class SABlock1D(SABlock):
                 )
                 for k in range(minCnnKSize, minCnnKSize+2*4, 2)
             ])
-        self.cnn1 = GenCnn(inc, outc, minCnnKSize)
-        self.cnn2 = GenCnn(outc, outc, minCnnKSize)
-        if inc != outc:
-            self.extra = nn.Conv1d(inc, outc, kernel_size=1, stride=1, padding="same")
+        self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
+        self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
+        if cfg.inc != cfg.outc:
+            self.extra = nn.Conv1d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
         else:
             self.extra = lambda x : x
     
 class SABlock1DR(SABlockR):
     """[b, c, l] => [b, c', l']"""
-    def __init__(self, inc, outc, minCnnKSize = 3):
-        super().__init__(inc, outc)
+    def __init__(self, cfg:CnnCfg):
+        super().__init__(cfg)
         def GenCnn(inc: int, outc: int, minCnnKSize:int):
             return nn.ModuleList([
                 nn.Sequential(
@@ -425,6 +436,6 @@ class SABlock1DR(SABlockR):
                 )
                 for k in range(minCnnKSize, minCnnKSize+2*4, 2)
             ])
-        self.cnn1 = GenCnn(inc, outc, minCnnKSize)
-        self.cnn2 = GenCnn(outc, outc, minCnnKSize)
-        self.extra = nn.Conv1d(inc, outc, kernel_size=1, stride=1, padding="same")
+        self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
+        self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
+        self.extra = nn.Conv1d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
