@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-03 19:42:49
+LastEditTime: 2023-05-04 00:31:21
 Description: Basic Blocks
 '''
 
@@ -19,7 +19,10 @@ class CnnCfg:
         self.outc = outc
         self.kernel_size = kernel_size 
         self.stride = stride
-        self.padding = padding 
+        self.padding = padding
+        self._str_ = f'inc={self.inc:d}, outc={self.outc:d}, kernel_size={self.kernel_size:d}, stride={self.inc:d}, padding={self.padding:d}'
+    def __str__(self):
+        return self._str_
         
 class reshape(nn.Module):
     def __init__(self, *args, **kwargs):
@@ -329,8 +332,8 @@ class SeparableConv2d(nn.Module):
     def __init__(self, inc, outc, kernel_size, stride, padding, depth = 1):
         super(SeparableConv2d, self).__init__()
         self.nn = nn.Sequential(
-            nn.Conv2d(inc, outc*depth, kernel_size, stride, padding, groups=inc),# depthwise 
-            nn.Conv2d(outc*depth, outc, kernel_size=1),# pointwise
+            nn.Conv2d(inc, inc, kernel_size, stride, padding, groups=inc),# depthwise 
+            nn.Conv2d(inc, outc, kernel_size=1),# pointwise
             )
     def forward(self, x):
         return self.nn(x)
@@ -353,7 +356,7 @@ class ResBlock(nn.Module):
         if cfg.outc != cfg.inc:
             self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
         else:
-            self.extra = lambda x : x
+            self.extra = nn.Identity()
     def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
         return self.nn(x)+self.extra(x)
     
@@ -387,13 +390,14 @@ class SABlock(nn.Module):
         if cfg.inc != cfg.outc:
             self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
         else:
-            self.extra = lambda x : x
+            self.extra = nn.Identity()
     def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
         out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
         out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
         return out + self.extra(x)
     
 class SABlockR(SABlock):
+    """return t.mul(out)+(1.-torch.sigmoid_(t)).mul(self.extra(x))"""
     def __init__(self, cfg:CnnCfg):
         super().__init__(cfg)
         self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
@@ -421,7 +425,7 @@ class SABlock1D(SABlock):
         if cfg.inc != cfg.outc:
             self.extra = nn.Conv1d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
         else:
-            self.extra = lambda x : x
+            self.extra = nn.Identity()
     
 class SABlock1DR(SABlockR):
     """[b, c, l] => [b, c', l']"""
