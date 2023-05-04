@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 12:20:39
+LastEditTime: 2023-05-04 12:35:54
 Description: Model
 '''
 
@@ -168,6 +168,7 @@ class MATTPBase(nn.Module):#MA TT with permute
                        "\n".join([f'LAYER {i:d}: '+str(c) for i, c in enumerate(cfg)]))
         self.main_layers = nn.ModuleList([ layer(c) for c in self.cfg ])
         if self.tail_trans_cfg is not None:
+            # TODO : add out trans
             self.tail_trans = nn.ModuleList(
                     [
                         bb.EncoderLayer(**(self.tail_trans_cfg.toDict()))
@@ -193,14 +194,9 @@ class COneD(MATTPBase):#MA TT with permute
         super(COneD, self).__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
     
 class MATTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings):
-        self.stemconvnum = 32
-        self.convnum = [
-            [args.channels       , 1 * self.stemconvnum, True],  # [b,32, 20,20]
-            [1 * self.stemconvnum, 2 * self.stemconvnum, True],  # [b,64, 10,10]
-            [2 * self.stemconvnum,             args.dim, True],  # [b,128, 5, 5]
-        ]  
-        super(MATTP, self).__init__(args, self.convnum, MAlayer)
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:COneDLayer,
+                 tail_trans_cfg:TransCfg = None, **kwargs):
+        super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MAvTTP(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings):

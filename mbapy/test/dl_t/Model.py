@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 12:22:39
+LastEditTime: 2023-05-04 12:35:12
 Description: Test for Model
 '''
 import sys
@@ -65,4 +65,14 @@ cfg = [
     ]
 net = m.COneD(args, cfg, m.COneDLayer).to('cuda')
 print(net(x).shape, "torch.Size([32, 128, 32])")
+
+x = torch.rand([32, 3, 128, 128], device = 'cuda')
+cfg = [
+    m.LayerCfg( 3,  32, 3, 2, 'ResBlockR', 'SABlockR', use_trans=False),
+    m.LayerCfg(32,  64, 3, 2, 'ResBlockR', 'SABlockR', use_trans=False),
+    m.LayerCfg(64, 128, 3, 2, 'ResBlockR', 'SABlockR', use_trans=True,
+               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
+    ]
+net = m.MATTP(args, cfg, m.MAlayer, m.TransCfg(128, n_layers=2)).to('cuda')
+print(net(x).shape, "torch.Size([32, 256, 128])")
 
