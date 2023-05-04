@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 00:31:21
+LastEditTime: 2023-05-04 11:56:28
 Description: Basic Blocks
 '''
 
@@ -20,7 +20,7 @@ class CnnCfg:
         self.kernel_size = kernel_size 
         self.stride = stride
         self.padding = padding
-        self._str_ = f'inc={self.inc:d}, outc={self.outc:d}, kernel_size={self.kernel_size:d}, stride={self.inc:d}, padding={self.padding:d}'
+        self._str_ = f'inc={self.inc:d}, outc={self.outc:d}, kernel_size={self.kernel_size:d}, stride={self.stride:d}, padding={self.padding:d}'
     def __str__(self):
         return self._str_
         

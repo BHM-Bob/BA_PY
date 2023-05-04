@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 00:25:57
+LastEditTime: 2023-05-04 12:22:39
 Description: Test for Model
 '''
 import sys
@@ -42,9 +42,9 @@ print(net(x).shape, "torch.Size([32, 64, 32, 32])")
 #                   layer = bb.ResBlock, device='cuda').to('cuda')
 # print(net(x).shape, "torch.Size([32, 64, 32, 32])")
 
-x = torch.rand([32, 3, 128, 128], device = 'cuda')
 args = GlobalSettings(Mprint(), '')
 
+x = torch.rand([32, 3, 128, 128], device = 'cuda')
 cfg = [
     m.LayerCfg( 3,  8, 3, 2, 'ResBlockR', 'SABlockR'),
     m.LayerCfg( 8, 16, 3, 2, 'ResBlockR', 'SABlockR'),
@@ -52,5 +52,17 @@ cfg = [
     m.LayerCfg(32, 64, 3, 2, 'ResBlockR', 'SABlockR'),
     ]
 net = m.MATTPBase(args, cfg, m.MAlayer).to('cuda')
-print(net(x).shape, "torch.Size([32, 64, 64])")
+print(net(x).shape, "torch.Size([32, 64, 8, 8])")
+
+x = torch.rand([32, 8, 1024], device = 'cuda')
+cfg = [
+    m.LayerCfg( 8,  32, 7, 1, 'SABlock1D', avg_size=4, use_trans=False),
+    m.LayerCfg(32,  64, 5, 1, 'SABlock1D', avg_size=2, use_trans=False),
+    m.LayerCfg(64,  64, 3, 1, 'SABlock1D', avg_size=2, use_trans=True,
+               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(64)),
+    m.LayerCfg(64, 128, 3, 1, 'SABlock1D', avg_size=2, use_trans=True,
+               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
+    ]
+net = m.COneD(args, cfg, m.COneDLayer).to('cuda')
+print(net(x).shape, "torch.Size([32, 128, 32])")
 
