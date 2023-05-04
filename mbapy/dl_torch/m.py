@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 18:15:27
+LastEditTime: 2023-05-04 21:38:28
 Description: Model
 '''
 
@@ -101,10 +101,19 @@ class MAlayer(nn.Module):
         else:
             self.layer = nn.Sequential(str2net[cfg.layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size, stride=2)),
                                        str2net[cfg.layer](CnnCfg(cfg.outc, cfg.outc, cfg.kernel_size, stride=1)))
+        if self.cfg.use_trans:
+            self.trans = cfg.trans_cfg.gen(str2net[cfg.trans_layer], **kwargs)
     def forward(self, x):
         if self.cfg.use_SA:
             x = self.SA(x)
-        return self.layer(x)
+        x = self.layer(x)
+        if self.cfg.use_trans:
+            # x: [b, c', w', h'] => [b, c', l'] => [b, l', c'] => [b, c', l']
+            batch_size, c, w, h = x.shape
+            x = x.reshape(batch_size, c, -1)
+            x = self.trans(x.permute(0, 2, 1)).permute(0, 2, 1)
+            x = x.reshape(batch_size, c, w, h)
+        return x
 
 class MAvlayer(MAlayer):
     def __init__(self, cfg:LayerCfg, **kwargs):
@@ -120,19 +129,23 @@ class MAvlayer(MAlayer):
         x = self.layer(x)
         if self.cfg.use_SA:
             x = self.SA(x)
+        if self.cfg.use_trans:
+            # x: [b, c', w', h'] => [b, c', l'] => [b, l', c'] => [b, c', l']
+            batch_size, c, w, h = x.shape
+            x = x.reshape(batch_size, c, -1)
+            x = self.trans(x.permute(0, 2, 1)).permute(0, 2, 1)
+            x = x.reshape(batch_size, c, w, h)
         return x
     
 class SCANlayer(nn.Module):
-    def __init__(self, cfg:LayerCfg,
-                 layer = bb.SCANN, SA_layer = bb.SABlockR,
-                 device = 'cuda', **kwargs):
+    def __init__(self, cfg:LayerCfg, **kwargs):
         super().__init__()
         self.cfg = cfg
-        if self.use_SA:
-            self.layer = SA_layer(CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
+        if self.cfg.use_SA:
+            self.SA = str2net[cfg.sa_layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
         else:
             self.layer = nn.Conv2d(cfg.inc, cfg.outc, 1, 1, 0)
-        self.scann = layer(self.pic_size, cfg.inc, padding="half", outway="avg")
+        self.scann = bb.SCANN(self.pic_size, cfg.inc, padding="half", outway="avg")
         self.shoutCut = nn.AvgPool2d((2, 2), stride=2, padding=0)
     def forward(self, x):
         t = self.shoutCut(x)
@@ -210,42 +223,29 @@ class MAvTTP(MATTPBase):#MA TT with permute
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MATTPE(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings):
-        self.stemconvnum = 32
-        self.convnum = [
-            [args.channels       , 1 * self.stemconvnum, False],  # [b,32,40,h]
-            [1 * self.stemconvnum, 2 * self.stemconvnum,  True],  # [b,64,20,h]
-            [2 * self.stemconvnum,             args.dim,  True],
-        ]  
-        super(MATTPE, self).__init__(args, self.convnum, MAvlayer)
-        self.pos_embedding = bb.PositionalEncoding(args.dim, self.q_len)
-    def forward(self, x):#x: [b, c, L]
-        batchSize = x.shape[0]
-        # x: [b, c, L] => [b, c, w, h]
-        x = x.reshape(batchSize, self.channels, self.picsize, self.picsize)
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
+                 tail_trans_cfg:TransCfg = None, **kwargs):
+        super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
+        self.pos_embedding = bb.PositionalEncoding(cfg[-1].outc)
+    def forward(self, x):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, l, c']"""
+        batch_size = x.shape[0]
         # x: [b, c, w, h] => [b, c', w', h']
-        for maLayer in self.MAlayers:
-            x = maLayer(x)
-        # x: [b, c', w', h'] => [b, c', l]
-        x = x.reshape(batchSize,self.convnum[-1][1],self.q_len)
-        # x: [b, c', l] => [b, l, c']
-        x = x.permute(0,2,1)
-        # positional_encoding
-        x = self.pos_embedding(x)
-        # # x: [b, l, c'] => [b, l, c']
-        # for layer in self.tailTrans:
-        #     x = layer(x)
+        for layer in self.main_layers:
+            x = layer(x)
+        if self.tail_trans_cfg is not None:
+            # x: [b, c', w', h'] => [b, c', l] => [b, l, c']
+            x = x.reshape(batch_size, self.cfg[-1].outc, -1).permute(0, 2, 1)
+            # positional_encoding
+            x = self.pos_embedding(x)
+            for layer in self.tail_trans:
+                x = layer(x)
         return x
     
 class SCANNTTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings):
-        self.stemconvnum = 32
-        self.convnum = [
-            [args.channels       , 1 * self.stemconvnum, 40, True],  # [b,32,20,h]
-            [1 * self.stemconvnum, 2 * self.stemconvnum, 20, True],  # [b,64,10,h]
-            [2 * self.stemconvnum,             args.dim, 10, True],
-        ]
-        super(SCANNTTP, self).__init__(args, self.convnum, SCANlayer)
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:SCANlayer,
+                 tail_trans_cfg:TransCfg = None, **kwargs):
+        super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         
 class MATTP_ViT(nn.Module):  # MA TT with permute
     def __init__(self, classnum, device, seqLen=32, channels=3):

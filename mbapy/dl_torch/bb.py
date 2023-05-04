@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 11:56:28
+LastEditTime: 2023-05-04 21:53:51
 Description: Basic Blocks
 '''
 
@@ -33,9 +33,8 @@ class reshape(nn.Module):
 
 class ScannCore(nn.Module):
     """MHSA 单头版"""
-    def __init__(self, inc, s, way="linear", dropout=0.2):
+    def __init__(self, s, way="linear", dropout=0.2):
         super(ScannCore, self).__init__()
-        self.inc = inc
         self.s = s
         self.fc_q = nn.Linear(s, s)
         self.fc_k = nn.Linear(s, s)
@@ -72,7 +71,6 @@ class SCANN(nn.Module):
         outway : str="linear", # linear or avg
     """
     def __init__( self,
-        img_size : int,# means img must be (w == h)
         inc : int, # input channle
         group : int=1,# means how many channels are in a group to get into ScannCore
         stride : int=2,
@@ -85,37 +83,35 @@ class SCANN(nn.Module):
         assert inc % group == 0
         self.inc = inc
         self.group = group
-        assert kernel_size < img_size
-        assert (img_size + 2*padding - kernel_size) % stride == 0
         self.stride = stride
         self.padding = padding
         self.kernel_size = kernel_size
-        self.side_patch_num = (img_size + 2*padding - kernel_size) // stride + 1
-        self.patch_num = (self.side_patch_num) ** 2
         self.patch_size = kernel_size**2
 
         self.SAcnn = nn.ModuleList(
             [
-                ScannCore(self.patch_num * self.group, self.patch_size, outway, dropout)
+                ScannCore(self.patch_size, outway, dropout)
                 for _ in range(inc // group)
             ]
         )
     def ScannCoreMiniForward(self, x, i):
         # x = [b, group, h, w]
         batch_size = x.shape[0]
-        # t = [b,self.group*self.patch_size,self.patch_num]
+        # t = [b, self.group*self.patch_size, patch_num]
         t = F.unfold(x, self.kernel_size, 1, self.padding, self.stride)
-        # t = [b,self.patch_num*self.group,self.patch_size]
+        b, g_ps, patch_num = t.shape
+        side_patch_num = int(math.sqrt(patch_num))
+        # t = [b, patch_num*self.group, self.patch_size]
         t = (
-            t.reshape(batch_size, self.group, self.patch_size, self.patch_num)
+            t.reshape(batch_size, self.group, self.patch_size, patch_num)
             .permute(0, 1, 3, 2)
-            .reshape(batch_size, self.group * self.patch_num, self.patch_size)
+            .reshape(batch_size, self.group * patch_num, self.patch_size)
         )
         # t = [b,self.patch_num*self.group,1]
         t = self.SAcnn[i](t)
         # t = [b,self.group,self.side_patch_num,self.side_patch_num]
         t = (
-            t.reshape( batch_size, self.side_patch_num, self.side_patch_num, self.group)
+            t.reshape( batch_size, side_patch_num, side_patch_num, self.group)
             .permute(0, 3, 1, 2)
             )
         return t
@@ -140,7 +136,8 @@ class PositionalEncoding(nn.Module):
         #pe.requires_grad = False
         self.register_buffer('pe', pe)
     def forward(self, x):
-        return self.pe.repeat(x.shape[0], 1, 1).add(x)
+        b, l, c = x.shape
+        return self.pe.repeat(x.shape[0], 1, 1)[:,:l, :].add(x)
 
 class PositionwiseFeedforwardLayer(nn.Module):
     def __init__(self, hid_dim, pf_dim, dropout):

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 18:12:22
+LastEditTime: 2023-05-04 21:27:46
 Description: Test for Model
 '''
 import sys
@@ -84,5 +84,25 @@ cfg = [
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
     ]
 net = m.MAvTTP(args, cfg, m.MAvlayer, m.TransCfg(128, n_layers=2)).to('cuda')
+print(net(x).shape, "torch.Size([32, 256, 128])")
+
+x = torch.rand([32, 3, 128, 128], device = 'cuda')
+cfg = [
+    m.LayerCfg( 3,  32, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=False),
+    m.LayerCfg(32,  64, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True),
+    m.LayerCfg(64, 128, 5, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True,
+               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
+    ]
+net = m.MATTPE(args, cfg, m.MAvlayer, m.TransCfg(128, n_layers=2)).to('cuda')
+print(net(x).shape, "torch.Size([32, 256, 128])")
+
+x = torch.rand([32, 3, 128, 128], device = 'cuda')
+cfg = [
+    m.LayerCfg( 3,  32, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=False),
+    m.LayerCfg(32,  64, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True),
+    m.LayerCfg(64, 128, 5, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True,
+               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
+    ]
+net = m.SCANNTTP(args, cfg, m.SCANlayer, m.TransCfg(128, n_layers=2)).to('cuda')
 print(net(x).shape, "torch.Size([32, 256, 128])")
 
