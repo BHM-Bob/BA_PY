@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 22:19:08
+LastEditTime: 2023-05-04 23:04:33
 Description: Test for Basic Blocks
 '''
 import sys
@@ -34,6 +34,8 @@ print(net(x).shape, "torch.Size([8, 16, 16, 16])")
 x = torch.rand([32, 128, 32], device = 'cuda')
 net = bb.MultiHeadAttentionLayer(32, 8, 0.3, 'cuda').to('cuda')
 print(net(x, x, x).shape, "torch.Size([32, 128, 32])")
+net = bb.FastMultiHeadAttentionLayer(32, 4, 0.3, 'cuda').to('cuda')
+print(net(x).shape, "torch.Size([32, 128, 32])")
 net = bb.EncoderLayer(0, 0, 32, 8, 64, 0.3, 'cuda').to('cuda')
 print(net(x).shape, "torch.Size([32, 128, 32])")
 net = bb.Trans(128, 128, 32, 3, 8, 128, 0.3, 'cuda', bb.EncoderLayer).to('cuda')

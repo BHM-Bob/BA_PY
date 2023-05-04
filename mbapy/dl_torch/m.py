@@ -2,8 +2,8 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 22:23:31
-Description: Model
+LastEditTime: 2023-05-04 22:38:56
+Description: Model, most of models outputs [b, c', w', h'] or [b, l', c']
 '''
 
 import math
@@ -247,65 +247,24 @@ class SCANNTTP(MATTPBase):#MA TT with permute
                  tail_trans_cfg:TransCfg = None, **kwargs):
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         
-class MATTP_ViT(nn.Module):  # MA TT with permute
-    def __init__(self, classnum, device, seqLen=32, channels=3):
-        super(MATTP_ViT, self).__init__()
-        self.picsize = int(math.sqrt(seqLen))
-        self.channels = channels
-        self.classnum = classnum
-        self.stemconvnum = 16
-        self.pf_dim = 256
-        self.n_heads = 4
-        self.n_layers = 2
-        self.convnum = [
-            [channels, 1 * self.stemconvnum, True],  # [b,32,41,h]
-            [1 * self.stemconvnum, 1 * self.stemconvnum, True],  # [b,64,21,h]
-            [1 * self.stemconvnum, 8 * self.stemconvnum, True],
-        ]  # [b,128,6q,h]
-        self.q_len = 25
-
+class MATTP_ViT(MATTPBase):  # MA TT with permute
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:SCANlayer,
+                 tail_trans_cfg:TransCfg = None, **kwargs):
+        super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         # Uinfo: [b,2,128]
-        self.Uinfo = nn.Parameter(torch.randn(1, 2, self.convnum[-1][1])).to(device)
-
-        self.MAlayers = nn.ModuleList(
-            [MAlayer(convnum[0], convnum[1], convnum[2]) for convnum in self.convnum]
-        )
-
-        if self.n_layers > 1:
-            self.translayers = nn.ModuleList(
-                [
-                    bb.EncoderLayer(
-                        self.convnum[-1][1], self.n_heads, self.pf_dim, 0.2, device
-                    )
-                    for _ in range(self.n_layers)
-                ]
-            )
-        else:
-            self.translayers = None
-
-        self.fc = nn.Linear(self.convnum[-1][1], classnum)
-
+        self.uni_info = nn.Parameter(torch.randn(1, 2, cfg[-1].outc))
     def forward(self, x):  # x: [b,3,128,128]
-        batchSize = x.shape[0]
-        # x: [b,3,128,128]
-        x = x.reshape(batchSize, self.channels, self.picsize, self.picsize)
-        # x: [b,128,5,5]
-        for maLayer in self.MAlayers:
-            x = maLayer(x)
-        # x: [b,128,5,5] => [b,128,25] => [b,25,128]
-        x = x.reshape(batchSize, self.convnum[-1][1], self.q_len).permute(0, 2, 1)
-        # x: [b,2+25,128]
-        x = torch.cat([self.Uinfo.repeat(batchSize, 1, 1), x], dim=1)
-
-        if not self.translayers is None:
-            for layer in self.translayers:
+        # x: [b, c, w, h] => [b, c', w', h']
+        for layer in self.main_layers:
+            x = layer(x)
+        batch_size, c, w, h = x.shape
+        # x: [b, c', w', h'] => [b, c', l] => [b, l, c']
+        x = x.reshape(batch_size, c, w*h).permute(0, 2, 1)
+        # x: [b, l+2, c']
+        x = torch.cat([self.uni_info.repeat(batch_size, 1, 1), x], dim=1)
+        if self.tail_trans_cfg is not None:
+            # x: [b, c', w', h'] => [b, c', l] => [b, l, c']
+            x = x.reshape(batch_size, self.cfg[-1].outc, -1).permute(0, 2, 1)
+            for layer in self.tail_trans:
                 x = layer(x)
-
-        # x: [b,2,128] => [b,2,class_num] => [b,class_num,2] => [b*class_num,2] => [b, cn*2]
-        x = (
-            self.fc(x[:, 0:2, :])
-            .permute(0, 2, 1)
-            .reshape(batchSize * self.classnum, 2)
-            .reshape(batchSize, -1)
-        )
         return x

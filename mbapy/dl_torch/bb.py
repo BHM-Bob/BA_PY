@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 21:53:51
+LastEditTime: 2023-05-04 23:05:20
 Description: Basic Blocks
 '''
 
@@ -12,6 +12,8 @@ from typing import Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from . import paper
 
 class CnnCfg:
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
@@ -192,6 +194,18 @@ class MultiHeadAttentionLayer(nn.Module):
             reshape(batch_size, -1, self.hid_dim)
         # x = [batch size, query len, hid dim]
         return self.fc_o(x)
+    
+class FastMultiHeadAttentionLayer(nn.Module):
+    """wrapper for FlashAttention, just import flash_attn and adjust dtype"""
+    def __init__(self, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
+        super().__init__()
+        self.net = paper.bb.FlashMHA(hid_dim, n_heads,
+                                     device=device, dtype = torch.float16)
+    def forward(self, x: torch.Tensor):
+        ori_type = x.dtype
+        x = x.to(dtype = torch.float16)
+        x = self.net(x)[0]
+        return x.to(dtype = ori_type)
 
 class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
     """OutMultiHeadAttentionLayer\n
