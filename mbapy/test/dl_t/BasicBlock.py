@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 22:01:00
+LastEditTime: 2023-05-04 22:19:08
 Description: Test for Basic Blocks
 '''
 import sys
@@ -25,6 +25,11 @@ t = (
 print(t)
 net = bb.SCANN(1, 1, 1, 1, 3,'linear', 0.3).to('cuda')
 print(net(x).shape, "torch.Size([1, 1, 4, 4])")
+x = torch.rand([8, 16, 32, 32], device = 'cuda')
+net = bb.SCANN(16, 1, 1, 1, 3, 'linear', 0.3).to('cuda')
+print(net(x).shape, "torch.Size([8, 16, 32, 32])")
+net = bb.SCANN(16, 1, 2, 1, 3, 'linear', 0.3).to('cuda')
+print(net(x).shape, "torch.Size([8, 16, 16, 16])")
 
 x = torch.rand([32, 128, 32], device = 'cuda')
 net = bb.MultiHeadAttentionLayer(32, 8, 0.3, 'cuda').to('cuda')

@@ -98,9 +98,9 @@ print(net(x).shape, "torch.Size([32, 256, 128])")
 
 x = torch.rand([32, 3, 128, 128], device = 'cuda')
 cfg = [
-    m.LayerCfg( 3,  32, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=False),
-    m.LayerCfg(32,  64, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True),
-    m.LayerCfg(64, 128, 5, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True,
+    m.LayerCfg( 3,  32, 7, -1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=False),
+    m.LayerCfg(32,  64, 7, -1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True),
+    m.LayerCfg(64, 128, 5, -1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True,
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
     ]
 net = m.SCANNTTP(args, cfg, m.SCANlayer, m.TransCfg(128, n_layers=2)).to('cuda')

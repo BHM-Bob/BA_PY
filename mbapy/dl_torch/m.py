@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 21:38:28
+LastEditTime: 2023-05-04 22:23:31
 Description: Model
 '''
 
@@ -142,10 +142,10 @@ class SCANlayer(nn.Module):
         super().__init__()
         self.cfg = cfg
         if self.cfg.use_SA:
-            self.SA = str2net[cfg.sa_layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
+            self.layer = str2net[cfg.sa_layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
         else:
             self.layer = nn.Conv2d(cfg.inc, cfg.outc, 1, 1, 0)
-        self.scann = bb.SCANN(self.pic_size, cfg.inc, padding="half", outway="avg")
+        self.scann = bb.SCANN(cfg.inc, padding=1, outway="avg")
         self.shoutCut = nn.AvgPool2d((2, 2), stride=2, padding=0)
     def forward(self, x):
         t = self.shoutCut(x)
