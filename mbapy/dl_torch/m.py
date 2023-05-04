@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 22:38:56
+LastEditTime: 2023-05-04 23:18:50
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c']
 '''
 
@@ -21,7 +21,7 @@ from .bb import CnnCfg
 
 class TransCfg:
     def __init__(self, hid_dim:int, pf_dim:int = None, n_heads:int = 8, n_layers:int = 3,
-                 dropout:float = 0.3, q_len:int = -1, class_num:int = -1):
+                 dropout:float = 0.3, q_len:int = -1, class_num:int = -1, **kwargs):
         self.hid_dim = hid_dim
         self.pf_dim = pf_dim if pf_dim is not None else 2*hid_dim
         self.n_heads = n_heads
@@ -29,17 +29,19 @@ class TransCfg:
         self.dropout = dropout
         self.q_len = q_len
         self.class_num = class_num
+        self.kwargs = kwargs
         self._str_ = f'hid_dim={self.hid_dim:d}, pf_dim={self.pf_dim:d}, n_heads={self.n_heads:d}, n_layers={self.n_layers:d}, dropout={self.dropout:f}, q_len={self.q_len:d}, class_num={self.class_num:d}'
     def __str__(self):
         return self._str_
     def toDict(self):
         d = {}
         for attr in vars(self):
-            d[attr] = getattr(self,attr)
+            if attr not in ['_str_', 'kwargs']:
+                d[attr] = getattr(self,attr)
         return d
     def gen(self, layer, **kwargs):
         """generate a transformer like layer using cfg, unnecessary args will be the kwargs"""
-        return layer(**(self.toDict()), **kwargs)
+        return layer(**(self.toDict()), **self.kwargs, **kwargs)
 
 class LayerCfg(CnnCfg):
     def __init__(self, inc:int, outc:int, kernel_size:int, stride:int,

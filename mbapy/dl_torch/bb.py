@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 23:05:20
+LastEditTime: 2023-05-04 23:14:21
 Description: Basic Blocks
 '''
 
@@ -201,14 +201,15 @@ class FastMultiHeadAttentionLayer(nn.Module):
         super().__init__()
         self.net = paper.bb.FlashMHA(hid_dim, n_heads,
                                      device=device, dtype = torch.float16)
-    def forward(self, x: torch.Tensor):
-        ori_type = x.dtype
-        x = x.to(dtype = torch.float16)
-        x = self.net(x)[0]
-        return x.to(dtype = ori_type)
+    def forward(self, query, key, value):
+        ori_type = query.dtype
+        query = query.to(dtype = torch.float16)
+        query = self.net(query)[0]
+        return query.to(dtype = ori_type)
 
 class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
-    """OutMultiHeadAttentionLayer\n
+    """
+    OutMultiHeadAttentionLayer\n
     if kwargs['use_enhanced_fc_q'] and 'q_len' in kwargs and 'out_len' in kwargs\n
     use fc_q mlp like PositionwiseFeedforwardLayer to output a tensor with out_len\n
     if 'out_dim' in kwargs\n
@@ -251,9 +252,12 @@ class EncoderLayer(nn.Module):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
         self.ff_layer_norm = nn.LayerNorm(hid_dim)
-        if not 'do_not_ff' in kwargs:
+        if 'do_not_ff' not in kwargs or ('do_not_ff' in kwargs and not kwargs['do_not_ff']):
             self.positionwise_feedforward = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
-        self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+        if 'use_FastMHA' in kwargs and kwargs['use_FastMHA']:
+            self.self_attention = FastMultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+        else:
+            self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         self.dropout = nn.Dropout(dropout)
     def forward(self, src):
         # src = [batch size, src len, hid dim]

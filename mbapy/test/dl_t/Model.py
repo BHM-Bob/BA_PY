@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 22:37:24
+LastEditTime: 2023-05-04 23:23:59
 Description: Test for Model
 '''
 import sys
@@ -24,6 +24,10 @@ net = m.COneDLayer(m.LayerCfg(32, 64, 3, 2, 'SABlock1D', avg_size=4)).to('cuda')
 print(net(x).shape, "torch.Size([32, 64, 256])")
 net = m.COneDLayer(m.LayerCfg(32, 64, 3, 2, 'SABlock1DR', avg_size=4)).to('cuda')
 print(net(x).shape, "torch.Size([32, 64, 256])")
+net = m.COneDLayer(m.LayerCfg(32, 64, 3, 2, 'SABlock1DR', avg_size=4,
+                              use_trans=True, trans_layer='EncoderLayer',
+                              trans_cfg=m.TransCfg(64, use_FastMHA = True))).to('cuda')
+print(net(x).shape, "torch.Size([32, 64, 256])")
 
 
 x = torch.rand([32, 32, 64, 64], device = 'cuda')
@@ -38,9 +42,9 @@ print(net(x).shape, "torch.Size([32, 64, 32, 32])")
 net = m.MAvlayer(m.LayerCfg(32, 64, 2, 2, 'ResBlockR', 'SABlockR', avg_size=2)).to('cuda')
 print(net(x).shape, "torch.Size([32, 64, 32, 32])")
 
-# net = m.SCANlayer(m.LayerCfg(32, 64, 3, 2),
-#                   layer = bb.ResBlock, device='cuda').to('cuda')
-# print(net(x).shape, "torch.Size([32, 64, 32, 32])")
+net = m.SCANlayer(m.LayerCfg(32, 64, 3, 2, ''),
+                  layer = bb.ResBlock, device='cuda').to('cuda')
+print(net(x).shape, "torch.Size([32, 64, 32, 32])")
 
 args = GlobalSettings(Mprint(), '')
 
