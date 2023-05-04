@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 12:35:54
+LastEditTime: 2023-05-04 18:15:27
 Description: Model
 '''
 
@@ -110,12 +110,18 @@ class MAvlayer(MAlayer):
     def __init__(self, cfg:LayerCfg, **kwargs):
         super().__init__(cfg, device = 'cuda', **kwargs)
         if self.cfg.use_SA:
-            self.layer = nn.Sequential(nn.AvgPool2d((2, 2), 2),
-                                       str2net[cfg.layer](CnnCfg(cfg.outc, cfg.outc, cfg.kernel_size, stride=1)))
+            self.layer = nn.Sequential(nn.AvgPool2d((cfg.avg_size, cfg.avg_size), cfg.avg_size),
+                                       str2net[cfg.layer](CnnCfg(cfg.inc, cfg.inc, 1, 1, 0)))
+            self.SA = str2net[cfg.sa_layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
         else:
-            self.layer = nn.Sequential(nn.AvgPool2d((2, 2), 2),
-                                       str2net[cfg.layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size, 1)))
-
+            self.layer = nn.Sequential(nn.AvgPool2d((cfg.avg_size, cfg.avg_size), cfg.avg_size),
+                                       str2net[cfg.layer](CnnCfg(cfg.inc, cfg.outc, 1, 1, 0)))
+    def forward(self, x):
+        x = self.layer(x)
+        if self.cfg.use_SA:
+            x = self.SA(x)
+        return x
+    
 class SCANlayer(nn.Module):
     def __init__(self, cfg:LayerCfg,
                  layer = bb.SCANN, SA_layer = bb.SABlockR,
@@ -194,19 +200,14 @@ class COneD(MATTPBase):#MA TT with permute
         super(COneD, self).__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
     
 class MATTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:COneDLayer,
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MAvTTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings):
-        self.stemconvnum = 32
-        self.convnum = [
-            [args.channels       , 1 * self.stemconvnum, False, 7],  # [b,32,40,h]
-            [1 * self.stemconvnum, 2 * self.stemconvnum,  True, 7],  # [b,64,20,h]
-            [2 * self.stemconvnum,             args.dim,  True, 5],
-        ]  
-        super(MAvTTP, self).__init__(args, self.convnum, MAvlayer)
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
+                 tail_trans_cfg:TransCfg = None, **kwargs):
+        super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MATTPE(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings):
