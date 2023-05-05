@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 23:34:18
+LastEditTime: 2023-05-05 16:00:00
 Description: 
 '''
 import torch
@@ -56,7 +56,7 @@ class SubDataSet(Dataset):
         self.x_transformer, self.y_transformer = x_transformer, y_transformer
         
     def __getitem__(self, idx):
-        return self.x_transformer(self.x[idx]), self.y_transformer(self.x[idx])
+        return self.x_transformer(self.x[idx]), self.y_transformer(self.y[idx])
     def __len__(self):
         return self.size
 
@@ -70,16 +70,16 @@ class DataSetRAM():
     x_transfor_origin: transfer original x_i to data x_i, and this class will gather them into a list
     x_transfor_gather: transfer gathered x to data x
     """
-    def __init__(self, args:GlobalSettings, loadPart:str = 'pre', device:str = 'cpu',
+    def __init__(self, args:GlobalSettings, load_part:str = 'pre', device:str = 'cpu',
                  x = None, y = None, x_transfer_origin = None, y_transfer_origin = None,
                  x_transfer_gather = None, y_transfer_gather = None):
         super(DataSetRAM, self).__init__()
         self.args = args
         self.x = []
         self.y = []
-        self.loadRatio = args.load_db_ratio
-        self.batchSize =args.batch_size
-        self.loadPart = loadPart
+        self.load_db_ratio = args.load_db_ratio
+        self.batch_size =args.batch_size
+        self.load_part = load_part
         self.device = device
         
         if x is not None and x_transfer_origin is not None:
@@ -112,6 +112,6 @@ class DataSetRAM():
                                y = self.y[index1 : index2],
                                x_transformer = x_transformer,
                                y_transformer = y_transformer)
-                    ,batch_size = self.batchSize, shuffle = True, drop_last=True))
+                    ,batch_size = self.batch_size, shuffle = True, drop_last=True))
             self.args.mp.mprint(f'dataSet{idx:d} size:{index2-index1:d}')
         return ret

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 23:14:21
+LastEditTime: 2023-05-05 21:51:36
 Description: Basic Blocks
 '''
 
@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from . import paper
+import dl_torch.paper as paper
 
 class CnnCfg:
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
@@ -256,6 +256,8 @@ class EncoderLayer(nn.Module):
             self.positionwise_feedforward = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
         if 'use_FastMHA' in kwargs and kwargs['use_FastMHA']:
             self.self_attention = FastMultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+        elif 'use_HydraAttention' in kwargs and kwargs['use_HydraAttention']:
+            self.self_attention = paper.bb.HydraAttention(hid_dim, **kwargs)
         else:
             self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         self.dropout = nn.Dropout(dropout)

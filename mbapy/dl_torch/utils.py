@@ -9,9 +9,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from . import _Params
-import mbapy.base as base
-from mbapy.file import save_json, read_json
+from base import MyArgs
+from file import save_json, read_json
+from dl_torch import _Params
 
 
 if _Params['USE_VIZDOM']:
@@ -63,17 +63,20 @@ class Mprint:
         with open(self.path, "a+") as f:
             f.write(self.string)
             
-class GlobalSettings(base.MyArgs):
-    def __init__(self, mp:Mprint, modelRoot:str):
+    def __str__(self):
+        return f'path={self.path:s}, mode={self.mode:s}, topString={self.topString:s}'
+            
+class GlobalSettings(MyArgs):
+    def __init__(self, mp:Mprint, model_root:str):
         # data loading
         self.read = {}# for data reading
         self.batch_size =  64
-        self.load_shape = [128, 128, 3]
+        self.load_shape = [3, 128, 128]
         # model
         self.model = None
         self.arch = None
         self.lr =  0.01
-        self.in_shape =  [64, 128, 128, 3]
+        self.in_shape =  [64, 3, 128, 128]
         self.out_shape =  [64, 128]
         self.load_db_ratio =  1
         # default var
@@ -92,9 +95,9 @@ class GlobalSettings(base.MyArgs):
         # fixed var
         self.paths = {}
         self.data = ''
-        self.modelRoot = modelRoot
-        self.resumePathList = glob.glob(os.path.join(modelRoot,'*.tar'))
-        self.resume = self.resumePathList[0] if len(self.resumePathList) > 0 else 'None'
+        self.model_root = model_root
+        self.resume_paths = glob.glob(os.path.join(self.model_root,'*.tar'))
+        self.resume = self.resume_paths[0] if len(self.resume_paths) > 0 else 'None'
         # other
         self.mp = mp#Mp        
         if self.seed is not None:
@@ -112,6 +115,9 @@ class GlobalSettings(base.MyArgs):
         elif printOut:
             [ print(attr,' : ',dic[attr]) for attr in dic.keys()]
         return dic
+    def set_resume(self):
+        self.resume_paths = glob.glob(os.path.join(self.model_root,'*.tar'))
+        self.resume = self.resume_paths[0] if len(self.resume_paths) > 0 else 'None'
 
 def init_model_parameter(model):
     # model initilization

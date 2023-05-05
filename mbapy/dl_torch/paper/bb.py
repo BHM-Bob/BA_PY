@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 22:57:48
+LastEditTime: 2023-05-05 20:43:46
 Description: some Basic Blocks implements for some paper
 '''
 
@@ -57,7 +57,7 @@ class HydraAttention(nn.Module):
     cosine similarity kernel
     modified from https://github.com/robflynnyh/hydra-linear-attention
     """
-    def __init__(self, inc, output_layer='linear', dropout=0.3):
+    def __init__(self, inc, output_layer='linear', dropout=0.3, **kwargs):
         super(HydraAttention, self).__init__()
         self.inc = inc
         self.out = nn.Linear(self.inc, self.inc) if output_layer == 'linear' else nn.Identity()

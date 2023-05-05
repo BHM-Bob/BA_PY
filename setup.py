@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-30 19:00:45
+LastEditTime: 2023-05-04 23:48:19
 Description: 
 '''
 """
@@ -56,7 +56,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.0.14",
+    version = "0.0.15",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -84,7 +84,7 @@ setup(
     author_email = "bhmfly@foxmail.com",
     
     # packages=["mbapy"],
-    packages=["mbapy", "mbapy/stats", "mbapy/dl_torch"],
+    packages=["mbapy", "mbapy/stats", "mbapy/dl_torch", "mbapy/dl_torch/paper"],
     
     include_package_data = True,
     platforms = "any",
@@ -93,4 +93,4 @@ setup(
 )
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.0.14.tar.gz
+# twine upload dist/mbapy-0.0.15.tar.gz

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 23:18:50
+LastEditTime: 2023-05-05 22:23:40
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c']
 '''
 
@@ -15,20 +15,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .utils import GlobalSettings
-from . import bb
-from .bb import CnnCfg
+from base import autoparse
+from dl_torch.utils import GlobalSettings
+import dl_torch.bb as bb
+from dl_torch.bb import CnnCfg
 
 class TransCfg:
+    @autoparse
     def __init__(self, hid_dim:int, pf_dim:int = None, n_heads:int = 8, n_layers:int = 3,
-                 dropout:float = 0.3, q_len:int = -1, class_num:int = -1, **kwargs):
-        self.hid_dim = hid_dim
+                 dropout:float = 0.3, out_layer = None, q_len:int = -1, class_num:int = -1, **kwargs):
         self.pf_dim = pf_dim if pf_dim is not None else 2*hid_dim
-        self.n_heads = n_heads
-        self.n_layers = n_layers
-        self.dropout = dropout
-        self.q_len = q_len
-        self.class_num = class_num
         self.kwargs = kwargs
         self._str_ = f'hid_dim={self.hid_dim:d}, pf_dim={self.pf_dim:d}, n_heads={self.n_heads:d}, n_layers={self.n_layers:d}, dropout={self.dropout:f}, q_len={self.q_len:d}, class_num={self.class_num:d}'
     def __str__(self):
@@ -41,21 +37,17 @@ class TransCfg:
         return d
     def gen(self, layer, **kwargs):
         """generate a transformer like layer using cfg, unnecessary args will be the kwargs"""
-        return layer(**(self.toDict()), **self.kwargs, **kwargs)
+        kwargs.update(self.kwargs)
+        kwargs.update(self.toDict())
+        return layer(**kwargs)
 
 class LayerCfg(CnnCfg):
+    @autoparse
     def __init__(self, inc:int, outc:int, kernel_size:int, stride:int,
                  layer:str, sa_layer:str = None, trans_layer:str = None,
                  avg_size:int = -1, trans_cfg:TransCfg = None,
                  use_SA:bool = False, use_trans:bool = False):
         super().__init__(inc, outc, kernel_size, stride)
-        self.layer = layer
-        self.sa_layer = sa_layer
-        self.trans_layer = trans_layer
-        self.avg_size = avg_size
-        self.trans_cfg = trans_cfg
-        self.use_SA = use_SA
-        self.use_trans = use_trans
         self._str_ += f', layer={layer:}, sa_layer={sa_layer:}, trans_layer={trans_layer:}, avg_size={avg_size:}, use_SA={use_SA:}, use_trans={use_trans:}, trans_cfg={trans_cfg:}'
 
 def calcu_q_len(input_size:int, cfg:list[LayerCfg], dims:int = 1):
@@ -80,7 +72,7 @@ class COneDLayer(nn.Module):
         self.layer = str2net[cfg.layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
         self.avg = nn.AvgPool1d(cfg.avg_size, cfg.avg_size)
         if self.cfg.use_trans:
-            self.trans = cfg.trans_cfg.gen(str2net[cfg.trans_layer], **kwargs)
+            self.trans = self.t_cfg.gen(str2net[cfg.trans_layer], **kwargs)
     def forward(self, x):
         """[b, c, l] => [b, c', l']"""
         x = self.layer(x)
@@ -189,6 +181,7 @@ class MATTPBase(nn.Module):#MA TT with permute
                        "\n".join([f'LAYER {i:d}: '+str(c) for i, c in enumerate(cfg)]))
         self.main_layers = nn.ModuleList([ layer(c) for c in self.cfg ])
         if self.tail_trans_cfg is not None:
+            # self.tail_trans = 
             # TODO : add out trans
             self.tail_trans = nn.ModuleList(
                     [

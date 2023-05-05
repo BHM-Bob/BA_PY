@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob
-LastEditTime: 2023-03-21 00:36:28
+LastEditTime: 2023-05-05 22:21:18
 Description: 
 '''
 import sys
@@ -37,6 +37,40 @@ def TimeCosts(runTimes:int = 1):
             return ret
         return core_wrapper
     return ret_wrapper
+
+def autoparse(init):
+    """
+    Automatically assign property for __ini__() func
+    Example
+    ---------
+    @autoparse
+        def __init__(self, x):
+            do something
+    fixed from https://codereview.stackexchange.com/questions/269579/decorating-init-for-automatic-attribute-assignment-safe-and-good-practice
+    """
+    parnames = list(init.__code__.co_varnames[1:])
+    defaults = init.__defaults__
+    @wraps(init)
+    def wrapped_init(self, *args, **kwargs):
+        # remove the param who has no default value 
+        # but in the end of the parnames
+        if 'kwargs' in parnames and parnames[-1] == 'kwargs':
+            parnames.remove('kwargs')
+        if 'args' in parnames and parnames[-1] == 'args':
+            parnames.remove('args')
+        # Turn args into kwargs
+        kwargs.update(zip(parnames[:len(args)], args))
+        # apply default parameter values
+        if defaults is not None:
+            default_start = len(parnames) - len(defaults)
+            for i in range(len(defaults)):
+                if parnames[default_start + i] not in kwargs:
+                    kwargs[parnames[default_start + i]] = defaults[i]
+        # attach attributes to instance
+        for arg in kwargs:
+            setattr(self, arg, kwargs[arg])
+        init(self, **kwargs)
+    return wrapped_init
 
 def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
     randSeq = np.random.randint(low = choices_range[0], high = choices_range[1]+1, size = [times])
