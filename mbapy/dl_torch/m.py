@@ -2,8 +2,9 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-05 22:23:40
-Description: Model, most of models outputs [b, c', w', h'] or [b, l', c']
+LastEditTime: 2023-05-06 00:06:28
+Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
+you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
 
 import math
@@ -20,13 +21,16 @@ from dl_torch.utils import GlobalSettings
 import dl_torch.bb as bb
 from dl_torch.bb import CnnCfg
 
+# str2net合法性前置声明
+str2net = {}
+
 class TransCfg:
     @autoparse
     def __init__(self, hid_dim:int, pf_dim:int = None, n_heads:int = 8, n_layers:int = 3,
-                 dropout:float = 0.3, out_layer = None, q_len:int = -1, class_num:int = -1, **kwargs):
+                 dropout:float = 0.3, trans_layer = 'EncoderLayer', out_layer = None, q_len:int = -1, class_num:int = -1, **kwargs):
         self.pf_dim = pf_dim if pf_dim is not None else 2*hid_dim
         self.kwargs = kwargs
-        self._str_ = f'hid_dim={self.hid_dim:d}, pf_dim={self.pf_dim:d}, n_heads={self.n_heads:d}, n_layers={self.n_layers:d}, dropout={self.dropout:f}, q_len={self.q_len:d}, class_num={self.class_num:d}'
+        self._str_ = f'(hid_dim={self.hid_dim:d}, pf_dim={self.pf_dim:d}, n_heads={self.n_heads:d}, n_layers={self.n_layers:d}, dropout={self.dropout:f}, q_len={self.q_len:d}, class_num={self.class_num:d})'
     def __str__(self):
         return self._str_
     def toDict(self):
@@ -35,11 +39,20 @@ class TransCfg:
             if attr not in ['_str_', 'kwargs']:
                 d[attr] = getattr(self,attr)
         return d
-    def gen(self, layer, **kwargs):
-        """generate a transformer like layer using cfg, unnecessary args will be the kwargs"""
+    def gen(self, layer = None, **kwargs):
+        """
+        generate a transformer like layer using cfg, unnecessary args will be the kwargs\n
+        support out_layer
+        """
         kwargs.update(self.kwargs)
         kwargs.update(self.toDict())
-        return layer(**kwargs)
+        if layer is None:
+            layer = str2net[kwargs['trans_layer']]
+        if kwargs['out_layer'] is not None:
+            return nn.Sequential(*([layer(**kwargs) for _ in range(self.n_layers - 1)]+\
+                [str2net[kwargs['out_layer']](**kwargs)]))
+        else:
+            return nn.Sequential(*([layer(**kwargs) for _ in range(self.n_layers)]))
 
 class LayerCfg(CnnCfg):
     @autoparse
@@ -78,9 +91,12 @@ class COneDLayer(nn.Module):
         x = self.layer(x)
         x = self.avg(x)
         if self.cfg.use_trans:
-            # x: [b, c', l'] => [b, l', c'] => [b, c', l']
-            x = self.trans(x.permute(0, 2, 1)).permute(0, 2, 1)
-        # [b, c', l']
+            # x: [b, c', l'] => [b, l', c'] => [b, l', c'] or [b, D]
+            x = self.trans(x.permute(0, 2, 1))
+            if self.cfg.trans_cfg.out_layer is None:
+                # x: [b, l', c'] => [b, c', l']
+                x = x.permute(0, 2, 1)
+        # [b, l', c'] or [b, D]
         return x
 
 class MAlayer(nn.Module):
@@ -105,7 +121,14 @@ class MAlayer(nn.Module):
             # x: [b, c', w', h'] => [b, c', l'] => [b, l', c'] => [b, c', l']
             batch_size, c, w, h = x.shape
             x = x.reshape(batch_size, c, -1)
-            x = self.trans(x.permute(0, 2, 1)).permute(0, 2, 1)
+            if self.cfg.use_trans:
+                # x: [b, c', l'] => [b, l', c'] => [b, l', c'] or [b, D]
+                x = self.trans(x.permute(0, 2, 1))
+                if self.cfg.trans_cfg.out_layer is None:
+                    # x: [b, l', c'] => [b, c', l']
+                    x = x.permute(0, 2, 1)
+                else:# x: [b, D], has self.cfg.trans_cfg.out_layer
+                    return x
             x = x.reshape(batch_size, c, w, h)
         return x
 
@@ -127,7 +150,14 @@ class MAvlayer(MAlayer):
             # x: [b, c', w', h'] => [b, c', l'] => [b, l', c'] => [b, c', l']
             batch_size, c, w, h = x.shape
             x = x.reshape(batch_size, c, -1)
-            x = self.trans(x.permute(0, 2, 1)).permute(0, 2, 1)
+            if self.cfg.use_trans:
+                # x: [b, c', l'] => [b, l', c'] => [b, l', c'] or [b, D]
+                x = self.trans(x.permute(0, 2, 1))
+                if self.cfg.trans_cfg.out_layer is None:
+                    # x: [b, l', c'] => [b, c', l']
+                    x = x.permute(0, 2, 1)
+                else:# x: [b, D], has self.cfg.trans_cfg.out_layer
+                    return x
             x = x.reshape(batch_size, c, w, h)
         return x
     
@@ -170,9 +200,10 @@ str2net = {
 }
 
 class MATTPBase(nn.Module):#MA TT with permute
-    """ x: [b, c, w, h] => [b, c', w', h'] or [b, l, c']"""
+    """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l]"""
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__()
         self.args = args
         self.cfg = cfg
@@ -181,14 +212,7 @@ class MATTPBase(nn.Module):#MA TT with permute
                        "\n".join([f'LAYER {i:d}: '+str(c) for i, c in enumerate(cfg)]))
         self.main_layers = nn.ModuleList([ layer(c) for c in self.cfg ])
         if self.tail_trans_cfg is not None:
-            # self.tail_trans = 
-            # TODO : add out trans
-            self.tail_trans = nn.ModuleList(
-                    [
-                        bb.EncoderLayer(**(self.tail_trans_cfg.toDict()))
-                        for _ in range(self.tail_trans_cfg.n_layers)
-                    ]
-                )
+            self.tail_trans = tail_trans_cfg.gen(str2net[tail_trans_cfg.trans_layer], **kwargs)
     def forward(self, x):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, l, c']"""
         batch_size = x.shape[0]
@@ -196,7 +220,7 @@ class MATTPBase(nn.Module):#MA TT with permute
         for layer in self.main_layers:
             x = layer(x)
         if self.tail_trans_cfg is not None:
-            # x: [b, c', w', h'] => [b, c', l] => [b, l, c']
+            # x: [b, c', w', h'] => [b, c', l]
             x = x.reshape(batch_size, self.cfg[-1].outc, -1).permute(0, 2, 1)
             for layer in self.tail_trans:
                 x = layer(x)
@@ -205,21 +229,25 @@ class MATTPBase(nn.Module):#MA TT with permute
 class COneD(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:COneDLayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super(COneD, self).__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
     
 class MATTP(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MAvTTP(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MATTPE(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         self.pos_embedding = bb.PositionalEncoding(cfg[-1].outc)
     def forward(self, x):
@@ -240,11 +268,13 @@ class MATTPE(MATTPBase):#MA TT with permute
 class SCANNTTP(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:SCANlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         
 class MATTP_ViT(MATTPBase):  # MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:SCANlayer,
+    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
+        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         # Uinfo: [b,2,128]
         self.uni_info = nn.Parameter(torch.randn(1, 2, cfg[-1].outc))

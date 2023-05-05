@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 23:23:59
+LastEditTime: 2023-05-06 00:11:33
 Description: Test for Model
 '''
 import sys
@@ -56,7 +56,7 @@ cfg = [
     m.LayerCfg(32, 64, 3, 2, 'ResBlockR', 'SABlockR'),
     ]
 net = m.MATTPBase(args, cfg, m.MAlayer).to('cuda')
-print(net(x).shape, "torch.Size([32, 64, 8, 8])")
+print('MATTPBase', net(x).shape, "torch.Size([32, 64, 8, 8])")
 
 x = torch.rand([32, 8, 1024], device = 'cuda')
 cfg = [
@@ -65,10 +65,11 @@ cfg = [
     m.LayerCfg(64,  64, 3, 1, 'SABlock1D', avg_size=2, use_trans=True,
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(64)),
     m.LayerCfg(64, 128, 3, 1, 'SABlock1D', avg_size=2, use_trans=True,
-               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
+               trans_layer='EncoderLayer',
+               trans_cfg=m.TransCfg(128, q_len = 32, class_num=128, out_layer='OutEncoderLayer')),
     ]
 net = m.COneD(args, cfg, m.COneDLayer).to('cuda')
-print(net(x).shape, "torch.Size([32, 128, 32])")
+print('COneD', net(x).shape, "torch.Size([32, 128])")
 
 x = torch.rand([32, 3, 128, 128], device = 'cuda')
 cfg = [
@@ -78,7 +79,18 @@ cfg = [
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
     ]
 net = m.MATTP(args, cfg, m.MAlayer, m.TransCfg(128, n_layers=2)).to('cuda')
-print(net(x).shape, "torch.Size([32, 256, 128])")
+print('MATTP', net(x).shape, "torch.Size([32, 256, 128])")
+
+x = torch.rand([32, 3, 128, 128], device = 'cuda')
+cfg = [
+    m.LayerCfg( 3,  32, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_trans=False, use_SA=False),
+    m.LayerCfg(32,  64, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_trans=False, use_SA=True),
+    m.LayerCfg(64, 128, 5, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_trans=True, use_SA=True,
+               trans_layer='EncoderLayer',
+               trans_cfg=m.TransCfg(128, q_len = 256, class_num=128, out_layer='OutEncoderLayer')),
+    ]
+net = m.MAvTTP(args, cfg, m.MAvlayer).to('cuda')
+print('MAvTTP', net(x).shape, "torch.Size([32, 128])")
 
 x = torch.rand([32, 3, 128, 128], device = 'cuda')
 cfg = [
@@ -87,18 +99,9 @@ cfg = [
     m.LayerCfg(64, 128, 5, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True,
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
     ]
-net = m.MAvTTP(args, cfg, m.MAvlayer, m.TransCfg(128, n_layers=2)).to('cuda')
-print(net(x).shape, "torch.Size([32, 256, 128])")
-
-x = torch.rand([32, 3, 128, 128], device = 'cuda')
-cfg = [
-    m.LayerCfg( 3,  32, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=False),
-    m.LayerCfg(32,  64, 7, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True),
-    m.LayerCfg(64, 128, 5, 1, 'ResBlockR', 'SABlockR', avg_size=2, use_SA=True,
-               trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
-    ]
-net = m.MATTPE(args, cfg, m.MAvlayer, m.TransCfg(128, n_layers=2)).to('cuda')
-print(net(x).shape, "torch.Size([32, 256, 128])")
+net = m.MATTPE(args, cfg, m.MAvlayer,
+               m.TransCfg(128, n_layers=2, q_len = 256, class_num=128, out_layer='OutEncoderLayer')).to('cuda')
+print('MATTPE', net(x).shape, "torch.Size([32, 128])")
 
 x = torch.rand([32, 3, 128, 128], device = 'cuda')
 cfg = [
@@ -108,7 +111,7 @@ cfg = [
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
     ]
 net = m.SCANNTTP(args, cfg, m.SCANlayer, m.TransCfg(128, n_layers=2)).to('cuda')
-print(net(x).shape, "torch.Size([32, 256, 128])")
+print('SCANNTTP', net(x).shape, "torch.Size([32, 256, 128])")
 
 x = torch.rand([32, 3, 128, 128], device = 'cuda')
 cfg = [
@@ -118,5 +121,5 @@ cfg = [
                trans_layer='EncoderLayer', trans_cfg=m.TransCfg(128)),
     ]
 net = m.MATTP_ViT(args, cfg, m.MAlayer, m.TransCfg(128, n_layers=2)).to('cuda')
-print(net(x).shape, "torch.Size([32, 258, 128])")
+print('MATTP_ViT', net(x).shape, "torch.Size([32, 258, 128])")
 
