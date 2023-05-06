@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-05 16:00:00
+LastEditTime: 2023-05-06 16:59:44
 Description: 
 '''
 import torch
@@ -102,6 +102,8 @@ class DataSetRAM():
               x_transformer:list = None, y_transformer:list = None):
         """divide : [0, 0.7, 0.9, 1] => train_70% val_20% test_10%"""
         ret = []
+        if len(self.y) == 0:
+            self.y = [0] * self.size
         for idx in range(len(divide) - 1):
             index1 = int(divide[idx  ]*self.size)
             index2 = int(divide[idx+1]*self.size)

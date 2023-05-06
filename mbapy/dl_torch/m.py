@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 00:06:28
+LastEditTime: 2023-05-06 16:44:42
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
@@ -16,10 +16,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from base import autoparse
-from dl_torch.utils import GlobalSettings
-import dl_torch.bb as bb
-from dl_torch.bb import CnnCfg
+from mbapy.base import autoparse
+from mbapy.dl_torch.utils import GlobalSettings
+from mbapy.dl_torch import bb
+from mbapy.dl_torch.bb import CnnCfg
 
 # str2net合法性前置声明
 str2net = {}
@@ -79,6 +79,7 @@ def calcu_q_len(input_size:int, cfg:list[LayerCfg], dims:int = 1):
 class COneDLayer(nn.Module):
     """[b, c, l] => [b, c', l']"""
     def __init__(self, cfg:LayerCfg, device = 'cuda', **kwargs):
+        """[b, c, l] => [b, c', l']"""
         super().__init__()
         self.cfg = cfg
         self.t_cfg = cfg.trans_cfg
@@ -100,8 +101,9 @@ class COneDLayer(nn.Module):
         return x
 
 class MAlayer(nn.Module):
-    """[b, c, w, h]"""
+    """[b, c, w, h] or [b, D]"""
     def __init__(self, cfg:LayerCfg, **kwargs):
+        """[b, c, w, h] or [b, D]"""
         super().__init__()
         self.cfg = cfg
         if self.cfg.use_SA:
@@ -133,7 +135,9 @@ class MAlayer(nn.Module):
         return x
 
 class MAvlayer(MAlayer):
+    """[b, c, w, h] or [b, D]"""
     def __init__(self, cfg:LayerCfg, **kwargs):
+        """[b, c, w, h] or [b, D]"""
         super().__init__(cfg, device = 'cuda', **kwargs)
         if self.cfg.use_SA:
             self.layer = nn.Sequential(nn.AvgPool2d((cfg.avg_size, cfg.avg_size), cfg.avg_size),

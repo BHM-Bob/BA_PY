@@ -2,16 +2,12 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-05 20:58:24
+LastEditTime: 2023-05-06 16:52:58
 Description: Test for Basic Blocks
 '''
-import sys
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-sys.path.append(r'../../../')
 
 import dl_torch.bb as bb
 

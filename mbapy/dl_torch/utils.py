@@ -9,10 +9,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from base import MyArgs
-from file import save_json, read_json
-from dl_torch import _Params
+from mbapy.base import MyArgs
+from mbapy.file import save_json, read_json
 
+from dl_torch import _Params
 
 if _Params['USE_VIZDOM']:
     import visdom

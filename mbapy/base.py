@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-05 22:21:18
+LastEditTime: 2023-05-06 16:51:09
 Description: 
 '''
 import sys
@@ -13,7 +13,7 @@ import numpy as np
 
 
 __NO_ERR__ = False
-Params = {
+_Params = {
     'LAUNCH_WEB_SUB_THREAD':False,
 }
 

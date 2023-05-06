@@ -2,17 +2,12 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-19 16:30:02
 LastEditors: BHM-Bob
-LastEditTime: 2023-04-19 18:33:55
+LastEditTime: 2023-05-06 16:51:57
 Description: 
 '''
-
-import sys
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-sys.path.append(r'../../../')
 
 import dl_torch.paper.bb as bb
 

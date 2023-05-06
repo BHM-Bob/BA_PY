@@ -216,7 +216,7 @@ class ThreadsPool:
                 retList.append(que.get())
         return retList
 
-if base.Params['LAUNCH_WEB_SUB_THREAD']:
+if base._Params['LAUNCH_WEB_SUB_THREAD']:
     statuesQue = Queue()
     statuesQue.put(
         {

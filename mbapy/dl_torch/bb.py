@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-05 21:51:36
+LastEditTime: 2023-05-06 16:45:22
 Description: Basic Blocks
 '''
 
@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import dl_torch.paper as paper
+from mbapy.dl_torch import paper
 
 class CnnCfg:
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):

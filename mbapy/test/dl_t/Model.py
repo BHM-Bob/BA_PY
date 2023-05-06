@@ -2,16 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 00:11:33
+LastEditTime: 2023-05-06 16:52:23
 Description: Test for Model
 '''
-import sys
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-sys.path.append(r'../../../')
 import dl_torch as dt
 
 import dl_torch.bb as bb
