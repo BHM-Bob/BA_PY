@@ -12,7 +12,7 @@ import torch.nn as nn
 from mbapy.base import MyArgs
 from mbapy.file import save_json, read_json
 
-from dl_torch import _Params
+from mbapy.dl_torch import _Params
 
 if _Params['USE_VIZDOM']:
     import visdom

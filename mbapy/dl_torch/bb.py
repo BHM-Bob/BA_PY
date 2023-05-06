@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:45:22
+LastEditTime: 2023-05-06 17:37:57
 Description: Basic Blocks
 '''
 
@@ -28,10 +28,17 @@ class CnnCfg:
         
 class reshape(nn.Module):
     def __init__(self, *args, **kwargs):
-        super(reshape, self).__init__()
+        super().__init__()
         self.shape = args
     def forward(self, x):
         return x.reshape(self.shape)
+    
+class permute(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.idxs = args
+    def forward(self, x):
+        return x.permute(self.idxs)
 
 class ScannCore(nn.Module):
     """MHSA 单头版"""
