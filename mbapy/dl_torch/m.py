@@ -2,13 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:44:42
+LastEditTime: 2023-05-07 22:01:24
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
 
 import math
-from typing import Union
+from typing import Dict, Optional, Union
 
 import numpy as np
 
@@ -26,20 +26,23 @@ str2net = {}
 
 class TransCfg:
     @autoparse
-    def __init__(self, hid_dim:int, pf_dim:int = None, n_heads:int = 8, n_layers:int = 3,
-                 dropout:float = 0.3, trans_layer = 'EncoderLayer', out_layer = None, q_len:int = -1, class_num:int = -1, **kwargs):
-        self.pf_dim = pf_dim if pf_dim is not None else 2*hid_dim
-        self.kwargs = kwargs
-        self._str_ = f'(hid_dim={self.hid_dim:d}, pf_dim={self.pf_dim:d}, n_heads={self.n_heads:d}, n_layers={self.n_layers:d}, dropout={self.dropout:f}, q_len={self.q_len:d}, class_num={self.class_num:d})'
+    def __init__(self, hid_dim:int, pf_dim:Optional[int] = None, n_heads:int = 8,
+                 n_layers:int = 3, dropout:float = 0.3,
+                 trans_layer:str = 'EncoderLayer', out_layer:Optional[str] = None,
+                 q_len:int = -1, class_num:int = -1,
+                 kwargs: Optional[Dict[str, Union[int, str, bool]]] = None):
+        self.pf_dim: int = pf_dim if pf_dim is not None else 2*hid_dim
+        self.kwargs: Dict[str, Union[int, str, bool]] = kwargs if kwargs is not None else {}
+        self._str_:str = ','.join([str(getattr(self, attr)) for attr in vars(self)])
     def __str__(self):
         return self._str_
     def toDict(self):
-        d = {}
+        d: Dict[str, Union[int, str, bool]] = {}
         for attr in vars(self):
             if attr not in ['_str_', 'kwargs']:
-                d[attr] = getattr(self,attr)
+                d[attr] = getattr(self, attr)
         return d
-    def gen(self, layer = None, **kwargs):
+    def gen(self, layer:str = None, **kwargs):
         """
         generate a transformer like layer using cfg, unnecessary args will be the kwargs\n
         support out_layer
@@ -54,14 +57,13 @@ class TransCfg:
         else:
             return nn.Sequential(*([layer(**kwargs) for _ in range(self.n_layers)]))
 
-class LayerCfg(CnnCfg):
+class LayerCfg:
     @autoparse
     def __init__(self, inc:int, outc:int, kernel_size:int, stride:int,
-                 layer:str, sa_layer:str = None, trans_layer:str = None,
-                 avg_size:int = -1, trans_cfg:TransCfg = None,
+                 layer:str, sa_layer:Optional[str] = None, trans_layer:Optional[str] = None,
+                 avg_size:int = -1, trans_cfg:Optional[TransCfg] = None,
                  use_SA:bool = False, use_trans:bool = False):
-        super().__init__(inc, outc, kernel_size, stride)
-        self._str_ += f', layer={layer:}, sa_layer={sa_layer:}, trans_layer={trans_layer:}, avg_size={avg_size:}, use_SA={use_SA:}, use_trans={use_trans:}, trans_cfg={trans_cfg:}'
+        self._str_:str = ','.join([str(getattr(self, attr)) for attr in vars(self)])
 
 def calcu_q_len(input_size:int, cfg:list[LayerCfg], dims:int = 1):
     """
@@ -233,7 +235,7 @@ class MATTPBase(nn.Module):#MA TT with permute
 class COneD(MATTPBase):#MA TT with permute
     def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:COneDLayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
-        """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
+        """ x: [b, c', l] or [b, D]"""
         super(COneD, self).__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
     
 class MATTP(MATTPBase):#MA TT with permute

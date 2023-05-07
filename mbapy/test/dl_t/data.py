@@ -26,7 +26,7 @@ ds = DataSetRAM(args, x = args.read['path'],
                 x_transfer_origin=lambda path : torch.load(path),
                 x_transfer_gather=lambda x : x[0])
 train_loader, test_loader = ds.split([0, 0.7, 1],
-                                     x_transformer=lambda x : x[1][0:args.load_shape[0]])
+                                     x_transformer=[lambda x : x[1][0:args.load_shape[0]]])
 
 # training
 for x, _ in train_loader:

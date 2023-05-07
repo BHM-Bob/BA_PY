@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 17:37:57
+LastEditTime: 2023-05-07 21:40:54
 Description: Basic Blocks
 '''
 
@@ -15,14 +15,16 @@ import torch.nn.functional as F
 
 from mbapy.dl_torch import paper
 
+@torch.jit.script
 class CnnCfg:
+    @torch.jit.ignore
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
-        self.inc = inc
-        self.outc = outc
-        self.kernel_size = kernel_size 
-        self.stride = stride
-        self.padding = padding
-        self._str_ = f'inc={self.inc:d}, outc={self.outc:d}, kernel_size={self.kernel_size:d}, stride={self.stride:d}, padding={self.padding:d}'
+        self.inc:int = inc
+        self.outc:int = outc
+        self.kernel_size:int = kernel_size 
+        self.stride:int = stride
+        self.padding:int = padding
+        self._str_:str = ','.join([str(v) for v in [self.inc,self.outc,self.kernel_size,self.stride,self.padding]])
     def __str__(self):
         return self._str_
         
@@ -329,7 +331,7 @@ class TransPE(Trans):
         return self.nn(src)
     
 class OutEncoderLayerAvg(OutEncoderLayer):
-    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs):
+    def __init__(self, q_len:int, class_num:int, hid_dim:int, n_heads:int, pf_dim:int, dropout:float, device:str, **kwargs):
         super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         if q_len > class_num:

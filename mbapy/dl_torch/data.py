@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:59:44
+LastEditTime: 2023-05-07 22:12:17
 Description: 
 '''
 import torch
@@ -104,6 +104,8 @@ class DataSetRAM():
         ret = []
         if len(self.y) == 0:
             self.y = [0] * self.size
+        x_transformer = [None]*len(divide) if x_transformer is None else x_transformer
+        y_transformer = [None]*len(divide) if y_transformer is None else y_transformer
         for idx in range(len(divide) - 1):
             index1 = int(divide[idx  ]*self.size)
             index2 = int(divide[idx+1]*self.size)
@@ -112,8 +114,8 @@ class DataSetRAM():
                     SubDataSet(args = self.args,
                                x = self.x[index1 : index2],
                                y = self.y[index1 : index2],
-                               x_transformer = x_transformer,
-                               y_transformer = y_transformer)
+                               x_transformer = x_transformer[idx],
+                               y_transformer = y_transformer[idx])
                     ,batch_size = self.batch_size, shuffle = True, drop_last=True))
             self.args.mp.mprint(f'dataSet{idx:d} size:{index2-index1:d}')
         return ret
