@@ -212,9 +212,10 @@ def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:di
         "loss": loss,
         "args":args.toDict(),
     }
+    state.update(other)
     filename = os.path.join(args.modelRoot,
                             f"checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar")
-    torch.save(state.update(other), filename)
+    torch.save(state, filename)
 
 def resume(args, model, optimizer, other:dict = {}):
     if args.resume and os.path.isfile(args.resume):
