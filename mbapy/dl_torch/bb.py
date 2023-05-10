@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-07 21:40:54
+LastEditTime: 2023-05-10 18:17:03
 Description: Basic Blocks
 '''
 
@@ -15,7 +15,6 @@ import torch.nn.functional as F
 
 from mbapy.dl_torch import paper
 
-@torch.jit.script
 class CnnCfg:
     @torch.jit.ignore
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
@@ -24,7 +23,7 @@ class CnnCfg:
         self.kernel_size:int = kernel_size 
         self.stride:int = stride
         self.padding:int = padding
-        self._str_:str = ','.join([str(v) for v in [self.inc,self.outc,self.kernel_size,self.stride,self.padding]])
+        self._str_:str = ','.join([attr+'='+str(getattr(self, attr)) for attr in vars(self)])
     def __str__(self):
         return self._str_
         
@@ -331,7 +330,8 @@ class TransPE(Trans):
         return self.nn(src)
     
 class OutEncoderLayerAvg(OutEncoderLayer):
-    def __init__(self, q_len:int, class_num:int, hid_dim:int, n_heads:int, pf_dim:int, dropout:float, device:str, **kwargs):
+    def __init__(self, q_len:int, class_num:int, hid_dim:int, n_heads:int,
+                 pf_dim:int, dropout:float, device:str = 'cuda', **kwargs):
         super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         if q_len > class_num:
@@ -379,10 +379,7 @@ class ResBlock(nn.Module):
             SeparableConv2d(cfg.outc, cfg.outc,
                             kernel_size=cfg.kernel_size, stride=1, padding=cfg.padding),
         )
-        if cfg.outc != cfg.inc:
-            self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
-        else:
-            self.extra = nn.Identity()
+        self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
     def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
         return self.nn(x)+self.extra(x)
     
@@ -390,10 +387,9 @@ class ResBlockR(ResBlock):
     """Identity Mappings in Deep Residual Networks : exclusive gating"""
     def __init__(self, cfg:CnnCfg):
         super().__init__(cfg)
-        self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
     def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
         t = self.extra(x)
-        return t.mul(self.nn(x))+(1.-torch.sigmoid_(t)).mul(self.extra(x))
+        return t.mul(self.nn(x))+(1.-torch.sigmoid(t)).mul(self.extra(x))
 
 class SABlock(nn.Module):
     """异形卷积核的并行，外加残差结构"""
@@ -431,7 +427,7 @@ class SABlockR(SABlock):
         out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
         out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
         t = self.extra(x)
-        return t.mul(out)+(1.-torch.sigmoid_(t)).mul(self.extra(x))
+        return t.mul(out)+(1.-torch.sigmoid(t)).mul(self.extra(x))
     
 class SABlock1D(SABlock):
     """[b, c, l] => [b, c', l']"""

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob
-LastEditTime: 2023-05-07 22:01:24
+LastEditTime: 2023-05-10 17:54:45
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
@@ -18,8 +18,8 @@ import torch.nn.functional as F
 
 from mbapy.base import autoparse
 from mbapy.dl_torch.utils import GlobalSettings
-from mbapy.dl_torch import bb
-from mbapy.dl_torch.bb import CnnCfg
+from dl_torch import bb
+from dl_torch.bb import CnnCfg
 
 # str2net合法性前置声明
 str2net = {}
@@ -30,10 +30,10 @@ class TransCfg:
                  n_layers:int = 3, dropout:float = 0.3,
                  trans_layer:str = 'EncoderLayer', out_layer:Optional[str] = None,
                  q_len:int = -1, class_num:int = -1,
-                 kwargs: Optional[Dict[str, Union[int, str, bool]]] = None):
+                 **kwargs):
         self.pf_dim: int = pf_dim if pf_dim is not None else 2*hid_dim
         self.kwargs: Dict[str, Union[int, str, bool]] = kwargs if kwargs is not None else {}
-        self._str_:str = ','.join([str(getattr(self, attr)) for attr in vars(self)])
+        self._str_:str = ','.join([attr+'='+str(getattr(self, attr)) for attr in vars(self)])
     def __str__(self):
         return self._str_
     def toDict(self):
@@ -56,15 +56,19 @@ class TransCfg:
                 [str2net[kwargs['out_layer']](**kwargs)]))
         else:
             return nn.Sequential(*([layer(**kwargs) for _ in range(self.n_layers)]))
-
+    
 class LayerCfg:
     @autoparse
     def __init__(self, inc:int, outc:int, kernel_size:int, stride:int,
                  layer:str, sa_layer:Optional[str] = None, trans_layer:Optional[str] = None,
                  avg_size:int = -1, trans_cfg:Optional[TransCfg] = None,
                  use_SA:bool = False, use_trans:bool = False):
-        self._str_:str = ','.join([str(getattr(self, attr)) for attr in vars(self)])
-
+        if isinstance(self.sa_layer, str):
+            self.use_SA = True            
+        self._str_:str = ','.join([attr+'='+str(getattr(self, attr)) for attr in vars(self)])
+    def __str__(self):
+        return self._str_
+    
 def calcu_q_len(input_size:int, cfg:list[LayerCfg], dims:int = 1):
     """
     calcu q_len for Conv model
@@ -122,18 +126,14 @@ class MAlayer(nn.Module):
             x = self.SA(x)
         x = self.layer(x)
         if self.cfg.use_trans:
-            # x: [b, c', w', h'] => [b, c', l'] => [b, l', c'] => [b, c', l']
             batch_size, c, w, h = x.shape
-            x = x.reshape(batch_size, c, -1)
-            if self.cfg.use_trans:
-                # x: [b, c', l'] => [b, l', c'] => [b, l', c'] or [b, D]
-                x = self.trans(x.permute(0, 2, 1))
-                if self.cfg.trans_cfg.out_layer is None:
-                    # x: [b, l', c'] => [b, c', l']
-                    x = x.permute(0, 2, 1)
-                else:# x: [b, D], has self.cfg.trans_cfg.out_layer
-                    return x
-            x = x.reshape(batch_size, c, w, h)
+            # x: [b, c', w', h'] => [b, c', l'] => [b, l', c']
+            x = x.reshape(batch_size, c, -1).permute(0, 2, 1)
+            # x: [b, l', c'] => [b, l', c'] or [b, D]
+            x = self.trans(x)
+            if self.cfg.trans_cfg.out_layer is None:
+                # x: [b, l', c'] => [b, c', l'] => [b, c', w', h']
+                x = x.permute(0, 2, 1).reshape(batch_size, c, w, h)
         return x
 
 class MAvlayer(MAlayer):
