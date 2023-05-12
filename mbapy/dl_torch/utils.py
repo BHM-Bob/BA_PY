@@ -148,9 +148,10 @@ def format_secs(sumSecs):
     return sumHs, sumMs, sumSs
 
 class AverageMeter(object):
-    """from FAIR or MAIR 's MoCo
-    Computes and stores the average and current value"""
-
+    """
+    Computes and stores the average and current value
+    from FAIR or MAIR 's MoCo
+    """
     def __init__(self, name, fmt=":f"):
         self.name = name
         self.fmt = fmt
@@ -195,13 +196,13 @@ class ProgressMeter(object):
     
 class TimeLast(object):
     def __init__(self):
-        self.lastTime = time.time()
+        self.last_time = time.time()
 
-    def update(self, leftTasks):
-        usedTime = time.time() - self.lastTime
-        self.lastTime = time.time()
-        sumLastTime = leftTasks * usedTime
-        return sumLastTime            
+    def update(self, left_tasks:int, just_done_tasks:int = 1):
+        used_time = time.time() - self.last_time
+        self.last_time = time.time()
+        sum_last_time = left_tasks * used_time / just_done_tasks
+        return sum_last_time            
             
 def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:dict, tailName:str):
     state = {

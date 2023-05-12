@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-10 17:54:45
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-12 23:06:54
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
@@ -63,7 +63,7 @@ class LayerCfg:
                  layer:str, sa_layer:Optional[str] = None, trans_layer:Optional[str] = None,
                  avg_size:int = -1, trans_cfg:Optional[TransCfg] = None,
                  use_SA:bool = False, use_trans:bool = False):
-        if isinstance(self.sa_layer, str):
+        if isinstance(self.sa_layer, str) and use_SA == True:
             self.use_SA = True            
         self._str_:str = ','.join([attr+'='+str(getattr(self, attr)) for attr in vars(self)])
     def __str__(self):

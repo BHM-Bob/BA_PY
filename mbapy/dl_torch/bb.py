@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-10 18:17:03
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-12 23:14:41
 Description: Basic Blocks
 '''
 
@@ -154,8 +154,8 @@ class PositionwiseFeedforwardLayer(nn.Module):
         super().__init__()
         self.nn = nn.Sequential(
             nn.Linear(hid_dim, pf_dim),
-            nn.Dropout(dropout),
             nn.ReLU(True),
+            nn.Dropout(dropout),
             nn.Linear(pf_dim, hid_dim),
         )
     def forward(self, x):
@@ -400,29 +400,29 @@ class SABlock(nn.Module):
         def GenCnn(inChannles: int, outChannles: int, cnnKernel):
             return nn.ModuleList([
                 nn.Sequential(
-                    nn.BatchNorm2d(inChannles),
-                    nn.LeakyReLU(inplace=True),
-                    nn.Conv2d(inChannles, outChannles, k,
+                    nn.Conv2d(inChannles, outChannles // 4, k,
                               stride=1, padding="same"),
+                    nn.BatchNorm2d(inChannles),
                 )
                 for k in cnnKernel
             ])
-        self.cnn1 = GenCnn(cfg.inc, cfg.outc // 4, self.cnnK)
-        self.cnn2 = GenCnn(cfg.outc, cfg.outc // 4, self.cnnK)
+        self.cnn1 = GenCnn(cfg.inc, cfg.outc, self.cnnK)
+        self.activation1 = nn.LeakyReLU(inplace=False)
+        self.cnn2 = GenCnn(cfg.outc, cfg.outc, self.cnnK)
+        self.activation2 = nn.LeakyReLU(inplace=False)
         if cfg.inc != cfg.outc:
             self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
         else:
             self.extra = nn.Identity()
     def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
-        out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
-        out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
+        out = self.activation1(torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1))
+        out = self.activation2(torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1))
         return out + self.extra(x)
     
 class SABlockR(SABlock):
     """return t.mul(out)+(1.-torch.sigmoid_(t)).mul(self.extra(x))"""
     def __init__(self, cfg:CnnCfg):
         super().__init__(cfg)
-        self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
     def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
         out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
         out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
@@ -437,7 +437,6 @@ class SABlock1D(SABlock):
             return nn.ModuleList([
                 nn.Sequential(
                     nn.BatchNorm1d(inc),
-                    nn.LeakyReLU(inplace=True),
                     nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
                 )
                 for k in range(minCnnKSize, minCnnKSize+2*4, 2)
@@ -445,7 +444,9 @@ class SABlock1D(SABlock):
         self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
         self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
         if cfg.inc != cfg.outc:
-            self.extra = nn.Conv1d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
+            self.extra = nn.Sequential(nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same"),
+                                       nn.BatchNorm1d(cfg.outc),
+                                       nn.LeakyReLU(inplace=False))
         else:
             self.extra = nn.Identity()
     
@@ -456,12 +457,16 @@ class SABlock1DR(SABlockR):
         def GenCnn(inc: int, outc: int, minCnnKSize:int):
             return nn.ModuleList([
                 nn.Sequential(
-                    nn.BatchNorm1d(inc),
-                    nn.LeakyReLU(inplace=True),
                     nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
+                    nn.BatchNorm1d(inc),
                 )
                 for k in range(minCnnKSize, minCnnKSize+2*4, 2)
             ])
         self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
         self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
-        self.extra = nn.Conv1d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
+        if cfg.inc != cfg.outc:
+            self.extra = nn.Sequential(nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same"),
+                                       nn.BatchNorm1d(cfg.outc),
+                                       nn.LeakyReLU(inplace=False))
+        else:
+            self.extra = nn.Identity()
