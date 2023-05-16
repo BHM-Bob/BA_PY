@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-12 23:14:41
+LastEditTime: 2023-05-17 00:22:47
 Description: Basic Blocks
 '''
 
@@ -329,9 +329,10 @@ class TransPE(Trans):
         # src = [batch size, class_num]
         return self.nn(src)
     
-class OutEncoderLayerAvg(OutEncoderLayer):
+class OutEncoderLayerAvg(EncoderLayer):
     def __init__(self, q_len:int, class_num:int, hid_dim:int, n_heads:int,
                  pf_dim:int, dropout:float, device:str = 'cuda', **kwargs):
+        """AvgPool1d handle [N, C, L] and output [N, C, L']"""
         super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         if q_len > class_num:
@@ -347,6 +348,24 @@ class OutEncoderLayerAvg(OutEncoderLayer):
             self.fc_out = nn.AvgPool1d(ks, ks, 0)
         elif q_len == class_num:
             self.fc_out = nn.AvgPool1d(hid_dim, 1, 0)
+        self.outc = class_num
+            
+    def forward(self, src):
+        # src = [batch size, src len, hid dim]
+        b, l, c = src.shape
+        # self attention
+        _src = self.self_attention(src, src, src)
+        # dropout, residual connection and layer norm
+        src = self.self_attn_layer_norm(src + self.dropout(_src))
+        # src = [batch size, src len, hid dim]
+        # positionwise feedforward
+        _src = self.positionwise_feedforward(src)
+        # dropout, residual and layer norm
+        # src = [batch size, src len, hid dim] = [b, l, c]
+        src = self.ff_layer_norm(src + self.dropout(_src))
+        # [b, l, c] => [b, l*c'] => [b, D]
+        return self.avg(src).reshape(b, self.outc)
+            
 class TransAvg(Trans):
     def __init__(self, q_len:int, class_num:int, hid_dim:int, n_layers:int, n_heads:int, pf_dim:int,
                  dropout:float, device:str, **kwargs):
@@ -364,6 +383,7 @@ class SeparableConv2d(nn.Module):
     def forward(self, x):
         return self.nn(x)
 
+# TODO: need proposed or simple version?
 class ResBlock(nn.Module):
     """Identity Mappings in Deep Residual Networks : proposed"""
     def __init__(self, cfg:CnnCfg):
@@ -400,23 +420,18 @@ class SABlock(nn.Module):
         def GenCnn(inChannles: int, outChannles: int, cnnKernel):
             return nn.ModuleList([
                 nn.Sequential(
-                    nn.Conv2d(inChannles, outChannles // 4, k,
-                              stride=1, padding="same"),
-                    nn.BatchNorm2d(inChannles),
+                    nn.Conv2d(inChannles, outChannles // 4, k, stride=1, padding="same"),
+                    nn.BatchNorm2d(outChannles),
+                    nn.LeakyReLU(inplace=False),
                 )
                 for k in cnnKernel
             ])
         self.cnn1 = GenCnn(cfg.inc, cfg.outc, self.cnnK)
-        self.activation1 = nn.LeakyReLU(inplace=False)
         self.cnn2 = GenCnn(cfg.outc, cfg.outc, self.cnnK)
-        self.activation2 = nn.LeakyReLU(inplace=False)
-        if cfg.inc != cfg.outc:
-            self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
-        else:
-            self.extra = nn.Identity()
+        self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=1, padding="same")
     def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
-        out = self.activation1(torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1))
-        out = self.activation2(torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1))
+        out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
+        out = torch.cat([ cnn(out) for cnn in self.cnn2 ], dim=1)
         return out + self.extra(x)
     
 class SABlockR(SABlock):
@@ -438,17 +453,13 @@ class SABlock1D(SABlock):
                 nn.Sequential(
                     nn.BatchNorm1d(inc),
                     nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
+                    nn.LeakyReLU(inplace=False),
                 )
                 for k in range(minCnnKSize, minCnnKSize+2*4, 2)
             ])
         self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
         self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
-        if cfg.inc != cfg.outc:
-            self.extra = nn.Sequential(nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same"),
-                                       nn.BatchNorm1d(cfg.outc),
-                                       nn.LeakyReLU(inplace=False))
-        else:
-            self.extra = nn.Identity()
+        self.extra = nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same")
     
 class SABlock1DR(SABlockR):
     """[b, c, l] => [b, c', l']"""
@@ -459,14 +470,10 @@ class SABlock1DR(SABlockR):
                 nn.Sequential(
                     nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
                     nn.BatchNorm1d(inc),
+                    nn.LeakyReLU(inplace=False),
                 )
                 for k in range(minCnnKSize, minCnnKSize+2*4, 2)
             ])
         self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
         self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
-        if cfg.inc != cfg.outc:
-            self.extra = nn.Sequential(nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same"),
-                                       nn.BatchNorm1d(cfg.outc),
-                                       nn.LeakyReLU(inplace=False))
-        else:
-            self.extra = nn.Identity()
+        self.extra = nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same")
