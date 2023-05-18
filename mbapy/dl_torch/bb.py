@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob G 2262029386@qq.com
-LastEditTime: 2023-05-17 01:03:46
+LastEditTime: 2023-05-18 15:28:17
 Description: Basic Blocks
 '''
 
@@ -390,14 +390,14 @@ class ResBlock(nn.Module):
         super(ResBlock, self).__init__()
         self.cfg = cfg
         self.nn = nn.Sequential(# full pre-activation
-            nn.BatchNorm2d(cfg.inc),
-            nn.ReLU(True),
             SeparableConv2d(cfg.inc, cfg.outc,
                             kernel_size=cfg.kernel_size, stride=cfg.stride, padding=cfg.padding),
             nn.BatchNorm2d(cfg.outc),
             nn.ReLU(True),
             SeparableConv2d(cfg.outc, cfg.outc,
                             kernel_size=cfg.kernel_size, stride=1, padding=cfg.padding),
+            nn.BatchNorm2d(cfg.outc),
+            nn.ReLU(True),
         )
         self.extra = nn.Conv2d(cfg.inc, cfg.outc, kernel_size=1, stride=cfg.stride)
     def forward(self, x):  # [b,ch_in,w,h] => [b,ch_out,w/2,h/2]  (stride = 2,w and h +1 %3 ==0)
@@ -445,11 +445,32 @@ class SABlockR(SABlock):
         return t.mul(out)+(1.-torch.sigmoid(t)).mul(self.extra(x))
     
 
+class ScannBlock1d(nn.Module):
+    """edited from NonLocalBlock and scann_core"""
+    def __init__(self, cfg:CnnCfg, **kwargs):
+        self.inc = cfg.inc
+        self.hid_dim = self.inc*4 if 'hid_dim' not in kwargs else kwargs['hid_dim']
+        self.outc = cfg.outc
+        self.q = nn.Conv1d(self.inc, self.hid_dim, kernel_size=cfg.kernel_size, padding=cfg.padding)
+        self.k = nn.Conv1d(self.inc, self.hid_dim, kernel_size=1)
+        self.v = nn.Conv1d(self.inc, self.hid_dim, kernel_size=1)
+        self.o = nn.Conv1d(self.hid_dim, self.outc, kernel_size=1)
+    
+    def forward(self, x):
+        """x: [b, c, l] => [b, c', l']"""
+        b, c, l = x.shape
+        Q = self.q(x).permute(0, 2, 1) # Q => [b, l', hid_dim]
+        K = self.k(x)                  # K => [b, hid_dim, l]
+        V = self.v(x).permute(0, 2, 1) # V => [b, l, hid_dim]        
+        attention = Q.matmul(K).softmax(dim=-1) # attention => [b, l', l]
+        # [b, l', l] @ [b, l, hd] => [b, l', hd]
+        return self.o(attention.matmul(V).permute(0, 2, 1))
+
 def GenCnn1d(inc: int, outc: int, minCnnKSize:int):
     return nn.ModuleList([
         nn.Sequential(
-            nn.BatchNorm1d(inc),
             nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
+            nn.BatchNorm1d(outc // 4),
             nn.LeakyReLU(inplace=False),
         )
         for k in range(minCnnKSize, minCnnKSize+2*4, 2)
