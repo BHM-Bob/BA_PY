@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
-LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-17 00:22:47
+LastEditors: BHM-Bob G 2262029386@qq.com
+LastEditTime: 2023-05-17 01:03:46
 Description: Basic Blocks
 '''
 
@@ -444,36 +444,29 @@ class SABlockR(SABlock):
         t = self.extra(x)
         return t.mul(out)+(1.-torch.sigmoid(t)).mul(self.extra(x))
     
+
+def GenCnn1d(inc: int, outc: int, minCnnKSize:int):
+    return nn.ModuleList([
+        nn.Sequential(
+            nn.BatchNorm1d(inc),
+            nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
+            nn.LeakyReLU(inplace=False),
+        )
+        for k in range(minCnnKSize, minCnnKSize+2*4, 2)
+    ])
+    
 class SABlock1D(SABlock):
     """[b, c, l] => [b, c', l']"""
     def __init__(self, cfg:CnnCfg):
         super().__init__(cfg)
-        def GenCnn(inc: int, outc: int, minCnnKSize:int):
-            return nn.ModuleList([
-                nn.Sequential(
-                    nn.BatchNorm1d(inc),
-                    nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
-                    nn.LeakyReLU(inplace=False),
-                )
-                for k in range(minCnnKSize, minCnnKSize+2*4, 2)
-            ])
-        self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
-        self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
+        self.cnn1 = GenCnn1d(cfg.inc, cfg.outc, cfg.kernel_size)
+        self.cnn2 = GenCnn1d(cfg.outc, cfg.outc, cfg.kernel_size)
         self.extra = nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same")
     
 class SABlock1DR(SABlockR):
     """[b, c, l] => [b, c', l']"""
     def __init__(self, cfg:CnnCfg):
         super().__init__(cfg)
-        def GenCnn(inc: int, outc: int, minCnnKSize:int):
-            return nn.ModuleList([
-                nn.Sequential(
-                    nn.Conv1d(inc, outc // 4, k, stride=1, padding="same"),
-                    nn.BatchNorm1d(inc),
-                    nn.LeakyReLU(inplace=False),
-                )
-                for k in range(minCnnKSize, minCnnKSize+2*4, 2)
-            ])
-        self.cnn1 = GenCnn(cfg.inc, cfg.outc, cfg.kernel_size)
-        self.cnn2 = GenCnn(cfg.outc, cfg.outc, cfg.kernel_size)
+        self.cnn1 = GenCnn1d(cfg.inc, cfg.outc, cfg.kernel_size)
+        self.cnn2 = GenCnn1d(cfg.outc, cfg.outc, cfg.kernel_size)
         self.extra = nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same")
