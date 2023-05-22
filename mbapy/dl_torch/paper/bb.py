@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-05 20:43:46
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-22 16:47:41
 Description: some Basic Blocks implements for some paper
 '''
 
@@ -44,7 +44,10 @@ class NonLocalBlock(nn.Module):
         # x = [batch size, query len, hid dim] => [batch size, hid dim, query len] => [b, hid dim, h, w]
         return self.o(attention.matmul(V).permute(0, 2, 1).reshape(*shape))
     
-from flash_attn.flash_attention import FlashMHA
+try:
+    from flash_attn.flash_attention import FlashMHA
+except ImportError:
+    FlashMHA = None
 """
 FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
 Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, Christopher Ré

@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
-LastEditors: BHM-Bob G 2262029386@qq.com
-LastEditTime: 2023-05-18 15:28:17
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-22 16:48:33
 Description: Basic Blocks
 '''
 
@@ -207,6 +207,7 @@ class FastMultiHeadAttentionLayer(nn.Module):
     """wrapper for FlashAttention, just import flash_attn and adjust dtype"""
     def __init__(self, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
         super().__init__()
+        assert paper.bb.FlashMHA is not None
         self.net = paper.bb.FlashMHA(hid_dim, n_heads,
                                      device=device, dtype = torch.float16)
     def forward(self, query, key, value):

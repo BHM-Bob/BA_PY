@@ -1,8 +1,8 @@
 <!--
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
- * @LastEditors: BHM-Bob
- * @LastEditTime: 2023-05-02 13:03:03
+ * @LastEditors: BHM-Bob 2262029386@qq.com
+ * @LastEditTime: 2023-05-22 16:19:05
  * @Description: 
 -->
 # BA_PY
@@ -23,6 +23,7 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 3. put_err: a func to print err info
 4. MyArgs: a class to process **kwargs
 5. get_wanted_args: a func to create MyArgs from defalut_args and kwargs
+6. autoparse: a Wrapper to parse args for class __init__
 
 #### file
 1. detect_byte_coding: decode bytes depending it's encoding

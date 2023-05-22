@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-04 23:48:19
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-22 16:21:54
 Description: 
 '''
 """
@@ -56,7 +56,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.0.15",
+    version = "0.1.0",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -91,6 +91,9 @@ setup(
     
     install_requires=requires,
 )
+
+# pip install .
+
 
 # python setup.py sdist
 # twine upload dist/mbapy-0.0.15.tar.gz
