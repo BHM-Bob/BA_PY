@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 16:48:33
+LastEditTime: 2023-05-22 17:19:55
 Description: Basic Blocks
 '''
 
@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mbapy.dl_torch import paper
+from . import paper
 
 class CnnCfg:
     @torch.jit.ignore
@@ -482,8 +482,11 @@ class SABlock1D(SABlock):
     def __init__(self, cfg:CnnCfg):
         super().__init__(cfg)
         self.cnn1 = GenCnn1d(cfg.inc, cfg.outc, cfg.kernel_size)
-        self.cnn2 = GenCnn1d(cfg.outc, cfg.outc, cfg.kernel_size)
+        # self.cnn2 = GenCnn1d(cfg.outc, cfg.outc, cfg.kernel_size)
         self.extra = nn.Conv1d(cfg.inc, cfg.outc, 1, stride = 1, padding="same")
+    def forward(self, x):  # [b,inc,h,w] => [b,outc,h,w]
+        out = torch.cat([ cnn(x) for cnn in self.cnn1 ], dim=1)
+        return out + self.extra(x)
     
 class SABlock1DR(SABlockR):
     """[b, c, l] => [b, c', l']"""

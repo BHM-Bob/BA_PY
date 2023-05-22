@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-12 23:06:54
+LastEditTime: 2023-05-22 17:17:24
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
@@ -16,10 +16,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mbapy.base import autoparse
-from mbapy.dl_torch.utils import GlobalSettings
-from dl_torch import bb
-from dl_torch.bb import CnnCfg
+from ..base import autoparse
+from .utils import GlobalSettings
+from . import bb
+from .bb import CnnCfg
 
 # str2net合法性前置声明
 str2net = {}

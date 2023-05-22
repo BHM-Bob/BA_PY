@@ -1,18 +1,16 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-05-02 20:40:37
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:56:27
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-22 17:12:17
 Description: 
 '''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import dl_torch as dt
-dt._Params['USE_VIZDOM'] =False
-from dl_torch.utils import Mprint, GlobalSettings
-from dl_torch.data import DataSetRAM
+from mbapy.dl_torch.utils import Mprint, GlobalSettings
+from mbapy.dl_torch.data import DataSetRAM
 
 # global settings
 mp = Mprint()

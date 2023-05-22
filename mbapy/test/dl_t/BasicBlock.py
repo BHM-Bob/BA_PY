@@ -2,17 +2,14 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-21 12:11:42
+LastEditTime: 2023-05-22 17:09:20
 Description: Test for Basic Blocks
 '''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-try:
-    import mbapy.dl_torch.bb as bb
-except:
-    import dl_torch.bb as bb
+import mbapy.dl_torch.bb as bb
 
 x = torch.arange(16, dtype = torch.float32, device = 'cuda').reshape([1, 1, 4, 4])
 t = F.unfold(x, 3, 1, 1, 1)

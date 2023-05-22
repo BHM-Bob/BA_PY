@@ -9,10 +9,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from mbapy.base import MyArgs
-from mbapy.file import save_json, read_json
+from ..base import MyArgs
+from ..file import save_json, read_json
 
-from mbapy.dl_torch import _Params
+_Params = {
+    'USE_VIZDOM':False,
+}
 
 if _Params['USE_VIZDOM']:
     import visdom
@@ -214,7 +216,7 @@ def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:di
         "args":args.toDict(),
     }
     state.update(other)
-    filename = os.path.join(args.modelRoot,
+    filename = os.path.join(args.model_oot,
                             f"checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar")
     torch.save(state, filename)
 
