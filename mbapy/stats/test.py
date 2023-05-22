@@ -1,10 +1,12 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-02 13:01:21
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-22 15:21:32
 Description: 
 '''
+from typing import Optional, Union
+
 import scipy
 import numpy as np
 import pandas as pd
@@ -13,10 +15,10 @@ import scikit_posthocs as sp
 
 import mbapy.plot as mp
 
-def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
+def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, list[int], pd.Series]] = None, confidence:float = 0.95):
     """
     置信区间\n
-    ± 1.96 * SE or other depends on alpha
+    ± 1.96 * SE or other depends on confidence
     """
     assert se is not None or data is not None, 'se is None and data is None'
     kwargs = {
@@ -25,8 +27,8 @@ def get_interval(mean = None, se = None, data = None, alpha:float = 0.95):
     if mean is not None:
         kwargs.update({'loc':mean})
     if data is not None:
-        kwargs.update({'df':len(data) - 1, 'loc':np.mean(data)})
-    return scipy.stats.norm.interval(alpha = alpha, **kwargs)
+        kwargs.update({'df':len(data) - 1, 'loc':np.mean(data).item()})
+    return scipy.stats.norm.interval(confidence = confidence, loc = kwargs['loc'], scale = kwargs['scale']), kwargs
 
 def _get_x1_x2(x1 = None, x2 = None,
                factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):

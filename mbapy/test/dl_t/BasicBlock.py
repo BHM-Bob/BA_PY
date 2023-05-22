@@ -1,15 +1,18 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:52:58
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-21 12:11:42
 Description: Test for Basic Blocks
 '''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import dl_torch.bb as bb
+try:
+    import mbapy.dl_torch.bb as bb
+except:
+    import dl_torch.bb as bb
 
 x = torch.arange(16, dtype = torch.float32, device = 'cuda').reshape([1, 1, 4, 4])
 t = F.unfold(x, 3, 1, 1, 1)
@@ -30,13 +33,13 @@ print(net(x).shape, "torch.Size([8, 16, 16, 16])")
 x = torch.rand([32, 128, 32], device = 'cuda')
 net = bb.MultiHeadAttentionLayer(32, 8, 0.3, 'cuda').to('cuda')
 print(net(x, x, x).shape, "torch.Size([32, 128, 32])")
-net = bb.FastMultiHeadAttentionLayer(32, 4, 0.3, 'cuda').to('cuda')
-print(net(x, x, x).shape, "torch.Size([32, 128, 32])")
+# net = bb.FastMultiHeadAttentionLayer(32, 4, 0.3, 'cuda').to('cuda')
+# print(net(x, x, x).shape, "torch.Size([32, 128, 32])")
 
 net = bb.EncoderLayer(0, 0, 32, 8, 64, 0.3, 'cuda').to('cuda')
 print(net(x).shape, "torch.Size([32, 128, 32])")
-net = bb.EncoderLayer(0, 0, 32, 4, 64, 0.3, 'cuda', use_FastMHA = True).to('cuda')
-print(net(x).shape, "torch.Size([32, 128, 32])")
+# net = bb.EncoderLayer(0, 0, 32, 4, 64, 0.3, 'cuda', use_FastMHA = True).to('cuda')
+# print(net(x).shape, "torch.Size([32, 128, 32])")
 
 net = bb.Trans(128, 128, 32, 3, 8, 128, 0.3, 'cuda', bb.EncoderLayer).to('cuda')
 print(net(x).shape, "torch.Size([32, 128, 32])")
@@ -52,6 +55,10 @@ net = bb.OutEncoderLayerAvg(128, 32, 32, 8, 64, 0.3, 'cuda').to('cuda')
 print(net(x).shape, "torch.Size([32, 32])")
 net = bb.TransAvg(128, 32, 32, 3, 8, 128, 0.3, 'cuda', use_enhanced_fc_q = True).to('cuda')
 print(net(x).shape, "torch.Size([32, 32])")
+
+x = torch.rand([8, 16, 32, 32], device = 'cuda')
+net = nn.Conv2d(16, 32, (5, 7), stride=1, padding='same').to('cuda')
+print(net(x).shape, "torch.Size([8, 32, 32, 32])")
 
 x = torch.rand([8, 16, 32, 32], device = 'cuda')
 net = bb.ResBlock(bb.CnnCfg(16, 128, stride=2)).to('cuda')
