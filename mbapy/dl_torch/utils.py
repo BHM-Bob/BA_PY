@@ -216,7 +216,7 @@ def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:di
         "args":args.toDict(),
     }
     state.update(other)
-    filename = os.path.join(args.model_oot,
+    filename = os.path.join(args.model_root,
                             f"checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar")
     torch.save(state, filename)
 
