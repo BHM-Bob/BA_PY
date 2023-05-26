@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 17:19:55
+LastEditTime: 2023-05-26 18:57:43
 Description: Basic Blocks
 '''
 
@@ -14,9 +14,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from . import paper
+from ..base import autoparse
 
 class CnnCfg:
-    @torch.jit.ignore
+    @autoparse
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
         self.inc:int = inc
         self.outc:int = outc
