@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:51:09
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-27 17:38:56
 Description: 
 '''
 import sys
@@ -84,6 +84,9 @@ def put_err(info:str, ret = None):
 def put_log(info:str, head = "log", ret = None):
     print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
     return ret
+
+def get_time(chr:str = ':')->str:
+    return time.asctime(time.localtime()).replace(':', chr)
 
 class MyArgs():
     def __init__(self, args:dict) -> None:

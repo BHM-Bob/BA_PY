@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 16:21:54
+LastEditTime: 2023-05-27 17:38:26
 Description: 
 '''
 """
@@ -37,7 +37,7 @@ requires = [
     "Markdown>=3.4.1",
     "matplotlib>=3.5.3",
     "multiprocess>=0.70.13",
-    # "numpy>=1.22.1",
+    "numpy>=1.22.1",
     "pandas>=1.4.3",
     "pathtools>=0.1.2",
     "pdfkit>=1.0.0",
