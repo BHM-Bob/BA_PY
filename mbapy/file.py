@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
-LastEditors: BHM-Bob
-LastEditTime: 2023-04-27 13:01:20
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-27 23:44:35
 Description: 
 '''
 import chardet
@@ -11,9 +11,19 @@ import os
 
 import pandas as pd
 
-
 def detect_byte_coding(bits:bytes):
     adchar = chardet.detect(bits[:(1000 if len(bits) > 1000 else len(bits))])['encoding']
+    if adchar == 'gbk' or adchar == 'GBK' or adchar == 'GB2312':
+        true_text = bits.decode('GB2312', "ignore")
+    else:
+        true_text = bits.decode('utf-8', "ignore")
+    return true_text
+
+def get_byte_coding(bits:bytes, max_detect_len = 1000):
+    return chardet.detect(bits[ : min(max_detect_len, len(bits))])['encoding']
+
+def decode_bits_to_str(bits:bytes):
+    adchar = get_byte_coding(bits, max_detect_len = 1000)
     if adchar == 'gbk' or adchar == 'GBK' or adchar == 'GB2312':
         true_text = bits.decode('GB2312', "ignore")
     else:
