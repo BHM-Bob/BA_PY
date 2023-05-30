@@ -1,7 +1,7 @@
 '''
 Date: 2023-05-26 09:02:43
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-26 20:29:33
+LastEditTime: 2023-05-30 09:58:26
 FilePath: /BA_PY/mbapy/dl_torch/optim.py
 Description: 
 '''
@@ -57,11 +57,11 @@ class LrScheduler:
     def __init__(self, optimizer:torch.optim.Optimizer, lr_0:float,
                  now_epoch:int = 0, T_0:int = 100, sum_epoch:int = 5000,
                  method = '_ConsineDown'):
-        assert lr_0 > 0
-        assert now_epoch >= 0
-        assert T_0 > 0
-        assert sum_epoch >= now_epoch
-        assert method in _str2scheduleF.keys()
+        assert lr_0 > 0, r'lr_0 <= 0'
+        assert now_epoch >= 0, r'now_epoch < 0'
+        assert T_0 > 0, 'T_0 <= 0'
+        assert sum_epoch >= now_epoch, 'sum_epoch < now_epoch'
+        assert method in _str2scheduleF.keys(), 'method not in _str2scheduleF.keys()'
         self.lr = lr_0
         self._get_lr_ = _str2scheduleF[method]
     

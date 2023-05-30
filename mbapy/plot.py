@@ -39,7 +39,7 @@ def get_palette(n:int = 10, mode:Union[None, str] = None) -> list[str]:
         - pair : plt.get_cmap('tab20')
         - None : plt.get_cmap('Set1') for n<=9 or plt.get_cmap('Set3') for n<= 12
     """
-    assert n >= 1
+    assert n >= 1, 'n < 1'
     if mode == 'hls':
         return rgbs2hexs(sns.color_palette('hls', n))
     if n <= 5 and mode == 'green':

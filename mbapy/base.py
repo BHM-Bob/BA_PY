@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-29 22:30:29
+LastEditTime: 2023-05-29 23:28:04
 Description: 
 '''
 import sys
@@ -121,7 +121,7 @@ def split_list(lst:list, n = 1, drop_last = False):
     return split sub lists.\n
     when drop_last is True and last one is less than n, drop the last one
     """
-    result = [lst[i:i+3] for i in range(0, len(lst), n)]
+    result = [lst[i:i+n] for i in range(0, len(lst), n)]
     if drop_last and len(result[-1]) < n:
         del result[-1]
     return result

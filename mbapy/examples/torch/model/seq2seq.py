@@ -68,7 +68,7 @@ class MultiHeadAttentionLayer(nn.Module):
     def __init__(self, hid_dim, n_heads, dropout, device):
         super().__init__()
         
-        assert hid_dim % n_heads == 0
+        assert hid_dim % n_heads == 0, r'hid_dim % n_heads != 0'
         
         self.hid_dim = hid_dim
         self.n_heads = n_heads
