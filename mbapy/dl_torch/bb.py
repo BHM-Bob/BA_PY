@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-30 09:56:55
+LastEditTime: 2023-05-31 10:32:32
 Description: Basic Blocks
 '''
 
@@ -347,7 +347,10 @@ class OutEncoderLayerAvg(EncoderLayer):
         elif q_len < class_num:
             assert class_num % q_len == 0, r'q_len % class_num != 0'
             ks = int(q_len * hid_dim / class_num)
-            self.avg = nn.AvgPool1d(ks, ks, 0)
+            if ks == 1:
+                self.avg = nn.Identity()
+            else:
+                self.avg = nn.AvgPool1d(ks, ks, 0)
         elif q_len == class_num:
             self.avg = nn.AvgPool1d(hid_dim, 1, 0)
         self.outc = class_num

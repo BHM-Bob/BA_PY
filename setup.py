@@ -56,7 +56,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.1.0",
+    version = "0.1.1",
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -96,4 +96,4 @@ setup(
 
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.0.15.tar.gz
+# twine upload dist/mbapy-0.1.1.tar.gz
