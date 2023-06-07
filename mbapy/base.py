@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-29 23:28:04
+LastEditTime: 2023-06-06 23:58:38
 Description: 
 '''
 import sys
@@ -108,6 +108,9 @@ class MyArgs():
         for attr in vars(self):
             dic[attr] = getattr(self,attr)
         return dic   
+
+def get_default_for_None(x, deault):
+    return x if x is not None else deault
 
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """

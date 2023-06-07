@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..base import MyArgs
+from ..base import MyArgs, get_default_for_None
 from ..file import save_json, read_json
 
 _Params = {
