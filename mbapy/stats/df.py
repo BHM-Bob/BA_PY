@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-12 23:08:54
+LastEditTime: 2023-06-12 23:10:27
 Description: pd.dataFrame utils
 '''
 
@@ -96,8 +96,8 @@ def merge_col2row(df:pd.DataFrame, cols:list[str],
     ----------
     df: a pd.dataFrame
     cols: colums which need be merged to rows
-    new_cols_name: new colume contain cols name
-    value_name: new colume contain values of cols\n
+    new_cols_name: new column contain cols name
+    value_name: new column contain values of cols\n
     Return
     --------
     new_df: a new dataFrame

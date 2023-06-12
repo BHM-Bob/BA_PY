@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-27 17:38:26
+LastEditTime: 2023-06-12 23:19:32
 Description: 
 '''
 """
@@ -25,6 +25,16 @@ here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
 long_description = (here / "README.md").read_text(encoding="utf-8")
+version_info = (here / "mbapy/__version__.py").read_text(encoding="utf-8")
+for line in version_info.split('\n'):
+    if '__version__' in line:
+        __version__ = line[line.find('"')+1:-1]
+    if '__author_email__' in line:
+        __author_email__ = line[line.find('"')+1:-1]
+    if '__author__' in line:
+        __author__ = line[line.find('"')+1:-1]
+    if '__url__' in line:
+        __url__ = line[line.find('"')+1:-1]
 
 requires = [
     "beautifulsoup4>=4.10.1",
@@ -56,7 +66,7 @@ requires = [
 
 setup(
     name = "mbapy",
-    version = "0.1.1",
+    version = __version__,
 
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -79,12 +89,16 @@ setup(
     python_requires=">=3.7, <3.11",
     license = "MIT Licence",
 
-    url = "https://github.com/BHM-Bob/BA_PY",
-    author = "BHM-Bob G",
-    author_email = "bhmfly@foxmail.com",
+    url = __url__,
+    author = __author__,
+    author_email = __author_email__,
     
     # packages=["mbapy"],
-    packages=["mbapy", "mbapy/stats", "mbapy/dl_torch", "mbapy/dl_torch/paper"],
+    packages=["mbapy",
+              "mbapy/stats",
+              "mbapy/dl_torch",
+              "mbapy/dl_torch/paper",
+              "mbapy/dl_torch/arch", "mbapy/dl_torch/arch/CL", "mbapy/dl_torch/arch/CLIP"],
     
     include_package_data = True,
     platforms = "any",
@@ -96,4 +110,4 @@ setup(
 
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.1.1.tar.gz
+# twine upload dist/mbapy-0.1.2.tar.gz
