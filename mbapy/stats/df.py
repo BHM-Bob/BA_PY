@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
-LastEditors: BHM-Bob G 2262029386@qq.com
-LastEditTime: 2023-06-12 19:10:48
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-06-12 23:08:54
 Description: pd.dataFrame utils
 '''
 
@@ -91,16 +91,20 @@ def interp(long_one:pd.Series, short_one:pd.Series):
 def merge_col2row(df:pd.DataFrame, cols:list[str],
                   new_cols_name:str, value_name:str):
     """
-    given a pandas.dataFrame, it has some colums, this func will replicate these colums to row
-    Retrun
+    Given a pandas.dataFrame, it has some colums, this func will replicate these colums to row\n
+    Parameters
+    ----------
+    df: a pd.dataFrame
+    cols: colums which need be merged to rows
+    new_cols_name: new colume contain cols name
+    value_name: new colume contain values of cols\n
+    Return
     --------
-    a new dataFrame
+    new_df: a new dataFrame
     """
     # 将需要转换的列转换为行，并将结果存储在一个新的数据框中
     new_df = pd.melt(df, id_vars=df.columns.difference(cols), value_vars=cols,
                      var_name=new_cols_name, value_name=value_name)
-    # 删除 value 列
-    new_df = new_df.drop(columns=['value'])
     # 重新设置索引
     new_df = new_df.reset_index(drop=True)
     return new_df
