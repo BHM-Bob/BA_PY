@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
-LastEditors: BHM-Bob
-LastEditTime: 2023-04-30 18:56:49
+LastEditors: BHM-Bob G 2262029386@qq.com
+LastEditTime: 2023-06-12 19:02:52
 Description: pd.dataFrame utils
 '''
 
@@ -88,3 +88,18 @@ def interp(long_one:pd.Series, short_one:pd.Series):
         short_one_idx[-1] = long_one.shape[0]-1
     return np.interp(np.arange(long_one.shape[0]), short_one_idx, short_one)
 
+def merge_col2row(df:pd.DataFrame, cols:list[str], new_col:str):
+    """
+    given a pandas.dataFrame, it has some colums, this func will replicate these colums to row
+    Retrun
+    --------
+    a new dataFrame
+    """
+    reserved_cols = list(set(df.columns) - set(cols))
+    # 将需要转换的列转换为行，并将结果存储在一个新的数据框中
+    new_df = pd.melt(df, id_vars=df.columns.difference(cols), value_vars=cols, var_name=new_col)
+    # 删除 value 列
+    new_df = new_df.drop(columns=['value'])
+    # 重新设置索引
+    new_df = new_df.reset_index(drop=True)
+    return new_df
