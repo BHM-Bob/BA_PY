@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-06 16:51:09
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-06-06 23:58:38
 Description: 
 '''
 import sys
@@ -85,6 +85,9 @@ def put_log(info:str, head = "log", ret = None):
     print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
     return ret
 
+def get_time(chr:str = ':')->str:
+    return time.asctime(time.localtime()).replace(':', chr)
+
 class MyArgs():
     def __init__(self, args:dict) -> None:
         self.args = dict()
@@ -106,6 +109,9 @@ class MyArgs():
             dic[attr] = getattr(self,attr)
         return dic   
 
+def get_default_for_None(x, deault):
+    return x if x is not None else deault
+
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """
     wanted_args:dict with default value
@@ -113,3 +119,12 @@ def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """
     return MyArgs(defalut_args).get_args(kwargs, True, del_kwargs)
             
+def split_list(lst:list, n = 1, drop_last = False):
+    """
+    return split sub lists.\n
+    when drop_last is True and last one is less than n, drop the last one
+    """
+    result = [lst[i:i+n] for i in range(0, len(lst), n)]
+    if drop_last and len(result[-1]) < n:
+        del result[-1]
+    return result

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..base import MyArgs
+from ..base import MyArgs, get_default_for_None
 from ..file import save_json, read_json
 
 _Params = {
@@ -122,13 +122,16 @@ class GlobalSettings(MyArgs):
         self.resume = self.resume_paths[0] if len(self.resume_paths) > 0 else 'None'
 
 def init_model_parameter(model):
-    # model initilization
+    """model initilization"""
     for m in model.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leaky_relu')
+            if m.weight is not None:
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leaky_relu')
         elif isinstance(m, nn.BatchNorm2d) or isinstance(m, nn.BatchNorm1d):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
+            if m.weight is not None:
+                nn.init.constant_(m.weight, 1)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
     return model
 
 def adjust_learning_rate(optimizer, now_epoch, args):
@@ -216,7 +219,7 @@ def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:di
         "args":args.toDict(),
     }
     state.update(other)
-    filename = os.path.join(args.model_oot,
+    filename = os.path.join(args.model_root,
                             f"checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar")
     torch.save(state, filename)
 

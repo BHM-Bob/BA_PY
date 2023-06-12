@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob G 2262029386@qq.com
-LastEditTime: 2023-06-12 19:02:52
+LastEditTime: 2023-06-12 19:06:24
 Description: pd.dataFrame utils
 '''
 
@@ -79,10 +79,10 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,
 
 def interp(long_one:pd.Series, short_one:pd.Series):
     """
-    给定两个pd.Series，一长一短，用线性插值给短的插值，使其长度与长的pd.Series一样\n
+    给定两个pd.Series,一长一短,用线性插值给短的插值,使其长度与长的pd.Series一样\n
     Given two pd.Series, one long and one short, use linear interpolation to give the short one the same length as the long pd.Series\n
     """
-    assert len(long_one) > len(short_one)
+    assert len(long_one) > len(short_one), 'len(long_one) <= len(short_one)'
     short_one_idx = np.array(np.arange(short_one.shape[0])*(long_one.shape[0]/short_one.shape[0]), dtype=np.int32)
     if short_one_idx[-1] < long_one.shape[0]-1:
         short_one_idx[-1] = long_one.shape[0]-1

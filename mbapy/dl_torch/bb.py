@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 17:19:55
+LastEditTime: 2023-05-31 10:32:32
 Description: Basic Blocks
 '''
 
@@ -14,9 +14,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from . import paper
+from ..base import autoparse
 
 class CnnCfg:
-    @torch.jit.ignore
+    @autoparse
     def __init__(self, inc:int, outc:int, kernel_size:int = 3, stride:int = 1, padding:int = 1):
         self.inc:int = inc
         self.outc:int = outc
@@ -90,7 +91,7 @@ class SCANN(nn.Module):
         dropout : float=0.2,
     ):
         super(SCANN, self).__init__()
-        assert inc % group == 0
+        assert inc % group == 0, r'NOT inc % group == 0'
         self.inc = inc
         self.group = group
         self.stride = stride
@@ -171,7 +172,7 @@ class MultiHeadAttentionLayer(nn.Module):
     """
     def __init__(self, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
         super().__init__()
-        assert hid_dim % n_heads == 0
+        assert hid_dim % n_heads == 0, 'NOT hid_dim % n_heads == 0'
         self.hid_dim = hid_dim
         self.n_heads = n_heads
         self.head_dim = hid_dim // n_heads
@@ -207,7 +208,7 @@ class FastMultiHeadAttentionLayer(nn.Module):
     """wrapper for FlashAttention, just import flash_attn and adjust dtype"""
     def __init__(self, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
         super().__init__()
-        assert paper.bb.FlashMHA is not None
+        assert paper.bb.FlashMHA is not None, 'paper.bb.FlashMHA is None'
         self.net = paper.bb.FlashMHA(hid_dim, n_heads,
                                      device=device, dtype = torch.float16)
     def forward(self, query, key, value):
@@ -311,7 +312,7 @@ class Trans(nn.Module):
     def __init__(self, q_len:int, class_num:int, hid_dim:int, n_layers:int, n_heads:int, pf_dim:int,
                  dropout:float, device:str, out_encoder_layer = OutEncoderLayer, **kwargs):
         super().__init__()
-        assert n_layers > 0
+        assert n_layers > 0, 'n_layers < 0'
         self.nn = nn.Sequential(
             *([EncoderLayer(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs) \
                 for _ in range(n_layers - 1)]+\
@@ -337,18 +338,21 @@ class OutEncoderLayerAvg(EncoderLayer):
         super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         if q_len > class_num:
-            assert q_len % class_num == 0
-            self.fc_out = nn.Sequential(
+            assert q_len % class_num == 0, r'q_len % class_num != 0'
+            self.avg = nn.Sequential(
                 nn.AvgPool1d(hid_dim, 1, 0),
                 reshape(-1, q_len),
                 nn.AvgPool1d(int(q_len/class_num), int(q_len/class_num), 0),
             )
         elif q_len < class_num:
-            assert class_num % q_len == 0
+            assert class_num % q_len == 0, r'q_len % class_num != 0'
             ks = int(q_len * hid_dim / class_num)
-            self.fc_out = nn.AvgPool1d(ks, ks, 0)
+            if ks == 1:
+                self.avg = nn.Identity()
+            else:
+                self.avg = nn.AvgPool1d(ks, ks, 0)
         elif q_len == class_num:
-            self.fc_out = nn.AvgPool1d(hid_dim, 1, 0)
+            self.avg = nn.AvgPool1d(hid_dim, 1, 0)
         self.outc = class_num
             
     def forward(self, src):

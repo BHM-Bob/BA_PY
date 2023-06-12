@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 17:17:24
+LastEditTime: 2023-05-31 09:48:23
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
@@ -90,7 +90,10 @@ class COneDLayer(nn.Module):
         self.cfg = cfg
         self.t_cfg = cfg.trans_cfg
         self.layer = str2net[cfg.layer](CnnCfg(cfg.inc, cfg.outc, cfg.kernel_size))
-        self.avg = nn.AvgPool1d(cfg.avg_size, cfg.avg_size)
+        if cfg.avg_size > 1:
+            self.avg = nn.AvgPool1d(cfg.avg_size, cfg.avg_size)
+        else:
+            self.avg = nn.Identity()
         if self.cfg.use_trans:
             self.trans = self.t_cfg.gen(str2net[cfg.trans_layer], **kwargs)
     def forward(self, x):

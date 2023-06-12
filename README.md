@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2023-05-22 16:19:05
+ * @LastEditTime: 2023-05-30 15:46:10
  * @Description: 
 -->
 # BA_PY
@@ -12,6 +12,9 @@
 
 some helpful python scripts. (Basic for All in Python)
 Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
+
+## get start
+[wiki](https://github.com/BHM-Bob/BA_PY/wiki)
 
 # contain  
 ## mbapy python package  
