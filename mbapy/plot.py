@@ -215,27 +215,40 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     bar_space = 0.2
     xrotations = [0]*len(factors)
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+    labels:None,
+    font_size:None, 
     offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]
     """
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     
     if len(tags) == 0:
-        tags = list(df.columns)[len(factors):]    
+        tags = list(df.columns)[len(factors):]
     args = get_wanted_args({'width':0.4, 'bar_space':0.2, 'xrotations':[0]*len(factors),
                             'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
-                            'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]},
-                            kwargs, locals())
-    args.xrotations.append(0)    
+                            'hatchs':['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+                            'font_size':None,
+                            'labels':None,
+                            'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
+                            'edgecolor':'white'},
+                            kwargs)
+    args.xrotations.append(0)
     xlabels, pos = pro_hue_pos(factors, df, args.width, args.bar_space)
     bottom = kwargs['bottom'] if 'bottom' in kwargs else np.zeros(len(pos[0]))
     
     for yIdx, yName in enumerate(tags):
-        ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=yName,
-                edgecolor='white', color=args.colors[yIdx])
+        if args.labels is not None:
+            label = args.labels[yIdx]
+        else:
+            label = yName
+        ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=label,
+                edgecolor=args.edgecolor, color=args.colors[yIdx])
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0])
+    if args.font_size is not None:
+        plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
@@ -244,6 +257,8 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
         new_axisline = axs[-1].get_grid_helper().new_fixed_axis
         axs[-1].axis["bottom"] = new_axisline(loc="bottom", axes=axs[-1], offset=(0, -args.offset[idx]))
         plt.setp(axs[-1].axis["bottom"].major_ticklabels, rotation=args.xrotations[idx+1])
+        if args.font_size is not None:
+            plt.setp(axs[-1].axis["bottom"].major_ticklabels, fontsize=args.font_size[idx+1])
         axs[-1].axis["top"].major_ticks.set_ticksize(0)
         # TODO : do not work
         axs[-1].axis["right"].major_ticks.set_ticksize(0)
