@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-07 22:12:17
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-06-15 23:00:21
 Description: 
 '''
 import torch
@@ -13,6 +13,19 @@ from torch.utils.data import DataLoader
 from .utils import GlobalSettings, Mprint
 
 def denarmalize_img(x, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
+    """
+    Denormalizes an image given its pixel values, mean, and standard deviation.
+
+    Args:
+        x (torch.Tensor): The tensor of pixel values of the image.
+        mean (list of floats, optional): The mean pixel value for each channel.
+            Defaults to [0.485, 0.456, 0.406].
+        std (list of floats, optional): The standard deviation of pixel values
+            for each channel. Defaults to [0.229, 0.224, 0.225].
+
+    Returns:
+        torch.Tensor: The denormalized image tensor.
+    """
     mean = torch.tensor(mean).unsqueeze(1).unsqueeze(1)
     std = torch.tensor(std).unsqueeze(1).unsqueeze(1)
     return x * std + mean
