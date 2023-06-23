@@ -28,7 +28,7 @@ def rgbs2hexs(rgbs:list[tuple[float]]):
     return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
                     rgbs))
     
-def get_palette(n:int = 10, mode:Union[None, str] = None) -> list[str]:
+def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> list[str]:
     """get a seq of hex colors    
     Parameters
     ----------
@@ -40,16 +40,20 @@ def get_palette(n:int = 10, mode:Union[None, str] = None) -> list[str]:
         - None : plt.get_cmap('Set1') for n<=9 or plt.get_cmap('Set3') for n<= 12
     """
     assert n >= 1, 'n < 1'
+    ret = None
     if mode == 'hls':
-        return rgbs2hexs(sns.color_palette('hls', n))
+        ret = rgbs2hexs(sns.color_palette('hls', n))
     if n <= 5 and mode == 'green':
-        return ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87'][0:n]
+        ret = ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87'][0:n]
     elif n <= 9:
-        return rgbs2hexs(plt.get_cmap('Set1').colors)
+        ret = rgbs2hexs(plt.get_cmap('Set1').colors)
     elif n <= 12:
-        return rgbs2hexs(plt.get_cmap('Set3').colors)
+        ret = rgbs2hexs(plt.get_cmap('Set3').colors)
     elif n <= 20 and mode == 'pair':
-        return rgbs2hexs(plt.get_cmap('tab20').colors)
+        ret = rgbs2hexs(plt.get_cmap('tab20').colors)
+    if return_n and ret is not None:
+        ret = ret[:n]
+    return ret
     
 # TODO : not use itertools.product
 def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
