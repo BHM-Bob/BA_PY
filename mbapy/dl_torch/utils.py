@@ -135,8 +135,17 @@ def init_model_parameter(model):
     return model
 
 def adjust_learning_rate(optimizer, now_epoch, args):
-    """Decay the learning rate based on schedule
-    args"""
+    """
+    Adjusts the learning rate of the given optimizer based on the current epoch and arguments.
+
+    Args:
+        optimizer (torch.optim.Optimizer): Optimizer to adjust the learning rate of.
+        now_epoch (int): Current epoch number.
+        args (argparse.Namespace): Parsed command-line arguments.
+
+    Returns:
+        None
+    """
     lr = args.lr
     if args.cos:  # cosine lr schedule
         lr *= 0.5 * (1. + math.cos(math.pi * now_epoch / args.epochs))
@@ -147,6 +156,13 @@ def adjust_learning_rate(optimizer, now_epoch, args):
         param_group['lr'] = lr
 
 def format_secs(sumSecs):
+    """
+    Formats a given number of seconds into hours, minutes, and seconds.
+
+    :param sumSecs: An integer representing the total number of seconds.
+    :return: A tuple containing three integers representing the number of hours,
+             minutes, and seconds respectively.
+    """
     sumHs = int(sumSecs//3600)
     sumMs = int((sumSecs-sumHs*3600)//60)
     sumSs = int(sumSecs-sumHs*3600-sumMs*60)
@@ -210,6 +226,22 @@ class TimeLast(object):
         return sum_last_time            
             
 def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:dict, tailName:str):
+    """
+    Saves a checkpoint of the model and optimizer state, along with other information 
+    such as epoch, loss, and arguments. The checkpoint file is named as 
+    "checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar" 
+    and saved in the directory specified by args.model_root.
+
+    :param epoch: An integer representing the current epoch number.
+    :param args: A GlobalSettings object containing various hyperparameters and settings.
+    :param model: The model whose state needs to be saved.
+    :param optimizer: The optimizer whose state needs to be saved.
+    :param loss: The current loss value.
+    :param other: A dictionary containing any other information that needs to be saved.
+    :param tailName: A string to be used in the checkpoint file name for better identification.
+
+    :return: None
+    """
     state = {
         "epoch": epoch + 1,
         "arch": args.arch,
@@ -224,6 +256,16 @@ def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:di
     torch.save(state, filename)
 
 def resume(args, model, optimizer, other:dict = {}):
+    """
+    Resumes the training from the last checkpoint if it exists, otherwise starts from scratch.
+
+    :param args: Namespace object containing parsed command-line arguments.
+    :param model: Model to be trained.
+    :param optimizer: Optimizer to be used for training.
+    :param other: Optional dictionary containing additional objects to be updated from checkpoint.
+
+    :return: Tuple of the model, optimizer, and old_losses if checkpoint exists, otherwise tuple of model, optimizer, and 0.
+    """
     if args.resume and os.path.isfile(args.resume):
         args.mp.mprint("=> loading checkpoint '{}'".format(args.resume))
         if args.gpu is None:

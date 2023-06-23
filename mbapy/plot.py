@@ -25,6 +25,11 @@ def rgb2hex(r, g, b):
 def hex2rgb(hex:str):
   return [int(hex[i:i+2], 16) for i in (1, 3, 5)]
 def rgbs2hexs(rgbs:list[tuple[float]]):
+    """
+    Takes a list of RGB tuples and converts them to a list of hexadecimal color codes. 
+    Each RGB tuple must contain three floats between 0 and 1 representing the red, green, and blue 
+    components of the color. Returns a list of hexadecimal color codes as strings.
+    """
     return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
                     rgbs))
     
@@ -130,8 +135,25 @@ def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:l
 
 def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
                 include_factors:bool = True):
-    #sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
-    #sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
+    """
+    Return a subset of the input DataFrame, filtered by the given factors and tags.
+
+    Args:
+        factors (dict[str, list[str]]): A dictionary containing the factors to filter by.
+            The keys are column names in the DataFrame and the values are lists of values
+            to filter by in that column.
+        tags (list[str]): A list of column names to include in the output DataFrame.
+        df (pd.DataFrame): The input DataFrame to filter.
+        include_factors (bool, optional): Whether to include the factors in the output DataFrame.
+            Defaults to True.
+
+    Returns:
+        pd.DataFrame: A subset of the input DataFrame, filtered by the given factors and tags.
+        
+    Examples:
+        >>> sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
+        >>> sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
+    """
     def update_mask(mask, other:np.ndarray, method:str = '&'):
         return other if mask is None else (mask&other if method == '&' else mask|other)
     if len(tags) == 0:
@@ -183,6 +205,20 @@ class AxisLable():
         self.hold_space += space
 
 def pro_hue_pos(factors:list[str], df:pd.DataFrame, width:float, bar_space:float):
+    """
+    Returns the x-axis labels and positions of the bars for a plot with multiple categorical variables.
+    
+    :param factors: A list of column names in the DataFrame to group by.
+    :type factors: list[str]
+    :param df: The input DataFrame.
+    :type df: pd.DataFrame
+    :param width: The width of each bar.
+    :type width: float
+    :param bar_space: The space between bars.
+    :type bar_space: float
+    :return: A tuple containing a list of AxisLable objects for each axis and a list of positions for each bar.
+    :rtype: tuple(list[AxisLable], list[float])
+    """
     xlabels, fc_old, pos = [ [] for _ in range(len(factors))], '', []
     for f_i, f in enumerate(factors):
         for fc_i, fc in enumerate(df[f]):
@@ -314,6 +350,25 @@ def plot_positional_hue(factors:list[str], tags:list[str], df:pd.DataFrame, **kw
     return ret_wrapper
 
 def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
+    """
+    Generates a QQPlot for each specified tag in the given DataFrame using statsmodels' qqplot function.
+    
+    :param tags: A list of strings containing the tags to be plotted.
+    :type tags: list[str]
+    :param df: A pandas DataFrame containing the data to be plotted.
+    :type df: pd.DataFrame
+    :param figsize: A tuple containing the size of the figure to be plotted, defaults to (12,6).
+    :type figsize: tuple(int, int)
+    :param nrows: The number of rows in the plot grid, defaults to 1.
+    :type nrows: int
+    :param ncols: The number of columns in the plot grid, defaults to 1.
+    :type ncols: int
+    :param **kwargs: Additional keyword arguments to be passed to the plot.
+    :type **kwargs: dict
+    
+    :return: None
+    :rtype: None
+    """
     axs = []
     fig = plt.figure(figsize = (12, 6))
     for fig_idx in range(1, ncols*nrows+1):
@@ -333,6 +388,13 @@ def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
             axs[-1].set_ylabel('Sample Quantiles', fontsize = kwargs['label_size'])
             
 def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
+    """
+    Saves and shows the current figure.
+
+    :param path: A string representing the file path to save the figure.
+    :param dpi: An integer representing the resolution in dots per inch of the saved figure. Default is 300.
+    :param bbox_inches: A string or a Bbox object representing the portion of the figure to be saved in inches. Default is 'tight'.
+    """
     plt.tight_layout()
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
     plt.show()
