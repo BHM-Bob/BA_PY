@@ -17,10 +17,10 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 
 ### install 
 #### pypi 
-Now, mbapy only support pypi install:
-`pip install mbapy'
-For updating:
-'pip install --upgrade mbapy`
+Now, mbapy only support pypi install:  
+`pip install mbapy`  
+For updating:  
+`pip install --upgrade mbapy`  
 
 ### wiki
 [wiki](https://github.com/BHM-Bob/BA_PY/wiki)
