@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
-LastEditors: BHM-Bob
-LastEditTime: 2023-05-07 22:12:17
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-05-31 12:33:33
 Description: 
 '''
 import torch
@@ -60,6 +60,30 @@ class SubDataSet(Dataset):
     def __len__(self):
         return self.size
 
+class SubDataSetR(Dataset):
+    """
+    继承Dataset，作为训练时\n
+    接受DataSetRAM分配的数据
+    transformer接受x[idx]和所有的x:list
+    """
+    def __init__(self, args:GlobalSettings, x:list, y:list,
+                 x_transformer:list = None, y_transformer:list = None):
+        super().__init__()
+        self.args = args
+        self.x = x
+        self.y = y
+        self.size = len(x)
+        if x_transformer is None:
+            x_transformer = lambda x : x
+        if y_transformer is None:
+            y_transformer = lambda y : y
+        self.x_transformer, self.y_transformer = x_transformer, y_transformer
+        
+    def __getitem__(self, idx):
+        return self.x_transformer(self.x[idx], self.x), self.y_transformer(self.y[idx], self.x)
+    def __len__(self):
+        return self.size
+
 class DataSetRAM():
     """
     将数据加载到RAM储存并按比例分配生成DataLoader\n
@@ -99,7 +123,7 @@ class DataSetRAM():
         return [x] if not isinstance(x, list) else x
 
     def split(self, divide:list[float],
-              x_transformer:list = None, y_transformer:list = None):
+              x_transformer:list = None, y_transformer:list = None, dataset = SubDataSet):
         """divide : [0, 0.7, 0.9, 1] => train_70% val_20% test_10%"""
         ret = []
         if len(self.y) == 0:
@@ -111,11 +135,9 @@ class DataSetRAM():
             index2 = int(divide[idx+1]*self.size)
             ret.append(
                 DataLoader(
-                    SubDataSet(args = self.args,
-                               x = self.x[index1 : index2],
-                               y = self.y[index1 : index2],
-                               x_transformer = x_transformer[idx],
-                               y_transformer = y_transformer[idx])
+                    dataset(args = self.args,
+                            x = self.x[index1 : index2], y = self.y[index1 : index2],
+                            x_transformer = x_transformer[idx], y_transformer = y_transformer[idx])
                     ,batch_size = self.batch_size, shuffle = True, drop_last=True))
             self.args.mp.mprint(f'dataSet{idx:d} size:{index2-index1:d}')
         return ret
