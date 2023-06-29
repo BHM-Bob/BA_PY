@@ -25,10 +25,15 @@ def rgb2hex(r, g, b):
 def hex2rgb(hex:str):
   return [int(hex[i:i+2], 16) for i in (1, 3, 5)]
 def rgbs2hexs(rgbs:list[tuple[float]]):
+    """
+    Takes a list of RGB tuples and converts them to a list of hexadecimal color codes. 
+    Each RGB tuple must contain three floats between 0 and 1 representing the red, green, and blue 
+    components of the color. Returns a list of hexadecimal color codes as strings.
+    """
     return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
                     rgbs))
     
-def get_palette(n:int = 10, mode:Union[None, str] = None) -> list[str]:
+def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> list[str]:
     """get a seq of hex colors    
     Parameters
     ----------
@@ -40,16 +45,20 @@ def get_palette(n:int = 10, mode:Union[None, str] = None) -> list[str]:
         - None : plt.get_cmap('Set1') for n<=9 or plt.get_cmap('Set3') for n<= 12
     """
     assert n >= 1, 'n < 1'
+    ret = None
     if mode == 'hls':
-        return rgbs2hexs(sns.color_palette('hls', n))
+        ret = rgbs2hexs(sns.color_palette('hls', n))
     if n <= 5 and mode == 'green':
-        return ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87'][0:n]
+        ret = ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87'][0:n]
     elif n <= 9:
-        return rgbs2hexs(plt.get_cmap('Set1').colors)
+        ret = rgbs2hexs(plt.get_cmap('Set1').colors)
     elif n <= 12:
-        return rgbs2hexs(plt.get_cmap('Set3').colors)
+        ret = rgbs2hexs(plt.get_cmap('Set3').colors)
     elif n <= 20 and mode == 'pair':
-        return rgbs2hexs(plt.get_cmap('tab20').colors)
+        ret = rgbs2hexs(plt.get_cmap('tab20').colors)
+    if return_n and ret is not None:
+        ret = ret[:n]
+    return ret
     
 # TODO : not use itertools.product
 def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
@@ -126,8 +135,25 @@ def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:l
 
 def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
                 include_factors:bool = True):
-    #sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
-    #sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
+    """
+    Return a subset of the input DataFrame, filtered by the given factors and tags.
+
+    Args:
+        factors (dict[str, list[str]]): A dictionary containing the factors to filter by.
+            The keys are column names in the DataFrame and the values are lists of values
+            to filter by in that column.
+        tags (list[str]): A list of column names to include in the output DataFrame.
+        df (pd.DataFrame): The input DataFrame to filter.
+        include_factors (bool, optional): Whether to include the factors in the output DataFrame.
+            Defaults to True.
+
+    Returns:
+        pd.DataFrame: A subset of the input DataFrame, filtered by the given factors and tags.
+        
+    Examples:
+        >>> sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
+        >>> sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
+    """
     def update_mask(mask, other:np.ndarray, method:str = '&'):
         return other if mask is None else (mask&other if method == '&' else mask|other)
     if len(tags) == 0:
@@ -179,6 +205,20 @@ class AxisLable():
         self.hold_space += space
 
 def pro_hue_pos(factors:list[str], df:pd.DataFrame, width:float, bar_space:float):
+    """
+    Returns the x-axis labels and positions of the bars for a plot with multiple categorical variables.
+    
+    :param factors: A list of column names in the DataFrame to group by.
+    :type factors: list[str]
+    :param df: The input DataFrame.
+    :type df: pd.DataFrame
+    :param width: The width of each bar.
+    :type width: float
+    :param bar_space: The space between bars.
+    :type bar_space: float
+    :return: A tuple containing a list of AxisLable objects for each axis and a list of positions for each bar.
+    :rtype: tuple(list[AxisLable], list[float])
+    """
     xlabels, fc_old, pos = [ [] for _ in range(len(factors))], '', []
     for f_i, f in enumerate(factors):
         for fc_i, fc in enumerate(df[f]):
@@ -215,27 +255,40 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     bar_space = 0.2
     xrotations = [0]*len(factors)
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+    labels:None,
+    font_size:None, 
     offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]
     """
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     
     if len(tags) == 0:
-        tags = list(df.columns)[len(factors):]    
+        tags = list(df.columns)[len(factors):]
     args = get_wanted_args({'width':0.4, 'bar_space':0.2, 'xrotations':[0]*len(factors),
                             'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
-                            'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]},
-                            kwargs, locals())
-    args.xrotations.append(0)    
+                            'hatchs':['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+                            'font_size':None,
+                            'labels':None,
+                            'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
+                            'edgecolor':'white'},
+                            kwargs)
+    args.xrotations.append(0)
     xlabels, pos = pro_hue_pos(factors, df, args.width, args.bar_space)
     bottom = kwargs['bottom'] if 'bottom' in kwargs else np.zeros(len(pos[0]))
     
     for yIdx, yName in enumerate(tags):
-        ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=yName,
-                edgecolor='white', color=args.colors[yIdx])
+        if args.labels is not None:
+            label = args.labels[yIdx]
+        else:
+            label = yName
+        ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=label,
+                edgecolor=args.edgecolor, color=args.colors[yIdx])
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0])
+    if args.font_size is not None:
+        plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
@@ -244,6 +297,8 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
         new_axisline = axs[-1].get_grid_helper().new_fixed_axis
         axs[-1].axis["bottom"] = new_axisline(loc="bottom", axes=axs[-1], offset=(0, -args.offset[idx]))
         plt.setp(axs[-1].axis["bottom"].major_ticklabels, rotation=args.xrotations[idx+1])
+        if args.font_size is not None:
+            plt.setp(axs[-1].axis["bottom"].major_ticklabels, fontsize=args.font_size[idx+1])
         axs[-1].axis["top"].major_ticks.set_ticksize(0)
         # TODO : do not work
         axs[-1].axis["right"].major_ticks.set_ticksize(0)
@@ -295,6 +350,25 @@ def plot_positional_hue(factors:list[str], tags:list[str], df:pd.DataFrame, **kw
     return ret_wrapper
 
 def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
+    """
+    Generates a QQPlot for each specified tag in the given DataFrame using statsmodels' qqplot function.
+    
+    :param tags: A list of strings containing the tags to be plotted.
+    :type tags: list[str]
+    :param df: A pandas DataFrame containing the data to be plotted.
+    :type df: pd.DataFrame
+    :param figsize: A tuple containing the size of the figure to be plotted, defaults to (12,6).
+    :type figsize: tuple(int, int)
+    :param nrows: The number of rows in the plot grid, defaults to 1.
+    :type nrows: int
+    :param ncols: The number of columns in the plot grid, defaults to 1.
+    :type ncols: int
+    :param **kwargs: Additional keyword arguments to be passed to the plot.
+    :type **kwargs: dict
+    
+    :return: None
+    :rtype: None
+    """
     axs = []
     fig = plt.figure(figsize = (12, 6))
     for fig_idx in range(1, ncols*nrows+1):
@@ -314,6 +388,13 @@ def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
             axs[-1].set_ylabel('Sample Quantiles', fontsize = kwargs['label_size'])
             
 def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
+    """
+    Saves and shows the current figure.
+
+    :param path: A string representing the file path to save the figure.
+    :param dpi: An integer representing the resolution in dots per inch of the saved figure. Default is 300.
+    :param bbox_inches: A string or a Bbox object representing the portion of the figure to be saved in inches. Default is 'tight'.
+    """
     plt.tight_layout()
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
     plt.show()

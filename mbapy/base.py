@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-29 23:28:04
+LastEditTime: 2023-06-29 22:03:58
 Description: 
 '''
 import sys
@@ -73,9 +73,35 @@ def autoparse(init):
     return wrapped_init
 
 def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
+    """
+    Generates a random sequence of integers within a given range and 
+    counts the frequency of each number. Returns the most frequent number.
+    
+    :param choices_range: A list of two integers representing the lower and upper bounds of the range. Default is [0,10].
+    :type choices_range: list[int]
+    :param times: An integer representing the number of times the random sequence will be generated. Default is 100.
+    :type times: int
+    :return: An integer representing the most frequent number in the generated sequence.
+    :rtype: int
+    """
     randSeq = np.random.randint(low = choices_range[0], high = choices_range[1]+1, size = [times])
     count = [ np.sum(np.equal(randSeq,i)) for i in range(choices_range[0],choices_range[1]+1) ]
     return np.argmax(np.array(count))
+
+def rand_choose(lst:list, seed = None):
+    """
+    Selects a random element from the given list.
+
+    Parameters:
+        lst (list): The list from which to select a random element.
+        seed (int, optional): The seed value to use for random number generation. Defaults to None.
+
+    Returns:
+        Any: The randomly selected element from the list.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    return np.random.choice(lst)
 
 def put_err(info:str, ret = None):
     if not __NO_ERR__:
@@ -86,6 +112,14 @@ def put_log(info:str, head = "log", ret = None):
     return ret
 
 def get_time(chr:str = ':')->str:
+    """
+    Returns the current time as a string with a given character replacing the standard colon separator.
+
+    :param chr: The character to replace the ':' separator. Default value is ':'.
+    :type chr: str
+    :return: A string that represents the current time with a given separator replacing the standard colon separator.
+    :rtype: str
+    """
     return time.asctime(time.localtime()).replace(':', chr)
 
 class MyArgs():
@@ -108,6 +142,19 @@ class MyArgs():
         for attr in vars(self):
             dic[attr] = getattr(self,attr)
         return dic   
+
+def get_default_for_None(x, deault):
+    """
+    Return the default value when the input value is None.
+
+    Args:
+        x (Any): The input value to be checked.
+        deault (Any): The default value to return if x is None.
+
+    Returns:
+        The input value if it is not None, otherwise the default value.
+    """
+    return x if x is not None else deault
 
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """
