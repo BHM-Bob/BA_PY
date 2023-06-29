@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-12 23:10:27
+LastEditTime: 2023-06-29 22:51:07
 Description: pd.dataFrame utils
 '''
 
@@ -11,6 +11,9 @@ import numpy as np
 
 from mbapy.plot import pro_bar_data, get_df_data, sort_df_factors
 from mbapy.file import update_excel
+
+def get_value(df:pd.DataFrame, column:str, mask:np.array[bool])->list:
+    return df.loc[mask, column].tolist()
 
 def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1., 
                 backend:str = 'numpy-array', tensor = None, device = 'cuda'):

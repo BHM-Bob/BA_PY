@@ -11,6 +11,30 @@ import os
 
 import pandas as pd
 
+def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
+    """
+    Reads the contents of a text file at the specified path.
+
+    Parameters:
+        path (str): The path of the text file to read.
+        decode (str, optional): The decoding format to use. Defaults to 'utf-8'.
+        way (str, optional): The way to read the file. Defaults to 'lines'.
+            Possible values:
+                - 'lines': Returns a list of lines from the file.
+                - 'str': Returns the entire contents of the file as a string.
+                - 'json': Returns the contents of the file as a JSON object.
+
+    Returns:
+        list or str or dict: The contents of the file based on the specified 'way' parameter.
+    """
+    with open(path, 'r', encoding=decode) as f:
+        if way == 'lines':
+            return f.readlines()
+        elif way == 'str':
+            return f.read()
+        elif way == 'json':
+            return json.loads(f.read())
+
 def detect_byte_coding(bits:bytes):
     """
     Detects the byte coding of a given byte sequence and decodes it accordingly. 
@@ -155,3 +179,4 @@ def update_excel(path:str, sheets:dict[str, pd.DataFrame] = None):
     elif sheets is not None:
         print(f'path is not a file : {path:s}, writing sheets to the file of path')
         write_sheets(path, sheets)
+        

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-15 23:08:50
+LastEditTime: 2023-06-29 22:03:58
 Description: 
 '''
 import sys
@@ -87,6 +87,21 @@ def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
     randSeq = np.random.randint(low = choices_range[0], high = choices_range[1]+1, size = [times])
     count = [ np.sum(np.equal(randSeq,i)) for i in range(choices_range[0],choices_range[1]+1) ]
     return np.argmax(np.array(count))
+
+def rand_choose(lst:list, seed = None):
+    """
+    Selects a random element from the given list.
+
+    Parameters:
+        lst (list): The list from which to select a random element.
+        seed (int, optional): The seed value to use for random number generation. Defaults to None.
+
+    Returns:
+        Any: The randomly selected element from the list.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    return np.random.choice(lst)
 
 def put_err(info:str, ret = None):
     if not __NO_ERR__:
