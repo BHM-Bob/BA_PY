@@ -281,11 +281,9 @@ def plot_turkey(means, std_errs, tukey_results):
     This function plots a bar chart using the given mean values and standard errors. It also marks the groups with significant differences based on the Tukey's test results.
     For each combination of groups, the function checks if the corresponding Tukey's test result indicates a significant difference. If so, it plots a horizontal line at the maximum height, vertical lines at the endpoints, and places a text label with stars indicating the p-value of the difference.
     """
-    # 绘制柱状图
     x = np.arange(len(means))
     plt.bar(x, means, yerr=std_errs, capsize=5)
 
-    # 标记显著性差异的组
     combins = np.array(list(combinations(range(len(means)), 2)))
     height = max(means) + max(std_errs)
     min_height = 0.05 * height
@@ -299,7 +297,6 @@ def plot_turkey(means, std_errs, tukey_results):
                      p_value_to_stars(tukey_results.pvalues[i]), ha='center')
             height += min_height
 
-    # 设置x轴标签
     plt.xticks(x, tukey_results.groupsunique)
     return plt.gca()
 
@@ -314,3 +311,13 @@ if __name__ == '__main__':
     sub_df = pro_bar_data(['Animal Type'], ['Duration'], sub_df)
     plot_turkey(sub_df['Duration'], sub_df['Duration_SE'], model)
     plt.show()
+    
+    df = pd.DataFrame({'Month': [5, 5, 6, 6, 7, 7, 8, 8, 9, 9],
+                       'Ozone': [23.61538, 22.22445, 29.44444, 18.20790, 59.11538, 31.63584, 59.96154, 39.68121, 31.44828, 24.14182]})
+    model = mst.multicomp_turkeyHSD({'Month':[]}, 'Ozone', df)
+    result = mst.turkey_to_table(model)
+    print(result)
+    sub_df = pro_bar_data(['Month'], ['Ozone'], df)
+    plot_turkey(sub_df['Ozone'], sub_df['Ozone_SE'], model)
+    plt.show()
+    

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-30 18:56:25
+LastEditTime: 2023-06-30 21:28:57
 Description: 
 '''
 from typing import Optional, Union
@@ -12,8 +12,9 @@ import scipy
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from statsmodels.stats.multicomp import MultiComparison
+from statsmodels.stats.libqsturng import qsturng
 import scikit_posthocs as sp
-import matplotlib.pyplot as plt
 
 import mbapy.stats.df as msd
 
@@ -182,7 +183,7 @@ def p_value_to_stars(p_value):
     - p_value (float): The p-value to convert to stars.
 
     Returns:
-    - str: The string representation of the number of stars.
+    - str: The string representation of the number of stars. If p >= 0.05, return ''
     """
     if p_value < 0.001:
         return '***'
@@ -191,7 +192,7 @@ def p_value_to_stars(p_value):
     elif p_value < 0.05:
         return '*'
     else:
-        return '-'
+        return ''
 
 def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """
@@ -274,5 +275,7 @@ def multicomp_bonferroni(factors:dict[str, list[str]], tag:str, df:pd.DataFrame,
     sub_df = msd.get_df_data(factors, [tag], df)
     return sp.posthoc_dunn(sub_df, val_col=tag, group_col=list(factors.keys())[0],
                            p_adjust='bonferroni')
-    
+
+if __name__ == '__main__':
+    pass
     
