@@ -130,3 +130,6 @@ dmypy.json
 
 # log.txt produced by dl_torch
 log.txt
+
+# .vscode
+.vscode
