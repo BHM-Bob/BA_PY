@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 22:16:49
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 17:16:33
+LastEditTime: 2023-06-30 11:20:26
 Description: 
 '''
 from . import base, file, plot, web, stats
@@ -17,7 +17,12 @@ from .__version__ import (
     __url__,
 )
 
-from mbapy import dl_torch as dl_torch
+try:
+    import torch
+    from mbapy import dl_torch as dl_torch
+except:
+    pass
+    # print('no torch available')
 
 # def main():
 #     pass

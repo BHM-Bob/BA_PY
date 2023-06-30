@@ -1,7 +1,7 @@
 '''
 Date: 2023-06-29 22:27:31
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-29 22:35:45
+LastEditTime: 2023-06-30 12:16:01
 FilePath: \BA_PY\test\stats\test_df.py
 Description: 
 '''
@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import unittest
 
-from ...mbapy.stats import df as msd
+from mbapy.stats import df as msd
 
 class TestGetValue(unittest.TestCase):
 
