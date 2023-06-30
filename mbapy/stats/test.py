@@ -2,18 +2,20 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 15:21:32
+LastEditTime: 2023-06-30 18:56:25
 Description: 
 '''
 from typing import Optional, Union
+from itertools import combinations
 
 import scipy
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import scikit_posthocs as sp
+import matplotlib.pyplot as plt
 
-import mbapy.plot as mp
+import mbapy.stats.df as msd
 
 def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, list[int], pd.Series]] = None, confidence:float = 0.95):
     """
@@ -34,7 +36,7 @@ def _get_x1_x2(x1 = None, x2 = None,
                factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
     """以同一列factors提取同一列tag的x1和x2，其余factors仅作筛选作用"""
     if factors is not None and tag is not None and df is not None:
-        sub_df = mp.get_df_data(factors, [tag], df)
+        sub_df = msd.get_df_data(factors, [tag], df)
         fac_name = list(factors.keys())[0]
         x1 = sub_df.loc[sub_df[fac_name] == factors[fac_name][0], [tag]].values
         if len(factors[fac_name]) == 2:
@@ -52,7 +54,7 @@ def _get_x1_x2_R(x1 = None, x2 = None,
     ret = [x1, x2]
     if factors is not None and tags is not None and df is not None:
         ret = []
-        sub_df = mp.get_df_data(factors, tags, df)
+        sub_df = msd.get_df_data(factors, tags, df)
         ret = [sub_df.loc[:, [tag]].values.reshape(-1) for tag in tags]
     return ret
 
@@ -115,7 +117,7 @@ def pearsonr(x1 = None, x2 = None,
 def _get_observe(observed = None,
                  factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
     if observed is None and factors is not None and tag is not None and df is not None:
-        @mp.pro_bar_data_R(list(factors.keys()), [tag], df, [''])
+        @msd.pro_bar_data_R(list(factors.keys()), [tag], df, [''])
         def get_sum(values):
             return [values.sum()]
         ndf = get_sum()
@@ -166,29 +168,111 @@ def f_oneway(Xs:list = None,
     支持直接输入(Xs)和mbapy-style数据输入
     """
     if Xs is None and factors is not None and tag is not None and df is not None:
-        sub_df = mp.get_df_data(factors, [tag], df)
+        sub_df = msd.get_df_data(factors, [tag], df)
         fac_name = list(factors.keys())[0]
         sub_facs = factors[fac_name]
         Xs = [sub_df.loc[sub_df[fac_name] == f, [tag]].values for f in sub_facs]
     return scipy.stats.f_oneway(*Xs)
 
+def p_value_to_stars(p_value):
+    """
+    Determine the number of stars for a given p-value.
+
+    Parameters:
+    - p_value (float): The p-value to convert to stars.
+
+    Returns:
+    - str: The string representation of the number of stars.
+    """
+    if p_value < 0.001:
+        return '***'
+    elif p_value < 0.01:
+        return '**'
+    elif p_value < 0.05:
+        return '*'
+    else:
+        return '-'
+
 def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
-    """using statsmodels.stats.multicomp.pairwise_tukeyhsd\n
-    Tukey的HSD法要求各样本的样本相等或者接近，在样本量相差很大的情况下还是建议使用其他方法\n
-    Tukey的HSD检验比Bonferroni法更加的保守"""
-    sub_df = mp.get_df_data(factors, [tag], df)
+    """
+    using statsmodels.stats.multicomp.pairwise_tukeyhsd, Tukey's HSD 检验是一种多重比较方法，用于比较多个处理组之间的差异。\n
+    Tukey的HSD法要求各样本的样本相等或者接近, 在样本量相差很大的情况下还是建议使用其他方法\n
+    Tukey的HSD检验比Bonferroni法更加的保守\n
+    Parameters:
+    -----------
+    factors: dict[str, list[str]], the first key-values is the data-choosed factor, the other are the factors to help to choose
+    tag: str, data column name
+    df: pd.DataFrame
+    alpha: float
+    """
+    sub_df = msd.get_df_data(factors, [tag], df)
     return sm.stats.multicomp.pairwise_tukeyhsd(sub_df[tag], sub_df[list(factors.keys())[0]], alpha)
 
+def turkey_to_table(turkey_result):
+    """
+    Generate a table summarizing the results of the Tukey's HSD test.
+
+    Parameters:
+    - turkey_result (sm.stats.multicomp.TukeyHSDResult): The result object from the Tukey's HSD test.
+
+    Returns:
+    - table (pd.DataFrame): A DataFrame containing the following columns:
+        - 'Group 1': The first group being compared.
+        - 'Group 2': The second group being compared.
+        - 'Mean Difference': The mean difference between the two groups.
+        - 'p-value': The p-value associated with the mean difference.
+        - 'Stars': The number of stars indicating the significance level of the mean difference.
+        - 'Reject': A boolean value indicating whether the null hypothesis is rejected for the mean difference.
+    
+    Example:
+    >>>     Group 1 Group 2  Mean Difference   p-value Stars  Reject
+    >>> 0       A       B             -1.0  0.386244     -   False
+    >>> 1       A       C             -2.0  0.063756     -   False
+    >>> 2       B       C             -1.0  0.386244     -   False
+    """
+    groups = turkey_result.groupsunique
+    data = turkey_result.meandiffs
+    p_values = turkey_result.pvalues
+    reject = turkey_result.reject
+    
+    table_data = []
+    for i, (group1, group2) in enumerate(combinations(groups, 2)):
+        mean_diff = data[i]
+        p_value = p_values[i]
+        is_rejected = reject[i]
+        stars = p_value_to_stars(p_value)
+        
+        table_data.append([group1, group2, mean_diff, p_value, stars, is_rejected])
+    
+    table = pd.DataFrame(table_data, columns=['Group 1', 'Group 2', 'Mean Difference', 'p-value', 'Stars', 'Reject'])
+    return table
+
 def multicomp_dunnett(factor:str, exp:list[str], control:str, df:pd.DataFrame, **kwargs):
-    """using SciPy 1.11 scipy.stats.dunnett\n
-    factors means colum name for expiremental factor and control factor"""
+    """
+    using SciPy 1.11 scipy.stats.dunnett, 用于比较一个处理组与其他多个处理组之间的差异\n
+    Parameters:
+    -----------
+    factors: str, means colum name for expiremental factor and control factor
+    exp: list[str], sub factors stands for experiment group
+    control: str, sub factors stands for control group
+    df: pd.DataFrame
+    """
     exps = [np.array(df[factor][df[factor]==e]) for e in exp]
     return scipy.stats.dunnett(*exps, np.array(df[factor][df[factor]==control]), **kwargs)
 
 def multicomp_bonferroni(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
-    """using scikit_posthocs.posthoc_dunn\n
-    Bonferroni"""
-    sub_df = mp.get_df_data(factors, [tag], df)
+    """
+    using scikit_posthocs.posthoc_dunn, Dunn 检验是一种非参数的多重比较方法，用于比较多个处理组之间的差异。\n
+    Bonferroni method\n
+    Parameters:
+    -----------
+    factors: dict[str, list[str]], the first key-values is the data-choosed factor, the other are the factors to help to choose
+    tag: str, data column name
+    df: pd.DataFrame
+    alpha: float
+    """
+    sub_df = msd.get_df_data(factors, [tag], df)
     return sp.posthoc_dunn(sub_df, val_col=tag, group_col=list(factors.keys())[0],
                            p_adjust='bonferroni')
+    
     

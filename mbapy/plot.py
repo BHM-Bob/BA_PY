@@ -1,4 +1,5 @@
 import itertools
+from itertools import combinations
 import sys
 from functools import wraps
 from typing import Union
@@ -14,6 +15,9 @@ from mpl_toolkits import axisartist
 from mpl_toolkits.axes_grid1 import host_subplot
 
 from mbapy.base import get_wanted_args
+from mbapy.stats.df import pro_bar_data, pro_bar_data_R, sort_df_factors, get_df_data
+import mbapy.stats.test as mst
+from mbapy.stats.test import p_value_to_stars
 
 # plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文
 plt.rcParams["font.family"] = 'Times New Roman'
@@ -60,143 +64,6 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> li
         ret = ret[:n]
     return ret
     
-# TODO : not use itertools.product
-def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
-    """
-    cacu mean and SE for each combinations of facotors\n
-    data should be like this:\n
-    | factor1 | factor2 | y1 | y2 |...\n
-    |  f1_1   |   f2_1  |2.1 |-2  |...\n
-    after process\n
-    | factor1 | factor2 | y1(mean) | y1_SE(SE) | y1_N(sum_data) |...\n
-    |  f1_1   |   f2_1  |2.1       |   -2      |   32           |...\n
-    kwargs:
-        min_sample_N:int : min N threshold(>=)
-    """
-    # kwargs
-    min_sample_N = 1 if 'min_sample_N' not in kwargs else kwargs['min_sample_N']
-    assert min_sample_N > 0, 'min_sample_N <= 0'
-    # pro
-    if len(tags) == 0:
-        tags = list(df.columns)[len(factors):]
-    factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
-    ndf = [factors.copy()]
-    for tag in tags:
-        ndf[0] += [tag, tag+'_SE', tag+'_N']
-    for factorCombi in itertools.product(*factor_contents):
-        factorMask = np.array(df[factors[0]] == factorCombi[0])
-        for i in range(1, len(factors)):
-            factorMask &= np.array(df[factors[i]] == factorCombi[i])
-        if factorMask.sum() >= min_sample_N:
-            line = []
-            for idx, tag in enumerate(tags):
-                values = np.array(df.loc[factorMask, [tag]])
-                line.append(values.mean())
-                if values.shape[0] > 1:
-                    line.append(values.std(ddof = 1)/np.sqrt(values.shape[0]))
-                else:
-                    line.append(np.NaN)
-                line.append(values.shape[0])
-            ndf.append(list(factorCombi) + line)
-    return pd.DataFrame(ndf[1:], columns=ndf[0])
-
-def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:list[str], **kwargs):
-    """
-    wrapper\n
-    @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf)\n
-    def plot_func(values, **kwargs):
-        return produced vars in list format whose length equal to len(suffix)
-    """
-    def ret_wrapper(core_func):
-        def core_wrapper(**kwargs):
-            nonlocal tags
-            if len(tags) == 0:
-                tags = list(df.columns)[len(factors):]
-            factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
-            ndf = [factors.copy()]
-            for tag in tags:
-                for suffix in suffixs:
-                    ndf[0] += [tag+suffix]
-            for factorCombi in itertools.product(*factor_contents):
-                factorMask = np.array(df[factors[0]] == factorCombi[0])
-                for i in range(1, len(factors)):
-                    factorMask &= np.array(df[factors[i]] == factorCombi[i])
-                if(factorMask.sum() > 0):
-                    line = []
-                    for idx, tag in enumerate(tags):
-                        values = np.array(df.loc[factorMask, [tag]])
-                        ret_line = core_func(values)
-                        assert len(ret_line) == len(suffixs), 'length of return value of core_func != len(suffixs)'
-                        line += ret_line
-                    ndf.append(list(factorCombi) + line)
-            return pd.DataFrame(ndf[1:], columns=ndf[0])
-        return core_wrapper
-    return ret_wrapper
-
-def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
-                include_factors:bool = True):
-    """
-    Return a subset of the input DataFrame, filtered by the given factors and tags.
-
-    Args:
-        factors (dict[str, list[str]]): A dictionary containing the factors to filter by.
-            The keys are column names in the DataFrame and the values are lists of values
-            to filter by in that column.
-        tags (list[str]): A list of column names to include in the output DataFrame.
-        df (pd.DataFrame): The input DataFrame to filter.
-        include_factors (bool, optional): Whether to include the factors in the output DataFrame.
-            Defaults to True.
-
-    Returns:
-        pd.DataFrame: A subset of the input DataFrame, filtered by the given factors and tags.
-        
-    Examples:
-        >>> sub_df = ndf.loc[(ndf['size'] == size1) & (ndf['light'] == light1), ['c', 'w', 'SE']]
-        >>> sub_df = get_df_data([{'size':[size1], 'light':[light1]}, ['c', 'w', 'SE'])
-    """
-    def update_mask(mask, other:np.ndarray, method:str = '&'):
-        return other if mask is None else (mask&other if method == '&' else mask|other)
-    if len(tags) == 0:
-        tags = list(set(df.columns.to_list())-set(factors.keys()))
-    if include_factors:
-        tags = list(factors.keys()) + tags
-    mask = None
-    for factor_name in factors:
-        sub_mask = None
-        if len(factors[factor_name]) == 0:
-            # factors[factor_name] asigned with [], get all sub factors
-            factors[factor_name] = df[factor_name].unique().tolist()
-        for sub_factor in factors[factor_name]:
-            sub_mask = update_mask(sub_mask, np.array(df[factor_name] == sub_factor), '|')
-        mask = update_mask(mask, sub_mask, '&')
-    return df.loc[mask, tags]
-
-def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
-    """UnTested
-    sort each combinations of facotors\n
-    data should be like this:\n
-    | factor1 | factor2 | y1 | y2 |...\n
-    |  f1_1   |   f2_1  |2.1 |-2  |...\n
-    |  f1_1   |   f2_2  |2.1 |-2  |...\n
-    ...\n
-    after sort if given facotors=['factor2', 'factor1']\n
-    | factor2 | factor1 | y1 | y2 |...\n
-    |  f2_1   |   f1_1  |2.1 |-2  |...\n
-    |  f2_1   |   f1_2  |2.1 |-2  |...\n
-    ...\n
-    """
-    if len(tags) == 0:
-        tags = list(df.columns)[len(factors):]
-    factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
-    ndf = [factors.copy()]
-    ndf[0] += tags
-    for factorCombi in itertools.product(*factor_contents):
-        factorMask = df[factors[0]] == factorCombi[0]
-        for i in range(1, len(factors)):
-            factorMask &= df[factors[i]] == factorCombi[i]
-        ndf.append(list(factorCombi) + np.array(df.loc[factorMask, tags].values))
-    return pd.DataFrame(ndf[1:], columns=ndf[0])
-
 class AxisLable():
     def __init__(self, name:str, hold_space:int = 1) -> None:
         self.name = name
@@ -397,4 +264,53 @@ def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
     """
     plt.tight_layout()
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
+    plt.show()
+    
+def plot_turkey(means, std_errs, tukey_results):
+    """
+    Plot a bar chart showing the means of different groups along with the standard errors.
+
+    Parameters:
+    - means: A list of mean values for each group.
+    - std_errs: A list of standard errors for each group.
+    - tukey_results: The Tukey's test results object.
+
+    Returns:
+    - The current `Axes` instance.
+
+    This function plots a bar chart using the given mean values and standard errors. It also marks the groups with significant differences based on the Tukey's test results.
+    For each combination of groups, the function checks if the corresponding Tukey's test result indicates a significant difference. If so, it plots a horizontal line at the maximum height, vertical lines at the endpoints, and places a text label with stars indicating the p-value of the difference.
+    """
+    # 绘制柱状图
+    x = np.arange(len(means))
+    plt.bar(x, means, yerr=std_errs, capsize=5)
+
+    # 标记显著性差异的组
+    combins = np.array(list(combinations(range(len(means)), 2)))
+    height = max(means) + max(std_errs)
+    min_height = 0.05 * height
+    endpoint_height = [height - 0.05 * min_height, height + 0.05 * min_height]
+    for i, combination in enumerate(combins):
+        if tukey_results.reject[i]:
+            plt.plot(combination, [height, height], color='black')
+            plt.plot([combination[0], combination[0]], endpoint_height, color='black')
+            plt.plot([combination[1], combination[1]], endpoint_height, color='black')
+            plt.text(np.mean(combination), height,
+                     p_value_to_stars(tukey_results.pvalues[i]), ha='center')
+            height += min_height
+
+    # 设置x轴标签
+    plt.xticks(x, tukey_results.groupsunique)
+    return plt.gca()
+
+if __name__ == '__main__':
+    """dev code"""
+    df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
+    df['Animal Type'] = df['Animal Type'].astype('str')
+    model = mst.multicomp_turkeyHSD({'Animal Type':[]}, 'Duration', df)
+    result = mst.turkey_to_table(model)
+    print(result)
+    sub_df = get_df_data({'Animal Type':[]}, ['Duration'], df)
+    sub_df = pro_bar_data(['Animal Type'], ['Duration'], sub_df)
+    plot_turkey(sub_df['Duration'], sub_df['Duration_SE'], model)
     plt.show()
