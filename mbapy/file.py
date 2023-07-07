@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-07 22:12:29
+LastEditTime: 2023-07-08 00:00:01
 Description: 
 '''
 import chardet
@@ -191,7 +191,7 @@ def update_excel(path:str, sheets:dict[str, pd.DataFrame] = None):
         print(f'path is not a file : {path:s}, writing sheets to the file of path')
         write_sheets(path, sheets)
         
-def convert_pdf_data_to_txt(path: str, backend = 'PyPDF2') -> str:
+def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
     """
     Convert a PDF file to a text file.
 
@@ -209,7 +209,7 @@ def convert_pdf_data_to_txt(path: str, backend = 'PyPDF2') -> str:
         return put_err(f'{path:s} does not exist', f'{path:s} does not exist')
     if backend == 'PyPDF2':
         import PyPDF2
-        with open(pdf_path, 'rb') as file:
+        with open(path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
             return '\n'.join([page.extract_text() for page in reader.pages])
     else:
@@ -217,6 +217,6 @@ def convert_pdf_data_to_txt(path: str, backend = 'PyPDF2') -> str:
 
 if __name__ == '__main__':
     # dev code
-    pdf_path = r"Data-Efficient Protein 3D Geometric Pretraining via Refinement of.pdf"
-    print(convert_pdf_data_to_txt(pdf_path))
+    pdf_path = r"./data_tmp/DiffBP Generative Diffusion of 3D Molecules for Target Protein Binding.pdf"
+    print(convert_pdf_to_txt(pdf_path))
     
