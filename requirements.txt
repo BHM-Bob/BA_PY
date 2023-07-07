@@ -24,3 +24,4 @@ urllib3>=1.26.12
 openpyxl
 statsmodels
 scikit_posthocs
+scihub_cn>=0.1.1

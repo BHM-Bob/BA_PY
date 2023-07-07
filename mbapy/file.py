@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-15 23:07:21
+LastEditTime: 2023-07-07 22:12:29
 Description: 
 '''
 import chardet
@@ -10,6 +10,17 @@ import json
 import os
 
 import pandas as pd
+
+if __name__ == '__main__':
+    # dev mode
+    from mbapy.base import put_err
+else:
+    # release mode
+    from .base import put_err
+
+def read_bits(path:str):
+    with open(path, 'rb') as f:
+        return f.read()
 
 def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
     """
@@ -180,3 +191,32 @@ def update_excel(path:str, sheets:dict[str, pd.DataFrame] = None):
         print(f'path is not a file : {path:s}, writing sheets to the file of path')
         write_sheets(path, sheets)
         
+def convert_pdf_data_to_txt(path: str, backend = 'PyPDF2') -> str:
+    """
+    Convert a PDF file to a text file.
+
+    Args:
+        path: The path to the PDF file.
+        backend: The backend library to use for PDF conversion. Defaults to 'PyPDF2'.
+
+    Returns:
+        The extracted text from the PDF file as a string.
+
+    Raises:
+        NotImplementedError: If the specified backend is not supported.
+    """
+    if not os.path.isfile(path):
+        return put_err(f'{path:s} does not exist', f'{path:s} does not exist')
+    if backend == 'PyPDF2':
+        import PyPDF2
+        with open(pdf_path, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+            return '\n'.join([page.extract_text() for page in reader.pages])
+    else:
+        raise NotImplementedError
+
+if __name__ == '__main__':
+    # dev code
+    pdf_path = r"Data-Efficient Protein 3D Geometric Pretraining via Refinement of.pdf"
+    print(convert_pdf_data_to_txt(pdf_path))
+    
