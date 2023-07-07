@@ -2,12 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-29 22:03:58
+LastEditTime: 2023-07-03 23:40:44
 Description: 
 '''
-import sys
+import sys, os
 import time
 from functools import wraps
+import ctypes
 
 import numpy as np
 
@@ -172,3 +173,66 @@ def split_list(lst:list, n = 1, drop_last = False):
     if drop_last and len(result[-1]) < n:
         del result[-1]
     return result
+
+def get_dll_path_for_sys(module_name:str, sys_name: str = 'win'):
+    if sys_name == 'win':
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', f'{module_name}.dll')
+    else:
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', f'{module_name}.so')
+
+class MyDLL:
+    @autoparse
+    def __init__(self, path: str) -> None:
+        """load a DLL file from path"""
+        if not os.path.isfile(path):
+            put_err(f'{path:s} is not exist')
+        else:
+            self.dll = ctypes.cdll.LoadLibrary(path)
+        self.PTR = ctypes.POINTER # pointer generator
+        self.REF = ctypes.byref # reference generator
+        self.INT = ctypes.c_int # int type
+        self.LONG = ctypes.c_long # long type
+        self.FLOAT = ctypes.c_float # float type
+        self.BOOL = ctypes.c_bool # bool type
+        self.CHAR = ctypes.c_char # char type
+        self.STR = ctypes.c_char_p # char* type
+    def convert_c_lst(self, lst:list, c_type = ctypes.c_int):
+        return (c_type * len(lst))(*lst)
+    def convert_py_lst(self, c_lst:ctypes.POINTER(ctypes.c_int), size: int):
+        return [c_lst[i] for i in range(size)]
+    def get_func(self, func_name:str, func_args:list = None, func_ret = None):
+        """
+        Get a function by its name from the DLL object.
+
+        Args:
+            func_name (str): The name of the function to get.
+            func_args (list, optional): The arguments of the function. Defaults to None.
+            func_ret (Any, optional): The return type of the function. Defaults to None.
+
+        Returns:
+            function: The requested function object.
+        """
+        func = getattr(self.dll, func_name)
+        if func_args is not None:
+            func.argtypes = func_args
+        if func_ret is not None:
+            func.restype = func_ret
+        return func    
+    def free_ptr(self, ptr:ctypes.c_void_p, free_func:str = 'freePtr'):
+        """
+        Free the memory pointed to by `ptr` using the specified `free_func`.
+
+        Parameters:
+            ptr (ctypes.c_void_p): A pointer to the memory to be freed.
+            free_func (str, optional): The name of the function to be used for freeing the memory. Defaults to 'free'.
+        """
+        if hasattr(self.dll, free_func):
+            free_func = getattr(self.dll, free_func)
+            free_func(ptr)
+        else:
+            put_err(f'{free_func:s} is not exist')
+
+
+if __name__ == '__main__':
+    # dev code
+    pass

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-30 18:48:50
+LastEditTime: 2023-07-07 20:29:23
 Description: pd.dataFrame utils
 '''
 import itertools
@@ -11,7 +11,14 @@ from functools import wraps
 import pandas as pd
 import numpy as np
 
-from mbapy.file import update_excel
+if __name__ == '__main__':
+    # dev mode
+    from mbapy.file import update_excel
+    from mbapy.base import get_dll_path_for_sys, MyDLL
+else:
+    # release mode
+    from ..file import update_excel
+    from ..base import get_dll_path_for_sys, MyDLL
 
 def get_value(df:pd.DataFrame, column:str, mask:np.array)->list:
     return df.loc[mask, column].tolist()
@@ -198,7 +205,8 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,
             import torch
         except:
             raise ImportError('no torch available')
-        arr = tensor if tensor is not None else torch.tensor(ndf[tag], device = device, dtype = torch.float32).view(-1)
+        arr = tensor if tensor is not None else torch.tensor(ndf[tag], device = device,
+                                                             dtype = torch.float32).view(-1)
         @torch.jit.script
         def step_scan(x:torch.Tensor, to_remove:list[int], sh:float):
             i = 0
@@ -217,6 +225,18 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,
                 arr[i+1] = arr[i]
                 to_remove_idx.append(i+1)
             i += 1
+    elif backend == 'ba-cpp':
+        raise(NotImplementedError)
+        arr = np.array(ndf[tag]).reshape([len(ndf[tag])]).tolist()
+        dll = MyDLL(get_dll_path_for_sys('stats'))
+        c_result = dll.PTR(dll.FLOAT)
+        c_size = dll.INT
+        c_remove_simi = dll.get_func('remove_simi',
+                                     [dll.PTR(dll.FLOAT), dll.PTR(dll.FLOAT), dll.PTR(dll.INT)])
+        c_remove_simi(dll.convert_c_lst(arr, dll.FLOAT), dll.REF(c_result), dll.REF(c_size))
+        to_remove_idx = dll.convert_py_lst(c_result, c_size)
+    else:
+        raise(NotImplementedError)
     ndf.drop(labels = to_remove_idx, inplace=True)
     return ndf, to_remove_idx
 
@@ -226,7 +246,8 @@ def interp(long_one:pd.Series, short_one:pd.Series):
     Given two pd.Series, one long and one short, use linear interpolation to give the short one the same length as the long pd.Series\n
     """
     assert len(long_one) > len(short_one), 'len(long_one) <= len(short_one)'
-    short_one_idx = np.array(np.arange(short_one.shape[0])*(long_one.shape[0]/short_one.shape[0]), dtype=np.int32)
+    short_one_idx = np.array(np.arange(short_one.shape[0])*(long_one.shape[0]/short_one.shape[0]),
+                             dtype=np.int32)
     if short_one_idx[-1] < long_one.shape[0]-1:
         short_one_idx[-1] = long_one.shape[0]-1
     return np.interp(np.arange(long_one.shape[0]), short_one_idx, short_one)
@@ -251,3 +272,19 @@ def merge_col2row(df:pd.DataFrame, cols:list[str],
     # 重新设置索引
     new_df = new_df.reset_index(drop=True)
     return new_df
+
+
+if __name__ == '__main__':
+    # dev code
+    import ctypes
+    dll = MyDLL(get_dll_path_for_sys('stats'))
+    c_size = dll.INT(100)
+    arr = np.random.randn(c_size.value)
+    arr.sort()
+    arr = arr.tolist()
+    c_remove_simi = dll.get_func('remove_simi',
+                                 [dll.PTR(dll.FLOAT), dll.PTR(dll.INT)],
+                                 dll.PTR(dll.FLOAT))
+    to_remove_idx = c_remove_simi(dll.convert_c_lst(arr, dll.FLOAT), dll.REF(c_size))
+    to_remove_idx = dll.convert_py_lst(to_remove_idx, c_size.value)
+    print(to_remove_idx)

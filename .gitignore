@@ -133,3 +133,6 @@ log.txt
 
 # .vscode
 .vscode
+
+# bin
+mbapy/bin

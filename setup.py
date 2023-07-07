@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-30 21:37:03
+LastEditTime: 2023-07-04 22:00:47
 Description: 
 '''
 """
@@ -95,12 +95,14 @@ setup(
     
     # packages=["mbapy"],
     packages=["mbapy",
+              "mbapy/bin",
               "mbapy/stats",
               "mbapy/dl_torch",
               "mbapy/dl_torch/paper",
-              "mbapy/dl_torch/arch", "mbapy/dl_torch/arch/CL", "mbapy/dl_torch/arch/CLIP"],
+              "mbapy/dl_torch/arch", "mbapy/dl_torch/arch/CL", "mbapy/dl_torch/arch/CLIP",],
     
     include_package_data = True,
+    package_data= {'mbapy': ['bin/stats.dll']},
     platforms = "any",
     
     install_requires=requires,
