@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-03 23:40:44
+LastEditTime: 2023-07-08 22:07:41
 Description: 
 '''
 import sys, os
@@ -100,6 +100,8 @@ def rand_choose(lst:list, seed = None):
     Returns:
         Any: The randomly selected element from the list.
     """
+    if lst is None:
+        return put_err('lst is None', None)
     if seed is not None:
         np.random.seed(seed)
     return np.random.choice(lst)

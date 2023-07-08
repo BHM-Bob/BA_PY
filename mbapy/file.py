@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-08 00:00:01
+LastEditTime: 2023-07-08 22:01:31
 Description: 
 '''
 import chardet
@@ -17,6 +17,22 @@ if __name__ == '__main__':
 else:
     # release mode
     from .base import put_err
+
+def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
+    """
+    Replaces any invalid characters in a given path with a specified valid character.
+
+    Args:
+        path (str): The path string to be checked for invalid characters.
+        valid_chrs (str, optional): The valid characters that will replace any invalid characters in the path. Defaults to '_'.
+
+    Returns:
+        str: The path string with all invalid characters replaced by the valid character.
+    """
+    invalid_chrs = ':*?"<>|'
+    for invalid_chr in invalid_chrs:
+        path = path.replace(invalid_chr, '_')
+    return path
 
 def read_bits(path:str):
     with open(path, 'rb') as f:
