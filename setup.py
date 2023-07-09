@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-04 22:00:47
+LastEditTime: 2023-07-09 12:14:13
 Description: 
 '''
 """
@@ -78,7 +78,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
-        # "Programming Language :: Python :: 3.11",# wait to numpy
+        "Programming Language :: Python :: 3.11",
         # "Programming Language :: Python :: 3 :: Only",
     ],
         
@@ -86,23 +86,17 @@ setup(
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',
-    python_requires=">=3.7, <3.11",
+    python_requires=">=3.7, <=3.11",
     license = "MIT Licence",
 
     url = __url__,
     author = __author__,
     author_email = __author_email__,
     
-    # packages=["mbapy"],
-    packages=["mbapy",
-              "mbapy/bin",
-              "mbapy/stats",
-              "mbapy/dl_torch",
-              "mbapy/dl_torch/paper",
-              "mbapy/dl_torch/arch", "mbapy/dl_torch/arch/CL", "mbapy/dl_torch/arch/CLIP",],
+    packages = find_packages(exclude=["test"]),
     
     include_package_data = True,
-    package_data= {'mbapy': ['bin/stats.dll']},
+    package_data= {'mbapy': ['storage/stats.dll']},
     platforms = "any",
     
     install_requires=requires,
@@ -110,6 +104,5 @@ setup(
 
 # pip install .
 
-
 # python setup.py sdist
-# twine upload dist/mbapy-0.1.3.tar.gz
+# twine upload dist/mbapy-0.1.4.tar.gz

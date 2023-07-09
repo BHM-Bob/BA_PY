@@ -2,13 +2,14 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-08 22:07:41
+LastEditTime: 2023-07-09 11:47:31
 Description: 
 '''
 import sys, os
 import time
 from functools import wraps
 import ctypes
+import inspect
 
 import numpy as np
 
@@ -107,8 +108,12 @@ def rand_choose(lst:list, seed = None):
     return np.random.choice(lst)
 
 def put_err(info:str, ret = None):
+    """put err info, return ret"""
     if not __NO_ERR__:
-        print(f'\nERR : {sys._getframe().f_code.co_name:s} : {info:s}\n')
+        frame = inspect.currentframe().f_back
+        caller_name = frame.f_code.co_name
+        caller_args = inspect.getargvalues(frame).args
+        print(f'\nERR : {caller_name:s} {caller_args}:\n {info:s}\n')
     return ret
 def put_log(info:str, head = "log", ret = None):
     print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
@@ -178,9 +183,9 @@ def split_list(lst:list, n = 1, drop_last = False):
 
 def get_dll_path_for_sys(module_name:str, sys_name: str = 'win'):
     if sys_name == 'win':
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', f'{module_name}.dll')
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'storage', f'{module_name}.dll')
     else:
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', f'{module_name}.so')
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'storage', f'{module_name}.so')
 
 class MyDLL:
     @autoparse

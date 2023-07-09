@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 00:24:57
+LastEditTime: 2023-07-09 10:26:20
 FilePath: \BA_PY\mbapy\sci\paper.py
 Description: 
 '''
@@ -23,6 +23,16 @@ else:
 scihub = SciHub()
 
 def parse_ris(ris_path:str, fill_none_doi:str = None):
+    """
+    Parses a RIS file and returns the contents as a list of dictionaries.
+
+    Parameters:
+        ris_path (str): The path to the RIS file.
+        fill_none_doi (str, optional): The DOI value to fill in for missing entries. Defaults to None.
+
+    Returns:
+        list: A list of dictionaries containing the parsed contents of the RIS file.
+    """
     if not os.path.isfile(ris_path):
         return put_err(f'{ris_path} does not exist.', None)
     with open('./data_tmp/savedrecs.ris', 'r', encoding='utf-8') as bibliography_file:
@@ -65,7 +75,7 @@ def download_by_scihub(doi: str, dir: str, file_full_name:str = None, use_title_
     scihub._save(res.content, os.path.join(dir, file_name))
     return paper_info
     
-def _parse_section_bookmarks(*bookmarks):
+def _flatten_pdf_bookmarks(*bookmarks):
     """
         Parse a list of bookmarks and return a flattened list of all bookmarks.
 
@@ -78,7 +88,7 @@ def _parse_section_bookmarks(*bookmarks):
     ret = []
     for bookmark in bookmarks:
         if isinstance(bookmark, list):
-            ret = ret + _parse_section_bookmarks(*bookmark)
+            ret = ret + _flatten_pdf_bookmarks(*bookmark)
         else:
             ret.append(bookmark)
     return ret
@@ -114,7 +124,7 @@ def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:list[st
     if len(outlines) == 0:
         return False
     else:
-        outlines = _parse_section_bookmarks(*outlines)
+        outlines = _flatten_pdf_bookmarks(*outlines)
     # set default section names
     if not section_names:
         section_names = ['Abstract', 'Introduction', 'Materials', 'Methods',
@@ -179,6 +189,15 @@ def get_section_bookmarks(pdf_path:str = None, pdf_obj = None):
         return worker(pdf_obj)
     
 def get_english_part_of_bookmarks(bookmarks:list[str]):
+    """
+    Retrieves the English part of the given list of bookmarks.
+
+    Parameters:
+        bookmarks (list[str]): A list of bookmarks.
+
+    Returns:
+        list[str]: A list containing only the English part of the bookmarks.
+    """
     if bookmarks is None:
         return put_err('bookmarks is None', None)
     english_bookmarks = []
