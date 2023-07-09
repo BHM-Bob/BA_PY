@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 11:47:31
+LastEditTime: 2023-07-09 16:34:43
 Description: 
 '''
 import sys, os
@@ -73,6 +73,57 @@ def autoparse(init):
             setattr(self, arg, kwargs[arg])
         init(self, **kwargs)
     return wrapped_init
+
+def check_parameters_path(path):
+    return os.path.exists(path)
+def check_parameters_none(arg):
+    return arg is None
+def check_parameters_len(arg):
+    return len(arg) > 0
+
+def parameter_checker(*arg_checkers, **kwarg_checkers):
+    """
+    A function decorator that checks the arguments of a function against a list of argument checkers.
+
+    Parameters:
+    - *arg_checkers: A variable-length argument list of argument checkers. Each argument checker is a function that takes an argument and returns True if the argument is valid, and False otherwise.
+
+    Returns:
+    - A decorated function that checks the arguments before executing the original function.
+
+    Raises:
+    - ValueError: If any of the arguments fail the corresponding argument checker.
+
+    Example usage:
+    >>> @check_arguments(path = check_parameters_path, head = check_parameters_len)
+    >>> def my_function(path, len, head):
+    >>>     # Function body
+    >>>     pass
+
+    In the above example, the arguments of `my_function` will be checked against `check_int` and `check_string` before the function is executed.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # 检查位置参数
+            for i, arg_check in enumerate(arg_checkers):
+                if i < len(args):
+                    arg = args[i]
+                    if not arg_check(arg):
+                        raise ValueError(f"Invalid value for argument {i+1}: {arg}")
+            # 检查关键字参数
+            for kwarg_name, kwarg_checker in kwarg_checkers.items():
+                # pass the rigth arg name
+                if kwarg_name in func.__code__.co_varnames:
+                    # get the index of the argument
+                    idx = func.__code__.co_varnames.index(kwarg_name)
+                    # get the argument through the index if passed positionally
+                    arg = args[idx] if idx < len(args) else kwargs[kwarg_name]
+                    if not kwarg_checker(arg):
+                        raise ValueError(f"Invalid value for argument {kwarg_name}: {arg}")
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
     """
@@ -152,16 +203,6 @@ class MyArgs():
         return dic   
 
 def get_default_for_None(x, deault):
-    """
-    Return the default value when the input value is None.
-
-    Args:
-        x (Any): The input value to be checked.
-        deault (Any): The default value to return if x is None.
-
-    Returns:
-        The input value if it is not None, otherwise the default value.
-    """
     return x if x is not None else deault
 
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
@@ -242,4 +283,9 @@ class MyDLL:
 
 if __name__ == '__main__':
     # dev code
-    pass
+    
+    # arg checker
+    @parameter_checker(check_parameters_path, head = check_parameters_len)
+    def arg_checker_test(path:str, length:int, head:str):
+        print(path, length, head)
+    arg_checker_test('./data_tmp/savedrecs.ris', 10, 'string')
