@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 16:34:43
+LastEditTime: 2023-07-09 23:48:35
 Description: 
 '''
 import sys, os
@@ -18,6 +18,18 @@ __NO_ERR__ = False
 _Params = {
     'LAUNCH_WEB_SUB_THREAD':False,
 }
+
+def put_err(info:str, ret = None):
+    """put err info, return ret"""
+    if not __NO_ERR__:
+        frame = inspect.currentframe().f_back
+        caller_name = frame.f_code.co_name
+        caller_args = inspect.getargvalues(frame).args
+        print(f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n')
+    return ret
+def put_log(info:str, head = "log", ret = None):
+    print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
+    return ret
 
 def TimeCosts(runTimes:int = 1):
     """
@@ -80,47 +92,56 @@ def check_parameters_none(arg):
     return arg is None
 def check_parameters_len(arg):
     return len(arg) > 0
+def check_parameters_bool(arg):
+    return bool(arg)
 
-def parameter_checker(*arg_checkers, **kwarg_checkers):
+def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
     """
-    A function decorator that checks the arguments of a function against a list of argument checkers.
+    A decorator that checks the validity of the arguments passed to a function.
 
-    Parameters:
-    - *arg_checkers: A variable-length argument list of argument checkers. Each argument checker is a function that takes an argument and returns True if the argument is valid, and False otherwise.
+    Args:
+        *arg_checkers: Variable number of functions that check the validity of positional arguments.
+        raise_err (bool): Flag indicating whether to raise a ValueError when an invalid argument is encountered. Defaults to True.
+        **kwarg_checkers: Variable number of functions that check the validity of keyword arguments.
 
     Returns:
-    - A decorated function that checks the arguments before executing the original function.
-
-    Raises:
-    - ValueError: If any of the arguments fail the corresponding argument checker.
+        A decorated function that performs argument validity checks before executing the original function.
 
     Example usage:
     >>> @check_arguments(path = check_parameters_path, head = check_parameters_len)
     >>> def my_function(path, len, head):
     >>>     # Function body
     >>>     pass
-
-    In the above example, the arguments of `my_function` will be checked against `check_int` and `check_string` before the function is executed.
     """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # 检查位置参数
+            # info string
+            info_string = f"Parameter checher for {func.__code__.co_name} : Invalid value for argument "
+            # check positional arguments
             for i, arg_check in enumerate(arg_checkers):
                 if i < len(args):
                     arg = args[i]
                     if not arg_check(arg):
-                        raise ValueError(f"Invalid value for argument {i+1}: {arg}")
-            # 检查关键字参数
-            for kwarg_name, kwarg_checker in kwarg_checkers.items():
+                        arg_name = func.__code__.co_varnames[i]
+                        if raise_err:
+                            raise ValueError(info_string+arg_name)
+                        else:
+                            # directly return a none value, skip the err pop
+                            return put_err(info_string+arg_name, None)
+            # check keyword arguments
+            for arg_name, kwarg_checker in kwarg_checkers.items():
                 # pass the rigth arg name
-                if kwarg_name in func.__code__.co_varnames:
+                if arg_name in func.__code__.co_varnames:
                     # get the index of the argument
-                    idx = func.__code__.co_varnames.index(kwarg_name)
+                    idx = func.__code__.co_varnames.index(arg_name)
                     # get the argument through the index if passed positionally
-                    arg = args[idx] if idx < len(args) else kwargs[kwarg_name]
+                    arg = args[idx] if idx < len(args) else kwargs[arg_name]
                     if not kwarg_checker(arg):
-                        raise ValueError(f"Invalid value for argument {kwarg_name}: {arg}")
+                        if raise_err:
+                            raise ValueError(info_string+arg_name)
+                        else:
+                            return put_err(info_string+arg_name, None)
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -157,18 +178,6 @@ def rand_choose(lst:list, seed = None):
     if seed is not None:
         np.random.seed(seed)
     return np.random.choice(lst)
-
-def put_err(info:str, ret = None):
-    """put err info, return ret"""
-    if not __NO_ERR__:
-        frame = inspect.currentframe().f_back
-        caller_name = frame.f_code.co_name
-        caller_args = inspect.getargvalues(frame).args
-        print(f'\nERR : {caller_name:s} {caller_args}:\n {info:s}\n')
-    return ret
-def put_log(info:str, head = "log", ret = None):
-    print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
-    return ret
 
 def get_time(chr:str = ':')->str:
     """
@@ -285,7 +294,7 @@ if __name__ == '__main__':
     # dev code
     
     # arg checker
-    @parameter_checker(check_parameters_path, head = check_parameters_len)
+    @parameter_checker(check_parameters_path, head = check_parameters_len, raise_err = False)
     def arg_checker_test(path:str, length:int, head:str):
         print(path, length, head)
-    arg_checker_test('./data_tmp/savedrecs.ris', 10, 'string')
+    arg_checker_test('./data_tmp/savedrecs.ris', 10, '')

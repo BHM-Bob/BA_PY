@@ -1,8 +1,8 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 10:26:20
-FilePath: \BA_PY\mbapy\sci\paper.py
+LastEditTime: 2023-07-09 23:53:14
+FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
 import os, re
@@ -13,15 +13,16 @@ import PyPDF2
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import put_err
+    from mbapy.base import *
     from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt
 else:
     # release mode
-    from ..base import put_err
-    from ..file import replace_invalid_path_chr, convert_pdf_to_txt
+    from .base import *
+    from .file import replace_invalid_path_chr, convert_pdf_to_txt
 
 scihub = SciHub()
 
+@parameter_checker(check_parameters_path, raise_err = False)
 def parse_ris(ris_path:str, fill_none_doi:str = None):
     """
     Parses a RIS file and returns the contents as a list of dictionaries.
@@ -33,8 +34,6 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
     Returns:
         list: A list of dictionaries containing the parsed contents of the RIS file.
     """
-    if not os.path.isfile(ris_path):
-        return put_err(f'{ris_path} does not exist.', None)
     with open('./data_tmp/savedrecs.ris', 'r', encoding='utf-8') as bibliography_file:
         ris = rispy.load(bibliography_file)
         if fill_none_doi is not None:
@@ -43,6 +42,7 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
                     r['doi'] = fill_none_doi
         return ris
             
+@parameter_checker(check_parameters_bool, check_parameters_path, check_parameters_bool, raise_err = False)
 def download_by_scihub(doi: str, dir: str, file_full_name:str = None, use_title_as_name: bool = True, valid_path_chr:str = '_'):
     """
     Download a paper from Sci-Hub using its DOI.
