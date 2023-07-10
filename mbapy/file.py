@@ -2,12 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-08 22:01:31
+LastEditTime: 2023-07-10 16:35:46
 Description: 
 '''
 import chardet
 import json
 import os
+from typing import List, Dict
 
 import pandas as pd
 
@@ -140,7 +141,7 @@ def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
         return json.loads(json_str)
     return invalidPathReturn
 
-def save_excel(path:str, obj:list[list[str]], columns:list[str], encoding:str = 'utf-8', forceUpdate = True):
+def save_excel(path:str, obj:List[List[str]], columns:List[str], encoding:str = 'utf-8', forceUpdate = True):
     """
     Saves a list of lists as an Excel file at the given path. 
 
@@ -174,7 +175,7 @@ def read_excel(path:str, ignoreHead:bool = True,
         return df
     return invalidPathReturn
 
-def write_sheets(path:str, sheets:dict[str, pd.DataFrame]):
+def write_sheets(path:str, sheets:Dict[str, pd.DataFrame]):
     """
     Writes multiple pandas DataFrames to an Excel file with multiple sheets.
 
@@ -186,7 +187,7 @@ def write_sheets(path:str, sheets:dict[str, pd.DataFrame]):
         for sheet in sheets:
             sheets[sheet].to_excel(path, sheet_name=sheet)    
 
-def update_excel(path:str, sheets:dict[str, pd.DataFrame] = None):
+def update_excel(path:str, sheets:Dict[str, pd.DataFrame] = None):
     """
     Updates an Excel file with new data.
 

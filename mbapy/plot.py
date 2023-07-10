@@ -2,7 +2,7 @@ import itertools
 from itertools import combinations
 import sys
 from functools import wraps
-from typing import Union
+from typing import Union, List, Dict, Tuple
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ def rgb2hex(r, g, b):
   return '#'+('{:02X}' * 3).format(r, g, b)
 def hex2rgb(hex:str):
   return [int(hex[i:i+2], 16) for i in (1, 3, 5)]
-def rgbs2hexs(rgbs:list[tuple[float]]):
+def rgbs2hexs(rgbs:List[Tuple[float]]):
     """
     Takes a list of RGB tuples and converts them to a list of hexadecimal color codes. 
     Each RGB tuple must contain three floats between 0 and 1 representing the red, green, and blue 
@@ -37,7 +37,7 @@ def rgbs2hexs(rgbs:list[tuple[float]]):
     return list(map(lambda x : rgb2hex(*[int(x[i]*255) for i in range(3)]),
                     rgbs))
     
-def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> list[str]:
+def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> List[str]:
     """get a seq of hex colors    
     Parameters
     ----------
@@ -71,7 +71,7 @@ class AxisLable():
     def add_space(self, space:int = 1):
         self.hold_space += space
 
-def pro_hue_pos(factors:list[str], df:pd.DataFrame, width:float, bar_space:float):
+def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float, bar_space:float):
     """
     Returns the x-axis labels and positions of the bars for a plot with multiple categorical variables.
     
@@ -111,7 +111,7 @@ def pro_hue_pos(factors:list[str], df:pd.DataFrame, width:float, bar_space:float
                 st_pos += this_hue_per
     return xlabels, pos
 
-def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
+def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
     stack bar plot with hue style\n
     factors:[low_lever_factor, medium_lever_factor, ...] or just one
@@ -172,7 +172,7 @@ def plot_bar(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
     
     return np.array(pos[0]), ax1
 
-def plot_positional_hue(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
+def plot_positional_hue(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
     wrapper\n
     support args: width, bar_space, xrotations, colors, offset, bottom\n
@@ -216,7 +216,7 @@ def plot_positional_hue(factors:list[str], tags:list[str], df:pd.DataFrame, **kw
         return core_wrapper
     return ret_wrapper
 
-def qqplot(tags:list[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
+def qqplot(tags:List[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
     """
     Generates a QQPlot for each specified tag in the given DataFrame using statsmodels' qqplot function.
     

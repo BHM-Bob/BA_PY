@@ -2,12 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 23:48:35
+LastEditTime: 2023-07-10 16:33:24
 Description: 
 '''
 import sys, os
 import time
 from functools import wraps
+from typing import List
 import ctypes
 import inspect
 
@@ -146,13 +147,13 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
         return wrapper
     return decorator
 
-def rand_choose_times(choices_range:list[int] = [0,10], times:int = 100):
+def rand_choose_times(choices_range:List[int] = [0,10], times:int = 100):
     """
     Generates a random sequence of integers within a given range and 
     counts the frequency of each number. Returns the most frequent number.
     
     :param choices_range: A list of two integers representing the lower and upper bounds of the range. Default is [0,10].
-    :type choices_range: list[int]
+    :type choices_range: List[int]
     :param times: An integer representing the number of times the random sequence will be generated. Default is 100.
     :type times: int
     :return: An integer representing the most frequent number in the generated sequence.

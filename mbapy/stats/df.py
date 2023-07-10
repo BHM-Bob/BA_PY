@@ -2,11 +2,12 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-07 20:29:23
+LastEditTime: 2023-07-10 16:42:29
 Description: pd.dataFrame utils
 '''
 import itertools
 from functools import wraps
+from typing import List, Dict
 
 import pandas as pd
 import numpy as np
@@ -25,7 +26,7 @@ def get_value(df:pd.DataFrame, column:str, mask:np.array)->list:
 
 
 # TODO : not use itertools.product
-def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
+def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
     cacu mean and SE for each combinations of facotors\n
     data should be like this:\n
@@ -64,7 +65,7 @@ def pro_bar_data(factors:list[str], tags:list[str], df:pd.DataFrame, **kwargs):
             ndf.append(list(factorCombi) + line)
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
-def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:list[str], **kwargs):
+def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:List[str], **kwargs):
     """
     wrapper\n
     @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf)\n
@@ -76,7 +77,7 @@ def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:l
             nonlocal tags
             if len(tags) == 0:
                 tags = list(df.columns)[len(factors):]
-            factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
+            factor_contents:List[List[str]] = [ df[f].unique().tolist() for f in factors ]
             ndf = [factors.copy()]
             for tag in tags:
                 for suffix in suffixs:
@@ -97,7 +98,7 @@ def pro_bar_data_R(factors:list[str], tags:list[str], df:pd.DataFrame, suffixs:l
         return core_wrapper
     return ret_wrapper
 
-def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
+def get_df_data(factors:Dict[str, List[str]], tags:List[str], df:pd.DataFrame,
                 include_factors:bool = True):
     """
     Return a subset of the input DataFrame, filtered by the given factors and tags.
@@ -135,7 +136,7 @@ def get_df_data(factors:dict[str, list[str]], tags:list[str], df:pd.DataFrame,
         mask = update_mask(mask, sub_mask, '&')
     return df.loc[mask, tags]
 
-def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
+def sort_df_factors(factors:List[str], tags:List[str], df:pd.DataFrame):
     """UnTested
     sort each combinations of facotors\n
     data should be like this:\n
@@ -151,7 +152,7 @@ def sort_df_factors(factors:list[str], tags:list[str], df:pd.DataFrame):
     """
     if len(tags) == 0:
         tags = list(df.columns)[len(factors):]
-    factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
+    factor_contents:List[List[str]] = [ df[f].unique().tolist() for f in factors ]
     ndf = [factors.copy()]
     ndf[0] += tags
     for factorCombi in itertools.product(*factor_contents):
@@ -208,7 +209,7 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,
         arr = tensor if tensor is not None else torch.tensor(ndf[tag], device = device,
                                                              dtype = torch.float32).view(-1)
         @torch.jit.script
-        def step_scan(x:torch.Tensor, to_remove:list[int], sh:float):
+        def step_scan(x:torch.Tensor, to_remove:List[int], sh:float):
             i = 0
             while i < x.shape[0]-1:
                 if x[i+1] - x[i] < sh:
@@ -252,7 +253,7 @@ def interp(long_one:pd.Series, short_one:pd.Series):
         short_one_idx[-1] = long_one.shape[0]-1
     return np.interp(np.arange(long_one.shape[0]), short_one_idx, short_one)
 
-def merge_col2row(df:pd.DataFrame, cols:list[str],
+def merge_col2row(df:pd.DataFrame, cols:List[str],
                   new_cols_name:str, value_name:str):
     """
     Given a pandas.dataFrame, it has some colums, this func will replicate these colums to row\n

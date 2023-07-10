@@ -2,11 +2,12 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-30 21:28:57
+LastEditTime: 2023-07-10 16:44:48
 Description: 
 '''
 from typing import Optional, Union
 from itertools import combinations
+from typing import List, Dict
 
 import scipy
 import numpy as np
@@ -18,7 +19,7 @@ import scikit_posthocs as sp
 
 import mbapy.stats.df as msd
 
-def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, list[int], pd.Series]] = None, confidence:float = 0.95):
+def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, List[int], pd.Series]] = None, confidence:float = 0.95):
     """
     置信区间\n
     ± 1.96 * SE or other depends on confidence
@@ -34,7 +35,7 @@ def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, list[in
     return scipy.stats.norm.interval(confidence = confidence, loc = kwargs['loc'], scale = kwargs['scale']), kwargs
 
 def _get_x1_x2(x1 = None, x2 = None,
-               factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+               factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None):
     """以同一列factors提取同一列tag的x1和x2，其余factors仅作筛选作用"""
     if factors is not None and tag is not None and df is not None:
         sub_df = msd.get_df_data(factors, [tag], df)
@@ -47,7 +48,7 @@ def _get_x1_x2(x1 = None, x2 = None,
     return x1, x2
 
 def _get_x1_x2_R(x1 = None, x2 = None,
-               factors:dict[str, list[str]] = None, tags:list[str] = None, df:pd.DataFrame = None):
+               factors:Dict[str, List[str]] = None, tags:List[str] = None, df:pd.DataFrame = None):
     """
     提取多列tag的x1和x2，factors仅作筛选作用
     tags为x1和x2...的tag
@@ -60,13 +61,13 @@ def _get_x1_x2_R(x1 = None, x2 = None,
     return ret
 
 def ttest_1samp(x1 = None, x2:float = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+                 factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """单样本T检验"""
     x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     return scipy.stats.ttest_1samp(x1, x2, **kwargs)
 
 def ttest_ind(x1 = None, x2 = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+                 factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     独立样本t检验(双样本T检验):检验两组独立样本均值是否相等\n
     要求正太分布，正太检验结果由scipy.stats.levene计算并返回\n
@@ -78,13 +79,13 @@ def ttest_ind(x1 = None, x2 = None,
     return levene.pvalue, scipy.stats.ttest_ind(x1, x2, equal_var=levene.pvalue > 0.05)
 
 def ttest_rel(x1 = None, x2 = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+                 factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """配对样本T检验:比较从同一总体下分出的两组样本在不同场景下，均值是否存在差异(两个样本的样本量要相同)"""
     x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     return scipy.stats.ttest_rel(x1, x2, **kwargs)
 
 def mannwhitneyu(x1 = None, x2 = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+                 factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     Mann-Whitney U检验:数据不具有正态分布时使用。\n
     评估了两个抽样群体是否可能来自同一群体，这两个群体在数据方面是否具有相同的形状？\n
@@ -95,7 +96,7 @@ def mannwhitneyu(x1 = None, x2 = None,
     return scipy.stats.mannwhitneyu(x1, x2, **kwargs)
 
 def shapiro(x1 = None,
-            factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+            factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     shapiro正态检验:\n
     p > 0.05 为正态分布
@@ -104,7 +105,7 @@ def shapiro(x1 = None,
     return scipy.stats.shapiro(x1, **kwargs)
 
 def pearsonr(x1 = None, x2 = None,
-             factors:dict[str, list[str]] = None, tags:list[str] = None, df:pd.DataFrame = None, **kwargs):
+             factors:Dict[str, List[str]] = None, tags:List[str] = None, df:pd.DataFrame = None, **kwargs):
     """
     pearsonr相关系数:检验两个样本是否有线性关系\n
     p > 0.05 为独立(不相关)\n
@@ -116,7 +117,7 @@ def pearsonr(x1 = None, x2 = None,
     return scipy.stats.pearsonr(x1, x2, **kwargs)
 
 def _get_observe(observed = None,
-                 factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+                 factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None):
     if observed is None and factors is not None and tag is not None and df is not None:
         @msd.pro_bar_data_R(list(factors.keys()), [tag], df, [''])
         def get_sum(values):
@@ -133,7 +134,7 @@ def _get_observe(observed = None,
     return observed
 
 def chi2_contingency(observed = None,
-                      factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+                      factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     卡方检验 Chi-Squared Test:\n
     p > 0.05 为独立(不相关)。\n
@@ -148,7 +149,7 @@ def chi2_contingency(observed = None,
     return scipy.stats.chi2_contingency(observed, **kwargs), observed
 
 def fisher_exact(observed = None,
-                      factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+                      factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     Fisher确切概率法 Fisher's exact test:\n
     2x2 contingency table, p > 0.05 为独立(不相关)\n
@@ -159,7 +160,7 @@ def fisher_exact(observed = None,
     return scipy.stats.fisher_exact(observed, **kwargs), observed
 
 def f_oneway(Xs:list = None,
-             factors:dict[str, list[str]] = None, tag:str = None, df:pd.DataFrame = None):
+             factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None):
     """
     方差分析检验(ANOVA) Analysis of Variance Test (ANOVA):p < 0.05 为显著差异\n
     检验两个或多个独立样本的均值是否有显著差异\n
@@ -194,7 +195,7 @@ def p_value_to_stars(p_value):
     else:
         return ''
 
-def multicomp_turkeyHSD(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
+def multicomp_turkeyHSD(factors:Dict[str, List[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """
     using statsmodels.stats.multicomp.pairwise_tukeyhsd, Tukey's HSD 检验是一种多重比较方法，用于比较多个处理组之间的差异。\n
     Tukey的HSD法要求各样本的样本相等或者接近, 在样本量相差很大的情况下还是建议使用其他方法\n
@@ -248,7 +249,7 @@ def turkey_to_table(turkey_result):
     table = pd.DataFrame(table_data, columns=['Group 1', 'Group 2', 'Mean Difference', 'p-value', 'Stars', 'Reject'])
     return table
 
-def multicomp_dunnett(factor:str, exp:list[str], control:str, df:pd.DataFrame, **kwargs):
+def multicomp_dunnett(factor:str, exp:List[str], control:str, df:pd.DataFrame, **kwargs):
     """
     using SciPy 1.11 scipy.stats.dunnett, 用于比较一个处理组与其他多个处理组之间的差异\n
     Parameters:
@@ -261,7 +262,7 @@ def multicomp_dunnett(factor:str, exp:list[str], control:str, df:pd.DataFrame, *
     exps = [np.array(df[factor][df[factor]==e]) for e in exp]
     return scipy.stats.dunnett(*exps, np.array(df[factor][df[factor]==control]), **kwargs)
 
-def multicomp_bonferroni(factors:dict[str, list[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
+def multicomp_bonferroni(factors:Dict[str, List[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """
     using scikit_posthocs.posthoc_dunn, Dunn 检验是一种非参数的多重比较方法，用于比较多个处理组之间的差异。\n
     Bonferroni method\n

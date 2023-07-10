@@ -6,6 +6,7 @@ FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
 import os, re
+from typing import List, Dict
 
 import rispy
 from scihub_cn.scihub import SciHub
@@ -93,7 +94,7 @@ def _flatten_pdf_bookmarks(*bookmarks):
             ret.append(bookmark)
     return ret
 
-def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:list[str]=[]):
+def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:List[str]=[]):
     """
     Checks if a PDF document has bookmarks for scientific sections.
 
@@ -137,7 +138,7 @@ def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:list[st
                 return outlines
     return False
 
-def get_sci_bookmarks_from_pdf(pdf_path:str = None, pdf_obj = None, section_names:list[str]=[]):
+def get_sci_bookmarks_from_pdf(pdf_path:str = None, pdf_obj = None, section_names:List[str]=[]):
     # check parameters
     if pdf_path is None and pdf_obj is None:
         return put_err('pdf_path or pdf_obj is None', None)
@@ -188,7 +189,7 @@ def get_section_bookmarks(pdf_path:str = None, pdf_obj = None):
     else:
         return worker(pdf_obj)
     
-def get_english_part_of_bookmarks(bookmarks:list[str]):
+def get_english_part_of_bookmarks(bookmarks:List[str]):
     """
     Retrieves the English part of the given list of bookmarks.
 
@@ -207,7 +208,7 @@ def get_english_part_of_bookmarks(bookmarks:list[str]):
     return english_bookmarks
 
 def get_section_from_paper(paper:str, key:str,
-                           keys:list[str] = ['Title', 'Authors', 'Abstract', 'Keywords',
+                           keys:List[str] = ['Title', 'Authors', 'Abstract', 'Keywords',
                                              'Introduction', 'Materials & Methods',
                                              'Results', 'Discussion', 'References']):
     """
@@ -232,7 +233,7 @@ def get_section_from_paper(paper:str, key:str,
         return put_err(f'key "{key}" not found in paper', '')
 
 def format_paper_from_txt(content:str,
-                          struct:list[str] = ['Title', 'Authors', 'Abstract', 'Keywords',
+                          struct:List[str] = ['Title', 'Authors', 'Abstract', 'Keywords',
                                               'Introduction', 'Materials & Methods',
                                               'Results', 'Discussion', 'References']):
     content = content.replace('\n', '')
