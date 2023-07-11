@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-10 16:33:24
+LastEditTime: 2023-07-11 22:33:19
 Description: 
 '''
 import sys, os
@@ -11,6 +11,7 @@ from functools import wraps
 from typing import List
 import ctypes
 import inspect
+import platform
 
 import numpy as np
 
@@ -215,6 +216,9 @@ class MyArgs():
 def get_default_for_None(x, deault):
     return x if x is not None else deault
 
+def get_default_for_bool(x, deault):
+    return x if bool(x) else deault
+
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """
     wanted_args:dict with default value
@@ -232,11 +236,16 @@ def split_list(lst:list, n = 1, drop_last = False):
         del result[-1]
     return result
 
-def get_dll_path_for_sys(module_name:str, sys_name: str = 'win'):
-    if sys_name == 'win':
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'storage', f'{module_name}.dll')
+def get_storage_path(sub_path:str):
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'storage', sub_path)
+
+def get_dll_path_for_sys(module_name:str, **kwargs):
+    if platform.system().lower() == 'windows':
+        return get_storage_path(f'{module_name}.dll')
+    elif platform.system().lower() == 'linux':
+        return get_storage_path(f'{module_name}.so')
     else:
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'storage', f'{module_name}.so')
+        return put_err(f'Unknown platform: {platform.system()}, return None', None)
 
 class MyDLL:
     @autoparse

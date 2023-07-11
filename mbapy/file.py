@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-10 16:35:46
+LastEditTime: 2023-07-10 22:50:19
 Description: 
 '''
 import chardet
@@ -14,10 +14,10 @@ import pandas as pd
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import put_err
+    from mbapy.base import put_err, parameter_checker, check_parameters_path
 else:
     # release mode
-    from .base import put_err
+    from .base import put_err, parameter_checker, check_parameters_path
 
 def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     """
@@ -35,33 +35,42 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
         path = path.replace(invalid_chr, '_')
     return path
 
-def read_bits(path:str):
-    with open(path, 'rb') as f:
-        return f.read()
-
-def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
+@parameter_checker(check_parameters_path, raise_err = False)
+def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None):
     """
-    Reads the contents of a text file at the specified path.
+    A function that reads or writes data to a file based on the provided options.
 
     Parameters:
-        path (str): The path of the text file to read.
-        decode (str, optional): The decoding format to use. Defaults to 'utf-8'.
-        way (str, optional): The way to read the file. Defaults to 'lines'.
-            Possible values:
-                - 'lines': Returns a list of lines from the file.
-                - 'str': Returns the entire contents of the file as a string.
-                - 'json': Returns the contents of the file as a JSON object.
+        path (str): The path to the file.
+        mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.
+        encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
+        way (str, optional): The way in which the data should be read or written. Defaults to 'lines'.
+        data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
 
     Returns:
-        list or str or dict: The contents of the file based on the specified 'way' parameter.
+        list or str or dict or None: The data read from the file, or None if the file was opened in write mode and no data was provided.
     """
-    with open(path, 'r', encoding=decode) as f:
-        if way == 'lines':
-            return f.readlines()
-        elif way == 'str':
-            return f.read()
-        elif way == 'json':
-            return json.loads(f.read())
+    with open(path, mode, encoding=encoding) as f:
+        if 'r' in mode:
+            if way == 'lines':
+                return f.readlines()
+            elif way == 'str':
+                return f.read()
+            elif way == 'json':
+                return json.loads(f.read())
+        elif 'w' in mode and data is not None:
+            if way == 'lines':
+                return f.writelines(data)
+            elif way == 'str':
+                return f.write(data)
+            elif way == 'json':
+                return f.write(json.dumps(data))
+
+def read_bits(path:str):
+    return opts_file(path, 'rb')
+
+def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
+    return opts_file(path, 'r', decode, way)
 
 def detect_byte_coding(bits:bytes):
     """

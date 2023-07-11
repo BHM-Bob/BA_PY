@@ -92,7 +92,8 @@ def get_url_page(browser, url:str, return_html_text:bool = False, debug = False)
 
 def get_between(string:str, head:str, tail:str,
                headRFind:bool = False, tailRFind:bool = True,
-               retHead:bool = False, retTail:bool = False):
+               ret_head:bool = False, ret_tail:bool = False,
+               find_tail_from_head = False):
     """
     Returns a substring of `string` that is between the last occurrence of `head` and the first 
     occurrence of `tail`. If `headRFind` is True, the last occurrence of `head` is used to find 
@@ -121,13 +122,17 @@ def get_between(string:str, head:str, tail:str,
     :rtype: str
     """
     headIdx = string.rfind(head) if headRFind else string.find(head)
-    tailIdx = string.rfind(tail) if tailRFind else string.find(tail)
+    if find_tail_from_head:
+        tailIdx = string[headIdx+len(head):].find(tail) + headIdx + len(head)
+    else:
+        tailIdx = string.rfind(tail) if tailRFind else string.find(tail)
     if headIdx == -1 or tailIdx == -1:
         return put_err(f"{head if headIdx == -1 else tail:s} not found, return string", string)
     if headIdx == tailIdx:
         return put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return string", string)
-    idx1 = headIdx if retHead else headIdx+len(head)
-    idx2 = tailIdx+len(tail) if retTail else tailIdx
+    idx1 = headIdx if ret_head else headIdx+len(head)
+    idx2 = tailIdx+len(tail) if ret_tail else tailIdx
+    print(headIdx, tailIdx, idx1, idx2)
     return string[idx1:idx2]
 def get_between_re(string:str, head:str, tail:str,
                head_r:bool = False, tail_r:bool = True,

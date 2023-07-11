@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 23:53:14
+LastEditTime: 2023-07-12 00:17:56
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
@@ -15,11 +15,13 @@ import PyPDF2
 if __name__ == '__main__':
     # dev mode
     from mbapy.base import *
-    from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt
+    from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt, read_text, opts_file
+    import mbapy.web as web
 else:
     # release mode
     from .base import *
-    from .file import replace_invalid_path_chr, convert_pdf_to_txt
+    from .file import replace_invalid_path_chr, convert_pdf_to_txt, opts_file
+    from . import web
 
 scihub = SciHub()
 
@@ -42,9 +44,108 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
                 if 'doi' not in r:
                     r['doi'] = fill_none_doi
         return ris
+    
+@parameter_checker(check_parameters_len, raise_err = False)
+def search_by_baidu(query:str, limit:int = 1):
+    """
+    This function is used to search for articles on Baidu Scholar using a given query.
+    
+    Parameters:
+        query (str): The search query.
+        limit (int, optional): The maximum number of articles to retrieve. Defaults to 1.
+        
+    Returns:
+        list: A list of dictionaries containing information about the articles found.
+            Each dictionary has the following keys:
+            - title (str): The title of the article.
+            - abstract (str): The abstract of the article.
+            - keyword (list): A list of keywords associated with the article.
+            - doi (str): The DOI (Digital Object Identifier) of the article.
+    """
+    from lxml import etree
+    def _get_a_search_page(query:str, page:int = 0):
+        res = scihub.sess.request(method='GET', url='https://xueshu.baidu.com/s',
+                                params={'wd': query, 'pn': page, 'filter': 'sc_type%3D%7B1%7D'},
+                                proxies=scihub.proxies)
+        s = etree.HTML(res.text)
+        return s.xpath("//div[@class='sc_content']/h3/a/@href")
+    
+    def _parse_links(links:list):
+        results = []
+        for link in links:
+            res = scihub.sess.request(method='GET', url=link, proxies=scihub.proxies)
+            s = etree.HTML(res.text)
+            title = s.xpath("//div[@class='main-info']/h3/a/text()")
+            if len(title) == 0:
+                title = s.xpath("//div[@class='main-info']/h3/span/text()")
+            title = get_default_for_bool(title, [''])[0].strip()
+            abstract = s.xpath("//p[@class='abstract']/text()")
+            abstract = get_default_for_bool(abstract, [''])[0].strip()
+            keyword = s.xpath("//div[@class='kw_wr']/p[@class='kw_main']/span/a/text()")
+            keyword = get_default_for_bool(keyword, [''])
+            doi = s.xpath("//div[@class='doi_wr']/p[@class='kw_main']/text()")
+            doi = get_default_for_bool(doi, [''])[0].strip()
+            results.append({'title': title, 'abstract': abstract, 'keyword': keyword, 'doi': doi})
+        return results
+    
+    links = _get_a_search_page(query, 0)
+    if limit > 10:
+        # 未登录的百度学术一页只显示10个结果
+        page = 1
+        while limit > 10:
+            limit -= 10
+            links += _get_a_search_page(query, page)[: (limit%10 if limit > 10 else limit)]
+            page += 1
+    return _parse_links(links)
+        
+def search(query:str, limit:int = 1, search_engine:str = 'publons'):
+    """
+    Search for a given query using a specified search engine and return the results.
+
+    Parameters:
+    - query (str): The query string to search for.
+    - limit (int): The maximum number of results to return.
+    - search_engine (str): The search engine to use. Default is 'baidu xueshu'.
+         allows: 'baidu xueshu', 'science direct', 'publons', if not recognized, returns None
+
+    Returns:
+    - The search results as a list of dict, contain 'title', 'abstract', 'keyword' and 'doi'.
+    """
+    if search_engine == 'baidu xueshu':
+        return search_by_baidu(query, limit)
+    elif search_engine == 'science direct':
+        if os.path.isfile(get_storage_path('science_direct_cookie.txt')):
+            cookie = opts_file(get_storage_path('science_direct_cookie.txt'))
+        else:
+            import browser_cookie3
+            cookie = browser_cookie3.load('https://www.sciencedirect.com/')
+            opts_file(get_storage_path('science_direct_cookie.txt'), 'w', encoding='utf-8', data = cookie)
+        return scihub.search_by_science_direct(query, cookie, limit)
+    elif search_engine == 'publons':
+        return scihub.search_by_publons([query], limit)
+    else:
+        return put_err(f'Unknown search engine: {search_engine}, returns None', None)
+
+@parameter_checker(check_parameters_bool, raise_err = False)
+def download_from_scihub_by_doi(doi):
+    try:
+        return scihub.fetch({'doi':doi})
+    except:
+        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
             
-@parameter_checker(check_parameters_bool, check_parameters_path, check_parameters_bool, raise_err = False)
-def download_by_scihub(doi: str, dir: str, file_full_name:str = None, use_title_as_name: bool = True, valid_path_chr:str = '_'):
+@parameter_checker(check_parameters_bool, raise_err = False)
+def download_from_scihub_by_title(title):
+    scihub_url = scihub._get_available_scihub_urls()[0]
+    res = scihub.sess.post(scihub_url, data = {'request': title}, proxies=scihub.proxies)
+    doi = web.get_between(res.text, "doi:", "&nbsp", find_tail_from_head=True)
+    # TODO : xpath do not work
+    # dl = s.xpath("//div[@id='buttons']/ul/li/a[@href='#']")
+    return download_from_scihub_by_doi(doi)
+            
+@parameter_checker(check_parameters_path, raise_err = False)
+def download_by_scihub(dir: str, doi: str = None, title:str = None,
+                       file_full_name:str = None, use_title_as_name: bool = True,
+                       valid_path_chr:str = '_'):
     """
     Download a paper from Sci-Hub using its DOI.
     if file_full_name is None, use the paper's title as the file name, if not, use the paper's DOI as the file name.
@@ -57,22 +158,27 @@ def download_by_scihub(doi: str, dir: str, file_full_name:str = None, use_title_
         valid_path_chr (str, optional): The character used to replace invalid characters in the file name. Defaults to '_'.
 
     Returns:
-        dict or None: If successful, returns a dictionary containing information about the downloaded paper. If unsuccessful, returns None.
+        dict or None: If successful, returns a dictionary containing information
+            about the downloaded paper. If unsuccessful, returns None.
     """
-    try:
-        res, paper_info = scihub.fetch({'doi':doi})
-    except:
-        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
-    if file_full_name is not None:
-        file_name = file_full_name
+    # check whether doi or title are specified
+    if doi is None and title is None:
+        return put_err('Either DOI or title must be specified, returns None', None)
+    # download from Sci-Hub by DOI or title
+    if doi:
+        res, paper_info = download_from_scihub_by_doi(doi)
     else:
-        file_name = (paper_info.title if use_title_as_name else doi) + '.pdf'
-    file_name = replace_invalid_path_chr(file_name, valid_path_chr)
-
+        res, paper_info = download_from_scihub_by_title(title)
     if type(res) == dict and 'err' in res:        
         return put_err(res['err'])
     if not res:
         return None
+    # get the file name, save the file
+    if file_full_name is not None:
+        file_name = file_full_name
+    else:
+        file_name = ((title if title else paper_info.title) if use_title_as_name else doi) + '.pdf'
+    file_name = replace_invalid_path_chr(file_name, valid_path_chr)
     scihub._save(res.content, os.path.join(dir, file_name))
     return paper_info
     
@@ -139,6 +245,19 @@ def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:List[st
     return False
 
 def get_sci_bookmarks_from_pdf(pdf_path:str = None, pdf_obj = None, section_names:List[str]=[]):
+    """
+    Returns a list of section names from a scientific PDF.
+
+    Parameters:
+        pdf_path (str): The path to the PDF file. Default is None.
+        pdf_obj: The PDF object. Default is None.
+        section_names (List[str]): A list of section names to search for.
+            If None, all sections include 'Abstract', 'Introduction', 'Materials', 'Methods',
+            'Results', 'Discussion', 'References' will be searched.
+
+    Returns:
+        List[str]: A list of section names found in the PDF.
+    """
     # check parameters
     if pdf_path is None and pdf_obj is None:
         return put_err('pdf_path or pdf_obj is None', None)
@@ -169,7 +288,8 @@ def get_section_bookmarks(pdf_path:str = None, pdf_obj = None):
     - pdf_obj: The PDF object(Being opened!). Defaults to None.
 
     Returns:
-    - list: A list of titles of bookmark sections in the PDF. Returns None if there are no bookmark sections or if the PDF file does not exist.
+    - list: A list of titles of bookmark sections in the PDF.
+    Returns None if there are no bookmark sections or if the PDF file does not exist.
     """
     def worker(pdf_obj):
         sections = has_sci_bookmarks(None, pdf_obj)
@@ -217,8 +337,11 @@ def get_section_from_paper(paper:str, key:str,
     Parameters:
         paper (str): a science paper.
         key (str): one of the sections in the paper.
-            can be 'Title', 'Authors', 'Abstract', 'Keywords', 'Introduction', 'Materials & Methods', 'Results', 'Discussion', 'References'
-        keys (list[str], optional): a list of keys to extract. Defaults to ['Title', 'Authors', 'Abstract', 'Keywords', 'Introduction', 'Materials & Methods', 'Results', 'Discussion', 'References'].
+            can be 'Title', 'Authors', 'Abstract', 'Keywords', 'Introduction',
+            'Materials & Methods', 'Results', 'Discussion', 'References'
+        keys (list[str], optional): a list of keys to extract.
+            Defaults to ['Title', 'Authors', 'Abstract', 'Keywords', 'Introduction',
+            'Materials & Methods', 'Results', 'Discussion', 'References'].
     """
     # 构建正则表达式模式，使用re.IGNORECASE标志进行不区分大小写的匹配
     if paper is None or key is None:
@@ -250,9 +373,14 @@ if __name__ == '__main__':
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
     print(f'sum papers: {len(ris)}')
     ris = rand_choose(ris)
-    print(f'title: {ris["title"]}, doi: {ris["doi"]}')
+    print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
+    
+    # search
+    search_result = search_by_baidu('linaclotide', 11)
+    search_result2 = search(ris["title"])
     
     # download
+    dl_result = download_by_scihub('./data_tmp/', title = search_result[0]['title'])
     download_by_scihub(ris["doi"], './data_tmp/', file_full_name = f'{ris["title"]:s}.pdf')
     
     # extract section
