@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-09 12:24:17
+LastEditTime: 2023-07-10 16:55:48
 Description: 
 '''
 """
@@ -60,7 +60,7 @@ setup(
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',
-    python_requires=">=3.7, <=3.11",
+    python_requires=">=3.7, <3.12",
     license = "MIT Licence",
 
     url = __url__,
