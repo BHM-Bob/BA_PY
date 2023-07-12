@@ -26,3 +26,4 @@ statsmodels
 scikit_posthocs
 # scihub_cn>=0.1.1
 PyPDF2
+lxml

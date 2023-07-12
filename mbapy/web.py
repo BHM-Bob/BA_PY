@@ -132,7 +132,6 @@ def get_between(string:str, head:str, tail:str,
         return put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return string", string)
     idx1 = headIdx if ret_head else headIdx+len(head)
     idx2 = tailIdx+len(tail) if ret_tail else tailIdx
-    print(headIdx, tailIdx, idx1, idx2)
     return string[idx1:idx2]
 def get_between_re(string:str, head:str, tail:str,
                head_r:bool = False, tail_r:bool = True,

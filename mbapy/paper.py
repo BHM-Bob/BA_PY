@@ -371,7 +371,6 @@ if __name__ == '__main__':
     
     # RIS parse
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
-    print(f'sum papers: {len(ris)}')
     ris = rand_choose(ris)
     print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
     
