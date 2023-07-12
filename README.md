@@ -1,12 +1,18 @@
 <!--
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
- * @LastEditors: BHM-Bob G 2262029386@qq.com
- * @LastEditTime: 2023-06-23 09:38:02
+ * @LastEditors: BHM-Bob 2262029386@qq.com
+ * @LastEditTime: 2023-07-12 22:06:01
  * @Description: 
 -->
 # BA_PY
 [![Downloads](https://static.pepy.tech/badge/mbapy)](https://pepy.tech/project/mbapy) ![PyPI - Downloads](https://img.shields.io/pypi/dm/mbapy) ![GitHub all releases](https://img.shields.io/github/downloads/BHM-Bob/BA_PY/total?label=GitHub%20all%20releases%20downloads)
+
+![GitHub repo size](https://img.shields.io/github/repo-size/BHM-Bob/BA_PY) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/BHM-Bob/BA_PY) [![GitHub Commit Activity](https://img.shields.io/github/commit-activity/m/BHM-Bob/BA_PY)](https://github.com/BHM-Bob/BA_PY/pulse)
+
+![PyPI - Status](https://img.shields.io/pypi/status/mbapy?label=PyPI%20Status) ![PyPI](https://img.shields.io/pypi/v/mbapy)
+ ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mbapy)
+
 
 ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY)
 
