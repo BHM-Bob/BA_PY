@@ -21,15 +21,19 @@ Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
 
 ## get start
 
-### install 
-#### pypi 
+#### install 
 Now, mbapy only support pypi install:  
-`pip install mbapy`  
-For updating:  
-`pip install --upgrade mbapy`  
+```
+pip install mbapy
+```
 
-### wiki
-[wiki](https://github.com/BHM-Bob/BA_PY/wiki)
+If you find the latest release version has installing problems, you can download this repo and try:
+```
+pip install .
+```
+
+#### wiki
+mbapy has it's wiki as API document, you can find it in [wiki](https://github.com/BHM-Bob/BA_PY/wiki).
 
 # contain  
 ## mbapy python package  
