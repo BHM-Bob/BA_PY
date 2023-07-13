@@ -114,18 +114,20 @@ def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float, bar_space:float
 def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
     stack bar plot with hue style\n
-    factors:[low_lever_factor, medium_lever_factor, ...] or just one
-    tags:[stack_low_y, stack_medium_y, ...] or just one
-    df:df from pro_bar_data or sort_df_factors
-        kwargs:
-    width = 0.4
-    bar_space = 0.2
-    xrotations = [0]*len(factors)
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
-    labels:None,
-    font_size:None, 
-    offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]
+    factors:[low_lever_factor, medium_lever_factor, ...] or just one\n
+    tags:[stack_low_y, stack_medium_y, ...] or just one\n
+    df:df from pro_bar_data or sort_df_factors\n
+    kwargs:
+        width = 0.4\n
+        bar_space = 0.2\n
+        xrotations = [0]*len(factors)\n
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']\n
+        hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],\n
+        labels:None,\n
+        font_size:None, \n
+        offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]\n
+        err = None\n
+        err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k'}
     """
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     
@@ -137,7 +139,9 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
                             'font_size':None,
                             'labels':None,
                             'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
-                            'edgecolor':'white'},
+                            'edgecolor':'white',
+                            'err':None,
+                            'err_kwargs':{'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k'}},
                             kwargs)
     args.xrotations.append(0)
     xlabels, pos = pro_hue_pos(factors, df, args.width, args.bar_space)
@@ -156,6 +160,9 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0])
     if args.font_size is not None:
         plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
+    # err bar
+    if args.err is not None:        
+        plt.errorbar(pos[0], bottom, yerr=1.96 * args.err, **args.err_kwargs)
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
@@ -309,6 +316,9 @@ if __name__ == '__main__':
     print(result)
     sub_df = get_df_data({'Animal Type':[]}, ['Duration'], df)
     sub_df = pro_bar_data(['Animal Type'], ['Duration'], sub_df)
+    # test err
+    plot_bar(['Animal Type'], ['Duration'], sub_df, err = sub_df['Duration_SE'])
+    plt.show()
     plot_turkey(sub_df['Duration'], sub_df['Duration_SE'], model)
     plt.show()
     

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-11 22:33:19
+LastEditTime: 2023-07-13 23:49:23
 Description: 
 '''
 import sys, os
@@ -191,6 +191,19 @@ def get_time(chr:str = ':')->str:
     :rtype: str
     """
     return time.asctime(time.localtime()).replace(':', chr)
+
+def format_secs(sumSecs):
+    """
+    Formats a given number of seconds into hours, minutes, and seconds.
+
+    :param sumSecs: An integer representing the total number of seconds.
+    :return: A tuple containing three integers representing the number of hours,
+             minutes, and seconds respectively.
+    """
+    sumHs = int(sumSecs//3600)
+    sumMs = int((sumSecs-sumHs*3600)//60)
+    sumSs = int(sumSecs-sumHs*3600-sumMs*60)
+    return sumHs, sumMs, sumSs
 
 class MyArgs():
     def __init__(self, args:dict) -> None:
