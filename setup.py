@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-10 16:55:48
+LastEditTime: 2023-07-13 19:15:45
 Description: 
 '''
 """
@@ -36,7 +36,37 @@ for line in version_info.split('\n'):
     if '__url__' in line:
         __url__ = line[line.find('"')+1:-1]
 
-requires = (here / "requirements.txt").read_text(encoding="utf-8")
+requires = [
+    "beautifulsoup4>=4.11.1",
+    "bokeh>=2.4.3",
+    "chardet>=5.0.0",
+    "cn2an>=0.5.17",
+    "holoviews>=1.15.1",
+    "imageio>=2.22.2",
+    "importlib-metadata>=4.12.0",
+    "jieba>=0.42.1",
+    "Markdown>=3.4.1",
+    "matplotlib>=3.5.3",
+    "multiprocess>=0.70.13",
+    "numpy>=1.20.3",
+    "pandas>=1.4.3",
+    "pathtools>=0.1.2",
+    "pdfkit>=1.0.0",
+    "Pillow>=9.2.0",
+    "plotly>=5.10.0",
+    "requests>=2.28.1",
+    "scikit-learn>=1.1.2",
+    "scipy>=1.9.1",
+    "seaborn>=0.11.2",
+    "selenium>=4.5.0",
+    "urllib3>=1.26.12",
+    "openpyxl",
+    "statsmodels",
+    "scikit_posthocs",
+    "PyPDF2",
+    "lxml",
+]
+
 
 setup(
     name = "mbapy",
@@ -79,4 +109,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.1.4.tar.gz
+# twine upload dist/mbapy-0.1.4.1.tar.gz

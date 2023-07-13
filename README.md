@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2023-07-12 22:06:01
+ * @LastEditTime: 2023-07-13 19:32:26
  * @Description: 
 -->
 # BA_PY
@@ -16,8 +16,8 @@
 
 ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY)
 
-some helpful python scripts. (Basic for All in Python)
-Mainly contains sci-plot, stats, web-crawler and deeplearing-torch.
+mbapy contains some helpful python scripts, which aims at goal of *Basic for All in Python*.
+Mainly contains sci-plot, stats, web-crawler, sci-paper utils and deeplearing-torch.
 
 ## get start
 
