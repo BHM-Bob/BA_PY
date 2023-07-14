@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-12 00:17:56
+LastEditTime: 2023-07-14 21:08:18
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
@@ -37,7 +37,7 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
     Returns:
         list: A list of dictionaries containing the parsed contents of the RIS file.
     """
-    with open('./data_tmp/savedrecs.ris', 'r', encoding='utf-8') as bibliography_file:
+    with open(ris_path, 'r', encoding='utf-8') as bibliography_file:
         ris = rispy.load(bibliography_file)
         if fill_none_doi is not None:
             for r in ris:
@@ -98,7 +98,7 @@ def search_by_baidu(query:str, limit:int = 1):
             page += 1
     return _parse_links(links)
         
-def search(query:str, limit:int = 1, search_engine:str = 'publons'):
+def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu'):
     """
     Search for a given query using a specified search engine and return the results.
 
@@ -131,7 +131,7 @@ def download_from_scihub_by_doi(doi):
     try:
         return scihub.fetch({'doi':doi})
     except:
-        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
+        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', (None, None))
             
 @parameter_checker(check_parameters_bool, raise_err = False)
 def download_from_scihub_by_title(title):
@@ -142,7 +142,6 @@ def download_from_scihub_by_title(title):
     # dl = s.xpath("//div[@id='buttons']/ul/li/a[@href='#']")
     return download_from_scihub_by_doi(doi)
             
-@parameter_checker(check_parameters_path, raise_err = False)
 def download_by_scihub(dir: str, doi: str = None, title:str = None,
                        file_full_name:str = None, use_title_as_name: bool = True,
                        valid_path_chr:str = '_'):
@@ -151,8 +150,8 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
     if file_full_name is None, use the paper's title as the file name, if not, use the paper's DOI as the file name.
 
     Args:
-        doi (str): The DOI (Digital Object Identifier) of the paper.
         dir (str): The directory where the downloaded file will be saved.
+        doi (str): The DOI (Digital Object Identifier) of the paper.
         file_full_name (str, optional): The name of the downloaded file, include the file extension(.pdf). Defaults to None.
         use_title_as_name (bool, optional): Whether to use the paper's title as the file name. Defaults to True.
         valid_path_chr (str, optional): The character used to replace invalid characters in the file name. Defaults to '_'.
@@ -161,6 +160,9 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
         dict or None: If successful, returns a dictionary containing information
             about the downloaded paper. If unsuccessful, returns None.
     """
+    # check dir exists, if not, create it
+    if not check_parameters_path(dir):
+        os.makedirs(dir)
     # check whether doi or title are specified
     if doi is None and title is None:
         return put_err('Either DOI or title must be specified, returns None', None)

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-13 23:49:23
+LastEditTime: 2023-07-14 22:28:03
 Description: 
 '''
 import sys, os
@@ -15,10 +15,9 @@ import platform
 
 import numpy as np
 
-
+# TODO : add global var modification options support
 __NO_ERR__ = False
 _Params = {
-    'LAUNCH_WEB_SUB_THREAD':False,
 }
 
 def put_err(info:str, ret = None):

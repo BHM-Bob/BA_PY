@@ -15,9 +15,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from . import base
-from mbapy.base import put_err
-from mbapy.file import save_json, read_json, save_excel, read_excel
+if __name__ == '__main__':
+    from mbapy import base as mb
+    from mbapy.file import save_json, read_json, save_excel, read_excel
+else:
+    from . import base as mb
+    from .file import save_json, read_json, save_excel, read_excel
 
 CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
 
@@ -127,9 +130,9 @@ def get_between(string:str, head:str, tail:str,
     else:
         tailIdx = string.rfind(tail) if tailRFind else string.find(tail)
     if headIdx == -1 or tailIdx == -1:
-        return put_err(f"{head if headIdx == -1 else tail:s} not found, return string", string)
+        return mb.put_err(f"{head if headIdx == -1 else tail:s} not found, return string", string)
     if headIdx == tailIdx:
-        return put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return ''", '')
+        return mb.put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return ''", '')
     idx1 = headIdx if ret_head else headIdx+len(head)
     idx2 = tailIdx+len(tail) if ret_tail else tailIdx
     return string[idx1:idx2]
@@ -163,7 +166,7 @@ def get_between_re(string:str, head:str, tail:str,
     h = re.compile(head).search(string) if len(head) > 0 else ''
     t = re.compile(tail).search(string)
     if h is None or t is None:
-        return put_err(f"not found with head:{head:s} and tail:{tail:s}, return string", string)
+        return mb.put_err(f"not found with head:{head:s} and tail:{tail:s}, return string", string)
     else:
         h, t = h.group(0) if h != '' else '', t.group(0)
     return get_between(string, h, t, head_r, tail_r, ret_head, ret_tail)
@@ -356,7 +359,21 @@ class ThreadsPool:
                 retList.append(que.get())
         return retList
 
-if base._Params['LAUNCH_WEB_SUB_THREAD']:
+def launch_sub_thread():
+    """
+    Launches a sub-thread to run a separate task concurrently with the main thread.
+
+    This function creates a global `statuesQue` queue and puts a dictionary with the keys `quit` and `input` into the queue. The `quit` key is set to `False` and the `input` key is set to `None`. 
+    The function then starts a new thread by calling the `_wait_for_quit` function with the `statuesQue` queue as an argument. 
+    Finally, the function prints the message "web sub thread started".
+
+    Parameters:
+    None
+
+    Returns:
+    None
+    """
+    global statuesQue
     statuesQue = Queue()
     statuesQue.put(
         {
@@ -365,3 +382,4 @@ if base._Params['LAUNCH_WEB_SUB_THREAD']:
         }
     )
     _thread.start_new_thread(_wait_for_quit, (statuesQue,))
+    print('mbapy::web: web sub thread started')
