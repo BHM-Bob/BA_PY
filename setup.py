@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-13 19:15:45
+LastEditTime: 2023-07-16 00:43:20
 Description: 
 '''
 """
@@ -63,6 +63,7 @@ requires = [
     "openpyxl",
     "statsmodels",
     "scikit_posthocs",
+    "rispy",
     "PyPDF2",
     "lxml",
 ]

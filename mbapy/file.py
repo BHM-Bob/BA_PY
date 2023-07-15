@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-13 23:54:50
+LastEditTime: 2023-07-16 00:32:44
 Description: 
 '''
 import chardet
@@ -36,8 +36,7 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
         path = path.replace(invalid_chr, '_')
     return path
 
-@parameter_checker(check_parameters_path, raise_err = False)
-def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None):
+def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
@@ -51,7 +50,9 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str',
     Returns:
         list or str or dict or None: The data read from the file, or None if the file was opened in write mode and no data was provided.
     """
-    with open(path, mode, encoding=encoding) as f:
+    if 'b' not in mode:
+        kwargs.update(encoding=encoding)
+    with open(path, mode, **kwargs) as f:
         if 'r' in mode:
             if way == 'lines':
                 return f.readlines()

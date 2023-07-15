@@ -1,15 +1,15 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-14 21:08:18
+LastEditTime: 2023-07-16 00:38:50
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
-import os, re
+import os, re, requests
 from typing import List, Dict
 
+from lxml import etree
 import rispy
-from scihub_cn.scihub import SciHub
 import PyPDF2
 
 if __name__ == '__main__':
@@ -23,7 +23,8 @@ else:
     from .file import replace_invalid_path_chr, convert_pdf_to_txt, opts_file
     from . import web
 
-scihub = SciHub()
+
+session = requests.Session()
 
 @parameter_checker(check_parameters_path, raise_err = False)
 def parse_ris(ris_path:str, fill_none_doi:str = None):
@@ -46,7 +47,7 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
         return ris
     
 @parameter_checker(check_parameters_len, raise_err = False)
-def search_by_baidu(query:str, limit:int = 1):
+def search_by_baidu(query:str, limit:int = 1, proxies = None):
     """
     This function is used to search for articles on Baidu Scholar using a given query.
     
@@ -62,18 +63,16 @@ def search_by_baidu(query:str, limit:int = 1):
             - keyword (list): A list of keywords associated with the article.
             - doi (str): The DOI (Digital Object Identifier) of the article.
     """
-    from lxml import etree
     def _get_a_search_page(query:str, page:int = 0):
-        res = scihub.sess.request(method='GET', url='https://xueshu.baidu.com/s',
-                                params={'wd': query, 'pn': page, 'filter': 'sc_type%3D%7B1%7D'},
-                                proxies=scihub.proxies)
+        res = session.request(method='GET', url='https://xueshu.baidu.com/s',
+                              params={'wd': query, 'pn': page, 'filter': 'sc_type%3D%7B1%7D'})
         s = etree.HTML(res.text)
         return s.xpath("//div[@class='sc_content']/h3/a/@href")
     
     def _parse_links(links:list):
         results = []
         for link in links:
-            res = scihub.sess.request(method='GET', url=link, proxies=scihub.proxies)
+            res = session.request(method='GET', url=link, proxies=proxies)
             s = etree.HTML(res.text)
             title = s.xpath("//div[@class='main-info']/h3/a/text()")
             if len(title) == 0:
@@ -97,8 +96,34 @@ def search_by_baidu(query:str, limit:int = 1):
             links += _get_a_search_page(query, page)[: (limit%10 if limit > 10 else limit)]
             page += 1
     return _parse_links(links)
+
+@parameter_checker(check_parameters_len, check_parameters_len, raise_err = False)
+def search_by_pubmed(query:str, email:str = None, limit:int = 1):
+    from Bio import Entrez
+    Entrez.email = email  # 设置邮箱地址
+    handle = Entrez.esearch(db='pubmed', term=query, retmax=limit)
+    record = Entrez.read(handle)
+    handle.close()
+    pubmed_ids = record['IdList']
+
+    results = []
+    for pubmed_id in pubmed_ids:
+        handle = Entrez.efetch(db='pubmed', id=pubmed_id, retmode='xml')
+        record = Entrez.read(handle)
+        handle.close()
         
-def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu'):
+        if len(record['PubmedArticle']) > 0:
+            article = record['PubmedArticle'][0]['MedlineCitation']['Article']
+            title = str(article['ArticleTitle'])
+            doi = str(article['ELocationID'][0]) if 'ELocationID' in article else ''
+            abstract = str(article['Abstract']['AbstractText']) if 'Abstract' in article else ''
+            journal = str(article['Journal']['Title']) if 'Journal' in article else ''
+            results.append({'title': title, 'abstract': abstract, 'doi': doi, 'journal': journal})
+
+    return results
+    
+        
+def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu', email:str = None):
     """
     Search for a given query using a specified search engine and return the results.
 
@@ -113,34 +138,118 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu'):
     """
     if search_engine == 'baidu xueshu':
         return search_by_baidu(query, limit)
+    elif search_engine == 'pubmed' and email is not None:
+        return search_by_pubmed(query, email, limit)
     elif search_engine == 'science direct':
-        if os.path.isfile(get_storage_path('science_direct_cookie.txt')):
-            cookie = opts_file(get_storage_path('science_direct_cookie.txt'))
-        else:
-            import browser_cookie3
-            cookie = browser_cookie3.load('https://www.sciencedirect.com/')
-            opts_file(get_storage_path('science_direct_cookie.txt'), 'w', encoding='utf-8', data = cookie)
-        return scihub.search_by_science_direct(query, cookie, limit)
+        raise NotImplementedError
+        # if os.path.isfile(get_storage_path('science_direct_cookie.txt')):
+        #     cookie = opts_file(get_storage_path('science_direct_cookie.txt'))
+        # else:
+        #     import browser_cookie3
+        #     cookie = browser_cookie3.load('https://www.sciencedirect.com/')
+        #     opts_file(get_storage_path('science_direct_cookie.txt'), 'w', encoding='utf-8', data = cookie)
     elif search_engine == 'publons':
-        return scihub.search_by_publons([query], limit)
+        raise NotImplementedError
+        # return scihub.search_by_publons([query], limit)
     else:
         return put_err(f'Unknown search engine: {search_engine}, returns None', None)
 
+def _get_available_scihub_urls(proxies = None):
+    '''
+    Finds available scihub urls via http://tool.yovisun.com/scihub/
+    '''
+    links = []
+    res = session.request(method='GET', url='http://tool.yovisun.com/scihub/', proxies=proxies)
+    results = etree.HTML(res.text).xpath('//tr[@class="item"]')
+    for result in results:
+        # 我真的服了这个'latin1'编码，都没见过，还是问的chatGPT。。。
+        status = result.xpath('.//td[@class="status"]/span[@class="label  label-success"]/text()')[0]
+        status = status.encode('latin1').decode('utf-8')
+        if status == '可用':
+            ssl_link = result.xpath('.//td[@class="domainssl"]/a/@href')[0]
+            links.append(ssl_link)
+    return links
+
+# avoid multiple requests
+available_scihub_urls = None
+def _update_available_scihub_urls():
+    global available_scihub_urls
+    available_scihub_urls = _get_available_scihub_urls() if available_scihub_urls is None else available_scihub_urls
+    return available_scihub_urls    
+
+def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
+    """
+    Downloads a file from the SciHub webpage.
+
+    Args:
+        webpage (requests.Response): The response object of the SciHub webpage.
+        proxies (dict, optional): The proxies to be used for the request. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the title, DOI, and the response object of the download request.
+    """
+    def _get_valid_download_link(link:str):
+        available_scihub_urls = _update_available_scihub_urls()
+        if not link.startswith('http:'):
+            if link.find('sci-hub') == -1:
+                link = (available_scihub_urls[0]+'/') + link
+            else:
+                link = 'http:' + link
+        return link
+            
+    results = etree.HTML(webpage.text)
+    title = results.xpath('//div[@id="citation"]/i/text()')[0]
+    doi = results.xpath('//div[@id="citation"]//following-sibling::text()')[0]
+    download_link = results.xpath('//div[@id="buttons"]/button[1]/@onclick')[0].split("'")[1]
+    valid_download_link = _get_valid_download_link(download_link)
+    res = session.request(method='GET', url=valid_download_link, proxies=proxies)
+    return {'title': title, 'doi': doi, 'res': res}
+
 @parameter_checker(check_parameters_bool, raise_err = False)
-def download_from_scihub_by_doi(doi):
-    try:
-        return scihub.fetch({'doi':doi})
-    except:
-        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', (None, None))
+def download_from_scihub_by_doi(doi:str, proxies = None):
+    """
+    Downloads a file from the Sci-Hub database using the DOI.
+
+    Parameters:
+        doi (str): The DOI of the file to download.
+        proxies (dict): A dictionary of proxies to use for the request.
+
+    Returns:
+        a dictionary containing the title, DOI, and the response object of the download request.
+        if meets error, returns None.
+
+    Raises:
+        Exception: If the DOI does not exist or if there is an error fetching the file from Sci-Hub.
+    """
+    # try:
+    available_scihub_urls = _update_available_scihub_urls()
+    res = session.request(method='GET', url=available_scihub_urls[0]+'/'+doi, proxies=proxies)
+    return _download_from_scihub_webpage(res)
+    # except:
+    #     return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
             
 @parameter_checker(check_parameters_bool, raise_err = False)
-def download_from_scihub_by_title(title):
-    scihub_url = scihub._get_available_scihub_urls()[0]
-    res = scihub.sess.post(scihub_url, data = {'request': title}, proxies=scihub.proxies)
-    doi = web.get_between(res.text, "doi:", "&nbsp", find_tail_from_head=True)
-    # TODO : xpath do not work
-    # dl = s.xpath("//div[@id='buttons']/ul/li/a[@href='#']")
-    return download_from_scihub_by_doi(doi)
+def download_from_scihub_by_title(title, proxies = None):
+    """
+    Downloads a document from Scihub by title.
+
+    Parameters:
+        title (str): The title of the document to be downloaded.
+        proxies (dict, optional): A dictionary of proxies to be used for the HTTP request.
+
+    Returns:
+        a dictionary containing the title, DOI, and the response object of the download request.
+        if meets error, returns None.
+
+    Raises:
+        Exception: If the document with the given title does not exist on Scihub.
+    """
+    try:
+        available_scihub_urls = _update_available_scihub_urls()
+        res = session.post(available_scihub_urls[0], data = {'request': title}, proxies=proxies)
+        return _download_from_scihub_webpage(res)
+    except:
+        return put_err(f'Maybe TITLE: {title:s} does not exist. scihub fetch error', None)
             
 def download_by_scihub(dir: str, doi: str = None, title:str = None,
                        file_full_name:str = None, use_title_as_name: bool = True,
@@ -168,21 +277,19 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
         return put_err('Either DOI or title must be specified, returns None', None)
     # download from Sci-Hub by DOI or title
     if doi:
-        res, paper_info = download_from_scihub_by_doi(doi)
+        result = download_from_scihub_by_doi(doi)
     else:
-        res, paper_info = download_from_scihub_by_title(title)
-    if type(res) == dict and 'err' in res:        
-        return put_err(res['err'])
-    if not res:
+        result = download_from_scihub_by_title(title)
+    if result is None:
         return None
     # get the file name, save the file
     if file_full_name is not None:
         file_name = file_full_name
     else:
-        file_name = ((title if title else paper_info.title) if use_title_as_name else doi) + '.pdf'
+        file_name = ((title if title else result['title']) if use_title_as_name else doi) + '.pdf'
     file_name = replace_invalid_path_chr(file_name, valid_path_chr)
-    scihub._save(res.content, os.path.join(dir, file_name))
-    return paper_info
+    opts_file(os.path.join(dir, file_name), 'wb', data = result['res'].content)
+    return result
     
 def _flatten_pdf_bookmarks(*bookmarks):
     """
@@ -369,7 +476,7 @@ def format_paper_from_txt(content:str,
 if __name__ == '__main__':
     # dev code
     from mbapy.base import rand_choose
-    from mbapy.file import convert_pdf_to_txt
+    from mbapy.file import convert_pdf_to_txt, read_json
     
     # RIS parse
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
@@ -377,12 +484,13 @@ if __name__ == '__main__':
     print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
     
     # search
-    search_result = search_by_baidu('linaclotide', 11)
+    # search_result = search_by_baidu('linaclotide', 11)
+    search_result = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
     search_result2 = search(ris["title"])
     
     # download
     dl_result = download_by_scihub('./data_tmp/', title = search_result[0]['title'])
-    download_by_scihub(ris["doi"], './data_tmp/', file_full_name = f'{ris["title"]:s}.pdf')
+    download_by_scihub('./data_tmp/', '10.1097/j.pain.0000000000001905', ris["title"], file_full_name = f'{ris["title"]:s}.pdf')
     
     # extract section
     pdf_path = replace_invalid_path_chr("./data_tmp/{:s}.pdf".format(ris["title"]))
