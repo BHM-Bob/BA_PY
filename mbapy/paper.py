@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-16 19:05:08
+LastEditTime: 2023-07-16 22:02:41
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
@@ -189,11 +189,23 @@ def search_by_pubmed(query:str, email:str = None, limit:int = 1):
 
     return results
 
-search_by_pubmed('linaclotide', 'baohm20@lzu.edu.cn', 10)
-
 @parameter_checker(check_parameters_len, raise_err = False)
-def search_by_wos(query:str, limit:int = 1, proxies = None):
-    pass    
+def search_by_wos(query:str, limit:int = 1,
+                       browser = 'Chrome', browser_driver_path:str = None, proxies = None):
+    # init browser, make search and get the first page
+    browser = web.get_browser(browser, browser_driver_path, ['--no-sandbox'], True)
+    browser.get("https://www.webofscience.com/wos/alldb/basic-search")
+    web.click_browser(browser, '//button[@id="onetrust-accept-btn-handler"]', 'xpath')
+    web.send_browser_key(browser, query+'\n', '//input[@name="search-main-box"]', 'xpath')
+    # parse the first page
+    try:
+        locator = (web.transfer_str2by('xpath'), '//div[@class="search-display"]')
+        web.WebDriverWait(browser, 5).until(web.EC.presence_of_element_located(locator))
+    finally:
+        web.scroll_browser(browser, 'bottom', 5)
+    web.wait_for_amount_elements(browser, 'xpath', '//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a', 45)
+    links = etree.HTML(browser.page_source).xpath('//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a/@href')
+    pass
         
 def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu', email:str = None):
     """
@@ -552,10 +564,8 @@ if __name__ == '__main__':
     ris = rand_choose(ris)
     print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
     
-    # search impact factor
-    print(search_IF('Nature Communications'))
-    
     # search
+    search_by_wos("linaclotide", browser_driver_path=web.CHROMEDRIVERPATH)
     # search_result = search_by_baidu('linaclotide', 11)
     search_result = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
     search_result2 = search(ris["title"])

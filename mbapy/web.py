@@ -8,21 +8,23 @@ import urllib.parse
 import urllib.request
 from queue import Queue
 
-import pandas as pd
 from bs4 import BeautifulSoup
+from lxml import etree
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 if __name__ == '__main__':
-    from mbapy import base as mb
-    from mbapy.file import save_json, read_json, save_excel, read_excel
+    from mbapy.base import put_err, check_parameters_path, check_parameters_len
+    from mbapy.file import save_json, read_json, save_excel, read_excel, opts_file
 else:
-    from . import base as mb
-    from .file import save_json, read_json, save_excel, read_excel
+    from .base import put_err, check_parameters_path, check_parameters_len
+    from .file import save_json, read_json, save_excel, read_excel, opts_file
 
 CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
+CHROME_DRIVER_PATH = CHROMEDRIVERPATH
+BROWSER_HEAD = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
 
 def get_url_page(url:str, coding = 'gbk'):
     """
@@ -130,9 +132,9 @@ def get_between(string:str, head:str, tail:str,
     else:
         tailIdx = string.rfind(tail) if tailRFind else string.find(tail)
     if headIdx == -1 or tailIdx == -1:
-        return mb.put_err(f"{head if headIdx == -1 else tail:s} not found, return string", string)
+        return put_err(f"{head if headIdx == -1 else tail:s} not found, return string", string)
     if headIdx == tailIdx:
-        return mb.put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return ''", '')
+        return put_err(f"headIdx == tailIdx with head:{head:s} and string:{string:s}, return ''", '')
     idx1 = headIdx if ret_head else headIdx+len(head)
     idx2 = tailIdx+len(tail) if ret_tail else tailIdx
     return string[idx1:idx2]
@@ -166,31 +168,110 @@ def get_between_re(string:str, head:str, tail:str,
     h = re.compile(head).search(string) if len(head) > 0 else ''
     t = re.compile(tail).search(string)
     if h is None or t is None:
-        return mb.put_err(f"not found with head:{head:s} and tail:{tail:s}, return string", string)
+        return put_err(f"not found with head:{head:s} and tail:{tail:s}, return string", string)
     else:
         h, t = h.group(0) if h != '' else '', t.group(0)
     return get_between(string, h, t, head_r, tail_r, ret_head, ret_tail)
 
+def get_browser(browser:str, browser_driver_path:str = None,
+                options =['--no-sandbox', '--headless', f"--user-agent={BROWSER_HEAD:s}"],
+                use_undetected:bool = False):
+    """
+    Initializes and returns a Selenium browser instance based on the specified browser name and driver path.
+
+    Parameters:
+        browser (str): The name of the browser. Currently supported values are 'Edge' and 'Chrome'.
+        browser_driver_path (str, optional): The path to the browser driver executable. Defaults to None.
+        options (list, optional): A list of additional options to be passed to the browser. Defaults to ['--no-sandbox', '--headless'].
+        
+    Returns:
+        Browser: An instance of the Selenium browser based on the specified browser name and options.
+    """
+    # get browser driver
+    if browser == 'Edge':
+        from selenium.webdriver.edge.options import Options
+        from selenium.webdriver import Edge as Browser
+    elif browser == 'Chrome':
+        if use_undetected:
+            from undetected_chromedriver import ChromeOptions as Options
+            from undetected_chromedriver import Chrome as Browser
+        else:
+            from selenium.webdriver.chrome.options import Options
+            from selenium.webdriver import Chrome as Browser
+    else:
+        return put_err(f'Unsupported browser {browser}', None)
+    # set options
+    opts = Options()
+    for option in options:
+        opts.add_argument(option)
+    # set Browser kwargs
+    kwargs = {'options': opts}
+    if browser_driver_path is not None:
+        kwargs['executable_path'] = browser_driver_path
+    # return browser instance
+    return Browser(**kwargs)
+
+def add_cookies(browser, cookies_path:str = None, cookies_string:str = None):
+    def _parse_cookies(browser, cookies_string:str):
+        for cookie in cookies_string.split(";"):
+            name, value = cookie.strip().split("=", 1)
+            browser.add_cookie({"name": name, "value": value})
+    
+    if cookies_path is not None and check_parameters_path(cookies_path):
+        _parse_cookies(browser, opts_file(cookies_path))
+    elif cookies_string is not None and check_parameters_len(cookies_string):
+        _parse_cookies(browser, cookies_string)
+    else:
+        return put_err("No cookies specified", None)
 
 def transfer_str2by(by:str):
     """
-    Convert a string representation of a Selenium By identifier to an actual By identifier.
+    Transfers a string representation of a 'By' identifier to the corresponding 'By' object.
     
-    Args:
-        by (str): The string representation of the By identifier.
+    Parameters:
+        by (str): The string representation of the 'By' identifier.
+            support class('By.CLASS_NAME'), css('By.CSS_SELECTOR'), xpath('By.XPATH')
         
     Returns:
-        By: The corresponding By identifier.
+        By: The corresponding 'By' object.
         
     Raises:
-        Exception: If the provided string does not match any known By identifier.
+        ValueError: If the 'by' parameter is not one of the valid 'By' identifier strings.
     """
     if by == 'class':
         return By.CLASS_NAME
     elif by == 'css':
         return By.CSS_SELECTOR
+    elif by == 'xpath':
+        return By.XPATH
     else:
-        raise Exception("unkown by : "+by)
+        return put_err(f"Unknown By identifier {by:s}", None)
+    
+def wait_for_amount_elements(browser, by, element, count, timeout=10):
+    """
+    Waits for a specified number of elements to be present on the page.
+
+    Args:
+        browser (WebDriver): The WebDriver instance used to interact with the browser.
+        by (str): The method used to locate the elements (e.g. "class", "css", "xpath").
+        element (str): The value used to locate the elements (e.g. the ID, class name, or xpath expression).
+        count (int): The number of elements to wait for.
+        timeout (int, optional): The maximum amount of time (in seconds) to wait for the elements to be present. Defaults to 10.
+
+    Returns:
+        list: A list of WebElement objects representing the elements found.
+
+    Raises:
+        TimeoutException: If the elements are not found within the specified timeout.
+    """
+    wait = WebDriverWait(browser, timeout)
+    by = transfer_str2by(by)
+    try:
+        elements = wait.until(lambda browser: len(browser.find_elements(by, element)) >= count)
+    except:
+        elements = browser.find_elements(by, element)
+    return elements
+    
 def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int = 5):
     """
     Sends a string of keys to an element on a webpage using Selenium WebDriver.
@@ -199,7 +280,7 @@ def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int 
     - browser: The WebDriver object to use.
     - keys: The string of keys to send to the element.
     - element: The identifier of the element to which the keys should be sent.
-    - by: The method to use to find the element. Defaults to 'class'.
+    - by: The method to use to find the element. Defaults to 'class'. Supported values are 'class', 'css', 'xpath'
     - wait: The maximum number of seconds to wait for the element to appear. Defaults to 5.
     
     Returns:
@@ -207,11 +288,11 @@ def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int 
     """
     by = transfer_str2by(by)
     try:
-        elem = WebDriverWait(browser, wait).\
-            until(EC.presence_of_element_located((by, element)))
+        WebDriverWait(browser, wait).until(EC.presence_of_element_located((by, element)))
     finally:
-        elem = browser.find_element(by, 'which')  # Find the search box
-        elem.send_keys(keys)        
+        element = browser.find_element(by, element)
+        element.send_keys(keys)
+        
 def click_browser(browser, element:str, by:str = 'class', wait = 5):
     """
     Clicks on a specified element in a browser using Selenium WebDriver.
@@ -230,10 +311,57 @@ def click_browser(browser, element:str, by:str = 'class', wait = 5):
     """
     by = transfer_str2by(by)
     try:
-        element = WebDriverWait(browser, wait).\
-            until(EC.presence_of_element_located((by, element)))
+        WebDriverWait(browser, wait).until(EC.presence_of_element_located((by, element)))
     finally:
-        rc = browser.find_element_by_class_name(element)
+        element = browser.find_element(by, element)
+        browser.execute_script("arguments[0].click();", element)
+        from selenium.webdriver.common.action_chains import ActionChains
+
+def scroll_browser(browser, scroll='bottom', duration=0):
+    """
+    Scroll the browser window to a specific position or to the bottom within a specified duration.
+
+    Args:
+        browser (WebDriver): The WebDriver instance controlling the browser.
+        scroll (str or int): The scroll position. If 'bottom', the browser will be scrolled to the bottom.
+                             If an integer, the browser will be scrolled to the specified position.
+        duration (int, optional): The duration (in seconds) over which the scrolling animation should occur.
+                                  Defaults to 0.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an invalid scroll type is provided.
+    """
+    scrolled_length = 0
+    end_time = time.time() + duration
+    if isinstance(scroll, str) and scroll == 'bottom':
+        if duration > 0:
+            while time.time() < end_time:
+                doc_height = browser.execute_script("return document.body.scrollHeight")
+                last_heigth = doc_height - scrolled_length
+                scroll_per_frame = last_heigth / (end_time - time.time()) / 10  # 假设每秒10帧
+                scrolled_length += scroll_per_frame
+                browser.execute_script(f"window.scrollBy(0, {scroll_per_frame});")
+                time.sleep(1 / 10)  # 等待1/10秒，模拟每秒10帧
+        else:
+            browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    elif isinstance(scroll, int) and scroll > 0:
+        if duration > 0:
+            while time.time() < end_time:
+                scroll_height = browser.execute_script("return document.body.scrollHeight")
+                if scroll > scroll_height:
+                    scroll = scroll_height
+                scroll_per_frame = scroll / (end_time - time.time()) / 10  # 假设每秒10帧
+                browser.execute_script(f"window.scrollBy(0, {scroll_per_frame});")
+                time.sleep(1 / 10)  # 等待1/10秒，模拟每秒10帧
+        else:
+            if scroll > browser.execute_script("return window.innerHeight"):
+                scroll = browser.execute_script("return window.innerHeight")
+            browser.execute_script(f"window.scrollBy(0, {scroll});")
+    else:
+        return put_err(f"Unknown scroll type {scroll:s}", None)
 
 
 def _wait_for_quit(statuesQue,):
@@ -383,3 +511,27 @@ def launch_sub_thread():
     )
     _thread.start_new_thread(_wait_for_quit, (statuesQue,))
     print('mbapy::web: web sub thread started')
+    
+
+def search_by_wos(query:str, limit:int = 1,
+                  browser = 'Chrome', browser_driver_path:str = None, proxies = None):
+    # init browser, make search and get the first page
+    browser = get_browser(browser, browser_driver_path, ['--no-sandbox'], True)
+    browser.get("https://www.webofscience.com/wos/alldb/basic-search")
+    click_browser(browser, '//button[@id="onetrust-accept-btn-handler"]', 'xpath')
+    send_browser_key(browser, query+'\n', '//input[@name="search-main-box"]', 'xpath')
+    # parse the first page
+    try:
+        locator = (transfer_str2by('xpath'), '//div[@class="search-display"]')
+        WebDriverWait(browser, 5).until(EC.presence_of_element_located(locator))
+    finally:
+        scroll_browser(browser, 'bottom', 5)
+    wait_for_amount_elements(browser, 'xpath', '//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a', 45)
+    links = etree.HTML(browser.page_source).xpath('//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a/@href')
+    pass
+    
+if __name__ == '__main__':
+    # dev code
+    search_by_wos('linaclotide', 1, 'Chrome', CHROMEDRIVERPATH)
+    
+    
