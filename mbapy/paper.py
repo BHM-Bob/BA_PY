@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-16 14:29:34
+LastEditTime: 2023-07-16 19:05:08
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
@@ -66,7 +66,7 @@ def search_IF(query:str, proxies = None):
     
     If no results are found, an error message is returned.
     """
-    base_url = 'https://www.ablesci.com/journal/index?keywords='
+    base_url = 'https://www.ablesci.com/journal/index'
     res = session.request(method='GET', url=base_url, params={'keywords': query})
     s = etree.HTML(res.text)
     links = s.xpath("//a[@class='journal-name']//@href")
@@ -101,12 +101,19 @@ def search_by_baidu(query:str, limit:int = 1, proxies = None):
             - abstract (str): The abstract of the article.
             - keyword (list): A list of keywords associated with the article.
             - doi (str): The DOI (Digital Object Identifier) of the article.
+            - journal (str): The name of the journal associated with the article.
     """
     def _get_a_search_page(query:str, page:int = 0):
         res = session.request(method='GET', url='https://xueshu.baidu.com/s',
                               params={'wd': query, 'pn': page, 'filter': 'sc_type%3D%7B1%7D'})
         s = etree.HTML(res.text)
         return s.xpath("//div[@class='sc_content']/h3/a/@href")
+    
+    def _parse_info(xpath_search_key:str, xpath_obj, is_single: bool = True):
+        search_result = xpath_obj.xpath(xpath_search_key)
+        if is_single:
+            return get_default_for_bool(search_result, [''])[0].strip()
+        return get_default_for_bool(search_result, [''])
     
     def _parse_links(links:list):
         results = []
@@ -117,13 +124,12 @@ def search_by_baidu(query:str, limit:int = 1, proxies = None):
             if len(title) == 0:
                 title = s.xpath("//div[@class='main-info']/h3/span/text()")
             title = get_default_for_bool(title, [''])[0].strip()
-            abstract = s.xpath("//p[@class='abstract']/text()")
-            abstract = get_default_for_bool(abstract, [''])[0].strip()
-            keyword = s.xpath("//div[@class='kw_wr']/p[@class='kw_main']/span/a/text()")
-            keyword = get_default_for_bool(keyword, [''])
-            doi = s.xpath("//div[@class='doi_wr']/p[@class='kw_main']/text()")
-            doi = get_default_for_bool(doi, [''])[0].strip()
-            results.append({'title': title, 'abstract': abstract, 'keyword': keyword, 'doi': doi})
+            abstract = _parse_info("//p[@class='abstract']/text()", s)
+            keyword = _parse_info("//div[@class='kw_wr']/p[@class='kw_main']/span/a/text()", s, False)
+            doi = _parse_info("//div[@class='doi_wr']/p[@class='kw_main']/text()", s)
+            journal = _parse_info("//a[@class='journal_title']/text()", s)
+            results.append({'title': title, 'abstract': abstract, 'keyword': keyword,
+                            'doi': doi, 'journal': journal})
         return results
     
     links = _get_a_search_page(query, 0)
@@ -147,7 +153,12 @@ def search_by_pubmed(query:str, email:str = None, limit:int = 1):
     - limit (int, optional): The maximum number of results to return. Defaults to 1.
 
     Returns:
-    - results (List[Dict[str, str]]): A list of dictionaries containing the title, abstract, DOI, and journal information of the articles.
+        list: A list of dictionaries containing information about the articles found.
+            Each dictionary has the following keys:
+            - title (str): The title of the article.
+            - abstract (str): The abstract of the article.
+            - doi (str): The DOI (Digital Object Identifier) of the article.
+            - journal (str): The name of the journal associated with the article.
 
     Raises:
     - parameter_checker.ParameterLengthError: If the length of the parameters is not equal to check_parameters_len.
@@ -166,14 +177,19 @@ def search_by_pubmed(query:str, email:str = None, limit:int = 1):
         handle.close()
         
         if len(record['PubmedArticle']) > 0:
-            article = record['PubmedArticle'][0]['MedlineCitation']['Article']
+            article_info = record['PubmedArticle'][0]['MedlineCitation']
+            article = article_info['Article']
             title = str(article['ArticleTitle'])
             doi = str(article['ELocationID'][0]) if 'ELocationID' in article else ''
-            abstract = str(article['Abstract']['AbstractText']) if 'Abstract' in article else ''
+            abstract = '.\n'.join([str(element) for element in article['Abstract']['AbstractText']]) if 'Abstract' in article else ''
             journal = str(article['Journal']['Title']) if 'Journal' in article else ''
-            results.append({'title': title, 'abstract': abstract, 'doi': doi, 'journal': journal})
+            keywords = article_info['KeywordList'][0] if 'KeywordList' in article_info else []
+            keywords = [str(keyword) for keyword in keywords]
+            results.append({'title': title, 'abstract': abstract, 'doi': doi, 'journal': journal, 'keywords': keywords})
 
     return results
+
+search_by_pubmed('linaclotide', 'baohm20@lzu.edu.cn', 10)
 
 @parameter_checker(check_parameters_len, raise_err = False)
 def search_by_wos(query:str, limit:int = 1, proxies = None):
@@ -536,7 +552,7 @@ if __name__ == '__main__':
     ris = rand_choose(ris)
     print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
     
-    # search impact factor    
+    # search impact factor
     print(search_IF('Nature Communications'))
     
     # search
