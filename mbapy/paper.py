@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-16 00:38:50
+LastEditTime: 2023-07-16 14:29:34
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
@@ -45,6 +45,45 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
                 if 'doi' not in r:
                     r['doi'] = fill_none_doi
         return ris
+    
+@parameter_checker(check_parameters_len, raise_err = False)
+def search_IF(query:str, proxies = None):    
+    """
+    This function performs a search on the 'ablesci' website using the provided query. It retrieves the first result, extracts relevant information from the page, and returns a dictionary containing the full name, abbreviated name, subjects, impact factor, WOS query, and CAS query.
+
+    Parameters:
+    - query (str): The search query to be used.
+    - proxies (Optional[dict]): A dictionary of proxy settings to be used for the request. Defaults to None.
+
+    Returns:
+    - dict: A dictionary containing the following information:
+        - full_name (str): The full name of the journal.
+        - abbr_name (str): The abbreviated name of the journal.
+        - subjects (list[str]): A list of subjects covered by the journal.
+        - impact_factor (str): The impact factor of the journal.
+        - wos_q (str): The WOS query associated with the journal.
+        - cas_q (str): The CAS query associated with the journal.
+    
+    If no results are found, an error message is returned.
+    """
+    base_url = 'https://www.ablesci.com/journal/index?keywords='
+    res = session.request(method='GET', url=base_url, params={'keywords': query})
+    s = etree.HTML(res.text)
+    links = s.xpath("//a[@class='journal-name']//@href")
+    if len(links) > 0:
+        res = session.request(method='GET', url=links[0])
+        page = etree.HTML(res.text)
+        full_name = page.xpath("//tbody/tr[1]//td[2]/text()")[0]
+        abbr_name = page.xpath("//tbody/tr[2]//td[2]/text()")[0]
+        if query == full_name or query == abbr_name:
+            subjects = page.xpath("//tbody/tr[3]/td[2]/div/span/@title")
+            subjects = [subject.replace('\n', ' | ') for subject in subjects]
+            impact_factor = page.xpath("//tbody/tr[6]/td[2]/span/text()")[0]
+            wos_q = page.xpath("//tbody/tr[12]/td[2]/table/tbody/tr/td/div/span/text()")[0]
+            cas_q = page.xpath("//tbody/tr[13]/td[2]/table/tbody/tr/td/div/span/text()")[0]
+            return {'full_name': full_name, 'abbr_name': abbr_name, 'subjects': subjects,
+                    'impact_factor': impact_factor, 'wos_q': wos_q, 'cas_q': cas_q}
+    return put_err('No results found', None)
     
 @parameter_checker(check_parameters_len, raise_err = False)
 def search_by_baidu(query:str, limit:int = 1, proxies = None):
@@ -99,6 +138,20 @@ def search_by_baidu(query:str, limit:int = 1, proxies = None):
 
 @parameter_checker(check_parameters_len, check_parameters_len, raise_err = False)
 def search_by_pubmed(query:str, email:str = None, limit:int = 1):
+    """
+    Searches for articles in the PubMed database based on a query.
+
+    Parameters:
+    - query (str): The search query.
+    - email (str, optional): The email address used for Entrez.email. Defaults to None.
+    - limit (int, optional): The maximum number of results to return. Defaults to 1.
+
+    Returns:
+    - results (List[Dict[str, str]]): A list of dictionaries containing the title, abstract, DOI, and journal information of the articles.
+
+    Raises:
+    - parameter_checker.ParameterLengthError: If the length of the parameters is not equal to check_parameters_len.
+    """
     from Bio import Entrez
     Entrez.email = email  # 设置邮箱地址
     handle = Entrez.esearch(db='pubmed', term=query, retmax=limit)
@@ -121,7 +174,10 @@ def search_by_pubmed(query:str, email:str = None, limit:int = 1):
             results.append({'title': title, 'abstract': abstract, 'doi': doi, 'journal': journal})
 
     return results
-    
+
+@parameter_checker(check_parameters_len, raise_err = False)
+def search_by_wos(query:str, limit:int = 1, proxies = None):
+    pass    
         
 def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu', email:str = None):
     """
@@ -131,7 +187,7 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu', email:s
     - query (str): The query string to search for.
     - limit (int): The maximum number of results to return.
     - search_engine (str): The search engine to use. Default is 'baidu xueshu'.
-         allows: 'baidu xueshu', 'science direct', 'publons', if not recognized, returns None
+         allows: 'baidu xueshu', 'pubmed', 'wos', if not recognized, returns None
 
     Returns:
     - The search results as a list of dict, contain 'title', 'abstract', 'keyword' and 'doi'.
@@ -140,7 +196,7 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu', email:s
         return search_by_baidu(query, limit)
     elif search_engine == 'pubmed' and email is not None:
         return search_by_pubmed(query, email, limit)
-    elif search_engine == 'science direct':
+    elif search_engine == 'wos':
         raise NotImplementedError
         # if os.path.isfile(get_storage_path('science_direct_cookie.txt')):
         #     cookie = opts_file(get_storage_path('science_direct_cookie.txt'))
@@ -148,9 +204,6 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu', email:s
         #     import browser_cookie3
         #     cookie = browser_cookie3.load('https://www.sciencedirect.com/')
         #     opts_file(get_storage_path('science_direct_cookie.txt'), 'w', encoding='utf-8', data = cookie)
-    elif search_engine == 'publons':
-        raise NotImplementedError
-        # return scihub.search_by_publons([query], limit)
     else:
         return put_err(f'Unknown search engine: {search_engine}, returns None', None)
 
@@ -482,6 +535,9 @@ if __name__ == '__main__':
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
     ris = rand_choose(ris)
     print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
+    
+    # search impact factor    
+    print(search_IF('Nature Communications'))
     
     # search
     # search_result = search_by_baidu('linaclotide', 11)
