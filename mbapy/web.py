@@ -528,12 +528,6 @@ def launch_sub_thread():
     This function creates a global `statuesQue` queue and puts a dictionary with the keys `quit` and `input` into the queue. The `quit` key is set to `False` and the `input` key is set to `None`. 
     The function then starts a new thread by calling the `_wait_for_quit` function with the `statuesQue` queue as an argument. 
     Finally, the function prints the message "web sub thread started".
-
-    Parameters:
-    None
-
-    Returns:
-    None
     """
     global statuesQue
     statuesQue = Queue()
@@ -545,48 +539,9 @@ def launch_sub_thread():
     )
     _thread.start_new_thread(_wait_for_quit, (statuesQue,))
     print('mbapy::web: web sub thread started')
-    
 
-def search_by_wos(query:str, limit:int = 1,
-                  browser = 'Chrome', browser_driver_path:str = None, proxies = None):
-    def _parse_wos_paper_link(browser, link:str):
-        browser.get('https://www.webofscience.com'+link)
-        time.sleep(5)
-        scroll_browser(browser, 'bottom', 5)
-        s = etree.HTML(browser.page_source)
-        title = s.xpath('//h2[@class="title text--large"]/text()')
-        authors = s.xpath('//span[contains(@class, "value ng-star-inserted") and starts-with(@id, "author-")]//text()')
-        doi = s.xpath('//span[@data-ta="FullRTa-DOI"]/text()')
-        date = s.xpath('//span[@data-ta="FullRTa-indexedDate"]/text()')
-        article_type = s.xpath('//span[@data-ta="FullRTa-doctype-0"]/text()')
-        abstruct_lst = s.xpath('//div[@class="abstract--instance"]/p/text()')
-        abstruct = '\n'.join(abstruct_lst)
-        keywords = s.xpath('//app-full-record-keywords[@class="ng-star-inserted"]//div//span//div[1]//span//a//text()')
-        jounal = s.xpath('//mat-sidenav-content//span//a//text()')
-        impact_factor = s.xpath('//mat-sidenav-content//span//button//span//span//text()')
-        jounal_subjects = s.xpath('//div[@class="journal-content"]//div[5]//span[@class="value-wrap ng-star-inserted"]//text()')
-        
-        full_text_button = click_browser(browser, '//app-full-record-links//div//a[2]', 'xpath', 5)
-        pass
-    # init browser, make search and get the first page
-    browser = get_browser(browser, browser_driver_path, ['--no-sandbox'], True)
-    browser.get("https://www.webofscience.com/wos/alldb/basic-search")
-    click_browser(browser, '//button[@id="onetrust-accept-btn-handler"]', 'xpath')
-    send_browser_key(browser, query+'\n', '//input[@name="search-main-box"]', 'xpath')
-    # parse the first page
-    try:
-        locator = (transfer_str2by('xpath'), '//div[@class="search-display"]')
-        WebDriverWait(browser, 5).until(EC.presence_of_element_located(locator))
-    finally:
-        scroll_browser(browser, 'bottom', 5)
-    wait_for_amount_elements(browser, 'xpath', '//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a', 45)
-    links = etree.HTML(browser.page_source).xpath('//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a/@href')
-    
-    for link in links:
-        _parse_wos_paper_link(browser, link)
     
 if __name__ == '__main__':
     # dev code
-    search_by_wos('linaclotide', 1, 'Chrome', r"c:\Users\BHMfly\AppData\Local\Google\Chrome\Application\chromedriver.exe")
-    
+    pass
     
