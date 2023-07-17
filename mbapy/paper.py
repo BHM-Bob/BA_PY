@@ -279,12 +279,15 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
         return link
             
     results = etree.HTML(webpage.text)
-    title = results.xpath('//div[@id="citation"]/i/text()')[0]
-    doi = results.xpath('//div[@id="citation"]//following-sibling::text()')[0]
-    download_link = results.xpath('//div[@id="buttons"]/button[1]/@onclick')[0].split("'")[1]
-    valid_download_link = _get_valid_download_link(download_link)
-    res = session.request(method='GET', url=valid_download_link, proxies=proxies)
-    return {'title': title, 'doi': doi, 'res': res}
+    try:
+        title = results.xpath('//div[@id="citation"]/i/text()')[0]
+        doi = results.xpath('//div[@id="citation"]//following-sibling::text()')[0]
+        download_link = results.xpath('//div[@id="buttons"]/button[1]/@onclick')[0].split("'")[1]
+        valid_download_link = _get_valid_download_link(download_link)
+        res = session.request(method='GET', url=valid_download_link, proxies=proxies)
+        return {'title': title, 'doi': doi, 'res': res}
+    except:
+        return put_err(f'can not download', None)
 
 @parameter_checker(check_parameters_bool, raise_err = False)
 def download_from_scihub_by_doi(doi:str, proxies = None):

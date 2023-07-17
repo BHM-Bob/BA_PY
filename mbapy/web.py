@@ -16,10 +16,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 if __name__ == '__main__':
-    from mbapy.base import put_err, check_parameters_path, check_parameters_len
+    from mbapy.base import put_err, check_parameters_path, check_parameters_len, get_default_for_bool
     from mbapy.file import save_json, read_json, save_excel, read_excel, opts_file
 else:
-    from .base import put_err, check_parameters_path, check_parameters_len
+    from .base import put_err, check_parameters_path, check_parameters_len, get_default_for_bool
     from .file import save_json, read_json, save_excel, read_excel, opts_file
 
 CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
@@ -172,6 +172,12 @@ def get_between_re(string:str, head:str, tail:str,
     else:
         h, t = h.group(0) if h != '' else '', t.group(0)
     return get_between(string, h, t, head_r, tail_r, ret_head, ret_tail)
+
+def parse_xpath_info(xpath_search_key:str, xpath_obj, is_single: bool = True):
+    search_result = xpath_obj.xpath(xpath_search_key)
+    if is_single:
+        return get_default_for_bool(search_result, [''])[0].strip()
+    return get_default_for_bool(search_result, [''])
 
 def get_browser(browser:str, browser_driver_path:str = None,
                 options =['--no-sandbox', '--headless', f"--user-agent={BROWSER_HEAD:s}"],
@@ -515,6 +521,25 @@ def launch_sub_thread():
 
 def search_by_wos(query:str, limit:int = 1,
                   browser = 'Chrome', browser_driver_path:str = None, proxies = None):
+    def _parse_wos_paper_link(browser, link:str):
+        browser.get('https://www.webofscience.com'+link)
+        time.sleep(5)
+        scroll_browser(browser, 'bottom', 5)
+        s = etree.HTML(browser.page_source)
+        title = s.xpath('//h2[@class="title text--large"]/text()')
+        authors = s.xpath('//span[contains(@class, "value ng-star-inserted") and starts-with(@id, "author-")]//text()')
+        doi = s.xpath('//span[@data-ta="FullRTa-DOI"]/text()')
+        date = s.xpath('//span[@data-ta="FullRTa-indexedDate"]/text()')
+        article_type = s.xpath('//span[@data-ta="FullRTa-doctype-0"]/text()')
+        abstruct_lst = s.xpath('//div[@class="abstract--instance"]/p/text()')
+        abstruct = '\n'.join(abstruct_lst)
+        keywords = s.xpath('//app-full-record-keywords[@class="ng-star-inserted"]//div//span//div[1]//span//a//text()')
+        jounal = s.xpath('//mat-sidenav-content//span//a//text()')
+        impact_factor = s.xpath('//mat-sidenav-content//span//button//span//span//text()')
+        jounal_subjects = s.xpath('//div[@class="journal-content"]//div[5]//span[@class="value-wrap ng-star-inserted"]//text()')
+        
+        full_text_button = click_browser(browser, '//app-full-record-links//div//a[2]', 'xpath', 5)
+        pass
     # init browser, make search and get the first page
     browser = get_browser(browser, browser_driver_path, ['--no-sandbox'], True)
     browser.get("https://www.webofscience.com/wos/alldb/basic-search")
@@ -528,10 +553,12 @@ def search_by_wos(query:str, limit:int = 1,
         scroll_browser(browser, 'bottom', 5)
     wait_for_amount_elements(browser, 'xpath', '//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a', 45)
     links = etree.HTML(browser.page_source).xpath('//div[@dir="ltr" and @class="ng-star-inserted"]/app-summary-title/h3/a/@href')
-    pass
+    
+    for link in links:
+        _parse_wos_paper_link(browser, link)
     
 if __name__ == '__main__':
     # dev code
-    search_by_wos('linaclotide', 1, 'Chrome', CHROMEDRIVERPATH)
+    search_by_wos('linaclotide', 1, 'Chrome', r"c:\Users\BHMfly\AppData\Local\Google\Chrome\Application\chromedriver.exe")
     
     
