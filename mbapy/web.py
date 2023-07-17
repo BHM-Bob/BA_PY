@@ -212,6 +212,36 @@ def get_browser(browser:str, browser_driver_path:str = None,
     return Browser(**kwargs)
 
 def add_cookies(browser, cookies_path:str = None, cookies_string:str = None):
+    """
+    Adds cookies to the browser.
+
+    Parameters:
+        browser (object): The browser object to add the cookies to.
+        cookies_path (str, optional): The path to the file containing the cookies. Defaults to None.
+        cookies_string (str, optional): A string of cookies to add. Defaults to None.
+
+    Returns:
+        None: This function does not return anything.
+
+    Raises:
+        ValueError: If no cookies are specified.
+
+    Description:
+        This function adds cookies to the specified browser object. It can add cookies from a file or from a string. If 
+        the `cookies_path` parameter is provided, the function will check if the file exists and is valid before 
+        parsing and adding the cookies. If the `cookies_string` parameter is provided, the function will directly parse 
+        and add the cookies from the string. If neither `cookies_path` nor `cookies_string` is provided, a `ValueError` 
+        will be raised.
+
+        The function internally uses the `_parse_cookies` function to parse and add the cookies.
+
+    Example Usage:
+        # Add cookies from a file
+        add_cookies(browser, cookies_path="cookies.txt")
+
+        # Add cookies from a string
+        add_cookies(browser, cookies_string="cookie1=value1; cookie2=value2")
+    """
     def _parse_cookies(browser, cookies_string:str):
         for cookie in cookies_string.split(";"):
             name, value = cookie.strip().split("=", 1)
@@ -319,20 +349,18 @@ def click_browser(browser, element:str, by:str = 'class', wait = 5):
 
 def scroll_browser(browser, scroll='bottom', duration=0):
     """
-    Scroll the browser window to a specific position or to the bottom within a specified duration.
+    Scroll the browser window either to the bottom or by a specific amount.
 
-    Args:
-        browser (WebDriver): The WebDriver instance controlling the browser.
-        scroll (str or int): The scroll position. If 'bottom', the browser will be scrolled to the bottom.
-                             If an integer, the browser will be scrolled to the specified position.
-        duration (int, optional): The duration (in seconds) over which the scrolling animation should occur.
-                                  Defaults to 0.
-
+    Parameters:
+        browser (object): The browser object.
+        scroll (str|int): The scroll behavior. If set to 'bottom', the browser will be scrolled to the bottom. 
+                          If set to an integer, the browser will be scrolled by that amount (in pixels).
+        duration (int): The duration (in seconds) for which the scroll operation should be performed. 
+                        If set to 0, the scroll operation will be performed instantly.
     Returns:
-        None
-
+        None: This function does not return anything.
     Raises:
-        Exception: If an invalid scroll type is provided.
+        ValueError: If the scroll type is unknown.
     """
     scrolled_length = 0
     end_time = time.time() + duration
@@ -345,8 +373,8 @@ def scroll_browser(browser, scroll='bottom', duration=0):
                 scrolled_length += scroll_per_frame
                 browser.execute_script(f"window.scrollBy(0, {scroll_per_frame});")
                 time.sleep(1 / 10)  # 等待1/10秒，模拟每秒10帧
-        else:
-            browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        # if duration == 0 or if duration is not enough
+        browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     elif isinstance(scroll, int) and scroll > 0:
         if duration > 0:
             while time.time() < end_time:
