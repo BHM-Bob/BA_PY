@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-14 22:28:03
+LastEditTime: 2023-07-19 00:04:26
 Description: 
 '''
 import sys, os
@@ -230,6 +230,9 @@ def get_default_for_None(x, deault):
 
 def get_default_for_bool(x, deault):
     return x if bool(x) else deault
+
+def get_default_call_for_None(x, deault_func, *args, **kwargs):
+    return x if x is not None else deault_func(*args, **kwargs)
 
 def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """
