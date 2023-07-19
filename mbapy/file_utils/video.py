@@ -150,12 +150,10 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
     Returns:
         Tuple[List[int], List[ndarray]]: A tuple containing two lists - the indices of the unique frames and the unique frames themselves.
 
-    Raises:
-        ValueError: If the specified backend is not supported.
-
     Notes:
         - This function requires the OpenCV and skimage libraries.
-        - If the backend is set to 'torch-res50', this function requires the mbapy library and a compatible PyTorch model.
+        - If the backend is set to 'torch-res50', this function requires a cuda compatible pytorch package.
+            And will get features from the resnet50 model.
     """
     if backend == 'skimage':
         from skimage.metrics import structural_similarity
@@ -206,11 +204,11 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
             frame = cv2.resize(frame, None, fx=scale_factor, fy=scale_factor)
         # tansfer frame to features
         if backend == 'torch-res50':
-            frame = calculate_frame_features(frame, model, transform = trans)
+            frame = calculate_frame_features(frame, model, transform = trans).unsqueeze(0)
         # go through the history frame list, compare the SSIM for current frame with each frame
         is_unique = True
         for hist_frame in unique_frames:
-            ssim = _calculate_ssim(frame.unsqueeze(0), hist_frame.unsqueeze(0))
+            ssim = _calculate_ssim(frame, hist_frame)
             if ssim > threshold:
                 is_unique = False
                 break

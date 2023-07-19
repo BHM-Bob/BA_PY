@@ -2,16 +2,21 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-19 19:32:49
+LastEditTime: 2023-07-19 23:12:41
 Description: 
 '''
 import chardet
-import json
 import os
 from typing import List, Dict
 
+try:
+    import ujson as json
+except:
+    import json
+
 import pandas as pd
 from tqdm import tqdm
+
 
 if __name__ == '__main__':
     # dev mode
@@ -266,15 +271,4 @@ if __name__ == '__main__':
     # extract pdf text
     # pdf_path = r"./data_tmp/DiffBP Generative Diffusion of 3D Molecules for Target Protein Binding.pdf"
     # print(convert_pdf_to_txt(pdf_path))
-    
-    video_path = r"./data_tmp/extract_frames.mp4"
-    # extract video frames
-    # extract_frame_to_img(video_path, read_frame_interval=50)
-    
-    # extract unique frames
-    os.makedirs(f'./data_tmp/unique_frames', exist_ok=True)
-    idx, frames = extract_unique_frames(video_path, threshold=0.8,
-                                   read_frame_interval=10, scale_factor=0.8)
-    for frame_idx, frame in enumerate(extract_frames_by_index(video_path, idx)):
-        cv2.imwrite(f'./data_tmp/unique_frames/frame_{frame_idx}.jpg', frame)
         
