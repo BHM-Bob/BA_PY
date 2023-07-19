@@ -1,19 +1,23 @@
 '''
 Date: 2023-07-18 23:01:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-19 00:09:18
+LastEditTime: 2023-07-19 21:23:14
 FilePath: \BA_PY\mbapy\file_utils\image.py
 Description: 
 '''
+import os
+from typing import Union, List
+
 import cv2
 import torch
+import torchvision
 import torchvision.transforms as transforms
 import torchvision.models as models
 
 if __name__ == '__main__':
-    from mbapy.base import get_default_call_for_None
+    from mbapy.base import get_default_for_None, get_default_call_for_None
 else:
-    from ..base import get_default_call_for_None
+    from ..base import get_default_for_None, get_default_call_for_None
 
 def _load_nn_model(model_dir:str):
     """
@@ -26,56 +30,66 @@ def _load_nn_model(model_dir:str):
         model (torch.nn.Module): The loaded neural network model.
     """
     torch.hub.set_dir(model_dir)
-    model = models.resnet50(pretrained=True, progress=True)
+    os.makedirs(model_dir, exist_ok=True)
+    model = models.resnet50(weights=torchvision.models.ResNet50_Weights.DEFAULT, progress=True)
     model = torch.nn.Sequential(*list(model.children())[:-1])
     model.eval()
     return model
 
-def _get_transform(resize, crop):
+def _get_transform(resize, crop,
+                   normalize = None, device = 'cpu'):
     """
-    Returns a composed transformation function that resizes and crops an image.
+        Returns a torchvision transform composed of a series of image transformations.
 
-    Parameters:
-        resize (int or None): The desired size of the image after resizing. If None, the image is resized to 256 pixels.
-        crop (int or None): The desired size of the image after cropping. If None, the image is cropped to 224 pixels.
+        Args:
+            resize (int, optional): The size of the shorter side of the image after resizing. Defaults to 256.
+            crop (int, optional): The size of the final cropped image. Defaults to 224.
+            normalize (dict, optional): A dictionary containing the mean and standard deviation values for image normalization. If not provided, default values of [0.485, 0.456, 0.406] for mean and [0.229, 0.224, 0.225] for standard deviation will be used. Defaults to None.
+            device (str, optional): The device on which the tensor will be stored. Defaults to 'cpu'.
 
-    Returns:
-        torchvision.transforms.Compose: A composed transformation function that resizes, crops, converts to a tensor, and normalizes the image.
+        Returns:
+            torchvision.transforms.Compose: A torchvision transform composed of the specified image transformations.
     """
+    normalize = get_default_for_None(normalize, {'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225]})
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Resize(resize) if resize is not None else transforms.Resize(256),
-        transforms.CenterCrop(crop) if crop is not None else transforms.CenterCrop(224),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        lambda x: x.to(device = device),
+        transforms.Resize(get_default_for_None(resize, 256), antialias=True),
+        transforms.CenterCrop(get_default_for_None(crop, 224)),
+        transforms.Normalize(**normalize)
     ])
     return transform
 
-def calculate_frame_features(frame, model:torch.nn.Module = None, model_dir:str=None,
+def calculate_frame_features(frame:Union[cv2.Mat, List[cv2.Mat]], model:torch.nn.Module = None, model_dir:str=None,
                              transform = None, resize=None, crop = None):
     """
-    Calculate the frame features using a given model and transform.
+    Calculates frame features using a given model and transform.
 
     Args:
-        frame (torch.Tensor): The input frame as a torch tensor.
-        model (torch.nn.Module, optional): The neural network model to use for feature calculation. 
-            Defaults to None.
-        model_dir (str, optional): The directory to load the model from. Defaults to None.
-        transform (callable, optional): The transformation to apply to the frame before feature calculation.
-            Defaults to None.
-        resize (tuple, optional): The size to resize the frame to. Defaults to None.
-        crop (tuple, optional): The crop coordinates to apply to the frame. Defaults to None.
+        frame (Union[cv2.Mat, List[cv2.Mat]]): The frame or frames to calculate features on.
+        model (torch.nn.Module, optional): The model to use for feature calculation. Defaults to None.
+        model_dir (str, optional): The directory containing the model weights. Defaults to None.
+            **Attention: There must be one is not None for model and model_path**. 
+        transform (object, optional): The transform to apply to the frame(s). If None, the image is transformed to 224 pixels.
+        resize (object, optional): The resize configuration for the transform. If None, the image is resized to 256 pixels.
+        crop (object, optional): The crop configuration for the transform. If None, the image is cropped to 224 pixels.
 
     Returns:
-        torch.Tensor: The calculated features as a torch tensor.
+        Union[Tensor, List[Tensor]]: The calculated frame features.
     """
     # load model and transform
     model = get_default_call_for_None(model, _load_nn_model, model_dir)
     transform = get_default_call_for_None(transform, _get_transform, resize, crop)
     # calculate features
-    frame = transform(frame).unsqueeze(0)
     with torch.no_grad():
-        features = model(frame)
-    features = torch.flatten(features)
+        if isinstance(frame, list):
+            features = []
+            for x in frame:
+                x = transform(x).unsqueeze(0)
+                features.append(model(x).view(-1))
+        else:
+            x = transform(frame).unsqueeze(0)
+            features = model(x).view(-1)
     return features
 
 if __name__ == '__main__':
@@ -85,8 +99,7 @@ if __name__ == '__main__':
 
     # 计算帧的特征向量
     model = _load_nn_model("./data_tmp/nn_model/torchvision")
-    features1 = calculate_frame_features(frame1, model, resize=(224, 224))
-    features2 = calculate_frame_features(frame2, model, resize=(224, 224))
+    features1, features2 = calculate_frame_features([frame1, frame2], model, resize=(224, 224))
 
     # 比较特征向量
     similarity = torch.cosine_similarity(features1, features2, dim=0)

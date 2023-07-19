@@ -137,5 +137,8 @@ log.txt
 # bin
 mbapy/bin
 
+# nn_model
+data/nn_models
+
 # tmp data
 data_tmp

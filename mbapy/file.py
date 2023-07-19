@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-18 23:51:51
+LastEditTime: 2023-07-19 19:32:49
 Description: 
 '''
 import chardet
@@ -16,20 +16,24 @@ from tqdm import tqdm
 if __name__ == '__main__':
     # dev mode
     from mbapy.base import put_err, parameter_checker, check_parameters_path, get_default_for_bool, format_secs
-    # functions assembly
+    # video and image functions assembly
     try:
         import cv2
+        import torch
         from mbapy.file_utils.video import *
+        from mbapy.file_utils.image import *
     except:
         pass
 else:
     # release mode
     from .base import put_err, parameter_checker, check_parameters_path, get_default_for_bool, format_secs
-    # functions assembly
-    try:
+    # video and image functions assembly
+    try:# mbapy package now does not require cv2 and torch installed forcibly
         import cv2
+        import torch
         from .file_utils.video import *
-    except:
+        from .file_utils.image import *
+    except:# if cv2 or torch is not installed, skip
         pass
 
 def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):

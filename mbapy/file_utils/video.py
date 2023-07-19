@@ -1,16 +1,16 @@
 
 import os
-from typing import List, Dict
+from typing import List, Dict, Union
 
 import cv2
 from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import put_err, parameter_checker, check_parameters_path, get_default_for_bool, format_secs
+    from mbapy.base import *
 else:
     # release mode
-    from ..base import put_err, parameter_checker, check_parameters_path, get_default_for_bool, format_secs
+    from ..base import *
 
     
 def get_cv2_video_attr(video, attr_name:str, ret_int:bool = True):
@@ -134,12 +134,34 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
 @parameter_checker(check_parameters_path, raise_err=False)
 def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
                           scale_factor=1.0, compare_gray = True,
-                          backend = 'skimage'):
+                          backend = 'skimage', model_dir = './data/nn_models/'):
+    """
+    Extracts unique frames from a video based on structural similarity index (SSIM).
+
+    Parameters:
+        video_path (str): The path to the video file.
+        threshold (float): The threshold value for SSIM. Frames with SSIM values above this threshold will be considered unique.
+        read_frame_interval (int, optional): The interval at which frames should be read from the video. Defaults to 0 (every frame).
+        scale_factor (float, optional): The factor by which the frame should be scaled. Defaults to 1.0 (no scaling).
+        compare_gray (bool, optional): Whether to compare frames in grayscale. Defaults to True.
+        backend (str, optional): The backend library to use for SSIM calculation. Defaults to 'skimage'.
+        model_dir (str, optional): The directory containing the neural network models. Defaults to './data/nn_models/'.
+
+    Returns:
+        Tuple[List[int], List[ndarray]]: A tuple containing two lists - the indices of the unique frames and the unique frames themselves.
+
+    Raises:
+        ValueError: If the specified backend is not supported.
+
+    Notes:
+        - This function requires the OpenCV and skimage libraries.
+        - If the backend is set to 'torch-res50', this function requires the mbapy library and a compatible PyTorch model.
+    """
     if backend == 'skimage':
         from skimage.metrics import structural_similarity
     elif backend == 'numpy':
         import numpy as np
-    elif backend == 'pytorch':
+    elif backend in ['pytorch', 'torch-res50']:
         import torch
     else:
         return put_err(f'backend {backend:s} is not supported', None)
@@ -149,17 +171,24 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
             return structural_similarity(img1, img2, full=True)[1].mean()
         elif backend == 'numpy':
             return np.diff(img1, img2).mean()
-        elif backend == 'pytorch-resnet':
-            return torch.nn.functional.l1_loss(img1.cuda(), img2.cuda()).item()
+        elif backend == 'pytorch':
+            return torch.nn.functional.l1_loss(img1, img2).item()
         
     # open video file
     video = cv2.VideoCapture(video_path)
     if not video.isOpened():
         return put_err(f'{video_path:s} can not be opened with cv2', None)
     fps = get_cv2_video_attr(video, 'FPS')
+    width = int(get_cv2_video_attr(video, 'FRAME_WIDTH')*scale_factor)
+    heigth = int(get_cv2_video_attr(video, 'FRAME_HEIGHT')*scale_factor)
     # compare the frames by SSIM
     unique_frames, unique_frames_idx = [], []
     progress_bar = tqdm(range(get_cv2_video_attr(video, 'FRAME_COUNT')), desc='unique frames: 1')
+    if backend == 'torch-res50':
+        from mbapy.file_utils.image import _load_nn_model, _get_transform, calculate_frame_features
+        model = _load_nn_model(model_dir).cuda()
+        trans = _get_transform((width, heigth), (width, heigth), device='cuda')
+        _calculate_ssim = torch.nn.functional.cosine_similarity
     for frame_idx in range(get_cv2_video_attr(video, 'FRAME_COUNT')):
         # update frame_idx and progress bar
         progress_bar.update(1)
@@ -171,14 +200,17 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
         if frame_idx % (read_frame_interval+1) != 0:
             continue
         # apply gray and scale factor
-        if compare_gray:
+        if compare_gray and backend != 'torch-res50':
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if scale_factor != 1.0:
             frame = cv2.resize(frame, None, fx=scale_factor, fy=scale_factor)
+        # tansfer frame to features
+        if backend == 'torch-res50':
+            frame = calculate_frame_features(frame, model, transform = trans)
         # go through the history frame list, compare the SSIM for current frame with each frame
         is_unique = True
         for hist_frame in unique_frames:
-            ssim = _calculate_ssim(frame, hist_frame)
+            ssim = _calculate_ssim(frame.unsqueeze(0), hist_frame.unsqueeze(0))
             if ssim > threshold:
                 is_unique = False
                 break
@@ -193,7 +225,6 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
     return unique_frames_idx, unique_frames
 
 
-
 if __name__ == '__main__':
     # dev code
     
@@ -202,8 +233,9 @@ if __name__ == '__main__':
     # extract_frame_to_img(video_path, read_frame_interval=50)
     
     # extract unique frames
-    os.makedirs(f'./data_tmp/unique_frames', exist_ok=True)
-    idx, frames = extract_unique_frames(video_path, threshold=0.8,
-                                   read_frame_interval=10, scale_factor=0.8)
+    interval, backend = 3, 'torch-res50'
+    os.makedirs(f'./data_tmp/unique_frames/{backend} interval{interval}', exist_ok=True)
+    idx, frames = extract_unique_frames(video_path, threshold=0.95,
+                                   read_frame_interval=interval, scale_factor=0.8, backend='torch-res50')
     for frame_idx, frame in enumerate(extract_frames_by_index(video_path, idx)):
-        cv2.imwrite(f'./data_tmp/unique_frames/frame_{frame_idx}.jpg', frame)
+        cv2.imwrite(f'./data_tmp/unique_frames/{backend} interval{interval}/frame_{frame_idx}.jpg', frame)
