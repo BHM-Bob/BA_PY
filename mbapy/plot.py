@@ -72,18 +72,17 @@ class AxisLable():
 
 def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float, bar_space:float):
     """
-    Returns the x-axis labels and positions of the bars for a plot with multiple categorical variables.
-    
-    :param factors: A list of column names in the DataFrame to group by.
-    :type factors: list[str]
-    :param df: The input DataFrame.
-    :type df: pd.DataFrame
-    :param width: The width of each bar.
-    :type width: float
-    :param bar_space: The space between bars.
-    :type bar_space: float
-    :return: A tuple containing a list of AxisLable objects for each axis and a list of positions for each bar.
-    :rtype: tuple(list[AxisLable], list[float])
+    Generate the position and labels for a grouped bar plot with multiple factors.
+
+    Args:
+        factors (List[str]): A list of strings representing the factors to group the bars by.
+        df (pd.DataFrame): A pandas DataFrame containing the data for the bar plot.
+        width (float): The width of each individual bar.
+        bar_space (float): The space between each group of bars.
+
+    Returns:
+        Tuple[List[List[AxisLable]], List[List[float]]]: A tuple containing two lists. The first list contains the labels for each factor and each bar. The second list contains the x-positions for each bar.
+
     """
     xlabels, fc_old, pos = [ [] for _ in range(len(factors))], '', []
     for f_i, f in enumerate(factors):
@@ -112,21 +111,27 @@ def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float, bar_space:float
 
 def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
-    stack bar plot with hue style\n
-    factors:[low_lever_factor, medium_lever_factor, ...] or just one\n
-    tags:[stack_low_y, stack_medium_y, ...] or just one\n
-    df:df from pro_bar_data or sort_df_factors\n
-    kwargs:
-        width = 0.4\n
-        bar_space = 0.2\n
-        xrotations = [0]*len(factors)\n
-        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']\n
-        hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],\n
-        labels:None,\n
-        font_size:None, \n
-        offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]\n
-        err = None\n
-        err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k'}
+    Stack bar plot with hue style
+
+    Args:
+        factors (List[str]): A list of factors. [low_lever_factor, medium_lever_factor, ...] or just one.
+        tags (List[str]): A list of tags. [stack_low_y, stack_medium_y, ...] or just one.
+        df (pd.DataFrame): A pandas DataFrame. From pro_bar_data or sort_df_factors.
+        **kwargs: Additional keyword arguments.
+            width = 0.4\n
+            bar_space = 0.2\n
+            xrotations = [0]*len(factors)\n
+            colors = plt.rcParams['axes.prop_cycle'].by_key()['color']\n
+            hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],\n
+            labels:None,\n
+            font_size:None, \n
+            offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]\n
+            err = None\n
+            err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k'}
+
+    Returns:
+        np.array: An array of positions.
+        ax1: An axis object.
     """
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     
@@ -224,23 +229,18 @@ def plot_positional_hue(factors:List[str], tags:List[str], df:pd.DataFrame, **kw
 
 def qqplot(tags:List[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
     """
-    Generates a QQPlot for each specified tag in the given DataFrame using statsmodels' qqplot function.
-    
-    :param tags: A list of strings containing the tags to be plotted.
-    :type tags: list[str]
-    :param df: A pandas DataFrame containing the data to be plotted.
-    :type df: pd.DataFrame
-    :param figsize: A tuple containing the size of the figure to be plotted, defaults to (12,6).
-    :type figsize: tuple(int, int)
-    :param nrows: The number of rows in the plot grid, defaults to 1.
-    :type nrows: int
-    :param ncols: The number of columns in the plot grid, defaults to 1.
-    :type ncols: int
-    :param **kwargs: Additional keyword arguments to be passed to the plot.
-    :type **kwargs: dict
-    
-    :return: None
-    :rtype: None
+    Generate a QQ-plot for each column in the given DataFrame.
+
+    Parameters:
+        tags (List[str]): A list of column names to generate QQ-plots for.
+        df (pd.DataFrame): The DataFrame containing the data.
+        figsize (tuple, optional): The size of the figure. Defaults to (12, 6).
+        nrows (int, optional): The number of rows in the figure grid. Defaults to 1.
+        ncols (int, optional): The number of columns in the figure grid. Defaults to 1.
+        **kwargs: Additional keyword arguments including xlim, ylim, title, tick_size, and label_size.
+
+    Returns:
+        None
     """
     axs = []
     fig = plt.figure(figsize = (12, 6))
@@ -262,11 +262,15 @@ def qqplot(tags:List[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
             
 def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
     """
-    Saves and shows the current figure.
+    Saves the current matplotlib figure to a file at the specified path and displays the figure.
 
-    :param path: A string representing the file path to save the figure.
-    :param dpi: An integer representing the resolution in dots per inch of the saved figure. Default is 300.
-    :param bbox_inches: A string or a Bbox object representing the portion of the figure to be saved in inches. Default is 'tight'.
+    Parameters:
+        path (str): The path where the figure will be saved.
+        dpi (int, optional): The resolution of the saved figure in dots per inch. Default is 300.
+        bbox_inches (str or Bbox, optional): The portion of the figure to save. Default is 'tight'.
+
+    Returns:
+        None
     """
     plt.tight_layout()
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
@@ -277,12 +281,12 @@ def plot_turkey(means, std_errs, tukey_results):
     Plot a bar chart showing the means of different groups along with the standard errors.
 
     Parameters:
-    - means: A list of mean values for each group.
-    - std_errs: A list of standard errors for each group.
-    - tukey_results: The Tukey's test results object.
+        means: A list of mean values for each group.
+        std_errs: A list of standard errors for each group.
+        tukey_results: The Tukey's test results object.
 
     Returns:
-    - The current `Axes` instance.
+        The current `Axes` instance.
 
     This function plots a bar chart using the given mean values and standard errors. It also marks the groups with significant differences based on the Tukey's test results.
     For each combination of groups, the function checks if the corresponding Tukey's test result indicates a significant difference. If so, it plots a horizontal line at the maximum height, vertical lines at the endpoints, and places a text label with stars indicating the p-value of the difference.

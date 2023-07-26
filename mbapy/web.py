@@ -130,32 +130,33 @@ def get_between(string:str, head:str, tail:str,
     idx1 = headIdx if ret_head else headIdx+len(head)
     idx2 = tailIdx+len(tail) if ret_tail else tailIdx
     return string[idx1:idx2]
+
 def get_between_re(string:str, head:str, tail:str,
-               head_r:bool = False, tail_r:bool = True,
-                ret_head:bool = False, ret_tail:bool = False):
+                   head_r:bool = False, tail_r:bool = True,
+                   ret_head:bool = False, ret_tail:bool = False):
     """
-    Returns the substring between the first occurrence of `head` and the first occurrence of `tail` in `string`.
-    If `head_r` is True, returns the substring between the last occurrence of `head` and the first occurrence of `tail`.
-    If `tail_r` is True, returns the substring between the first occurrence of `head` and the last occurrence of `tail`.
-    If `ret_head` is True, includes the `head` substring in the returned substring.
-    If `ret_tail` is True, includes the `tail` substring in the returned substring.
-    
-    :param string: The string to search for the substrings.
-    :type string: str
-    :param head: The left edge of the substring.
-    :type head: str
-    :param tail: The right edge of the substring.
-    :type tail: str
-    :param head_r: If True, returns the substring between the last occurrence of `head` and the first occurrence of `tail`.
-    :type head_r: bool
-    :param tail_r: If True, returns the substring between the first occurrence of `head` and the last occurrence of `tail`.
-    :type tail_r: bool
-    :param ret_head: If True, includes the `head` substring in the returned substring.
-    :type ret_head: bool
-    :param ret_tail: If True, includes the `tail` substring in the returned substring.
-    :type ret_tail: bool
-    :return: The substring between `head` and `tail` in `string`.
-    :rtype: str
+    Return the substring between two given patterns in a string.
+
+    Parameters:
+        string (str): The input string.
+        head (str): The starting pattern.
+        tail (str): The ending pattern.
+        head_r (bool, optional): If True, include the head pattern in the result. Defaults to False.
+        tail_r (bool, optional): If True, include the tail pattern in the result. Defaults to True.
+        ret_head (bool, optional): If True, return the head pattern along with the substring. Defaults to False.
+        ret_tail (bool, optional): If True, return the tail pattern along with the substring. Defaults to False.
+
+    Returns:
+        str: The substring between the head and tail patterns.
+
+    Raises:
+        ValueError: If the head or tail pattern is not found in the string.
+
+    Examples:
+        >>> get_between_re("Hello world!", "Hello", "!")
+        ' world'
+        >>> get_between_re("Hello world!", "Hello", "!", head_r=True, ret_tail=True)
+        'Hello world!'
     """
     h = re.compile(head).search(string) if len(head) > 0 else ''
     t = re.compile(tail).search(string)
@@ -302,17 +303,17 @@ def wait_for_amount_elements(browser, by, element, count, timeout=10):
     
 def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int = 5):
     """
-    Sends a string of keys to an element on a webpage using Selenium WebDriver.
-    
+    Sends a sequence of keystrokes to a specified element in a web browser.
+
     Args:
-    - browser: The WebDriver object to use.
-    - keys: The string of keys to send to the element.
-    - element: The identifier of the element to which the keys should be sent.
-    - by: The method to use to find the element. Defaults to 'class'. Supported values are 'class', 'css', 'xpath'
-    - wait: The maximum number of seconds to wait for the element to appear. Defaults to 5.
-    
+        browser (WebDriver): The web browser instance.
+        keys (str): The sequence of keystrokes to send.
+        element (str): The identifier of the element to send the keystrokes to.
+        by (str, optional): The method used to locate the element. Defaults to 'class'.
+        wait (int, optional): The maximum time in seconds to wait for the element to be present. Defaults to 5.
+
     Returns:
-    - None
+        None
     """
     by = transfer_str2by(by)
     try:
@@ -323,19 +324,16 @@ def send_browser_key(browser, keys:str, element:str, by:str = 'class', wait:int 
         
 def click_browser(browser, element:str, by:str = 'class', wait = 5):
     """
-    Clicks on a specified element in a browser using Selenium WebDriver.
+    Clicks on a specified element in a browser.
 
-    :param browser: The Selenium WebDriver to use.
-    :type browser: selenium.webdriver
-    :param element: The identifier for the element to be clicked.
-    :type element: str
-    :param by: The method used to locate the element (default is 'class').
-        Valid options are 'class', 'id', 'name', 'xpath', 'css_selector', and 'link_text'.
-    :type by: str
-    :param wait: The number of seconds to wait for the element to appear before raising a TimeoutException.
-    :type wait: int or float
-    :return: None
-    :rtype: None
+    Args:
+        browser: The browser object on which to perform the click.
+        element (str): The identifier of the element to click on.
+        by (str, optional): The method to locate the element. Defaults to 'class'.
+        wait (int, optional): The maximum time to wait for the element to be present. Defaults to 5.
+
+    Returns:
+        None
     """
     by = transfer_str2by(by)
     try:
@@ -440,13 +438,16 @@ def get_input(promot:str = '', end = '\n'):
 
 def show_prog_info(idx:int, sum:int = -1, freq:int = 10, otherInfo:str = ''):
     """
-    Print progress information about a task at a certain frequency.
+    Print the progress information at regular intervals.
 
-    :param idx: An integer representing the current progress of the task.
-    :param sum: An optional integer representing the total size of the task. Default is -1.
-    :param freq: An integer representing the frequency to print the progress information. Default is 10.
-    :param otherInfo: An optional string with additional information to display. Default is an empty string.
-    :return: None.
+    Parameters:
+    - idx (int): The current index.
+    - sum (int, default=-1): The total number of items.
+    - freq (int, default=10): The frequency at which progress information is printed.
+    - otherInfo (str, default=''): Additional information to display.
+
+    Returns:
+    None
     """
     if idx % freq == 0:
         print(f'\r {idx:d} / {sum:d} | {otherInfo:s}', end = '')

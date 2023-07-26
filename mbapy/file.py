@@ -104,13 +104,14 @@ def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
 
 def detect_byte_coding(bits:bytes):
     """
-    Detects the byte coding of a given byte sequence and decodes it accordingly. 
+    This function takes a byte array as input and detects the encoding of the first 1000 bytes (or less if the input is shorter).
+    It then decodes the byte array using the detected encoding and returns the resulting text.
 
-    :param bits: The byte sequence to be decoded.
-    :type bits: bytes
-    
-    :return: The decoded string.
-    :rtype: str
+    Parameters:
+        bits (bytes): The byte array to be decoded.
+
+    Returns:
+        str: The decoded text.
     """
     adchar = chardet.detect(bits[:(1000 if len(bits) > 1000 else len(bits))])['encoding']
     if adchar == 'gbk' or adchar == 'GBK' or adchar == 'GB2312':
@@ -121,11 +122,14 @@ def detect_byte_coding(bits:bytes):
 
 def get_byte_coding(bits:bytes, max_detect_len = 1000):
     """
-    Given a bytes object 'bits' and an optional integer 'max_detect_len', 
-    this function detects the encoding of the byte string 'bits' using 
-    the chardet module. It returns a string representing the detected 
-    encoding of the byte string. If 'max_detect_len' is given, it limits the 
-    number of bytes that chardet analyzes for encoding detection.
+    Calculate the byte coding of a given sequence of bits.
+
+    Args:
+        bits (bytes): The sequence of bits to be analyzed.
+        max_detect_len (int, optional): The maximum number of bits to consider when determining the byte coding. Defaults to 1000.
+
+    Returns:
+        str: The detected byte coding of the input sequence.
     """
     return chardet.detect(bits[ : min(max_detect_len, len(bits))])['encoding']
 
@@ -148,15 +152,16 @@ def decode_bits_to_str(bits:bytes):
 
 def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
     """
-    Saves a Python object to a JSON file located at `path`. If the file does not exist or `forceUpdate` is `True`, 
-    it will overwrite the existing file with the provided object. The encoding of the file can be specified using the 
-    `encoding` parameter (default is 'utf-8').
+    Saves an object as a JSON file at the specified path.
 
-    :param path: A string representing the file path to save the JSON object.
-    :param obj: The Python object to be saved as a JSON file.
-    :param encoding: A string representing the encoding of the file (default is 'utf-8').
-    :param forceUpdate: A boolean indicating whether to overwrite the file if it already exists (default is True).
-    :return: None
+    Parameters:
+        - path (str): The path where the JSON file will be saved.
+        - obj: The object to be saved as JSON.
+        - encoding (str): The encoding of the JSON file. Default is 'utf-8'.
+        - forceUpdate (bool): Determines whether to overwrite an existing file at the specified path. Default is True.
+
+    Returns:
+        None
     """
     if forceUpdate or not os.path.isfile(path):
         json_str = json.dumps(obj, indent=1)
@@ -165,15 +170,16 @@ def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
             
 def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
     """
-    Given a path to a JSON file, reads its contents and returns the parsed JSON object.
-    
-    :param path: The path to the JSON file.
-    :type path: str
-    :param encoding: The encoding of the file. Default is 'utf-8'.
-    :type encoding: str
-    :param invalidPathReturn: The value to return in case the file path is invalid. Default is None.
-    :return: The parsed JSON object if the file exists, otherwise invalidPathReturn.
-    :rtype: dict or list or None
+    Read a JSON file from the given path and return the parsed JSON data.
+
+    Parameters:
+        path (str): The path to the JSON file.
+        encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
+        invalidPathReturn (any, optional): The value to return if the path is invalid. Defaults to None.
+
+    Returns:
+        dict: The parsed JSON data.
+        invalidPathReturn (any): The value passed as `invalidPathReturn` if the path is invalid.
     """
     if os.path.isfile(path):
         with open(path, 'r' ,encoding=encoding, errors='ignore') as json_file:
@@ -183,57 +189,82 @@ def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
 
 def save_excel(path:str, obj:List[List[str]], columns:List[str], encoding:str = 'utf-8', forceUpdate = True):
     """
-    Saves a list of lists as an Excel file at the given path. 
+    Save a list of lists as an Excel file.
 
-    :param path: A string representing the path where the Excel file will be saved.
-    :param obj: A list of lists that will be saved as the Excel file.
-    :param columns: A list of strings representing the column names.
-    :param encoding: A string representing the encoding to use when saving the Excel file. Default is 'utf-8'.
-    :param forceUpdate: A boolean indicating whether to update the Excel file if it already exists. Default is True.
+    Args:
+        path (str): The path where the Excel file will be saved.
+        obj (List[List[str]]): The list of lists to be saved as an Excel file.
+        columns (List[str]): The column names for the Excel file.
+        encoding (str, optional): The encoding of the Excel file. Defaults to 'utf-8'.
+        forceUpdate (bool, optional): If True, the file will be saved even if it already exists. Defaults to True.
 
-    :return: This function does not return anything.
+    Returns:
+        bool: True if the file was successfully saved, False otherwise.
     """
     if forceUpdate or not os.path.isfile(path):
         df = pd.DataFrame(obj, columns=columns)
         df.to_excel(path, encoding = encoding)
-def read_excel(path:str, ignoreHead:bool = True,
-                  ignoreFirstCol:bool = True, invalidPathReturn = None):
+        return True
+    return False
+
+def read_excel(path:str, sheet_name:str = None, ignore_head:bool = True,
+                  ignore_first_col:bool = True, invalid_path_return = None):
     """
-    Reads an excel file located at the given path and returns a pandas DataFrame object.
+    Reads an Excel file and returns a pandas DataFrame.
     
     Args:
-        path (str): The path to the excel file.
-        ignoreHead (bool, optional): Whether or not to ignore the first row of the file. Defaults to True.
-        ignoreFirstCol (bool, optional): Whether or not to ignore the first column of the file. Defaults to True.
-        invalidPathReturn (optional): The object to return when the path is invalid. Defaults to None.
+        path (str): The path to the Excel file.
+        sheet_name (str, optional): The name of the sheet to read. Defaults to None.
+        ignore_head (bool, optional): Whether to ignore the first row (header) of the sheet. Defaults to True.
+        ignore_first_col (bool, optional): Whether to ignore the first column of the sheet. Defaults to True.
+        invalid_path_return (Any, optional): The value to return if the path is invalid. Defaults to None.
     
     Returns:
-        pandas.DataFrame: A DataFrame object containing the data from the excel file, or invalidPathReturn if the path is invalid.
+        pandas.DataFrame: The DataFrame containing the data from the Excel file.
+            or:
+        invalid_path_return (Any): The value specified if the path is invalid.
     """
     if os.path.isfile(path):
-        df = pd.read_excel(path, )
+        df = pd.read_excel(path, sheet_name)
+        if ignore_head:
+            df = df.iloc[1:]  # 忽略第一行（表头）
+        if ignore_first_col:
+            df = df.iloc[:, 1:]  # 忽略第一列
         return df
-    return invalidPathReturn
+    return invalid_path_return
 
 def write_sheets(path:str, sheets:Dict[str, pd.DataFrame]):
     """
-    Writes multiple pandas DataFrames to an Excel file with multiple sheets.
+    Write multiple sheets to an Excel file.
 
-    :param path: A string representing the path to the Excel file.
-    :param sheets: A dictionary where the keys are strings representing the sheet names and the values are pandas DataFrames to be written to the sheet.
-    :return: None
+    Args:
+        path (str): The path to the Excel file.
+        sheets (Dict[str, pd.DataFrame]): A dictionary mapping sheet names to dataframes.
+
+    Returns:
+        None
     """
-    with pd.ExcelWriter(path) as f:
-        for sheet in sheets:
-            sheets[sheet].to_excel(path, sheet_name=sheet)    
+    with pd.ExcelWriter(path) as writer:
+        for sheet_name, df in sheets.items():
+            df.to_excel(writer, sheet_name=sheet_name)
 
 def update_excel(path:str, sheets:Dict[str, pd.DataFrame] = None):
     """
-    Updates an Excel file with new data.
+    Updates an Excel file with the given path by adding or modifying sheets.
 
-    :param path: A string representing the file path of the Excel file.
-    :param sheets: A dictionary containing the sheet names and corresponding pandas DataFrames to be written to the Excel file. Defaults to None.
-    :return: If the Excel file is found, a dictionary of pandas DataFrames containing the sheets in the Excel file. If the Excel file is not found, None is returned.
+    Args:
+        path (str): The path of the Excel file.
+        sheets (Dict[str, pd.DataFrame], optional): A dictionary of sheets to add or modify. 
+            The keys are sheet names and the values are pandas DataFrame objects. 
+            Defaults to None.
+
+    Returns:
+        Union[Dict[str, pd.DataFrame], None]: If the Excel file exists and sheets is None, 
+            returns a dictionary containing all the sheets in the Excel file. 
+            Otherwise, returns None.
+
+    Raises:
+        None
     """
     if os.path.isfile(path):
         dfs = pd.read_excel(path, sheet_name=None)
