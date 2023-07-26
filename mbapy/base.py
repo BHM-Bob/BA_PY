@@ -359,29 +359,77 @@ class _Config_Web(_ConfigBase):
 class _Config(_ConfigBase):
     file: _Config_File = _Config_File()
     web: _Config_Web = _Config_Web()
-
-    def to_dict(self):
-        result = {}
-        for attr_name, attr_value in self.__dict__.items():
-            if hasattr(attr_value, 'to_dict'):
-                result[attr_name] = attr_value.to_dict()
-            else:
-                result[attr_name] = attr_value
-        return result
+    
+    def _get_default_config_path(self):
+        return os.path.join(self.file.storage_dir, '_Config.json')
 
     def update(self, sub_module_name: str, attr_name: str, attr_value: Union[int, str, List, Dict],
                save_to_file: bool = True):
+        """
+        Update the attribute of a sub-module in the configuration.
+
+        Parameters:
+            sub_module_name (str): The name of the sub-module.
+            attr_name (str): The name of the attribute to update.
+            attr_value (Union[int, str, List, Dict]): The new value for the attribute. Can be an integer, a string, a list, or a dictionary.
+            save_to_file (bool, optional): Indicates whether to save the updated configuration to a file. Defaults to True.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the sub_module_name is not supported.
+
+        """
         support_module = ['file', 'web']
         if sub_module_name in support_module:
             sub_module = getattr(self, sub_module_name)
             setattr(sub_module, attr_name, attr_value)
             if save_to_file:
                 json_str = json.dumps(self.to_dict(), indent=4)
-                with open(os.path.join(self.file.storage_dir, '_Config.json'),
+                with open(self._get_default_config_path(),
                           'w', encoding='utf-8', errors='ignore') as json_file:
                     json_file.write(json_str)
         else:
             return f'{sub_module_name} not supported, only support: {", ".join(support_module)}'
+        
+    def save_to_file(self, config_file_path:str = None):
+        """
+        Saves the object to a file in JSON format.
+
+        Args:
+            config_file_path (str, optional): The path where the JSON file will be saved. If not provided, the default path will be used.
+
+        Returns:
+            dict: A dictionary representation of the object.
+        """
+        config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
+        with open(config_file_path, 'w', encoding='utf-8', errors='ignore') as json_file:
+            json_file.write(json.dumps(self.to_dict(), indent=4))
+        return self.to_dict()
+        
+    def load_from_file(self, force_update: bool = True, config_file_path:str = None, update_to_file = True):
+        """
+        Load configuration data from a file.
+
+        Args:
+            force_update (bool, optional): Flag to force update the configuration. Defaults to True.
+            config_file_path (str, optional): Path to the configuration file. Defaults to None.
+            update_to_file (bool, optional): Flag to update the configuration to file after updating. Defaults to True.
+
+        Returns:
+            dict: The loaded and updated configuration data.
+        """
+        config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
+        with open(config_file_path, 'r', encoding='utf-8', errors='ignore') as json_file:
+            config = json.loads(json_file.read())
+            for sub_module_name, sub_configs in config.items():
+                for sub_config in sub_configs:
+                    if force_update or not hasattr(getattr(self, sub_module_name), sub_config):
+                        setattr(getattr(self, sub_module_name), sub_config, sub_config)
+        if update_to_file:
+            self.save_to_file()
+        return config
 
 _Configs = _Config()
 
