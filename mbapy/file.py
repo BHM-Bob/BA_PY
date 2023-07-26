@@ -5,9 +5,11 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2023-07-19 23:12:41
 Description: 
 '''
-import chardet
 import os
-from typing import List, Dict
+from glob import glob
+from typing import Dict, List
+
+import chardet
 
 try:
     import ujson as json
@@ -17,27 +19,32 @@ except:
 import pandas as pd
 from tqdm import tqdm
 
-
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import put_err, parameter_checker, check_parameters_path, get_default_for_bool, format_secs
+    from mbapy.base import (check_parameters_path, format_secs,
+                            get_default_for_bool, parameter_checker, put_err)
+
     # video and image functions assembly
     try:
         import cv2
         import torch
-        from mbapy.file_utils.video import *
+
         from mbapy.file_utils.image import *
+        from mbapy.file_utils.video import *
     except:
         pass
 else:
     # release mode
-    from .base import put_err, parameter_checker, check_parameters_path, get_default_for_bool, format_secs
+    from .base import (check_parameters_path, format_secs,
+                       get_default_for_bool, parameter_checker, put_err)
+
     # video and image functions assembly
     try:# mbapy package now does not require cv2 and torch installed forcibly
         import cv2
         import torch
-        from .file_utils.video import *
+
         from .file_utils.image import *
+        from .file_utils.video import *
     except:# if cv2 or torch is not installed, skip
         pass
 
@@ -155,6 +162,7 @@ def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
         json_str = json.dumps(obj, indent=1)
         with open(path, 'w' ,encoding=encoding, errors='ignore') as json_file:
             json_file.write(json_str)
+            
 def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
     """
     Given a path to a JSON file, reads its contents and returns the parsed JSON object.
@@ -267,8 +275,13 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
 if __name__ == '__main__':
     # dev code
     import cv2
-    
+
+    from mbapy.base import rand_choose
+
     # extract pdf text
-    # pdf_path = r"./data_tmp/DiffBP Generative Diffusion of 3D Molecules for Target Protein Binding.pdf"
-    # print(convert_pdf_to_txt(pdf_path))
+    pdf_path = rand_choose(glob("./data_tmp/papers/*.pdf"))
+    if pdf_path is not None:
+        print(convert_pdf_to_txt(pdf_path))
+    else:
+        put_err('pdf not found')
         

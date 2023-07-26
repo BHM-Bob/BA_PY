@@ -1,22 +1,21 @@
-import itertools
-from itertools import combinations
-import sys
 from functools import wraps
-from typing import Union, List, Dict, Tuple
+from itertools import combinations
+from typing import Dict, List, Tuple, Union
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 import seaborn as sns
+import statsmodels.api as sm
 from mpl_toolkits import axisartist
 from mpl_toolkits.axes_grid1 import host_subplot
 
-from mbapy.base import get_wanted_args
-from mbapy.stats.df import pro_bar_data, pro_bar_data_R, sort_df_factors, get_df_data
 import mbapy.stats.test as mst
+from mbapy.base import get_wanted_args
+from mbapy.stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
+                            sort_df_factors)
 from mbapy.stats.test import p_value_to_stars
 
 # plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文

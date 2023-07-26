@@ -16,11 +16,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 if __name__ == '__main__':
-    from mbapy.base import put_err, check_parameters_path, check_parameters_len, get_default_for_bool
-    from mbapy.file import save_json, read_json, save_excel, read_excel, opts_file
+    from mbapy.base import (check_parameters_len, check_parameters_path,
+                            get_default_for_bool, put_err)
+    from mbapy.file import (opts_file, read_excel, read_json, save_excel,
+                            save_json)
 else:
-    from .base import put_err, check_parameters_path, check_parameters_len, get_default_for_bool
-    from .file import save_json, read_json, save_excel, read_excel, opts_file
+    from .base import (check_parameters_len, check_parameters_path,
+                       get_default_for_bool, put_err)
+    from .file import opts_file, read_excel, read_json, save_excel, save_json
 
 CHROMEDRIVERPATH = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
 CHROME_DRIVER_PATH = CHROMEDRIVERPATH
@@ -100,31 +103,20 @@ def get_between(string:str, head:str, tail:str,
                ret_head:bool = False, ret_tail:bool = False,
                find_tail_from_head = False):
     """
-    Returns a substring of `string` that is between the last occurrence of `head` and the first 
-    occurrence of `tail`. If `headRFind` is True, the last occurrence of `head` is used to find 
-    the index of the start of the substring; otherwise, the first occurrence of `head` is used. 
-    If `tailRFind` is True, the last occurrence of `tail` is used to find the index of the 
-    end of the substring; otherwise, the first occurrence of `tail` is used. If `retHead` is 
-    True, the returned substring includes the `head`; otherwise it starts after the `head`. 
-    If `retTail` is True, the returned substring includes the `tail`; otherwise it ends before 
-    the `tail`. If either `head` or `tail` is not found in `string`, an error message is returned. 
+    Finds and returns a substring between two given strings in a larger string.
 
-    :param string: The string to extract a substring from
-    :type string: str
-    :param head: The starting delimiter of the substring
-    :type head: str
-    :param tail: The ending delimiter of the substring
-    :type tail: str
-    :param headRFind: Whether to find the last (True) or first (False) occurrence of `head`
-    :type headRFind: bool
-    :param tailRFind: Whether to find the last (True) or first (False) occurrence of `tail`
-    :type tailRFind: bool
-    :param retHead: Whether to include the `head` in the returned substring
-    :type retHead: bool
-    :param retTail: Whether to include the `tail` in the returned substring
-    :type retTail: bool
-    :return: The substring between `head` and `tail` in `string`
-    :rtype: str
+    Parameters:
+        string (str): The larger string to search within.
+        head (str): The starting string to search for.
+        tail (str): The ending string to search for.
+        headRFind (bool, optional): If True, searches for the last occurrence of head. Defaults to False.
+        tailRFind (bool, optional): If True, searches for the last occurrence of tail. Defaults to True.
+        ret_head (bool, optional): If True, includes the head in the returned substring. Defaults to False.
+        ret_tail (bool, optional): If True, includes the tail in the returned substring. Defaults to False.
+        find_tail_from_head (bool, optional): If True, searches for the tail starting from the position of the head. Defaults to False.
+
+    Returns:
+        str: The substring between the head and tail. If the head or tail is not found, an error message is returned.
     """
     headIdx = string.rfind(head) if headRFind else string.find(head)
     if find_tail_from_head:
@@ -195,15 +187,15 @@ def get_browser(browser:str, browser_driver_path:str = None,
     """
     # get browser driver
     if browser == 'Edge':
-        from selenium.webdriver.edge.options import Options
         from selenium.webdriver import Edge as Browser
+        from selenium.webdriver.edge.options import Options
     elif browser == 'Chrome':
         if use_undetected:
-            from undetected_chromedriver import ChromeOptions as Options
             from undetected_chromedriver import Chrome as Browser
+            from undetected_chromedriver import ChromeOptions as Options
         else:
-            from selenium.webdriver.chrome.options import Options
             from selenium.webdriver import Chrome as Browser
+            from selenium.webdriver.chrome.options import Options
     else:
         return put_err(f'Unsupported browser {browser}', None)
     # set options

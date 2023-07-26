@@ -142,3 +142,6 @@ data/nn_models
 
 # tmp data
 data_tmp
+
+# _Config
+mbapy/storage/_Config.json

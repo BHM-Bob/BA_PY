@@ -5,20 +5,22 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2023-07-19 00:04:26
 Description: 
 '''
-import sys, os
-import time
-from functools import wraps
-from typing import List
 import ctypes
 import inspect
+import json
+import os
+import pathlib
 import platform
+import sys
+import time
+from dataclasses import dataclass
+from functools import wraps
+from typing import Dict, List, Union
 
 import numpy as np
 
 # TODO : add global var modification options support
 __NO_ERR__ = False
-_Params = {
-}
 
 def put_err(info:str, ret = None):
     """put err info, return ret"""
@@ -28,6 +30,7 @@ def put_err(info:str, ret = None):
         caller_args = inspect.getargvalues(frame).args
         print(f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n')
     return ret
+
 def put_log(info:str, head = "log", ret = None):
     print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
     return ret
@@ -176,20 +179,11 @@ def rand_choose(lst:list, seed = None):
     """
     if lst is None:
         return put_err('lst is None', None)
+    if len(lst) == 0:
+        return put_err('lst is 0 length', None)
     if seed is not None:
         np.random.seed(seed)
     return np.random.choice(lst)
-
-def get_time(chr:str = ':')->str:
-    """
-    Returns the current time as a string with a given character replacing the standard colon separator.
-
-    :param chr: The character to replace the ':' separator. Default value is ':'.
-    :type chr: str
-    :return: A string that represents the current time with a given separator replacing the standard colon separator.
-    :rtype: str
-    """
-    return time.asctime(time.localtime()).replace(':', chr)
 
 def format_secs(sumSecs):
     """
@@ -314,10 +308,86 @@ class MyDLL:
         else:
             put_err(f'{free_func:s} is not exist')
 
+def get_time(chr:str = ':')->str:
+    """
+    Returns the current time as a string, with the option to replace the ':' separator with a custom character.
+
+    Parameters:
+        chr (str): The character to replace the ':' separator with. Defaults to ':'.
+
+    Returns:
+        str: The current time as a string, with the ':' separator replaced with the custom character.
+    """
+    return time.asctime(time.localtime()).replace(':', chr)
+
+def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S", timestamp = None):
+    """
+    Returns a formatted string representing the given timestamp in the specified format.
+
+    Parameters:
+    - fmt (str): The format string to use for formatting the timestamp. Defaults to "%Y-%m-%d %H-%M-%S".
+    - timestamp (float or None): The timestamp to format. If None, the current time will be used. Defaults to None.
+
+    Returns:
+    - str: The formatted timestamp string.
+    """
+    timestamp = get_default_call_for_None(timestamp, time.time)
+    local_time = time.localtime(timestamp)
+    date_str = time.strftime(fmt, local_time)
+    return date_str
+
+@dataclass
+class _ConfigBase:
+    def to_dict(self):
+        result = {}
+        for attr_name, attr_value in self.__dict__.items():
+            if hasattr(attr_value, 'to_dict'):
+                result[attr_name] = attr_value.to_dict()
+            else:
+                result[attr_name] = attr_value
+        return result
+
+@dataclass
+class _Config_File(_ConfigBase):
+    storage_dir: str = str(pathlib.Path(__file__).parent.resolve() / 'storage')
+
+@dataclass
+class _Config_Web(_ConfigBase):
+    auto_launch_sub_thread: bool = False
+
+@dataclass
+class _Config(_ConfigBase):
+    file: _Config_File = _Config_File()
+    web: _Config_Web = _Config_Web()
+
+    def to_dict(self):
+        result = {}
+        for attr_name, attr_value in self.__dict__.items():
+            if hasattr(attr_value, 'to_dict'):
+                result[attr_name] = attr_value.to_dict()
+            else:
+                result[attr_name] = attr_value
+        return result
+
+    def update(self, sub_module_name: str, attr_name: str, attr_value: Union[int, str, List, Dict],
+               save_to_file: bool = True):
+        support_module = ['file', 'web']
+        if sub_module_name in support_module:
+            sub_module = getattr(self, sub_module_name)
+            setattr(sub_module, attr_name, attr_value)
+            if save_to_file:
+                json_str = json.dumps(self.to_dict(), indent=4)
+                with open(os.path.join(self.file.storage_dir, '_Config.json'),
+                          'w', encoding='utf-8', errors='ignore') as json_file:
+                    json_file.write(json_str)
+        else:
+            return f'{sub_module_name} not supported, only support: {", ".join(support_module)}'
+
+_Configs = _Config()
+
 
 if __name__ == '__main__':
     # dev code
-    
     # arg checker
     @parameter_checker(check_parameters_path, head = check_parameters_len, raise_err = False)
     def arg_checker_test(path:str, length:int, head:str):

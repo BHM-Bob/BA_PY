@@ -5,29 +5,32 @@ LastEditTime: 2023-07-17 21:18:03
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
-import os, re, requests
-from typing import List, Dict
+import os
+import re
+from typing import Dict, List
 
+import requests
 import rispy
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import *
-    from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt, read_text, opts_file
     import mbapy.web as web
-    # Assembly of functions
-    from mbapy.sci_utils.paper_search import *
+    from mbapy.base import *
+    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
+                            replace_invalid_path_chr)
     from mbapy.sci_utils.paper_download import *
     from mbapy.sci_utils.paper_pdf import *
+    # Assembly of functions
+    from mbapy.sci_utils.paper_search import *
 else:
     # release mode
-    from .base import *
-    from .file import replace_invalid_path_chr, convert_pdf_to_txt, opts_file
     from . import web
-    # Assembly of functions
-    from .sci_utils.paper_search import *
+    from .base import *
+    from .file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
     from .sci_utils.paper_download import *
     from .sci_utils.paper_pdf import *
+    # Assembly of functions
+    from .sci_utils.paper_search import *
 
 
 session = requests.Session()
@@ -57,7 +60,7 @@ if __name__ == '__main__':
     # dev code
     from mbapy.base import rand_choose
     from mbapy.file import convert_pdf_to_txt, read_json
-    
+
     # RIS parse
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
     ris = rand_choose(ris)

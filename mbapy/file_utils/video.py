@@ -231,9 +231,10 @@ if __name__ == '__main__':
     # extract_frame_to_img(video_path, read_frame_interval=50)
     
     # extract unique frames
-    interval, backend = 3, 'torch-res50'
-    os.makedirs(f'./data_tmp/unique_frames/{backend} interval{interval}', exist_ok=True)
+    interval, backend, timestamp = 3, 'torch-res50', time.time()
+    os.makedirs(f'./data_tmp/unique_frames/{get_fmt_time(timestamp = timestamp)} {backend} interval{interval}', exist_ok=True)
     idx, frames = extract_unique_frames(video_path, threshold=0.95,
                                    read_frame_interval=interval, scale_factor=0.8, backend='torch-res50')
     for frame_idx, frame in enumerate(extract_frames_by_index(video_path, idx)):
-        cv2.imwrite(f'./data_tmp/unique_frames/{backend} interval{interval}/frame_{frame_idx}.jpg', frame)
+        img_file_name = f"{get_fmt_time(timestamp = timestamp)} {backend} interval{interval}/frame_{frame_idx}.jpg"
+        cv2.imwrite(f'./data_tmp/unique_frames/{img_file_name}', frame)
