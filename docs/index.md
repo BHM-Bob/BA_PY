@@ -14,9 +14,9 @@ pip install --upgrade mbapy
 ## [base](base.md)
 Some global utils in this package, most of them are also for users.
 ## web
-Some web-crawlers utils, small warps for BeautifulSoup and selenium.
-## file
-Smoe file tools, mainly contains json and excel.
+Some web-crawlers utils, mainly contains [request](web_utils/request.md) for requesting html, [parse](web_utils/parse.md) for parsing html and [task](web_utils/task.md) for managing task.
+## [file](file.md)
+Smoe file tools, mainly contains json, excel, [video](file_utils/video.md) and [image](file_utils/image.md) utils.
 ## [plot](plot.md)
 Some plot tools, mainly contains pandas.dataFrame tools for plot and some plot utils.
 ## stats

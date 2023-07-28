@@ -1,6 +1,6 @@
 
-import time
 import http.cookiejar
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -12,13 +12,17 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 if __name__ == '__main__':
-    from mbapy.base import check_parameters_path, check_parameters_len, put_err, Configs
+    from mbapy.base import (Configs, check_parameters_len,
+                            check_parameters_path, put_err)
     from mbapy.file import (opts_file, read_excel, read_json, save_excel,
                             save_json)
+
     # functon assembly
 else:
-    from ..base import check_parameters_path, check_parameters_len, put_err, Configs
+    from ..base import (Configs, check_parameters_len, check_parameters_path,
+                        put_err)
     from ..file import opts_file, read_excel, read_json, save_excel, save_json
+
     # functon assembly
 
 def get_url_page(url:str, coding = 'gbk'):

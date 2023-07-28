@@ -6,18 +6,18 @@ FilePath: \BA_PY\mbapy\file_utils\image.py
 Description: 
 '''
 import os
-from typing import Union, List
+from typing import List, Union
 
 import cv2
 import torch
 import torchvision
-import torchvision.transforms as transforms
 import torchvision.models as models
+import torchvision.transforms as transforms
 
 if __name__ == '__main__':
-    from mbapy.base import get_default_for_None, get_default_call_for_None
+    from mbapy.base import get_default_call_for_None, get_default_for_None
 else:
-    from ..base import get_default_for_None, get_default_call_for_None
+    from ..base import get_default_call_for_None, get_default_for_None
 
 def _load_nn_model(model_dir:str):
     """

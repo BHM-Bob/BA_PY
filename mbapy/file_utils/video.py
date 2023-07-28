@@ -1,6 +1,6 @@
 
 import os
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 import cv2
 from tqdm import tqdm
@@ -88,6 +88,7 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
     - writes image files in dir, each image file name include frame time stamp in format HH-MM-SS.
     """
     import cv2
+
     # Create the directory if it doesn't exist
     if write_file:
         if dir and not os.path.exists(dir):
@@ -183,7 +184,8 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
     unique_frames, unique_frames_idx = [], []
     progress_bar = tqdm(range(get_cv2_video_attr(video, 'FRAME_COUNT')), desc='unique frames: 1')
     if backend == 'torch-res50':
-        from mbapy.file_utils.image import _load_nn_model, _get_transform, calculate_frame_features
+        from mbapy.file_utils.image import (_get_transform, _load_nn_model,
+                                            calculate_frame_features)
         model = _load_nn_model(model_dir).cuda()
         trans = _get_transform((width, heigth), (width, heigth), device='cuda')
         _calculate_ssim = torch.nn.functional.cosine_similarity
