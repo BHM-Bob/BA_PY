@@ -67,9 +67,9 @@ if __name__ == '__main__':
     print(f'title: {ris["title"]}\ndoi: {ris["doi"]}')
     
     # search
-    search_result_wos = search_by_wos("linaclotide", 11, browser_driver_path=web.CHROMEDRIVERPATH)
     search_result_bd = search_by_baidu('linaclotide', 11)
     search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
+    search_result_wos = search_by_wos("linaclotide", 11, browser_driver_path=web.CHROMEDRIVERPATH)
     
     # download
     dl_result = download_by_scihub('./data_tmp/', title = search_result_bd[0]['title'])

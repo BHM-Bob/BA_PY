@@ -13,7 +13,6 @@ import pathlib
 import platform
 import sys
 import time
-from dataclasses import dataclass
 from functools import wraps
 from typing import Dict, List, Union
 
@@ -336,29 +335,35 @@ def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S", timestamp = None):
     date_str = time.strftime(fmt, local_time)
     return date_str
 
-@dataclass
+# @dataclass
 class _ConfigBase:
+    def __init__(self) -> None:
+        pass
     def to_dict(self):
-        result = {}
+        for attr in vars(self):
+            self.__dict__[attr] = getattr(self, attr)
         for attr_name, attr_value in self.__dict__.items():
             if hasattr(attr_value, 'to_dict'):
-                result[attr_name] = attr_value.to_dict()
-            else:
-                result[attr_name] = attr_value
-        return result
+                self.__dict__[attr_name] = attr_value.to_dict()        
+        return self.__dict__
 
-@dataclass
+# @dataclass
 class _Config_File(_ConfigBase):
-    storage_dir: str = str(pathlib.Path(__file__).parent.resolve() / 'storage')
+    def __init__(self) -> None:
+        self.storage_dir = str(pathlib.Path(__file__).parent.resolve() / 'storage')
 
-@dataclass
+# @dataclass
 class _Config_Web(_ConfigBase):
-    auto_launch_sub_thread: bool = False
-
-@dataclass
+    def __init__(self) -> None:
+        self.auto_launch_sub_thread: bool = False
+        self.chrome_driver_path = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
+        self.quest_head = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+    
+# @dataclass
 class _Config(_ConfigBase):
-    file: _Config_File = _Config_File()
-    web: _Config_Web = _Config_Web()
+    def __init__(self) -> None:
+        self.file = _Config_File()
+        self.web = _Config_Web()
     
     def _get_default_config_path(self):
         return os.path.join(self.file.storage_dir, '_Config.json')
@@ -390,8 +395,9 @@ class _Config(_ConfigBase):
                 with open(self._get_default_config_path(),
                           'w', encoding='utf-8', errors='ignore') as json_file:
                     json_file.write(json_str)
+            return True
         else:
-            return f'{sub_module_name} not supported, only support: {", ".join(support_module)}'
+            return put_err(f'{sub_module_name} not supported, only support: {", ".join(support_module)}', False)
         
     def save_to_file(self, config_file_path:str = None):
         """
@@ -406,7 +412,7 @@ class _Config(_ConfigBase):
         config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
         with open(config_file_path, 'w', encoding='utf-8', errors='ignore') as json_file:
             json_file.write(json.dumps(self.to_dict(), indent=4))
-        return self.to_dict()
+        return self.__dict__
         
     def load_from_file(self, force_update: bool = True, config_file_path:str = None, update_to_file = True):
         """
@@ -431,8 +437,7 @@ class _Config(_ConfigBase):
             self.save_to_file()
         return config
 
-_Configs = _Config()
-
+Configs = _Config()
 
 if __name__ == '__main__':
     # dev code

@@ -57,13 +57,17 @@ def search_IF(query:str, proxies = None):
     return put_err('No results found', None)
     
 @parameter_checker(check_parameters_len, raise_err = False)
-def search_by_baidu(query:str, limit:int = 1, proxies = None):
+def search_by_baidu(query:str, limit:int = 1, proxies = None,
+                    use_browser = False, browser = None, use_undetected=True):
     """
     This function is used to search for articles on Baidu Scholar using a given query.
+    
+    Note: If use_browser_first is False, you may open baidu xueshu website before this function being called. 
     
     Parameters:
         query (str): The search query.
         limit (int, optional): The maximum number of articles to retrieve. Defaults to 1.
+        use_browser_first (bool, optional): Whether to use selenium to get website for the first time, since it make more successful.
         
     Returns:
         list: A list of dictionaries containing information about the articles found.
@@ -74,10 +78,13 @@ def search_by_baidu(query:str, limit:int = 1, proxies = None):
             - doi (str): The DOI (Digital Object Identifier) of the article.
             - journal (str): The name of the journal associated with the article.
     """
-    def _get_a_search_page(query:str, page:int = 0):
-        res = session.request(method='GET', url='https://xueshu.baidu.com/s',
-                              params={'wd': query, 'pn': page, 'filter': 'sc_type%3D%7B1%7D'})
-        s = etree.HTML(res.text)
+    def _get_a_search_page(query:str, page:int = 0, browser = None):
+        url = f'https://xueshu.baidu.com/s?wd={query:s}&pn={page*10:d}&tn=SE_baiduxueshu_c1gjeupa&ie=utf-8&sc_hit=1&rsv_page={page:d}'
+        if use_browser:
+            bs, page = web.get_url_page_se(browser, url, return_html_text=True)
+        else:
+            page = web.get_url_page(url, 'utf-8')
+        s = etree.HTML(page)
         return s.xpath("//div[@class='sc_content']/h3/a/@href")
     
     def _parse_info(xpath_search_key:str, xpath_obj, is_single: bool = True):
@@ -103,13 +110,19 @@ def search_by_baidu(query:str, limit:int = 1, proxies = None):
                             'doi': doi, 'journal': journal})
         return results
     
-    links = _get_a_search_page(query, 0)
+    if use_browser:
+        if browser is None:
+            browser = web.get_browser('Chrome', options=['--no-sandbox', '--headless'],
+                                      use_undetected=use_undetected)
+        browser.get('https://xueshu.baidu.com')
+    
+    links = _get_a_search_page(query, 0, browser)
     if limit > 10:
         # 未登录的百度学术一页只显示10个结果
         page = 1
         while limit > 10:
             limit -= 10
-            links += _get_a_search_page(query, page)[: (limit%10 if limit > 10 else limit)]
+            links += _get_a_search_page(query, page, browser)[: (limit%10 if limit > 10 else limit)]
             page += 1
     return _parse_links(links)
 
@@ -253,7 +266,8 @@ def search_by_wos(query:str, limit:int = 1,
     return info
         
 def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu',
-           email:str = None, browser:str = 'Chrome', browser_driver_path:str = web.CHROME_DRIVER_PATH):
+           email:str = None, browser:str = 'Chrome', browser_driver_path:str = web.CHROME_DRIVER_PATH,
+           use_browser = False, use_undetected=True):
     """
     Search for a given query using a specified search engine and return the results.
 
@@ -267,7 +281,7 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu',
     - The search results as a list of dict, contain 'title', 'abstract', 'keyword' and 'doi'.
     """
     if search_engine == 'baidu xueshu':
-        return search_by_baidu(query, limit)
+        return search_by_baidu(query, limit, use_browser=use_browser, use_undetected=use_undetected)
     elif search_engine == 'pubmed' and email is not None:
         return search_by_pubmed(query, email, limit)
     elif search_engine == 'wos':
@@ -282,6 +296,6 @@ if __name__ == '__main__':
     from mbapy.file import read_json
     
     # search
-    search_result_wos = search_by_wos("linaclotide", 61, browser_driver_path=web.CHROMEDRIVERPATH)
-    search_result_bd = search_by_baidu('linaclotide', 11)
+    search_result_bd = search_by_baidu('linaclotide', 11, use_browser=True, use_undetected=True)
     search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
+    search_result_wos = search_by_wos("linaclotide", 61, browser_driver_path=web.CHROMEDRIVERPATH)
