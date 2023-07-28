@@ -16,7 +16,10 @@ By the way, this package may have a hot-fix for the latest release, so you may t
 
 Contains
 ========
-base
+
+.. _base: base.md
+
+`base`_
 ----
 Some global utils in this package, most of them are also for users.
 
