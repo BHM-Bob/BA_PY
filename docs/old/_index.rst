@@ -17,7 +17,7 @@ By the way, this package may have a hot-fix for the latest release, so you may t
 Contains
 ========
 
-.. _base: ./base.md
+.. _base: base.md
 
 `base`_
 ----
