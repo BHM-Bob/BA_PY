@@ -5,10 +5,12 @@ from bs4 import BeautifulSoup
 from lxml import etree
 
 if __name__ == '__main__':
-    from mbapy.base import get_default_for_bool, put_err, Configs
+    from mbapy.base import Configs, get_default_for_bool, put_err
+
     # functon assembly
 else:
-    from ..base import get_default_for_bool, put_err, Configs
+    from ..base import Configs, get_default_for_bool, put_err
+
     # functon assembly
 
 def get_between(string:str, head:str, tail:str,
