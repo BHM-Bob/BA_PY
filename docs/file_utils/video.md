@@ -1,4 +1,4 @@
-# Module Name: mbapy.file_utils.video
+# mbapy.file_utils.video
 
 This module provides functions for working with video files, including extracting frames from a video, saving frames as images, and extracting unique frames based on structural similarity index (SSIM).  
 

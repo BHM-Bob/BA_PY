@@ -1,4 +1,4 @@
-# Module Name: mbapy.web_utils.parse
+# mbapy.web_utils.parse
 
 This module provides utility functions for string manipulation and parsing.  
 

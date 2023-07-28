@@ -1,4 +1,4 @@
-# Module Name: mbapy.base
+# mbapy.base
 
 This module provides various utility functions and classes for general use.  
 

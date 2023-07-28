@@ -1,4 +1,4 @@
-# Module Name: mbapy.file
+# mbapy.file
 
 This module provides utility functions for file operations, including reading and writing files, working with different file formats, and handling file paths.  
 

@@ -5,24 +5,26 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2023-06-15 23:01:10
 Description: 
 '''
-import seaborn as sns
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
+
 
 def linear_reg(x:str, y:str, df:pd.DataFrame):
     """
-    Performs linear regression on two given columns of a pandas dataframe.
+    Perform linear regression on the given DataFrame.
 
-    :param x: A string representing the name of the independent variable column.
-    :type x: str
-    :param y: A string representing the name of the dependent variable column.
-    :type y: str
-    :param df: A pandas dataframe containing the two columns.
-    :type df: pd.DataFrame
-    :return: A dictionary containing the fitted regressor object, slope, intercept, and R-squared value.
-    :rtype: dict
+    Parameters:
+        x (str): The column name for the independent variable.
+        y (str): The column name for the dependent variable.
+        df (pd.DataFrame): The DataFrame containing the data.
+
+    Returns:
+        dict: A dictionary containing the regression model, slope, intercept, and R-squared value.
+            - 'regressor' (LinearRegression): The fitted regression model.
+            - 'a' (float): The slope of the regression line.
+            - 'b' (float): The intercept of the regression line.
+            - 'r2' (float): The R-squared value of the regression.
     """
     x = np.array(df[x]).reshape(-1, 1)
     y = np.array(df[y]).reshape(-1, 1)

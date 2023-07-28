@@ -1,4 +1,4 @@
-# Module Name: mbapy.web_utils.task
+# mbapy.web_utils.task
 
 This module provides functions for launching a sub-thread to run a separate task concurrently with the main thread.  
 

@@ -1,4 +1,4 @@
-# Module Name: mbapy.plot
+# mbapy.plot
 
 This module provides functions for creating various types of plots, including bar plots, QQ-plots, and Turkey plots.  
 

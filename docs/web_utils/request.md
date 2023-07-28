@@ -1,4 +1,4 @@
-# Module Name: mbapy.web_utils.request
+# mbapy.web_utils.request
 
 This module provides functions for web scraping and browser automation.  
 

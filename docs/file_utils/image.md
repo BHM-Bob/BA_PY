@@ -1,4 +1,4 @@
-# Module Name: mbapy.file_utils.image
+# mbapy.file_utils.image
 
 This module provides functions for extracting features from frames using a neural network model.  
 
