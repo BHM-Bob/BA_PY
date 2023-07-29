@@ -95,7 +95,7 @@ def get_sci_bookmarks_from_pdf(pdf_path:str = None, pdf_obj = None, section_name
         pdf_obj: The PDF object. Default is None.
         section_names (List[str]): A list of section names to search for.
             If None, all sections include 'Abstract', 'Introduction', 'Materials', 'Methods',
-            'Results', 'Discussion', 'References' will be searched.
+            'Results', 'Conclusions, 'Discussion', 'References' will be searched.
 
     Returns:
         List[str]: A list of section names found in the PDF.
@@ -106,7 +106,7 @@ def get_sci_bookmarks_from_pdf(pdf_path:str = None, pdf_obj = None, section_name
     # set default section names
     if not section_names:
         section_names = ['Abstract', 'Introduction', 'Materials', 'Methods',
-                         'Results', 'Discussion', 'References']
+                         'Results', 'Conclusions', 'Discussion', 'References']
     # get pdf full txt
     if pdf_obj is not None:
         # extract text from pdf obj
@@ -117,7 +117,7 @@ def get_sci_bookmarks_from_pdf(pdf_path:str = None, pdf_obj = None, section_name
     # get section titles
     ret = []
     for section in section_names:
-        if content.find(section) != -1:
+        if content.find(section+'\n') != -1:
             ret.append(section)
     return ret
     
@@ -185,24 +185,39 @@ def get_section_from_paper(paper:str, key:str,
             Defaults to ['Title', 'Authors', 'Abstract', 'Keywords', 'Introduction',
             'Materials & Methods', 'Results', 'Discussion', 'References'].
     """
-    # 构建正则表达式模式，使用re.IGNORECASE标志进行不区分大小写的匹配
+    def _get_longest(results:List[str]):
+        length = [len(i) for i in results]
+        return results[length.index(max(length))]
+    
     if paper is None or key is None:
         return put_err('paper or key is None', None)
-    # TODO : sometimes may fail
-    pattern = r'\b{}\b.*?(?=\b{})'.format(key, keys[keys.index(key)+1] if key != keys[-1] else '$')
-    # 使用正则表达式匹配内容
-    match = re.search(pattern, paper, re.DOTALL | re.IGNORECASE)
+    # 有的文献虽然有Abstract（或其他第一个书签）章节书签，但是在文本中不写，此时取文献开头作为匹配
+    # 不使用^作为匹配开头的pattern是因为会出问题
+    if not re.findall(r'{}[ \.\n]'.format(key), paper, re.DOTALL | re.IGNORECASE) and keys.index(key) == 0:
+        pattern = r'{}[ \.\n].+?{}[ \.\n]'.format(paper[0], (keys[keys.index(key)+1]) if key != keys[-1] else '$')
+    else:
+        pattern = r'{}[ \.\n].+?{}[ \.\n]'.format(key, (keys[keys.index(key)+1]) if key != keys[-1] else '$')
+    # 有的文献一个章节名存在多次，第一次集中出现，第二次为真正引导章节，取第二次，若存在更多次，忽略该情况
+    match = re.findall(pattern, paper, re.DOTALL)
     if match:
-        return match.group(0)
+        return _get_longest(match)
     else:
         return put_err(f'key "{key}" not found in paper', '')
 
 def format_paper_from_txt(content:str,
                           struct:List[str] = ['Title', 'Authors', 'Abstract', 'Keywords',
-                                              'Introduction', 'Materials & Methods',
-                                              'Results', 'Discussion', 'References']):
-    content = content.replace('\n', '')
+                                             'Introduction', 'Materials & Methods',
+                                             'Results', 'Discussion', 'References']):
     struction = {}
     for key in struct:
         struction[key] = get_section_from_paper(content, key, struct)
     return struction
+
+if __name__ == '__main__':
+    # dev code
+    pdf_path = r'data_tmp\papers\Laxative effect and mechanism of Tiantian Capsule on loperamide-induced constipation in rats.pdf'
+    print(pdf_path)
+    pdf_text = convert_pdf_to_txt(pdf_path)
+    bookmarks = get_english_part_of_bookmarks(get_section_bookmarks(pdf_path))
+    pdf_data = format_paper_from_txt(pdf_text, bookmarks)
+    pass
