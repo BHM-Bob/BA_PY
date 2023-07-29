@@ -156,11 +156,11 @@ def add_cookies(browser, cookies_path:str = None, cookies_string:str = None):
         The function internally uses the `_parse_cookies` function to parse and add the cookies.
 
     Example Usage:
-        # Add cookies from a file
-        add_cookies(browser, cookies_path="cookies.txt")
+        >>> # Add cookies from a file
+        >>> add_cookies(browser, cookies_path="cookies.txt")
 
-        # Add cookies from a string
-        add_cookies(browser, cookies_string="cookie1=value1; cookie2=value2")
+        >>> # Add cookies from a string
+        >>> add_cookies(browser, cookies_string="cookie1=value1; cookie2=value2")
     """
     def _parse_cookies(browser, cookies_string:str):
         for cookie in cookies_string.split(";"):

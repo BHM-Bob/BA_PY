@@ -204,4 +204,5 @@ def format_paper_from_txt(content:str,
     content = content.replace('\n', '')
     struction = {}
     for key in struct:
-        struction[key] = ''
+        struction[key] = get_section_from_paper(content, key, struct)
+    return struction
