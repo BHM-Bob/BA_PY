@@ -26,5 +26,10 @@ Some stats functions, most of them are just import form scipy and warps for scip
 Incude [df](stats_utils/df.md) for data frame utils, [reg](stats_utils/reg.md) for regression utils and [test](stats_utils/test.md) for stats test utils.  
 ## dl_torch
 Some pytorch utils and some models.  
+1. [utils](dl_torch/utils.md) for deep learning training pepline construction utils.  
+2. [basic blocks](dl_torch/basic_blocks.md) for some cnn blocks and transformer layers.  
+3. [model](dl_torch/model.md) for some visual and language layers and models.  
+4. [data](dl_torch/data.md) for some data utils.  
+5. [optim](dl_torch/optim.md) for some learning rate utils.  
 ## paper
 Some scientific paper utils, including parsing RIS, downloading pdf by title or doi through sci-hub, search through baidu-xueshu, extract specific section from a sci-paper and so on.  

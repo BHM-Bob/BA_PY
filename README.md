@@ -14,8 +14,8 @@
 
 ![Read the Docs](https://img.shields.io/readthedocs/ba-py) ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY)
 
-mbapy contains some helpful python scripts, which aims at goal of *Basic for All in Python*.
-Mainly contains sci-plot, stats, web-crawler, sci-paper utils and deeplearing-torch.
+mbapy is a Python package that includes a collection of useful Python scripts as sub-modules, and it's goal is *Basic for All in Python*.  
+mbapy primarily focus on areas such as sci-plot, stats, web-crawler, sci-paper utilities, and deep learning with pytorch.  
 
 ## get start
 
@@ -25,9 +25,9 @@ Now, mbapy only support pypi install:
 pip install mbapy
 ```
 
-If you find the latest release version has installing problems, you can download this repo and try:
+If you find the latest release version has some problems, you can try install the up-to-date version on github:
 ```
-pip install .
+pip install git+https://github.com/BHM-Bob/BA_PY.git
 ```
 
 #### docs
