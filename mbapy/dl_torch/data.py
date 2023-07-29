@@ -7,10 +7,10 @@ Description:
 '''
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from .utils import GlobalSettings, Mprint
+
 
 def denarmalize_img(x, mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]):
     """

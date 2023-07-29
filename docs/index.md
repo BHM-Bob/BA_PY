@@ -1,3 +1,5 @@
+<!-- mkdocs serve -->
+
 Welcome to the BA_PY docs!
 
 # Install

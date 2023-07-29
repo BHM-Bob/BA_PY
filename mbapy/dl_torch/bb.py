@@ -13,8 +13,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from . import paper
 from ..base import autoparse
+from . import paper
+
 
 class CnnCfg:
     @autoparse
