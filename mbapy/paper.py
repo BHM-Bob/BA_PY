@@ -19,7 +19,7 @@ if __name__ == '__main__':
     from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
                             replace_invalid_path_chr)
     from mbapy.sci_utils.paper_download import *
-    from mbapy.sci_utils.paper_pdf import *
+    from mbapy.sci_utils.paper_parse import *
     # Assembly of functions
     from mbapy.sci_utils.paper_search import *
 else:
@@ -28,7 +28,7 @@ else:
     from .base import *
     from .file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
     from .sci_utils.paper_download import *
-    from .sci_utils.paper_pdf import *
+    from .sci_utils.paper_parse import *
     # Assembly of functions
     from .sci_utils.paper_search import *
 
