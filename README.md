@@ -10,11 +10,9 @@
 
 ![GitHub repo size](https://img.shields.io/github/repo-size/BHM-Bob/BA_PY) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/BHM-Bob/BA_PY) [![GitHub Commit Activity](https://img.shields.io/github/commit-activity/m/BHM-Bob/BA_PY)](https://github.com/BHM-Bob/BA_PY/pulse)
 
-![PyPI - Status](https://img.shields.io/pypi/status/mbapy?label=PyPI%20Status) ![PyPI](https://img.shields.io/pypi/v/mbapy)
- ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mbapy)
+![PyPI - Status](https://img.shields.io/pypi/status/mbapy?label=PyPI%20Status) ![PyPI](https://img.shields.io/pypi/v/mbapy) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mbapy)
 
-
-![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY)
+![Read the Docs](https://img.shields.io/readthedocs/ba-py) ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY)
 
 mbapy contains some helpful python scripts, which aims at goal of *Basic for All in Python*.
 Mainly contains sci-plot, stats, web-crawler, sci-paper utils and deeplearing-torch.
@@ -32,8 +30,10 @@ If you find the latest release version has installing problems, you can download
 pip install .
 ```
 
-#### wiki
-mbapy has it's wiki as API document, you can find it in [wiki](https://github.com/BHM-Bob/BA_PY/wiki).
+#### docs
+The documentation for mbapy can be found on [read the docs](https://ba-py.readthedocs.io/en/latest/), and it is the one that I will regularly update.
+The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob/BA_PY/wiki). However, please note that this wiki on GitHub has not been updated since 2023-07. 
+*Given my limited time, I heavily rely on chatGPT to generate the documentation*.
 
 # contain  
 ## mbapy python package  

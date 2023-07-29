@@ -5,19 +5,19 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2023-07-10 16:44:48
 Description: 
 '''
-from typing import Optional, Union
 from itertools import combinations
-from typing import List, Dict
+from typing import Dict, List, Optional, Union
 
-import scipy
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from statsmodels.stats.multicomp import MultiComparison
-from statsmodels.stats.libqsturng import qsturng
 import scikit_posthocs as sp
+import scipy
+import statsmodels.api as sm
+from statsmodels.stats.libqsturng import qsturng
+from statsmodels.stats.multicomp import MultiComparison
 
 import mbapy.stats.df as msd
+
 
 def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, List[int], pd.Series]] = None, confidence:float = 0.95):
     """
