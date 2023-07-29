@@ -25,3 +25,4 @@ scikit_posthocs
 rispy
 PyPDF2
 lxml
+crossref_commons

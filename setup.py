@@ -65,6 +65,7 @@ requires = [
     "rispy",
     "PyPDF2",
     "lxml",
+    "crossref_commons"
 ]
 
 
