@@ -255,7 +255,7 @@ def get_dll_path_for_sys(module_name:str, **kwargs):
     else:
         return put_err(f'Unknown platform: {platform.system()}, return None', None)
 
-class MyDLL:
+class CDLL:
     @autoparse
     def __init__(self, path: str) -> None:
         """load a DLL file from path"""
@@ -263,8 +263,12 @@ class MyDLL:
             put_err(f'{path:s} is not exist')
         else:
             self.dll = ctypes.cdll.LoadLibrary(path)
-        self.PTR = ctypes.POINTER # pointer generator
-        self.REF = ctypes.byref # reference generator
+        # transfer ctype obj to c pointer
+        self.ptr = ctypes.pointer # pointer generator
+        self.ref = ctypes.byref # reference generator
+        self.str = lambda s : bytes(s, 'utf-8') # string generator
+        # c type in ctype
+        self.PTR = ctypes.POINTER # pointer type
         self.INT = ctypes.c_int # int type
         self.LONG = ctypes.c_long # long type
         self.FLOAT = ctypes.c_float # float type

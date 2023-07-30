@@ -25,6 +25,7 @@ here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
 long_description = (here / "README.md").read_text(encoding="utf-8")
+requirements = (here / "requirements.txt").read_text(encoding="utf-8").split('\n')
 version_info = (here / "mbapy/__version__.py").read_text(encoding="utf-8")
 for line in version_info.split('\n'):
     if '__version__' in line:
@@ -35,38 +36,6 @@ for line in version_info.split('\n'):
         __author__ = line[line.find('"')+1:-1]
     if '__url__' in line:
         __url__ = line[line.find('"')+1:-1]
-
-requires = [
-    "beautifulsoup4",
-    "bokeh",
-    "chardet",
-    "cn2an",
-    "holoviews",
-    "imageio",
-    "importlib-metadata",
-    "jieba",
-    "Markdown",
-    "matplotlib",
-    "multiprocess",
-    "numpy",
-    "pandas",
-    "pdfkit>=1.0.0",
-    "Pillow",
-    "plotly",
-    "requests",
-    "scikit-learn",
-    "scipy",
-    "seaborn",
-    "selenium",
-    "urllib3",
-    "openpyxl",
-    "statsmodels",
-    "scikit_posthocs",
-    "rispy",
-    "PyPDF2",
-    "lxml",
-]
-
 
 setup(
     name = "mbapy",
@@ -103,7 +72,7 @@ setup(
     package_data= {'mbapy': ['storage/stats.dll']},
     platforms = "any",
     
-    install_requires=requires,
+    install_requires=requirements,
 )
 
 # pip install .

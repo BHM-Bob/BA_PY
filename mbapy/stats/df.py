@@ -14,11 +14,11 @@ import pandas as pd
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import MyDLL, get_dll_path_for_sys
+    from mbapy.base import CDLL, get_dll_path_for_sys
     from mbapy.file import update_excel
 else:
     # release mode
-    from ..base import MyDLL, get_dll_path_for_sys
+    from ..base import CDLL, get_dll_path_for_sys
     from ..file import update_excel
 
 def get_value(df:pd.DataFrame, column:str, mask:np.array)->list:
@@ -278,14 +278,15 @@ def merge_col2row(df:pd.DataFrame, cols:List[str],
 if __name__ == '__main__':
     # dev code
     import ctypes
-    dll = MyDLL(get_dll_path_for_sys('stats'))
+    dll = CDLL(r'E:\My_Progs\Cpp\StuPyDLL\x64\Debug\StuPyDLL.dll')
     c_size = dll.INT(100)
     arr = np.random.randn(c_size.value)
     arr.sort()
-    arr = arr.tolist()
+    arr = dll.convert_c_lst(arr.tolist(), dll.FLOAT)
     c_remove_simi = dll.get_func('remove_simi',
-                                 [dll.PTR(dll.FLOAT), dll.PTR(dll.INT)],
+                                 [dll.PTR(dll.FLOAT), dll.PTR(dll.INT), dll.STR],
                                  dll.PTR(dll.FLOAT))
-    to_remove_idx = c_remove_simi(dll.convert_c_lst(arr, dll.FLOAT), dll.REF(c_size))
+    
+    to_remove_idx = c_remove_simi(arr, dll.ptr(c_size), dll.str('hello'))
     to_remove_idx = dll.convert_py_lst(to_remove_idx, c_size.value)
     print(to_remove_idx)
