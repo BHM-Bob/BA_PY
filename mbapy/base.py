@@ -271,14 +271,16 @@ class CDLL:
         self.PTR = ctypes.POINTER # pointer type
         self.INT = ctypes.c_int # int type
         self.LONG = ctypes.c_long # long type
+        self.ULL = ctypes.c_uint64 # unsigned long long type
         self.FLOAT = ctypes.c_float # float type
         self.BOOL = ctypes.c_bool # bool type
         self.CHAR = ctypes.c_char # char type
         self.STR = ctypes.c_char_p # char* type
+        self.VOID = ctypes.c_void_p # void* type
     def convert_c_lst(self, lst:list, c_type = ctypes.c_int):
         return (c_type * len(lst))(*lst)
     def convert_py_lst(self, c_lst:ctypes.POINTER(ctypes.c_int), size: int):
-        return [c_lst[i] for i in range(size)]
+        return [c_lst[i][0] for i in range(size)]
     def get_func(self, func_name:str, func_args:list = None, func_ret = None):
         """
         Get a function by its name from the DLL object.
