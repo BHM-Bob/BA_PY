@@ -6,11 +6,13 @@ FilePath: \BA_PY\mbapy\dl_torch\arch\CL\trainer.py
 Description: 
 '''
 
-import torch
 import time
+
+import torch
 
 from ...utils import *
 from .builder import *
+
 
 def train(train_loader, model, optimizer, epoch, args, globalsteps):
     losses = AverageMeter('Loss', ':7.5f')

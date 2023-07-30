@@ -13,7 +13,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ...utils import GlobalSettings, get_default_for_None
-    
+
+
 def stop_grad(model:nn.Module):
     for param_k in model.parameters():
         param_k.requires_grad = False  # not update by gradient

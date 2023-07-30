@@ -1,19 +1,23 @@
-import os, re, requests, random
-from typing import List, Dict
+import os
+import random
+import re
+from typing import Dict, List
 
-from lxml import etree
+import requests
 import rispy
+from lxml import etree
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import *
-    from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt, read_text, opts_file
     import mbapy.web as web
+    from mbapy.base import *
+    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
+                            replace_invalid_path_chr)
 else:
     # release mode
-    from ..base import *
-    from ..file import replace_invalid_path_chr, convert_pdf_to_txt, opts_file
     from .. import web
+    from ..base import *
+    from ..file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
 
 session = requests.Session()
 
@@ -294,7 +298,7 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu',
 if __name__ == '__main__':
     # dev code
     from mbapy.file import read_json
-    
+
     # search
     search_result_bd = search_by_baidu('linaclotide', 11, use_browser=True, use_undetected=True)
     search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
