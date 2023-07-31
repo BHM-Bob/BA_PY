@@ -34,7 +34,7 @@ def put_log(info:str, head = "log", ret = None):
     print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
     return ret
 
-def TimeCosts(runTimes:int = 1):
+def TimeCosts(runTimes:int = 1, log_per_iter = True):
     """
     inner is func(times, *args, **kwargs)
     @TimeCosts(9)
@@ -49,7 +49,8 @@ def TimeCosts(runTimes:int = 1):
             for times in range(runTimes):
                 t1 = time.time()
                 ret.append(func(times, *args, **kwargs))
-                print(f'{times:2d} | {func.__name__:s} used {time.time()-t1:10.3f}s')
+                if log_per_iter:
+                    print(f'{times:2d} | {func.__name__:s} used {time.time()-t1:10.3f}s')
             print(f'{func.__name__:s} used {time.time()-t0:10.3f}s in total, {(time.time()-t0)/runTimes:10.3f}s by mean')
             return ret
         return core_wrapper

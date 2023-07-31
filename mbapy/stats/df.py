@@ -14,11 +14,11 @@ import pandas as pd
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import CDLL, get_dll_path_for_sys
+    from mbapy.base import CDLL, get_dll_path_for_sys, put_err
     from mbapy.file import update_excel
 else:
     # release mode
-    from ..base import CDLL, get_dll_path_for_sys
+    from ..base import CDLL, get_dll_path_for_sys, put_err
     from ..file import update_excel
 
 def get_value(df:pd.DataFrame, column:str, mask:np.array)->list:
@@ -174,7 +174,7 @@ def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = Non
         -  df : a pandas dataframe from which similar elements are to be removed. 
         -  arr : an array from which similar elements are to be removed. 
         -  sh : a float value that defines the threshold for similarity. If the difference between two elements is less than this value, one of them is considered for removal. 
-        -  backend : a string that specifies the method to use for the operation. The options are 'numpy-mat', 'torch-array', 'numpy-array', and 'ba-cpp'. 
+        -  backend : a string that specifies the method to use for the operation. The options are 'numpy-mat', 'torch-array', and 'cpp-array', if not specified, the default is python list. 
         -  tensor : a tensor that can be used instead of  arr  when the backend is 'torch-array'. 
         -  device : a string that specifies the device to use for computation when the backend is 'torch-array'. The default is 'cuda'. 
     
@@ -182,8 +182,8 @@ def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = Non
     --------
         - For 'numpy-mat', a n-n mat will be alloc. it creates a matrix where each element is the difference between two elements in  arr . It then iterates over this matrix to find elements that are similar according to the threshold  sh . 
         - For 'torch-array', only operate on a n shape arrray. it uses a PyTorch script to iterate over a tensor version of  arr  and find similar elements. 
-        - For 'numpy-array', only operate on a n shape arrray. it directly iterates over  arr  to find similar elements. 
-        - For 'ba-cpp', only operate on a n shape arrray. it uses a C++ function to find similar elements. 
+        - For 'cpp-array', only operate on a n shape arrray. it uses a C++ function to find similar elements. 
+        - Otherwise, use python list as array.
             
     Returns:
     --------
@@ -191,7 +191,7 @@ def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = Non
         
     Raise:
     --------
-        If the backend is not recognized, it raises a  NotImplementedError.
+        If meets numpy array memory error, return None(by put_err func).
         
     Examples
     --------
@@ -209,7 +209,10 @@ def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = Non
     to_remove_idx = []
     if backend  == 'numpy-mat':
         arr = np.array(arr).reshape([1, len(arr)])
-        mat = arr.repeat(arr.shape[1], axis = 0) - arr.transpose(1, 0).repeat(arr.shape[1], axis = 1)
+        try:
+            mat = arr.repeat(arr.shape[1], axis = 0) - arr.transpose(1, 0).repeat(arr.shape[1], axis = 1)
+        except np.core._exceptions._ArrayMemoryError:
+            return put_err('OOM, retrun None', None)
         i, j, k = 0, 1, mat.shape[0] # start from the second col(number) to let the first number be lefted
         while i < k and j < k:
             if i == j:
@@ -237,15 +240,7 @@ def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = Non
             return to_remove
         to_remove_idx = step_scan(arr, to_remove_idx, sh)
         arr = arr.to(device = 'cpu').numpy()
-    elif backend == 'numpy-array':
-        arr = np.array(arr).reshape([len(arr)])
-        i = 0 # start from the second col(number) to let the first number be lefted
-        while i < arr.shape[0]-1:
-            if arr[i+1] - arr[i] < sh:
-                arr[i+1] = arr[i]
-                to_remove_idx.append(i+1)
-            i += 1
-    elif backend == 'ba-cpp':
+    elif backend == 'cpp-array':
         arr = list(arr)
         dll = CDLL(get_dll_path_for_sys('stats'))
         c_size = dll.ULL(len(arr))
@@ -257,7 +252,13 @@ def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = Non
         to_remove_idx = dll.convert_py_lst(c_to_remove_idx, c_size.value)
         dll.get_func('freePtr', [dll.VOID])(ctypes.cast(c_to_remove_idx, dll.VOID))
     else:
-        raise(NotImplementedError)
+        arr = list(arr)
+        i = 0 # start from the second col(number) to let the first number be lefted
+        while i < len(arr)-1:
+            if arr[i+1] - arr[i] < sh:
+                arr[i+1] = arr[i]
+                to_remove_idx.append(i+1)
+            i += 1
     
     if tag is not None and df is not None:
         ndf.drop(labels = to_remove_idx, inplace=True)
@@ -304,12 +305,15 @@ if __name__ == '__main__':
     # dev code
     import ctypes
     dll = CDLL(get_dll_path_for_sys('stats'))
-    c_size = dll.INT(10)
+    c_size = dll.INT(1000000)
     arr = np.random.randn(c_size.value)
     arr.sort()
     
-    r1 = remove_simi(arr = arr, backend='numpy-mat')
-    r2 = remove_simi(arr = arr, backend='numpy-array')
-    r3 = remove_simi(arr = arr, backend='torch-array')
-    r4 = remove_simi(arr = arr, backend='ba-cpp')
-    pass
+    from mbapy.base import TimeCosts
+    @TimeCosts(10, True)
+    def func(times, arr, backend, device):
+        remove_simi(arr = arr, backend = backend, device = device)
+        
+    backends = ['', 'cpp-array']
+    for backend in backends:
+        func(arr = arr, backend = backend, device = 'cpu')
