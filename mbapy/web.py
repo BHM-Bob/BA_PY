@@ -1,3 +1,10 @@
+'''
+Date: 2023-07-31 21:34:48
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-08-02 18:37:20
+FilePath: \BA_PY\mbapy\web.py
+Description: 
+'''
 
 if __name__ == '__main__':
     # functon assembly
@@ -17,5 +24,5 @@ BROWSER_HEAD = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KH
 
 if __name__ == '__main__':
     # dev code
-    pass
-    
+    launch_sub_thread()
+    print(get_input())

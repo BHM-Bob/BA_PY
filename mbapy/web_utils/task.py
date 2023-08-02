@@ -4,6 +4,7 @@ import os
 import time
 from queue import Queue
 
+statuesQue = Queue()
 
 def _wait_for_quit(statuesQue,):
     flag = 1
@@ -52,6 +53,23 @@ def get_input(promot:str = '', end = '\n'):
         ret = statues_que_opts(statuesQue, "input", "getValue")
     statues_que_opts(statuesQue, "input", "setValue", None)
     return ret
+    
+def launch_sub_thread(statuesQue = statuesQue):
+    """
+    Launches a sub-thread to run a separate task concurrently with the main thread.
+
+    This function creates a global `statuesQue` queue and puts a dictionary with the keys `quit` and `input` into the queue. The `quit` key is set to `False` and the `input` key is set to `None`. 
+    The function then starts a new thread by calling the `_wait_for_quit` function with the `statuesQue` queue as an argument. 
+    Finally, the function prints the message "web sub thread started".
+    """
+    statuesQue.put(
+        {
+            "quit": False,
+            "input": None,
+        }
+    )
+    _thread.start_new_thread(_wait_for_quit, (statuesQue,))
+    print('mbapy::web: web sub thread started')
 
 def show_prog_info(idx:int, sum:int = -1, freq:int = 10, otherInfo:str = ''):
     """
@@ -130,22 +148,3 @@ class ThreadsPool:
             while not que.empty():
                 retList.append(que.get())
         return retList
-
-def launch_sub_thread():
-    """
-    Launches a sub-thread to run a separate task concurrently with the main thread.
-
-    This function creates a global `statuesQue` queue and puts a dictionary with the keys `quit` and `input` into the queue. The `quit` key is set to `False` and the `input` key is set to `None`. 
-    The function then starts a new thread by calling the `_wait_for_quit` function with the `statuesQue` queue as an argument. 
-    Finally, the function prints the message "web sub thread started".
-    """
-    global statuesQue
-    statuesQue = Queue()
-    statuesQue.put(
-        {
-            "quit": False,
-            "input": None,
-        }
-    )
-    _thread.start_new_thread(_wait_for_quit, (statuesQue,))
-    print('mbapy::web: web sub thread started')
