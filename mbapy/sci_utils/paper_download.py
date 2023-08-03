@@ -1,19 +1,22 @@
-import os, re, requests
-from typing import List, Dict
+import os
+import re
+from typing import Dict, List
 
-from lxml import etree
+import requests
 import rispy
+from lxml import etree
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import *
-    from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt, read_text, opts_file
     import mbapy.web as web
+    from mbapy.base import *
+    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
+                            replace_invalid_path_chr)
 else:
     # release mode
-    from ..base import *
-    from ..file import replace_invalid_path_chr, convert_pdf_to_txt, opts_file
     from .. import web
+    from ..base import *
+    from ..file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
     
 session = requests.Session()
 
@@ -25,7 +28,7 @@ def _get_available_scihub_urls(proxies = None):
     res = session.request(method='GET', url='http://tool.yovisun.com/scihub/', proxies=proxies)
     results = etree.HTML(res.text).xpath('//tr[@class="item"]')
     for result in results:
-        # 我真的服了这个'latin1'编码，都没见过，还是问的chatGPT。。。
+        # 真的服了这个'latin1'编码，都没见过。。。
         status = result.xpath('.//td[@class="status"]/span[@class="label  label-success"]/text()')[0]
         status = status.encode('latin1').decode('utf-8')
         if status == '可用':
@@ -168,7 +171,7 @@ if __name__ == '__main__':
     # dev code
     from mbapy.base import rand_choose
     from mbapy.file import convert_pdf_to_txt, read_json
-    
+
     # download
     title = 'Linaclotide: a novel compound for the treatment of irritable bowel syndrome with constipation'
     doi = '10.1517/14656566.2013.833605'

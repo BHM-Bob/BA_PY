@@ -5,10 +5,13 @@ LastEditors: BHM-Bob
 LastEditTime: 2023-05-01 20:17:32
 Description:
 '''
+import math
 import pickle
-import time, math
+import time
+
 import numpy as np
-from hyperopt import fmin, tpe, hp, STATUS_OK, STATUS_FAIL, Trials
+from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
+
 space = {
     "a": hp.uniform("a", -10, 10),
     "b": hp.uniform("b", -10, 10),

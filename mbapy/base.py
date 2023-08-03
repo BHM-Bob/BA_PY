@@ -34,7 +34,7 @@ def put_log(info:str, head = "log", ret = None):
     print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
     return ret
 
-def TimeCosts(runTimes:int = 1):
+def TimeCosts(runTimes:int = 1, log_per_iter = True):
     """
     inner is func(times, *args, **kwargs)
     @TimeCosts(9)
@@ -49,7 +49,8 @@ def TimeCosts(runTimes:int = 1):
             for times in range(runTimes):
                 t1 = time.time()
                 ret.append(func(times, *args, **kwargs))
-                print(f'{times:2d} | {func.__name__:s} used {time.time()-t1:10.3f}s')
+                if log_per_iter:
+                    print(f'{times:2d} | {func.__name__:s} used {time.time()-t1:10.3f}s')
             print(f'{func.__name__:s} used {time.time()-t0:10.3f}s in total, {(time.time()-t0)/runTimes:10.3f}s by mean')
             return ret
         return core_wrapper
@@ -255,7 +256,7 @@ def get_dll_path_for_sys(module_name:str, **kwargs):
     else:
         return put_err(f'Unknown platform: {platform.system()}, return None', None)
 
-class MyDLL:
+class CDLL:
     @autoparse
     def __init__(self, path: str) -> None:
         """load a DLL file from path"""
@@ -263,18 +264,24 @@ class MyDLL:
             put_err(f'{path:s} is not exist')
         else:
             self.dll = ctypes.cdll.LoadLibrary(path)
-        self.PTR = ctypes.POINTER # pointer generator
-        self.REF = ctypes.byref # reference generator
+        # transfer ctype obj to c pointer
+        self.ptr = ctypes.pointer # pointer generator
+        self.ref = ctypes.byref # reference generator
+        self.str = lambda s : bytes(s, 'utf-8') # string generator
+        # c type in ctype
+        self.PTR = ctypes.POINTER # pointer type
         self.INT = ctypes.c_int # int type
         self.LONG = ctypes.c_long # long type
+        self.ULL = ctypes.c_uint64 # unsigned long long type
         self.FLOAT = ctypes.c_float # float type
         self.BOOL = ctypes.c_bool # bool type
         self.CHAR = ctypes.c_char # char type
         self.STR = ctypes.c_char_p # char* type
+        self.VOID = ctypes.c_void_p # void* type
     def convert_c_lst(self, lst:list, c_type = ctypes.c_int):
         return (c_type * len(lst))(*lst)
     def convert_py_lst(self, c_lst:ctypes.POINTER(ctypes.c_int), size: int):
-        return [c_lst[i] for i in range(size)]
+        return [c_lst[i][0] for i in range(size)]
     def get_func(self, func_name:str, func_args:list = None, func_ret = None):
         """
         Get a function by its name from the DLL object.

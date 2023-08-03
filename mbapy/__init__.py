@@ -5,20 +5,14 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2023-07-15 23:37:57
 Description: some helpful python scripts in plot, stats and deeplearning
 '''
-from . import base, file, plot, web, stats
-from .__version__ import (
-    __author__,
-    __author_email__,
-    __build__,
-    __description__,
-    __license__,
-    __title__,
-    __version__,
-    __url__,
-)
+from . import base, file, plot, stats, web
+from .__version__ import (__author__, __author_email__, __build__,
+                          __description__, __license__, __title__, __url__,
+                          __version__)
 
 try:
     import torch
+
     from mbapy import dl_torch as dl_torch
 except:
     pass

@@ -6,22 +6,24 @@ FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
 
-import os, re
-from typing import List, Dict
+import os
+import re
+from typing import Dict, List
 
-import rispy
 import PyPDF2
+import rispy
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import *
-    from mbapy.file import replace_invalid_path_chr, convert_pdf_to_txt, read_text, opts_file
     import mbapy.web as web
+    from mbapy.base import *
+    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
+                            replace_invalid_path_chr)
 else:
     # release mode
-    from ..base import *
-    from ..file import replace_invalid_path_chr, convert_pdf_to_txt, opts_file
     from .. import web
+    from ..base import *
+    from ..file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
 
 
 def _flatten_pdf_bookmarks(*bookmarks):

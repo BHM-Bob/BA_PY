@@ -13,7 +13,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from einops import rearrange
 
 class NonLocalBlock(nn.Module):
     """Non-local Neural Networks (CVPR 2018)\n

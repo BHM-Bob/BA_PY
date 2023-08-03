@@ -12,6 +12,7 @@ import torch.optim
 
 from ..base import autoparse
 
+
 def _ConsineDown(lr_0:float, now_epoch:int, T_0:int, sum_epoch:int):
     return lr_0 * 0.5 * (1. + math.cos(math.pi * now_epoch / sum_epoch))
 

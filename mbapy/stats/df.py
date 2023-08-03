@@ -14,11 +14,11 @@ import pandas as pd
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import MyDLL, get_dll_path_for_sys
+    from mbapy.base import CDLL, get_dll_path_for_sys, put_err
     from mbapy.file import update_excel
 else:
     # release mode
-    from ..base import MyDLL, get_dll_path_for_sys
+    from ..base import CDLL, get_dll_path_for_sys, put_err
     from ..file import update_excel
 
 def get_value(df:pd.DataFrame, column:str, mask:np.array)->list:
@@ -162,55 +162,76 @@ def sort_df_factors(factors:List[str], tags:List[str], df:pd.DataFrame):
         ndf.append(list(factorCombi) + np.array(df.loc[factorMask, tags].values))
     return pd.DataFrame(ndf[1:], columns=ndf[0])
 
-
-def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1., 
-                backend:str = 'numpy-array', tensor = None, device = 'cuda'):
+def remove_simi(tag:str = None, df:pd.DataFrame = None, arr = None, tensor = None, sh:float = 1., 
+                backend:str = 'numpy-array', device = 'cuda'):
     """
-    给定一组数，去除一些(最小数目)数，使任意两数差的绝对值大于或等于阈值\n
+    给定一组数, 去除一些(最少数目)数, 使任意两数差的绝对值大于或等于阈值. numpy-mat实现模仿自动态规划Needleman-Wushsch序列对比算法.\n
     Given a set of numbers, remove some (minimum number) of numbers so that the absolute value of the difference between any two numbers is greater than or equal to the threshold\n
-    算法模仿自Needleman-Wushsch序列对比算法\n
-    Parameters
-    ----------
-    backend : 
-        'numpy-mat': a n-n mat will be alloc\n
-        'numpy-array': only operate on a n shape arrray\n
-        'torch-array': only operate on a n shape arrray\n
+     
+    Parameters: 
+    --------
+        -  tag : a string representing the column name in the dataframe to sort and remove similar elements from. 
+        -  df : a pandas dataframe from which similar elements are to be removed. 
+        -  arr : an array from which similar elements are to be removed. 
+        -  sh : a float value that defines the threshold for similarity. If the difference between two elements is less than this value, one of them is considered for removal. 
+        -  backend : a string that specifies the method to use for the operation. The options are 'numpy-mat', 'torch-array', and 'cpp-array', if not specified, the default is python list. 
+        -  tensor : a tensor that can be used instead of  arr  when the backend is 'torch-array'. 
+        -  device : a string that specifies the device to use for computation when the backend is 'torch-array'. The default is 'cuda'. 
+    
+    backend:
+    --------
+        - For 'numpy-mat', a n-n mat will be alloc. it creates a matrix where each element is the difference between two elements in  arr . It then iterates over this matrix to find elements that are similar according to the threshold  sh . 
+        - For 'torch-array', only operate on a n shape arrray. it uses a PyTorch script to iterate over a tensor version of  arr  and find similar elements. 
+        - For 'cpp-array', only operate on a n shape arrray. it uses a C++ function to find similar elements. 
+        - Otherwise, use python list as array.
+            
+    Returns:
+    --------
+        the updated dataframe or array and the list of indices of removed elements.
+        
+    Raise:
+    --------
+        If meets numpy array memory error, return None(by put_err func).
+        
     Examples
     --------
     >>> df = pd.DataFrame({'d':[1, 2, 3, 3, 5, 6, 8, 13]})\n
-    >>> print(remove_simi('d', df, 2.1, 'numpy'))\n
-        d\n
-    0   1\n
-    4   5\n
-    6   8\n
-    7  13\n
+    >>> print(remove_simi('d', df, sh = 2.1))\n
+    >>>     d
+    >>> 0   1
+    >>> 4   5
+    >>> 6   8
+    >>> 7  13
     """
-    ndf = df.sort_values(by = tag, ascending=True)
+    if tag is not None and df is not None:
+        ndf = df.sort_values(by = tag, ascending=True)
+        arr = ndf[tag]
     to_remove_idx = []
     if backend  == 'numpy-mat':
-        arr = np.array(ndf[tag]).reshape([1, len(ndf[tag])])
-        mat = arr.repeat(arr.shape[1], axis = 0) - arr.transpose(1, 0).repeat(arr.shape[1], axis = 1)
-        i, j, k = 0, 0, mat.shape[0]
+        arr = np.array(arr).reshape([1, len(arr)])
+        try:
+            mat = arr.repeat(arr.shape[1], axis = 0) - arr.transpose(1, 0).repeat(arr.shape[1], axis = 1)
+        except np.core._exceptions._ArrayMemoryError:
+            return put_err('OOM, retrun None', None)
+        i, j, k = 0, 1, mat.shape[0] # start from the second col(number) to let the first number be lefted
         while i < k and j < k:
             if i == j:
                 j += 1
             elif mat[i][j] < sh:
                 to_remove_idx.append(j)
-                mat[i][j] = mat[i][j-1]#skip for next element in this row
-                mat[j] = arr - mat[i][j]#skip for row j
-                j += 1
+                j += 1 # move to next col(number)
             elif mat[i][j] >= sh:
-                i += 1
+                j += 1 # move to next col(number)
+                i = j - 1 # set minuend to be previous col(number)
     elif backend == 'torch-array':
         try:
             import torch
         except:
             raise ImportError('no torch available')
-        arr = tensor if tensor is not None else torch.tensor(ndf[tag], device = device,
-                                                             dtype = torch.float32).view(-1)
+        arr = tensor if tensor is not None else torch.tensor(arr, device = device).view(-1)
         @torch.jit.script
         def step_scan(x:torch.Tensor, to_remove:List[int], sh:float):
-            i = 0
+            i = 0 # start from the second col(number) to let the first number be lefted
             while i < x.shape[0]-1:
                 if x[i+1] - x[i] < sh:
                     x[i+1] = x[i]
@@ -218,28 +239,33 @@ def remove_simi(tag:str, df:pd.DataFrame, sh:float = 1.,
                 i += 1
             return to_remove
         to_remove_idx = step_scan(arr, to_remove_idx, sh)
-    elif backend == 'numpy-array':
-        arr = np.array(ndf[tag]).reshape([len(ndf[tag])])
-        i = 0
-        while i < arr.shape[0]-1:
+        arr = arr.to(device = 'cpu').numpy()
+    elif backend == 'cpp-array':
+        arr = list(arr)
+        dll = CDLL(get_dll_path_for_sys('stats'))
+        c_size = dll.ULL(len(arr))
+        c_arr = dll.convert_c_lst(arr, dll.FLOAT)
+        c_remove_simi = dll.get_func('remove_simi',
+                                    [dll.PTR(dll.FLOAT), dll.PTR(dll.ULL), dll.FLOAT],
+                                    dll.PTR(dll.ULL * 1))
+        c_to_remove_idx = c_remove_simi(c_arr, dll.ptr(c_size), sh)
+        to_remove_idx = dll.convert_py_lst(c_to_remove_idx, c_size.value)
+        dll.get_func('freePtr', [dll.VOID])(ctypes.cast(c_to_remove_idx, dll.VOID))
+    else:
+        arr = list(arr)
+        i = 0 # start from the second col(number) to let the first number be lefted
+        while i < len(arr)-1:
             if arr[i+1] - arr[i] < sh:
                 arr[i+1] = arr[i]
                 to_remove_idx.append(i+1)
             i += 1
-    elif backend == 'ba-cpp':
-        raise(NotImplementedError)
-        arr = np.array(ndf[tag]).reshape([len(ndf[tag])]).tolist()
-        dll = MyDLL(get_dll_path_for_sys('stats'))
-        c_result = dll.PTR(dll.FLOAT)
-        c_size = dll.INT
-        c_remove_simi = dll.get_func('remove_simi',
-                                     [dll.PTR(dll.FLOAT), dll.PTR(dll.FLOAT), dll.PTR(dll.INT)])
-        c_remove_simi(dll.convert_c_lst(arr, dll.FLOAT), dll.REF(c_result), dll.REF(c_size))
-        to_remove_idx = dll.convert_py_lst(c_result, c_size)
-    else:
-        raise(NotImplementedError)
-    ndf.drop(labels = to_remove_idx, inplace=True)
-    return ndf, to_remove_idx
+    
+    if tag is not None and df is not None:
+        ndf.drop(labels = to_remove_idx, inplace=True)
+        return ndf, to_remove_idx
+    elif arr is not None:
+        arr = np.delete(arr, to_remove_idx)
+        return arr, to_remove_idx
 
 def interp(long_one:pd.Series, short_one:pd.Series):
     """
@@ -278,14 +304,16 @@ def merge_col2row(df:pd.DataFrame, cols:List[str],
 if __name__ == '__main__':
     # dev code
     import ctypes
-    dll = MyDLL(get_dll_path_for_sys('stats'))
-    c_size = dll.INT(100)
+    dll = CDLL(get_dll_path_for_sys('stats'))
+    c_size = dll.INT(1000000)
     arr = np.random.randn(c_size.value)
     arr.sort()
-    arr = arr.tolist()
-    c_remove_simi = dll.get_func('remove_simi',
-                                 [dll.PTR(dll.FLOAT), dll.PTR(dll.INT)],
-                                 dll.PTR(dll.FLOAT))
-    to_remove_idx = c_remove_simi(dll.convert_c_lst(arr, dll.FLOAT), dll.REF(c_size))
-    to_remove_idx = dll.convert_py_lst(to_remove_idx, c_size.value)
-    print(to_remove_idx)
+    
+    from mbapy.base import TimeCosts
+    @TimeCosts(10, True)
+    def func(times, arr, backend, device):
+        remove_simi(arr = arr, backend = backend, device = device)
+        
+    backends = ['', 'cpp-array']
+    for backend in backends:
+        func(arr = arr, backend = backend, device = 'cpu')

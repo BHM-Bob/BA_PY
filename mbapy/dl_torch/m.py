@@ -11,15 +11,14 @@ import math
 from typing import Dict, Optional, Union
 
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from ..base import autoparse
-from .utils import GlobalSettings
 from . import bb
 from .bb import CnnCfg
+from .utils import GlobalSettings
 
 # str2net合法性前置声明
 str2net = {}

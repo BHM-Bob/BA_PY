@@ -1,16 +1,16 @@
 import atexit
 import glob
+import math
 import os
 import time
 from queue import Queue
 
-import math
 import numpy as np
 import torch
 import torch.nn as nn
 
 from ..base import MyArgs, get_default_for_None
-from ..file import save_json, read_json
+from ..file import read_json, save_json
 
 _Params = {
     'USE_VIZDOM':False,
@@ -104,6 +104,7 @@ class GlobalSettings(MyArgs):
         self.mp = mp#Mp        
         if self.seed is not None:
             import random
+
             import torch.backends.cudnn as cudnn
             random.seed(self.seed)
             torch.manual_seed(self.seed)
