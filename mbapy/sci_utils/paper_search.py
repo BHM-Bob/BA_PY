@@ -3,7 +3,7 @@ import random
 import re
 from typing import Dict, List
 
-import requests
+import crossref_commons.retrieval
 import rispy
 from lxml import etree
 
@@ -293,6 +293,25 @@ def search(query:str, limit:int = 1, search_engine:str = 'baidu xueshu',
     else:
         return put_err(f'Unknown search engine: {search_engine}, returns None', None)
 
+@parameter_checker(check_parameters_len, raise_err = False)
+def get_reference_by_doi(doi:str):
+    """
+    Return:
+        dict:
+            >>> 'key': '2019041211085787000_b1-0711081'
+            >>> 'doi-asserted-by': 'crossref'
+            >>> 'first-page': '1480'
+            >>> 'DOI': '10.1053/j.gastro.2005.11.061'
+            >>> 'article-title': 'Functional bowel disorders'
+            >>> 'volume': '130'
+            >>> 'author': 'Longstreth'
+            >>> 'year': '2006'
+            >>> 'journal-title': 'Gastroenterology'
+    """
+    try:
+        return crossref_commons.retrieval.get_publication_as_json(doi)['reference']
+    except:
+        return put_err('can not retrive from crossref, return None', None)
 
 
 if __name__ == '__main__':
