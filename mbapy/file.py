@@ -285,7 +285,9 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
 
     Args:
         path: The path to the PDF file.
-        backend: The backend library to use for PDF conversion. Defaults to 'PyPDF2'.
+        backend: The backend library to use for PDF conversion. 
+            - 'PyPDF2' is the default.
+            - 'pdfminer'.
 
     Returns:
         The extracted text from the PDF file as a string.
@@ -300,6 +302,9 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
         with open(path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
             return '\n'.join([page.extract_text() for page in reader.pages])
+    elif backend == 'pdfminer':        
+        from pdfminer.high_level import extract_text
+        return extract_text(path)
     else:
         raise NotImplementedError
 

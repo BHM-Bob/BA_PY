@@ -66,9 +66,12 @@ def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:List[st
     if pdf_obj is not None:
         outlines = _get_outlines(pdf_obj)
     elif pdf_path is not None and os.path.isfile(pdf_path):
-        with open(pdf_path, 'rb') as file:
-            pdf_obj = PyPDF2.PdfReader(file)
-            outlines = _get_outlines(pdf_obj)
+        try:
+            with open(pdf_path, 'rb') as file:
+                pdf_obj = PyPDF2.PdfReader(file)
+                outlines = _get_outlines(pdf_obj)
+        except:
+            return put_err(f'Something goes wrong with pdf path:{pdf_path}, return ""', "")
     # check for valid bookmarks, get flat section list
     if len(outlines) == 0:
         return False
@@ -145,9 +148,12 @@ def get_section_bookmarks(pdf_path:str = None, pdf_obj = None):
         return put_err(f'{pdf_path:s} does not exist', None)
     # get section titles
     if pdf_obj is None:
-        with open(pdf_path, 'rb') as file:
-            pdf_obj = PyPDF2.PdfReader(file)
-            return worker(pdf_obj)
+        try:
+            with open(pdf_path, 'rb') as file:
+                pdf_obj = PyPDF2.PdfReader(file)
+                return worker(pdf_obj)
+        except:
+            return put_err(f'Something goes wrong with pdf path:{pdf_path}, return ""', "")
     else:
         return worker(pdf_obj)
     
@@ -185,22 +191,71 @@ def get_section_from_paper(paper:str, key:str,
             Defaults to ['Title', 'Authors', 'Abstract', 'Keywords', 'Introduction',
             'Materials & Methods', 'Results', 'Discussion', 'References'].
     """
+    def _get_valid_key(key:str):
+        return key.replace('(', '\(').replace(')', '\)')
+    def _has_key(key:str, flags = re.DOTALL):
+        return re.findall(r'\b{}(?i:{})\b'.format(key[0], key[1:]), paper, flags)
     def _get_longest(results:List[str]):
         length = [len(i) for i in results]
         return results[length.index(max(length))]
+    def _get_match_by_key(key1:str, keys:List[str], key2 = None, flags = re.DOTALL):
+        """
+        有的文献虽然有Abstract（或其他第一个书签）章节书签，但是在文本中不写，此时取文献开头作为匹配
+        有的文献书签首字母大写，但在全文中全字母大写，为了尽可能精确匹配，要求首字母大小写匹配而忽略剩余字符
+        """
+        key1_s =  _get_valid_key(key1)
+        # 得到key2，如果未指定key2，则用key1的下一个key
+        key2 = get_default_for_None(key2, keys[keys.index(key1)+1] if key1 != keys[-1] else None)
+        if key2 is None:# 单层if会让VSCode认为下方代码为死代码。。。
+            matchs = re.findall(r'\b{}(?i:{})\b[ \.\n].+?$'.format(key1_s[0], key1_s[1:]), paper, flags)
+            if matchs:
+                # 这时如果key1是最后一个key，那么key2就是$。如果key1能找到，直接返回
+                return matchs[0]
+            else:
+                return put_err(f'key1 "{key}" not found in paper and it is the last one', '')
+        # 得到合法的用于检索的key2
+        key2_s = _get_valid_key(key2)
+        has_key1, has_key2 = _has_key(key1_s), _has_key(key2_s)
+        # 错误前处理。此时keyx都是原书签，而keyx_s都是合法的检索字符串
+        if not has_key1 and not has_key2:
+            if flags == (re.DOTALL | re.IGNORECASE):
+                return put_err(f'key1 "{key1}" and key2 "{key2}" not found, return ""', "")
+            else:
+                return _get_match_by_key(key1, keys, key2, re.DOTALL | re.IGNORECASE)
+        elif not has_key1 and has_key2 and keys.index(key1) == 0:
+            # 如果只有key1没找到，且key1是第一个key，就是用全文第一个字符替代。
+            pattern = r'{}.+?\b{}(?i:{})\b'.format(paper[0], key2_s[0], key2_s[1:])
+        elif not has_key1 and has_key2 and keys.index(key1) > 0:
+            # 如果只有key1没找到，且key1不是是第一个key，将key1提前一个
+            return _get_match_by_key(keys[keys.index(key1)-1], keys, key2)
+        elif has_key1 and not has_key2 and keys.index(key2) == len(keys) - 1:
+            # 如果只有key2没找到，且key2是最后一个key，就用全文最后一个字符替代。
+            pattern = r'\b{}(?i:{})\b.+?{}'.format(key1_s[0], key1_s[1:], paper[-1])
+        elif has_key1 and not has_key2 and keys.index(key2) < len(keys) - 1:
+            # 如果只有key2没找到，且key2不是最后一个key，将key2推后一个
+            return _get_match_by_key(key1, keys, keys[keys.index(key2)+1])
+        else:
+            # 两个key都找到，正常构建pattern
+            pattern = r'\b{}(?i:{})\b[ \.\n].+?\b{}(?i:{})\b[ \.\n]'.format(key1_s[0], key1_s[1:], key2_s[0], key2_s[1:])
+        matchs = re.findall(pattern, paper, flags)
+        # 错误后处理
+        if not matchs and not flags == (re.DOTALL | re.IGNORECASE):
+            # 如果还没找到，就忽略大小写再找一遍
+            ignore_case_result = _get_match_by_key(key1, keys, key2, re.DOTALL | re.IGNORECASE)
+            if ignore_case_result:
+                return ignore_case_result
+            else:# TODO：目前没办法
+                return ''
+        # 返回match
+        return matchs
     
     if paper is None or key is None:
         return put_err('paper or key is None', None)
-    # 有的文献虽然有Abstract（或其他第一个书签）章节书签，但是在文本中不写，此时取文献开头作为匹配
-    # 不使用^作为匹配开头的pattern是因为会出问题
-    if not re.findall(r'{}[ \.\n]'.format(key), paper, re.DOTALL | re.IGNORECASE) and keys.index(key) == 0:
-        pattern = r'{}[ \.\n].+?{}[ \.\n]'.format(paper[0], (keys[keys.index(key)+1]) if key != keys[-1] else '$')
-    else:
-        pattern = r'{}[ \.\n].+?{}[ \.\n]'.format(key, (keys[keys.index(key)+1]) if key != keys[-1] else '$')
-    # 有的文献一个章节名存在多次，第一次集中出现，第二次为真正引导章节，取第二次，若存在更多次，忽略该情况
-    match = re.findall(pattern, paper, re.DOTALL)
-    if match:
-        return _get_longest(match)
+    # 给最后一个字符后加一个空格以便下面的检索
+    paper = paper + ' '
+    matchs = _get_match_by_key(key, keys)
+    if matchs:
+        return _get_longest(matchs) # 有的文献一个章节名存在多次，第一次集中出现，第二次为真正引导章节，取第二次（最长的），若存在更多次，忽略该情况
     else:
         return put_err(f'key "{key}" not found in paper', '')
 
@@ -215,9 +270,12 @@ def format_paper_from_txt(content:str,
 
 if __name__ == '__main__':
     # dev code
-    pdf_path = r'data_tmp\papers\Laxative effect and mechanism of Tiantian Capsule on loperamide-induced constipation in rats.pdf'
+    pdf_path = r'data_tmp\papers\Contrasting effects of linaclotide and lubiprostone on restitution of epithelial cell barrier properties and cellular homeostasis after exposure to cell stressors.pdf'
+    pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')\
+        .replace('\u00a0', ' ').replace('-\n', '').replace('  ', ' ')
+    opts_file('data_tmp/text.txt', 'w', data = pdf_text)
     print(pdf_path)
-    pdf_text = convert_pdf_to_txt(pdf_path)
+    # pdf_text = convert_pdf_to_txt(pdf_path).replace('-\n', '').replace('  ', ' ')
     bookmarks = get_english_part_of_bookmarks(get_section_bookmarks(pdf_path))
     pdf_data = format_paper_from_txt(pdf_text, bookmarks)
     pass
