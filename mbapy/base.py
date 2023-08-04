@@ -234,6 +234,12 @@ def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     localVar = locals()
     """
     return MyArgs(defalut_args).get_args(kwargs, True, del_kwargs)
+
+def set_default_kwargs(kwargs: Dict, **default_kwargs: Dict):
+    for name, value in default_kwargs.items():
+        if name not in kwargs:
+            kwargs[name] = value
+    return kwargs
             
 def split_list(lst:list, n = 1, drop_last = False):
     """
