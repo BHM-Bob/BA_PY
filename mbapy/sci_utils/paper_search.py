@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import requests
 from typing import Dict, List
 
 import crossref_commons.retrieval
