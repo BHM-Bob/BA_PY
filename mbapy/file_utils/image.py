@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-18 23:01:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-19 21:23:14
+LastEditTime: 2023-08-03 19:46:20
 FilePath: \BA_PY\mbapy\file_utils\image.py
 Description: 
 '''
@@ -19,19 +19,26 @@ if __name__ == '__main__':
 else:
     from ..base import get_default_call_for_None, get_default_for_None
 
-def _load_nn_model(model_dir:str):
+def _load_nn_model(model_dir: str, model_name: str = 'resnet50'):
     """
-    Load the neural network model from the specified directory.
+    Load the neural network model from the specified directory or download to the directory.
+    Notes: This func will remove the last layer of the model.
 
     Parameters:
         model_dir (str): The directory where the model is stored.
+        model_name (str): The name of the model to load.
 
     Returns:
         model (torch.nn.Module): The loaded neural network model.
     """
     torch.hub.set_dir(model_dir)
     os.makedirs(model_dir, exist_ok=True)
-    model = models.resnet50(weights=torchvision.models.ResNet50_Weights.DEFAULT, progress=True)
+
+    available_models = torchvision.models.__dict__
+    if model_name not in available_models:
+        raise ValueError(f"Model '{model_name}' is not available in torchvision.")
+
+    model = available_models[model_name](pretrained=True)
     model = torch.nn.Sequential(*list(model.children())[:-1])
     model.eval()
     return model
