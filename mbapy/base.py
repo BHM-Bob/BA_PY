@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-19 00:04:26
+LastEditTime: 2023-08-03 23:47:05
 Description: 
 '''
 import ctypes
@@ -21,17 +21,165 @@ import numpy as np
 # TODO : add global var modification options support
 __NO_ERR__ = False
 
-def put_err(info:str, ret = None):
-    """put err info, return ret"""
-    if not __NO_ERR__:
+def get_time(chr:str = ':')->str:
+    """
+    Returns the current time as a string, with the option to replace the ':' separator with a custom character.
+
+    Parameters:
+        chr (str): The character to replace the ':' separator with. Defaults to ':'.
+
+    Returns:
+        str: The current time as a string, with the ':' separator replaced with the custom character.
+    """
+    return time.asctime(time.localtime()).replace(':', chr)
+
+def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S", timestamp = None):
+    """
+    Returns a formatted string representing the given timestamp in the specified format.
+
+    Parameters:
+    - fmt (str): The format string to use for formatting the timestamp. Defaults to "%Y-%m-%d %H-%M-%S".
+    - timestamp (float or None): The timestamp to format. If None, the current time will be used. Defaults to None.
+
+    Returns:
+    - str: The formatted timestamp string.
+    """
+    timestamp = get_default_call_for_None(timestamp, time.time)
+    local_time = time.localtime(timestamp)
+    date_str = time.strftime(fmt, local_time)
+    return date_str
+
+class _ConfigBase:
+    def __init__(self) -> None:
+        pass
+    def to_dict(self):
+        for attr in vars(self):
+            self.__dict__[attr] = getattr(self, attr)
+        for attr_name, attr_value in self.__dict__.items():
+            if hasattr(attr_value, 'to_dict'):
+                self.__dict__[attr_name] = attr_value.to_dict()        
+        return self.__dict__
+
+class _Config_File(_ConfigBase):
+    def __init__(self) -> None:
+        self.storage_dir = str(pathlib.Path(__file__).parent.resolve() / 'storage')
+
+class _Config_Web(_ConfigBase):
+    def __init__(self) -> None:
+        self.auto_launch_sub_thread: bool = False
+        self.chrome_driver_path = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
+        self.quest_head = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+    
+class _Config(_ConfigBase):
+    def __init__(self) -> None:
+        self.err_warning_level: int = 0 # 0: all, no filter, 1: bapy parameter error, 2: bapy inner error... the bigger, the less error
+        self.file = _Config_File()
+        self.web = _Config_Web()
+    
+    def _get_default_config_path(self):
+        return os.path.join(self.file.storage_dir, '_Config.json')
+
+    def update(self, sub_module_name: str, attr_name: str, attr_value: Union[int, str, List, Dict],
+               save_to_file: bool = True):
+        """
+        Update the attribute of a sub-module in the configuration.
+
+        Parameters:
+            sub_module_name (str): The name of the sub-module.
+            attr_name (str): The name of the attribute to update.
+            attr_value (Union[int, str, List, Dict]): The new value for the attribute. Can be an integer, a string, a list, or a dictionary.
+            save_to_file (bool, optional): Indicates whether to save the updated configuration to a file. Defaults to True.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the sub_module_name is not supported.
+
+        """
+        support_module = ['file', 'web']
+        if sub_module_name in support_module:
+            sub_module = getattr(self, sub_module_name)
+            setattr(sub_module, attr_name, attr_value)
+            if save_to_file:
+                json_str = json.dumps(self.to_dict(), indent=4)
+                with open(self._get_default_config_path(),
+                          'w', encoding='utf-8', errors='ignore') as json_file:
+                    json_file.write(json_str)
+            return True
+        else:
+            return put_err(f'{sub_module_name} not supported, only support: {", ".join(support_module)}', False)
+        
+    def save_to_file(self, config_file_path:str = None):
+        """
+        Saves the object to a file in JSON format.
+
+        Args:
+            config_file_path (str, optional): The path where the JSON file will be saved. If not provided, the default path will be used.
+
+        Returns:
+            dict: A dictionary representation of the object.
+        """
+        config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
+        with open(config_file_path, 'w', encoding='utf-8', errors='ignore') as json_file:
+            json_file.write(json.dumps(self.to_dict(), indent=4))
+        return self.__dict__
+        
+    def load_from_file(self, force_update: bool = True, config_file_path:str = None, update_to_file = True):
+        """
+        Load configuration data from a file.
+
+        Args:
+            force_update (bool, optional): Flag to force update the configuration. Defaults to True.
+            config_file_path (str, optional): Path to the configuration file. Defaults to None.
+            update_to_file (bool, optional): Flag to update the configuration to file after updating. Defaults to True.
+
+        Returns:
+            dict: The loaded and updated configuration data.
+        """
+        config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
+        with open(config_file_path, 'r', encoding='utf-8', errors='ignore') as json_file:
+            config = json.loads(json_file.read())
+            for sub_module_name, sub_configs in config.items():
+                for sub_config in sub_configs:
+                    if force_update or not hasattr(getattr(self, sub_module_name), sub_config):
+                        setattr(getattr(self, sub_module_name), sub_config, sub_config)
+        if update_to_file:
+            self.save_to_file()
+        return config
+
+Configs = _Config()
+
+def put_err(info:str, ret = None, warning_level = 0):
+    """
+    Prints an error message along with the caller's name and arguments, if the warning level is greater than or equal to the error warning level specified in the Configs class.
+    
+    Parameters:
+        info (str): The error message to be printed.
+        ret (Any, optional): The return value of the function. Defaults to None.
+        warning_level (int, optional): The warning level of the error. Defaults to 0.
+    
+    Returns:
+        Any: The value specified by the ret parameter.
+    
+    Notes: It is recommended to set warning_level:
+        0: normal error, will be closed easily.
+        1: bapy parameter error.
+        2: bapy inner error.
+        3 or bigger: more important error.
+    """
+    if warning_level >= Configs.err_warning_level:
         frame = inspect.currentframe().f_back
         caller_name = frame.f_code.co_name
         caller_args = inspect.getargvalues(frame).args
         print(f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n')
     return ret
 
-def put_log(info:str, head = "log", ret = None):
-    print(f'\n{head:s} : {sys._getframe().f_code.co_name:s} : {info:s}\n')
+def put_log(info:str, head = "bapy::log", ret = None):
+    frame = inspect.currentframe().f_back
+    caller_name = frame.f_code.co_name
+    time_str = get_fmt_time()
+    print(f'\n{head:s} {time_str:s}: {caller_name:s}: {info:s}\n')
     return ret
 
 def TimeCosts(runTimes:int = 1, log_per_iter = True):
@@ -320,141 +468,10 @@ class CDLL:
         else:
             put_err(f'{free_func:s} is not exist')
 
-def get_time(chr:str = ':')->str:
-    """
-    Returns the current time as a string, with the option to replace the ':' separator with a custom character.
-
-    Parameters:
-        chr (str): The character to replace the ':' separator with. Defaults to ':'.
-
-    Returns:
-        str: The current time as a string, with the ':' separator replaced with the custom character.
-    """
-    return time.asctime(time.localtime()).replace(':', chr)
-
-def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S", timestamp = None):
-    """
-    Returns a formatted string representing the given timestamp in the specified format.
-
-    Parameters:
-    - fmt (str): The format string to use for formatting the timestamp. Defaults to "%Y-%m-%d %H-%M-%S".
-    - timestamp (float or None): The timestamp to format. If None, the current time will be used. Defaults to None.
-
-    Returns:
-    - str: The formatted timestamp string.
-    """
-    timestamp = get_default_call_for_None(timestamp, time.time)
-    local_time = time.localtime(timestamp)
-    date_str = time.strftime(fmt, local_time)
-    return date_str
-
-# @dataclass
-class _ConfigBase:
-    def __init__(self) -> None:
-        pass
-    def to_dict(self):
-        for attr in vars(self):
-            self.__dict__[attr] = getattr(self, attr)
-        for attr_name, attr_value in self.__dict__.items():
-            if hasattr(attr_value, 'to_dict'):
-                self.__dict__[attr_name] = attr_value.to_dict()        
-        return self.__dict__
-
-# @dataclass
-class _Config_File(_ConfigBase):
-    def __init__(self) -> None:
-        self.storage_dir = str(pathlib.Path(__file__).parent.resolve() / 'storage')
-
-# @dataclass
-class _Config_Web(_ConfigBase):
-    def __init__(self) -> None:
-        self.auto_launch_sub_thread: bool = False
-        self.chrome_driver_path = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
-        self.quest_head = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-    
-# @dataclass
-class _Config(_ConfigBase):
-    def __init__(self) -> None:
-        self.file = _Config_File()
-        self.web = _Config_Web()
-    
-    def _get_default_config_path(self):
-        return os.path.join(self.file.storage_dir, '_Config.json')
-
-    def update(self, sub_module_name: str, attr_name: str, attr_value: Union[int, str, List, Dict],
-               save_to_file: bool = True):
-        """
-        Update the attribute of a sub-module in the configuration.
-
-        Parameters:
-            sub_module_name (str): The name of the sub-module.
-            attr_name (str): The name of the attribute to update.
-            attr_value (Union[int, str, List, Dict]): The new value for the attribute. Can be an integer, a string, a list, or a dictionary.
-            save_to_file (bool, optional): Indicates whether to save the updated configuration to a file. Defaults to True.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the sub_module_name is not supported.
-
-        """
-        support_module = ['file', 'web']
-        if sub_module_name in support_module:
-            sub_module = getattr(self, sub_module_name)
-            setattr(sub_module, attr_name, attr_value)
-            if save_to_file:
-                json_str = json.dumps(self.to_dict(), indent=4)
-                with open(self._get_default_config_path(),
-                          'w', encoding='utf-8', errors='ignore') as json_file:
-                    json_file.write(json_str)
-            return True
-        else:
-            return put_err(f'{sub_module_name} not supported, only support: {", ".join(support_module)}', False)
-        
-    def save_to_file(self, config_file_path:str = None):
-        """
-        Saves the object to a file in JSON format.
-
-        Args:
-            config_file_path (str, optional): The path where the JSON file will be saved. If not provided, the default path will be used.
-
-        Returns:
-            dict: A dictionary representation of the object.
-        """
-        config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
-        with open(config_file_path, 'w', encoding='utf-8', errors='ignore') as json_file:
-            json_file.write(json.dumps(self.to_dict(), indent=4))
-        return self.__dict__
-        
-    def load_from_file(self, force_update: bool = True, config_file_path:str = None, update_to_file = True):
-        """
-        Load configuration data from a file.
-
-        Args:
-            force_update (bool, optional): Flag to force update the configuration. Defaults to True.
-            config_file_path (str, optional): Path to the configuration file. Defaults to None.
-            update_to_file (bool, optional): Flag to update the configuration to file after updating. Defaults to True.
-
-        Returns:
-            dict: The loaded and updated configuration data.
-        """
-        config_file_path = get_default_call_for_None(config_file_path, self._get_default_config_path)
-        with open(config_file_path, 'r', encoding='utf-8', errors='ignore') as json_file:
-            config = json.loads(json_file.read())
-            for sub_module_name, sub_configs in config.items():
-                for sub_config in sub_configs:
-                    if force_update or not hasattr(getattr(self, sub_module_name), sub_config):
-                        setattr(getattr(self, sub_module_name), sub_config, sub_config)
-        if update_to_file:
-            self.save_to_file()
-        return config
-
-Configs = _Config()
-
 if __name__ == '__main__':
     # dev code
     # arg checker
+    Configs.err_warning_level = 2
     @parameter_checker(check_parameters_path, head = check_parameters_len, raise_err = False)
     def arg_checker_test(path:str, length:int, head:str):
         print(path, length, head)

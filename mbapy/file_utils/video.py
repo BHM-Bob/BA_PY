@@ -8,11 +8,12 @@ from tqdm import tqdm
 if __name__ == '__main__':
     # dev mode
     from mbapy.base import *
+    from mbapy.file_utils.image import *
 else:
     # release mode
     from ..base import *
+    from .image import *
 
-    
 def get_cv2_video_attr(video, attr_name:str, ret_int:bool = True):
     """
     Get the value of a specific attribute from a cv2 video object.
@@ -135,7 +136,7 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
 @parameter_checker(check_parameters_path, raise_err=False)
 def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
                           scale_factor=1.0, compare_gray = True,
-                          backend = 'skimage', model_dir = './data/nn_models/'):
+                          backend = 'skimage', model_dir = None):
     """
     Extracts unique frames from a video based on structural similarity index (SSIM).
 
@@ -146,6 +147,7 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
         scale_factor (float, optional): The factor by which the frame should be scaled. Defaults to 1.0 (no scaling).
         compare_gray (bool, optional): Whether to compare frames in grayscale. Defaults to True.
         backend (str, optional): The backend library to use for SSIM calculation. Defaults to 'skimage'.
+            can be 'numpy', 'pytorch' or 'skimage'.
         model_dir (str, optional): The directory containing the neural network models. Defaults to './data/nn_models/'.
 
     Returns:
@@ -227,16 +229,15 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
 
 if __name__ == '__main__':
     # dev code
-    
-    video_path = r"./data_tmp/extract_frames.mp4"
-    # extract video frames
-    # extract_frame_to_img(video_path, read_frame_interval=50)
-    
     # extract unique frames
-    interval, backend, timestamp = 3, 'torch-res50', time.time()
-    os.makedirs(f'./data_tmp/unique_frames/{get_fmt_time(timestamp = timestamp)} {backend} interval{interval}', exist_ok=True)
-    idx, frames = extract_unique_frames(video_path, threshold=0.95,
-                                   read_frame_interval=interval, scale_factor=0.8, backend='torch-res50')
-    for frame_idx, frame in enumerate(extract_frames_by_index(video_path, idx)):
-        img_file_name = f"{get_fmt_time(timestamp = timestamp)} {backend} interval{interval}/frame_{frame_idx}.jpg"
-        cv2.imwrite(f'./data_tmp/unique_frames/{img_file_name}', frame)
+    from glob import glob
+    video_paths = glob(r"./data_tmp/*.mp4")
+    interval, backend = 10, 'torch-res50'
+    for video_path in video_paths:
+        video_name = os.path.splitext(os.path.basename(video_path))[0]
+        wdir = f'./data_tmp/unique_frames/{video_name} {get_fmt_time(timestamp = time.time())}'
+        os.makedirs(wdir, exist_ok=True)
+        idx, frames = extract_unique_frames(video_path, threshold=0.999,
+                                    read_frame_interval=interval, scale_factor=0.7, backend=backend)
+        for frame_idx, frame in enumerate(extract_frames_by_index(video_path, idx)):
+            imwrite(os.path.join(wdir, f"frame_{frame_idx}.jpg"), frame)

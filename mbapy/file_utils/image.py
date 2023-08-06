@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-18 23:01:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-03 19:46:20
+LastEditTime: 2023-08-03 22:44:54
 FilePath: \BA_PY\mbapy\file_utils\image.py
 Description: 
 '''
@@ -9,28 +9,72 @@ import os
 from typing import List, Union
 
 import cv2
+import numpy as np
 import torch
 import torchvision
 import torchvision.models as models
 import torchvision.transforms as transforms
+from PIL import Image
 
 if __name__ == '__main__':
-    from mbapy.base import get_default_call_for_None, get_default_for_None
+    from mbapy.base import (check_parameters_path, get_default_call_for_None,
+                            get_default_for_None, get_storage_path,
+                            parameter_checker, put_err, put_log)
 else:
-    from ..base import get_default_call_for_None, get_default_for_None
+    from ..base import (check_parameters_path, get_default_call_for_None,
+                        get_default_for_None, get_storage_path,
+                        parameter_checker, put_err, put_log)
 
-def _load_nn_model(model_dir: str, model_name: str = 'resnet50'):
+@parameter_checker(check_parameters_path, raise_err=False)
+def imread(path: str):
+    img = cv2.imread(path)
+    return img if img else cv2.imdecode(np.fromfile(path, dtype=np.uint8), -1) # 中文路径
+    
+def imwrite(path: str, img:Union[np.ndarray, cv2.UMat, cv2.VideoCapture], quality:int=100):
+    # check image and transfer to Image.Image
+    if isinstance(img, np.ndarray):
+        if len(img.shape) == 3 and img.shape[2] == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(img)
+    elif isinstance(img, cv2.UMat):
+        img = cv2.UMat.get(img)
+        if len(img.shape) == 3 and img.shape[2] == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(img)
+    elif isinstance(img, cv2.VideoCapture):
+        success, frame = img.read()
+        if success:
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(img)
+        else:
+            put_err(f"Failed to read video frame, return False", False)
+            return False
+    # save image
+    if isinstance(img, Image.Image):
+        try:
+            img.save(path, format='JPEG', quality=quality)
+            return True
+        except Exception as e:
+            put_err(f"Error saving image: {e}, return False", False)
+            return False
+    else:
+        return put_err(f"Unknown image type: {type(img)}, return False", False)
+
+def _load_nn_model(model_dir: str = None, model_name: str = 'resnet50'):
     """
     Load the neural network model from the specified directory or download to the directory.
     Notes: This func will remove the last layer of the model.
 
     Parameters:
-        model_dir (str): The directory where the model is stored.
+        model_dir (str): The directory where the model is stored, defaults is 'path/to/mbapy/storage/nn_models'.
         model_name (str): The name of the model to load.
 
     Returns:
         model (torch.nn.Module): The loaded neural network model.
     """
+    if model_dir is None:
+        model_dir = get_storage_path('nn_models')
+        put_log(f'Using default model directory: {model_dir}')
     torch.hub.set_dir(model_dir)
     os.makedirs(model_dir, exist_ok=True)
 
