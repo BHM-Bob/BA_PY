@@ -7,7 +7,7 @@ Description:
 '''
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 from sklearn.cluster import (DBSCAN, Birch, KMeans, MeanShift, MiniBatchKMeans,
                              AgglomerativeClustering, AffinityPropagation)
 from sklearn.datasets import make_classification
@@ -50,6 +50,10 @@ def linear_reg(x:str, y:str, df:pd.DataFrame):
         'r2':equation_r2,
     }
     
+cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
+                           'MeanShift', 'GaussianMixture', 'AgglomerativeClustering',
+                           'AffinityPropagation']
+    
 def cluster(data, n_clusters:int, method:str, **kwargs):
     """
     Notes:
@@ -66,15 +70,14 @@ def cluster(data, n_clusters:int, method:str, **kwargs):
         model = Birch(n_clusters=n_clusters, **kwargs)
         return model.fit_predict(data)
     elif method == 'KMeans':
-        return KMeans(n_clusters=n_clusters).predict(data)
-    elif method == 'MiniBatchKMeans':
-        return MiniBatchKMeans(n_clusters=n_clusters).predict(data)
-    elif method == 'MeanShift':
-        return MeanShift().fit_predict(data)
+        return KMeans(n_clusters=n_clusters).fit_predict(data)
     elif method == 'MiniBatchKMeans':
         return MiniBatchKMeans(n_clusters=n_clusters).fit_predict(data)
+    elif method == 'MeanShift':
+        return MeanShift().fit_predict(data)
     elif method == 'GaussianMixture':
-        model = GaussianMixture(n_components=n_clusters)
+        kwargs = set_default_kwargs(kwargs, n_components=n_clusters, random_state = 777)
+        model = GaussianMixture(**kwargs)
         model.fit(data)
         return model.predict(data)
     elif method == 'AgglomerativeClustering':
@@ -89,17 +92,35 @@ def cluster(data, n_clusters:int, method:str, **kwargs):
 
 if __name__ == '__main__':
     # dev code
-    # 定义数据集
-    X, _ = make_classification(n_samples=1000, n_features=2, n_informative=2,
-                               n_redundant=0, n_clusters_per_class=1, random_state=4)
-    yhat = cluster(X, 2, 'AffinityPropagation')
-    # 检索唯一群集
-    clusters = np.unique(yhat)
-    # 为每个群集的样本创建散点图
-    for cluster in clusters:
-        # 获取此群集的示例的行索引
-        row_ix = np.where(yhat == cluster)
-        # 创建这些样本的散布
-        pyplot.scatter(X[row_ix, 0], X[row_ix, 1])
+    from mbapy.stats import pca
+    n_classes = 3
+    # 模拟数据集
+    X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
+                               n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
+    # 真实数据集MWM
+    # df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
+    # tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
+    # 真实数据集XM
+    df = pd.read_excel(r'data/plot.xlsx',sheet_name='xm')
+    tags = [col for col in df.columns if col not in ['solution', 'type']]
+    
+    X = df.loc[ : ,tags].values
+    pos = pca(X, 2)
+    print(X.shape, pos.shape)
+
+    fig, axs = plt.subplots(2, 4, figsize = (12, 7))
+    for i in range(2):
+        for j in range(4):
+            method = cluster_support_methods[i*4+j]
+            yhat = cluster(X, n_classes, method)
+            # 检索唯一群集
+            clusters_id = np.unique(yhat)
+            # 为每个群集的样本创建散点图
+            for cluster_id in clusters_id:
+                # 获取此群集的示例的行索引
+                row_ix = np.where(yhat == cluster_id)
+                # 创建这些样本的散布
+                axs[i][j].scatter(pos[row_ix, 0], pos[row_ix, 1])
+            axs[i][j].set_title(method)
     # 绘制散点图
-    pyplot.show()
+    plt.show()
