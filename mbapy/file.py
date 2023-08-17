@@ -2,10 +2,11 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-19 23:12:41
+LastEditTime: 2023-08-17 11:03:04
 Description: 
 '''
 import os
+import shutil
 from glob import glob
 from typing import Dict, List
 
@@ -47,6 +48,34 @@ else:
         from .file_utils.video import *
     except:# if cv2 or torch is not installed, skip
         pass
+
+def extract_files_from_dir(root: str, file_extensions: List[str] = None,
+                           extract_sub_dir: bool = True, join_str:str = ' '):
+    """
+    Move all files in subdirectories to the root directory and add the subdirectory name as a prefix to the file name.
+
+    Args:
+        root (str): The root directory path.
+        file_extensions (list[str]): specific file types string (without '.'), if None, means all types.
+        extract_sub_dir (bool, optional): Whether to recursively extract files from subdirectories.
+            If set to False, only files in the immediate subdirectories will be extracted. Defaults to True.
+        join_str (str): string for link prefix and the file name.
+
+    Returns:
+        None
+    """
+    for dirpath, dirnames, filenames in os.walk(root):
+        if not extract_sub_dir or dirpath == root:
+            continue
+        for filename in filenames:
+            if file_extensions is None or any(filename.endswith(extension) for extension in file_extensions):
+                if extract_sub_dir:
+                    new_filename = dirpath.split(root)[1][1:] + join_str + filename
+                else:
+                    new_filename = filename
+                src_path = os.path.join(dirpath, filename)
+                dest_path = os.path.join(root, new_filename)
+                shutil.move(src_path, dest_path)
 
 def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     """
@@ -310,14 +339,5 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
 
 if __name__ == '__main__':
     # dev code
-    import cv2
-
-    from mbapy.base import rand_choose
-
-    # extract pdf text
-    pdf_path = rand_choose(glob("./data_tmp/papers/*.pdf"))
-    if pdf_path is not None:
-        print(convert_pdf_to_txt(pdf_path))
-    else:
-        put_err('pdf not found')
+    pass
         
