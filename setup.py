@@ -69,7 +69,7 @@ setup(
     packages = find_packages(exclude=["test"]),
     
     include_package_data = True,
-    package_data= {'mbapy': ['storage/stats.dll']},
+    package_data= {'mbapy': ['storage/stats.dll', 'storage/libstats.so']},
     platforms = "any",
     
     install_requires=requirements,

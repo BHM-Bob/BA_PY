@@ -406,7 +406,7 @@ def get_dll_path_for_sys(module_name:str, **kwargs):
     if platform.system().lower() == 'windows':
         return get_storage_path(f'{module_name}.dll')
     elif platform.system().lower() == 'linux':
-        return get_storage_path(f'{module_name}.so')
+        return get_storage_path(f'lib{module_name}.so')
     else:
         return put_err(f'Unknown platform: {platform.system()}, return None', None)
 
