@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-17 00:38:34
+LastEditTime: 
 Description: 
 '''
 """
@@ -69,7 +69,7 @@ setup(
     packages = find_packages(exclude=["test"]),
     
     include_package_data = True,
-    package_data= {'mbapy': ['storage/stats.dll']},
+    package_data= {'mbapy': ['storage/stats.dll', 'storage/libstats.so']},
     platforms = "any",
     
     install_requires=requirements,
@@ -78,4 +78,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.1.5.tar.gz
+# twine upload dist/mbapy-0.2.0.tar.gz

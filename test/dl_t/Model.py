@@ -9,11 +9,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import dl_torch as dt
+import mbapy.dl_torch as dt
 
-import dl_torch.bb as bb
-import dl_torch.m as m
-from dl_torch.utils import Mprint, GlobalSettings
+import mbapy.dl_torch.bb as bb
+import mbapy.dl_torch.m as m
+from mbapy.dl_torch.utils import Mprint, GlobalSettings
 
 criterion = nn.CrossEntropyLoss().cuda('cuda')
 label = torch.rand(size = (32, 128)).to('cuda')

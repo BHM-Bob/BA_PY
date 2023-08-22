@@ -427,7 +427,7 @@ class SABlock(nn.Module):
             return nn.ModuleList([
                 nn.Sequential(
                     nn.Conv2d(inChannles, outChannles // 4, k, stride=1, padding="same"),
-                    nn.BatchNorm2d(outChannles),
+                    nn.BatchNorm2d(outChannles // 4),
                     nn.LeakyReLU(inplace=False),
                 )
                 for k in cnnKernel
