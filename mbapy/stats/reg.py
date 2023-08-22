@@ -13,6 +13,7 @@ from sklearn.cluster import (DBSCAN, Birch, KMeans as sk_KMeans, MeanShift, Mini
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
+from scipy.spatial.distance import cdist
 
 if __name__ == '__main__':
     # dev mode
@@ -66,12 +67,11 @@ class KMeans:
         self.data_group_id = None
         
     def _calcu_length_mat(self, data:np.ndarray, centers:np.ndarray = None,
-                      backend:str = 'numpy'):
+                      backend:str = 'scipy', metric = 'euclidean'):
+        """return length mat with shape: [N, n], N is sum data, n is sum clusters(centers)"""
         centers = get_default_for_None(centers, self.centers)
-        if backend == 'numpy':
-            # TODO : 多算(D-1)/D * 100%
-            sub = np.subtract.outer(data, centers)[:, :, :, 0].transpose(0, 2, 1) # [N, n, D]
-            return np.linalg.norm(sub, axis = -1) # [N, n]
+        if backend == 'scipy':
+            return cdist(data, centers, metric = metric) # [N, n]
         else:
             raise NotImplementedError
         
@@ -96,37 +96,63 @@ class KMeans:
             self.centers = np.vstack([self.centers, new_center])
         return self.centers
     
+    def loss_fn(self, data:np.ndarray, centers:np.ndarray = None):
+        centers = get_default_for_None(centers, self.centers)
+        self.loss = self._calcu_length_mat(data, centers).mean()
+        return self.loss
+    
     def fit(self, data:np.ndarray, **kwargs):
         self._init_centers(data)
+        prev_loss = np.nan
         for _ in range(self.max_iter):
             # sort data to groups id by now centers, get data_group_id
             new_centers = np.zeros([self.n_clusters, data.shape[-1]])
             length_mat = self._calcu_length_mat(data) # [N, n]
             data_group_id = length_mat.argmin(axis = -1) # [N, ]
             # sort data to groups, set new centers to be the mean of each group
-            print(np.unique(data_group_id))
             for group_x_id in range(self.n_clusters):
                 group_x_data_id = np.argwhere(data_group_id == group_x_id).reshape(-1) # data id for one group
                 if group_x_data_id.shape[0] == 0:
-                    # empty group, perform init for this center
+                    # empty group(center), perform init for this center
                     non_null_centers = self.centers[np.unique(data_group_id)]
                     new_centers[group_x_id] = self._choose_center_from_data(data, non_null_centers)
+                    # if there has multi null groups,
+                    # need update data_group_id to update non_null_centers
+                    self.centers[group_x_id] = new_centers[group_x_id]
+                    data_group_id = self._calcu_length_mat(data).argmin(axis = -1)
                 else:
                     new_centers[group_x_id] = data[group_x_data_id].mean(axis=0)
-            # check if diff of old and new centers fit to tolerance
-            if np.sum(np.abs(new_centers - self.centers) / self.centers) * 100.0 < self.tolerance:
+            # check if loss has no changes
+            if self.loss_fn(data) == prev_loss:
                 break
+            prev_loss = self.loss
             # move centers to new centers(average of groups)
             self.centers = new_centers
             self.data_group_id = data_group_id
+        return self.centers
+    
+    def fit_times(self, data:np.ndarray, times:int = 3, **kwargs):
+        self.fit(data)
+        loss_records = [self.loss]
+        centers_records = [self.centers]
+        for _ in range(times - 1):
+            self.fit(data)
+            loss_records.append(self.loss)
+            centers_records.append(self.centers)
+        min_idx = np.argmin(np.array(loss_records))
+        self.loss = loss_records[min_idx]
+        self.centers = centers_records[min_idx]
         return self.centers
 
     def predict(self, data:np.ndarray):
         length_mat = self._calcu_length_mat(data) # [N, n]
         return length_mat.argmin(axis = -1) # [N, ]
         
-    def fit_predict(self, data:np.ndarray, predict_data = None, **kwargs):
-        self.fit(data)
+    def fit_predict(self, data:np.ndarray, predict_data = None, fit_times = 1, **kwargs):
+        if fit_times == 1:
+            self.fit(data)
+        else:
+            self.fit_times(data, fit_times)
         return self.predict(get_default_for_None(predict_data, data))
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
@@ -181,14 +207,14 @@ if __name__ == '__main__':
     from mbapy.stats import pca
     n_classes = 3
     # 模拟数据集
-    X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
-                               n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
+    # X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
+    #                            n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
     # 真实数据集MWM
-    # df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
-    # tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
+    df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
+    tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
     # 真实数据集XM
-    df = pd.read_excel(r'data/plot.xlsx',sheet_name='xm')
-    tags = [col for col in df.columns if col not in ['solution', 'type']]
+    # df = pd.read_excel(r'data/plot.xlsx',sheet_name='xm')
+    # tags = [col for col in df.columns if col not in ['solution', 'type']]
     
     X = df.loc[ : ,tags].values
     pos = pca(X, 2)
@@ -199,7 +225,8 @@ if __name__ == '__main__':
         for j in range(3):
             if i == 0 and j == 0:
                 method = 'mbapy-KMeans'
-                yhat = KMeans(n_classes).fit_predict(X)
+                model = KMeans(n_classes)
+                yhat = model.fit_predict(X, fit_times=10)
             else:
                 method = cluster_support_methods[i*3+j - 1]
                 yhat = cluster(X, n_classes, method, 'div_max')
@@ -211,6 +238,9 @@ if __name__ == '__main__':
                 row_ix = np.where(yhat == cluster_id)
                 # 创建这些样本的散布
                 axs[i][j].scatter(pos[row_ix, 0], pos[row_ix, 1])
+            if method == 'mbapy-KMeans':
+                # plot centers
+                axs[i][j].scatter(model.centers[:, 0], model.centers[:, 1])
             axs[i][j].set_title(method)
     # 绘制散点图
     plt.show()
