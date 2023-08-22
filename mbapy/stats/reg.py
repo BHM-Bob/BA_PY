@@ -2,14 +2,15 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-02 23:35:32
+LastEditTime: 2023-08-22 23:26:27
 Description: 
 '''
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.cluster import (DBSCAN, Birch, KMeans, MeanShift, MiniBatchKMeans,
-                             AgglomerativeClustering, AffinityPropagation)
+from sklearn.cluster import (DBSCAN, AffinityPropagation,
+                             AgglomerativeClustering, Birch, KMeans, MeanShift,
+                             MiniBatchKMeans)
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
@@ -56,6 +57,19 @@ cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
     
 def cluster(data, n_clusters:int, method:str, **kwargs):
     """
+    Clusters data using various clustering methods.
+
+    Parameters:
+        data (array-like): The input data to be clustered.
+        n_clusters (int): The number of clusters to create.
+        method (str): The clustering method to use, one of 
+            ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans', 'MeanShift',
+            'GaussianMixture', 'AgglomerativeClustering', 'AffinityPropagation'].
+        **kwargs: Additional keyword arguments specific to each clustering method.
+
+    Returns:
+        array-like: The cluster labels assigned to each data point.
+        
     Notes:
         - Kmeans: 此算法尝试最小化群集内数据点的方差。K 均值最适合用于较小的数据集，因为它遍历所有数据点。
                 这意味着，如果数据集中有大量数据点，则需要更多时间来对数据点进行分类。

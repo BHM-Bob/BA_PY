@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-17 11:03:04
+LastEditTime: 2023-08-22 23:24:03
 Description: 
 '''
 import os
@@ -48,6 +48,24 @@ else:
         from .file_utils.video import *
     except:# if cv2 or torch is not installed, skip
         pass
+    
+def get_paths_with_extension(folder_path: str, file_extensions: List[str]) -> List[str]:
+    """
+    Returns a list of file paths within a given folder that have a specified extension.
+
+    Args:
+        folder_path (str): The path of the folder to search for files.
+        file_extensions (List[str]): A list of file extensions to filter the search by.
+
+    Returns:
+        List[str]: A list of file paths that match the specified file extensions.
+    """
+    file_paths = []
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if any(file.endswith(extension) for extension in file_extensions):
+                file_paths.append(os.path.join(root, file))
+    return file_paths
 
 def extract_files_from_dir(root: str, file_extensions: List[str] = None,
                            extract_sub_dir: bool = True, join_str:str = ' '):
