@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import dl_torch.paper.bb as bb
+import mbapy.dl_torch.paper.bb as bb
 
 x = torch.rand([16, 8, 64, 64], device = 'cuda', dtype = torch.float16)
 net = bb.NonLocalBlock(8, 8, 8, dtype = torch.float16).to('cuda')
