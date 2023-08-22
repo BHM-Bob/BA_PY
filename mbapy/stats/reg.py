@@ -2,26 +2,29 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-22 23:31:47
+LastEditTime: 2023-08-22 23:59:04
 Description: 
 '''
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.cluster import (DBSCAN, Birch, KMeans as sk_KMeans, MeanShift, MiniBatchKMeans,
-                             AgglomerativeClustering, AffinityPropagation)
+from scipy.spatial.distance import cdist
+from sklearn.cluster import (DBSCAN, AffinityPropagation,
+                             AgglomerativeClustering, Birch)
+from sklearn.cluster import KMeans as sk_KMeans
+from sklearn.cluster import MeanShift, MiniBatchKMeans
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
-from scipy.spatial.distance import cdist
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import put_err, set_default_kwargs, autoparse, get_default_for_None
+    from mbapy.base import (autoparse, get_default_for_None, put_err,
+                            set_default_kwargs)
 else:
     # release mode
-    from ..base import put_err, set_default_kwargs, autoparse, get_default_for_None
+    from ..base import (autoparse, get_default_for_None, put_err,
+                        set_default_kwargs)
 
 def linear_reg(x:str, y:str, df:pd.DataFrame):
     """
@@ -53,9 +56,14 @@ def linear_reg(x:str, y:str, df:pd.DataFrame):
     }
     
 class KMeans:
-    """
+    """ KMeans clustering algorithm implementation.
+
     Parameters:
         - n_clusters(int): number of clusters, if set to None, will auto search from 1 to sum of data to make fit for tolerance.
+        - tolerance(float): tolerance for convergence, default is 0.0001.
+        - max_iter(int): maximum number of iterations, default is 1000.
+        - init_method(str): initialization method, either 'prob' or 'max', default is 'prob'.
+        - **kwargs: additional keyword arguments.
     """
     @autoparse
     def __init__(self, n_clusters:int = None, tolerance:float = 0.0001, max_iter:int = 1000,
@@ -64,12 +72,29 @@ class KMeans:
         self.data_group_id = None
         
     def reset(self, **kwargs):
+        """
+        Reset the centers and data group id to None.
+
+        Parameters:
+            - **kwargs: additional keyword arguments.
+        """
         self.centers = None
         self.data_group_id = None
         
     def _calcu_length_mat(self, data:np.ndarray, centers:np.ndarray = None,
                       backend:str = 'scipy', metric = 'euclidean'):
-        """return length mat with shape: [N, n], N is sum data, n is sum clusters(centers)"""
+        """
+        Calculate the length matrix between data and centers.
+
+        Parameters:
+            - data(ndarray): data to be clustered, should be a ndarray with shape [N, D].
+            - centers(ndarray): centers of the clusters, should be a ndarray with shape [n, D], default is None.
+            - backend(str): backend for calculating distance, either 'scipy' or 'numpy', default is 'scipy'.
+            - metric(str): distance metric, default is 'euclidean'.
+
+        Returns:
+            - length_mat(ndarray): length matrix with shape [N, n], N is sum data, n is sum clusters(centers).
+        """
         centers = get_default_for_None(centers, self.centers)
         if backend == 'scipy':
             return cdist(data, centers, metric = metric) # [N, n]
@@ -77,6 +102,18 @@ class KMeans:
             raise NotImplementedError
         
     def _choose_center_from_data(self, data: np.ndarray, centers:np.ndarray):
+        """
+        Choose a center point from the given data and centers.
+            - If self.init_method is 'prob', then choose the center point with probability;
+            - If self.init_method is 'max', then choose the center point with maximum length.
+
+        Parameters:
+            data (np.ndarray): The input data array.
+            centers (np.ndarray): The centers array.
+
+        Returns:
+            np.ndarray: The selected center point from the data.
+        """
         # get length for every data to every centers, and calcu sum for each data
         length = self._calcu_length_mat(data, centers).sum(axis = -1) # [N, ]
         # get new_center_idx by prob or just using max
@@ -88,6 +125,16 @@ class KMeans:
         return data[idx]
         
     def _init_centers(self, data:np.ndarray):
+        """
+        Initializes the cluster centers for the K-Means clustering algorithm.
+
+        Parameters:
+            data (np.ndarray): The input data for clustering.
+
+        Returns:
+            np.ndarray: The initialized cluster centers.
+
+        """
         # choose the first center randomly
         first_center_idx = int(np.random.uniform(0, data.shape[0]))
         self.centers = data[first_center_idx].reshape(1, -1) # [n=1, D]
@@ -98,11 +145,31 @@ class KMeans:
         return self.centers
     
     def loss_fn(self, data:np.ndarray, centers:np.ndarray = None):
+        """
+        Calculate the loss function for the given data and centers.
+
+        Parameters:
+        - data (np.ndarray): The input data array.
+        - centers (np.ndarray): The centers array. If not provided, the default centers will be used.
+
+        Returns:
+        - float: The calculated loss.
+        """
         centers = get_default_for_None(centers, self.centers)
         self.loss = self._calcu_length_mat(data, centers).mean()
         return self.loss
     
     def fit(self, data:np.ndarray, **kwargs):
+        """
+        Fits the K-means clustering model to the given data.
+
+        Parameters:
+            data (np.ndarray): The input data for clustering.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            np.ndarray: The final cluster centers.
+        """
         self._init_centers(data)
         prev_loss = np.nan
         for _ in range(self.max_iter):
@@ -133,6 +200,17 @@ class KMeans:
         return self.centers
     
     def fit_times(self, data:np.ndarray, times:int = 3, **kwargs):
+        """
+        Fits the model to the given data for a specified number of times.
+
+        Args:
+            data (np.ndarray): The input data to fit the model on.
+            times (int, optional): The number of times to fit the model. Defaults to 3.
+            **kwargs: Additional keyword arguments to be passed to the fit method.
+
+        Returns:
+            np.ndarray: The centers of the fitted model.
+        """
         self.fit(data)
         loss_records = [self.loss]
         centers_records = [self.centers]
@@ -146,10 +224,31 @@ class KMeans:
         return self.centers
 
     def predict(self, data:np.ndarray):
+        """
+        Predicts the class labels for the given data.
+
+        Parameters:
+            data (np.ndarray): The input data with shape [N, n].
+
+        Returns:
+            np.ndarray: The predicted class labels with shape [N, ].
+        """
         length_mat = self._calcu_length_mat(data) # [N, n]
         return length_mat.argmin(axis = -1) # [N, ]
         
     def fit_predict(self, data:np.ndarray, predict_data = None, fit_times = 1, **kwargs):
+        """
+        Fits the model to the training data and makes predictions on the given data.
+
+        Parameters:
+            data (np.ndarray): The training data.
+            predict_data (Optional[np.ndarray]): The data to make predictions on. Defaults to None.
+            fit_times (int): The number of times to fit the model. Defaults to 1.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            np.ndarray: The predicted values.
+        """
         if fit_times == 1:
             self.fit(data)
         else:
