@@ -2,9 +2,11 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-22 23:59:04
+LastEditTime: 2023-09-02 00:02:57
 Description: 
 '''
+from typing import Dict, List
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -16,6 +18,11 @@ from sklearn.cluster import MeanShift, MiniBatchKMeans
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
+
+try:
+    from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
+except:
+    pass # mbapy now do not compulsively require hyperopt
 
 if __name__ == '__main__':
     # dev mode
@@ -190,7 +197,7 @@ class KMeans:
                     data_group_id = self._calcu_length_mat(data).argmin(axis = -1)
                 else:
                     new_centers[group_x_id] = data[group_x_data_id].mean(axis=0)
-            # check if loss has no changes
+            # check if loss has no changes, no tolerance here exactly
             if self.loss_fn(data) == prev_loss:
                 break
             prev_loss = self.loss
@@ -215,6 +222,7 @@ class KMeans:
         loss_records = [self.loss]
         centers_records = [self.centers]
         for _ in range(times - 1):
+            self.reset()
             self.fit(data)
             loss_records.append(self.loss)
             centers_records.append(self.centers)
@@ -255,6 +263,56 @@ class KMeans:
             self.fit_times(data, fit_times)
         return self.predict(get_default_for_None(predict_data, data))
     
+class KBayesian(KMeans):
+    @autoparse
+    def __init__(self, n_clusters: int = None, tolerance: float = 0.0001, max_iter: int = 1000,
+                 init_method='prob', randseed = 0, **kwargs) -> None:
+        super().__init__(n_clusters, tolerance, max_iter, init_method, **kwargs)
+        self.space = [[] for _ in range(self.n_clusters)]
+        
+    def reset(self, **kwargs):
+        super().reset(**kwargs)
+        self.space = [[] for _ in range(self.n_clusters)]
+        
+    def _init_space(self, data: np.ndarray):
+        for n_i in range(self.n_clusters):
+            for dim_i in range(data.shape[-1]):
+                self.space[n_i].append(hp.uniform(f'{n_i}_{dim_i}',
+                                                  data[:, dim_i].min(),
+                                                  data[:, dim_i].max()))
+        return self.space
+        
+    @staticmethod
+    def _loss_fn(obj, data:np.ndarray, centers:np.ndarray = None):
+        obj.loss = obj.loss_fn(data, centers)
+        return obj.loss
+    
+    @staticmethod
+    def _objective(params):
+        obj, space, data = params['obj'], params['space'], params['data']
+        obj.centers = np.array(space)
+        obj.loss = obj._loss_fn(obj, data, obj.centers)
+        return {'loss': obj.loss,
+                'status': STATUS_FAIL if np.isnan(obj.loss) else STATUS_OK,
+                'other_stuff': {'centers': obj.centers}}
+    
+    def fit(self, data:np.ndarray, **kwargs):        
+        trials = Trials()
+        best = fmin(self._objective,
+                    space={'obj': self, 'space': self._init_space(data), 'data': data},
+                    algo=tpe.suggest,
+                    max_evals=self.max_iter,
+                    trials=trials,
+                    rstate= np.random.default_rng(self.randseed))
+        return np.array(list(best.values()))
+    
+    def predict(self, data: np.ndarray):
+        return super().predict(data)
+    
+    def fit_predict(self, data: np.ndarray, predict_data=None, fit_times=1, **kwargs):
+        return super().fit_predict(data, predict_data, fit_times, **kwargs)
+    
+    
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
                            'MeanShift', 'GaussianMixture', 'AgglomerativeClustering',
                            'AffinityPropagation']
@@ -269,6 +327,8 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         method (str): The clustering method to use, one of 
             ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans', 'MeanShift',
             'GaussianMixture', 'AgglomerativeClustering', 'AffinityPropagation'].
+        norm (str, optional): The normalization method to use. Defaults to None.
+        norm_dim (int, optional): The dimension to normalize over. Defaults to None.
         **kwargs: Additional keyword arguments specific to each clustering method.
 
     Returns:
@@ -295,9 +355,9 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         model = Birch(n_clusters=n_clusters, **kwargs)
         return model.fit_predict(data)
     elif method == 'KMeans':
-        return sk_KMeans(n_clusters=n_clusters, n_init = 'auto').fit_predict(data)
+        return sk_KMeans(n_clusters=n_clusters).fit_predict(data)
     elif method == 'MiniBatchKMeans':
-        return MiniBatchKMeans(n_clusters=n_clusters, n_init= 'auto').fit_predict(data)
+        return MiniBatchKMeans(n_clusters=n_clusters).fit_predict(data)
     elif method == 'MeanShift':
         return MeanShift().fit_predict(data)
     elif method == 'GaussianMixture':
@@ -333,13 +393,17 @@ if __name__ == '__main__':
     pos = pca(X, 2)
     print(X.shape, pos.shape)
 
-    fig, axs = plt.subplots(3, 3, figsize = (10, 10))
-    for i in range(3):
-        for j in range(3):
+    fig, axs = plt.subplots(2, 5, figsize = (10, 10))
+    for i in range(2):
+        for j in range(5):
             if i == 0 and j == 0:
                 method = 'mbapy-KMeans'
                 model = KMeans(n_classes)
                 yhat = model.fit_predict(X, fit_times=10)
+            elif i == 0 and j == 1:
+                method = 'mbapy-KBayesian'
+                model = KBayesian(n_classes, max_iter=200)
+                yhat = model.fit_predict(X, fit_times=1)
             else:
                 method = cluster_support_methods[i*3+j - 1]
                 yhat = cluster(X, n_classes, method, 'div_max')
@@ -351,9 +415,11 @@ if __name__ == '__main__':
                 row_ix = np.where(yhat == cluster_id)
                 # 创建这些样本的散布
                 axs[i][j].scatter(pos[row_ix, 0], pos[row_ix, 1])
-            if method == 'mbapy-KMeans':
+            if 'mbapy' in method:
                 # plot centers
-                axs[i][j].scatter(model.centers[:, 0], model.centers[:, 1])
+                center_pos = pca(model.centers, 2)
+                axs[i][j].scatter(center_pos[:, 0], center_pos[:, 1])
+                axs[i][j].text(0, 0, f'loss: {model.loss:.4f}')
             axs[i][j].set_title(method)
     # 绘制散点图
     plt.show()
