@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 00:02:57
+LastEditTime: 2023-09-02 00:12:58
 Description: 
 '''
 from typing import Dict, List
@@ -264,9 +264,49 @@ class KMeans:
         return self.predict(get_default_for_None(predict_data, data))
     
 class KBayesian(KMeans):
+    """
+    KBayesian is a subclass of KMeans that implements the Bayesian version of the K-means clustering algorithm.
+    It extends the KMeans class and adds additional functionality for Bayesian optimization.
+
+    Parameters:
+    - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
+    - tolerance (float): The tolerance for convergence. Default is 0.0001.
+    - max_iter (int): The maximum number of iterations. Default is 1000.
+    - init_method (str): The initialization method for centroids. Default is 'prob'.
+    - randseed (int): The random seed for reproducibility. Default is 0.
+    - **kwargs: Additional keyword arguments.
+
+    Attributes:
+    - space (list): A list of lists representing the search space for Bayesian optimization.
+
+    Methods:
+    - reset(**kwargs): Reset the KBayesian instance to its initial state.
+    - _init_space(data: np.ndarray): Initialize the search space for Bayesian optimization.
+    - _loss_fn(obj, data: np.ndarray, centers: np.ndarray = None): Calculate the loss function for Bayesian optimization.
+    - _objective(params): Define the objective function for Bayesian optimization.
+    - fit(data: np.ndarray, **kwargs): Fit the KBayesian model to the data using Bayesian optimization.
+    - predict(data: np.ndarray): Predict the cluster labels for the given data.
+    - fit_predict(data: np.ndarray, predict_data=None, fit_times=1, **kwargs): Fit the model to the data and predict the cluster labels.
+
+    """
     @autoparse
     def __init__(self, n_clusters: int = None, tolerance: float = 0.0001, max_iter: int = 1000,
                  init_method='prob', randseed = 0, **kwargs) -> None:
+        """
+        Initialize a KBayesian instance.
+
+        Parameters:
+        - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
+        - tolerance (float): The tolerance for convergence. Default is 0.0001.
+        - max_iter (int): The maximum number of iterations. Default is 1000.
+        - init_method (str): The initialization method for centroids. Default is 'prob'.
+        - randseed (int): The random seed for reproducibility. Default is 0.
+        - **kwargs: Additional keyword arguments.
+
+        Returns:
+        - None
+
+        """
         super().__init__(n_clusters, tolerance, max_iter, init_method, **kwargs)
         self.space = [[] for _ in range(self.n_clusters)]
         
@@ -289,6 +329,19 @@ class KBayesian(KMeans):
     
     @staticmethod
     def _objective(params):
+        """
+        Define the objective function for Bayesian optimization.
+
+        Parameters:
+        - params: A dictionary containing the parameters.
+            - obj (KBayesian): The KBayesian model.
+            - space (np.ndarray): The initial centers.
+            - data (np.ndarray): The input data.
+
+        Returns:
+        - result: A dictionary containing the loss value, status, and other information.
+
+        """
         obj, space, data = params['obj'], params['space'], params['data']
         obj.centers = np.array(space)
         obj.loss = obj._loss_fn(obj, data, obj.centers)
@@ -296,7 +349,18 @@ class KBayesian(KMeans):
                 'status': STATUS_FAIL if np.isnan(obj.loss) else STATUS_OK,
                 'other_stuff': {'centers': obj.centers}}
     
-    def fit(self, data:np.ndarray, **kwargs):        
+    def fit(self, data:np.ndarray, **kwargs):
+        """
+        Fit the KBayesian model to the data using Bayesian optimization.
+
+        Parameters:
+        - data (np.ndarray): The input data.
+        - **kwargs: Additional keyword arguments.
+
+        Returns:
+        - best (np.ndarray): The best solution found by Bayesian optimization.
+
+        """
         trials = Trials()
         best = fmin(self._objective,
                     space={'obj': self, 'space': self._init_space(data), 'data': data},
@@ -307,9 +371,32 @@ class KBayesian(KMeans):
         return np.array(list(best.values()))
     
     def predict(self, data: np.ndarray):
+        """
+        Predict the cluster labels for the given data.
+
+        Parameters:
+        - data (np.ndarray): The input data.
+
+        Returns:
+        - labels (np.ndarray): The predicted cluster labels.
+
+        """
         return super().predict(data)
     
     def fit_predict(self, data: np.ndarray, predict_data=None, fit_times=1, **kwargs):
+        """
+        Fit the model to the data and predict the cluster labels.
+
+        Parameters:
+        - data (np.ndarray): The input data.
+        - predict_data: The data to predict. Default is None.
+        - fit_times (int): The number of times to fit the model. Default is 1.
+        - **kwargs: Additional keyword arguments.
+
+        Returns:
+        - labels (np.ndarray): The predicted cluster labels.
+
+        """
         return super().fit_predict(data, predict_data, fit_times, **kwargs)
     
     
