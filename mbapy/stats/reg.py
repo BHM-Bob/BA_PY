@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 17:10:15
+LastEditTime: 2023-09-02 18:40:19
 Description: 
 '''
 from typing import Dict, List
@@ -244,7 +244,7 @@ class KMeans:
         length_mat = self._calcu_length_mat(data) # [N, n]
         return length_mat.argmin(axis = -1) # [N, ]
         
-    def fit_predict(self, data:np.ndarray, predict_data = None, fit_times = 1, **kwargs):
+    def fit_predict(self, data:np.ndarray, predict_data = None, fit_times = 3, **kwargs):
         """
         Fits the model to the training data and makes predictions on the given data.
 
@@ -270,9 +270,7 @@ class KBayesian(KMeans):
 
     Parameters:
     - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
-    - tolerance (float): The tolerance for convergence. Default is 0.0001.
-    - max_iter (int): The maximum number of iterations. Default is 1000.
-    - init_method (str): The initialization method for centroids. Default is 'prob'.
+    - max_iter (int): The maximum number of iterations. Default is 200.
     - randseed (int): The random seed for reproducibility. Default is 0.
     - **kwargs: Additional keyword arguments.
 
@@ -290,24 +288,17 @@ class KBayesian(KMeans):
 
     """
     @autoparse
-    def __init__(self, n_clusters: int = None, tolerance: float = 0.0001, max_iter: int = 1000,
-                 init_method='prob', randseed = 0, **kwargs) -> None:
+    def __init__(self, n_clusters: int = None, max_iter: int = 200, randseed = 0, **kwargs) -> None:
         """
         Initialize a KBayesian instance.
 
         Parameters:
         - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
-        - tolerance (float): The tolerance for convergence. Default is 0.0001.
-        - max_iter (int): The maximum number of iterations. Default is 1000.
-        - init_method (str): The initialization method for centroids. Default is 'prob'.
+        - max_iter (int): The maximum number of iterations. Default is 200.
         - randseed (int): The random seed for reproducibility. Default is 0.
         - **kwargs: Additional keyword arguments.
-
-        Returns:
-        - None
-
         """
-        super().__init__(n_clusters, tolerance, max_iter, init_method, **kwargs)
+        super().__init__(n_clusters, 0, max_iter, '', **kwargs)
         self.space = [[] for _ in range(self.n_clusters)]
         
     def reset(self, **kwargs):
@@ -362,7 +353,7 @@ class KBayesian(KMeans):
             - data (np.ndarray): The input data for fitting the model.
             - **kwargs: Additional keyword arguments.
                 - verbose (bool): Whether to print the progress of the optimization. Default is False.
-                - max_evals (int): The maximum number of evaluations. Default is 1000.
+                - max_evals (int): The maximum number of evaluations. Default is self.max_iter.
 
         Returns:
             np.ndarray: An array containing the best values found by the optimization.
@@ -411,31 +402,35 @@ class KBayesian(KMeans):
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
                            'MeanShift', 'GaussianMixture', 'AgglomerativeClustering',
-                           'AffinityPropagation']
+                           'AffinityPropagation', 'BAKMeans', 'KBayesian']
     
 def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kwargs):
     """
     Clusters data using various clustering methods.
 
     Parameters:
-        data (array-like): The input data to be clustered.
-        n_clusters (int): The number of clusters to create.
-        method (str): The clustering method to use, one of 
+        - data (array-like): The input data to be clustered.
+        - n_clusters (int): The number of clusters to create.
+        - method (str): The clustering method to use, one of 
             ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans', 'MeanShift',
-            'GaussianMixture', 'AgglomerativeClustering', 'AffinityPropagation'].
-        norm (str, optional): The normalization method to use. Defaults to None.
-        norm_dim (int, optional): The dimension to normalize over. Defaults to None.
-        **kwargs: Additional keyword arguments specific to each clustering method.
+            'GaussianMixture', 'AgglomerativeClustering', 'AffinityPropagation',
+            'BAKMeans', 'KBayesian'].
+        - norm (str, optional): The normalization method to use. Defaults to None.
+        - norm_dim (int, optional): The dimension to normalize over. Defaults to None.
+        - **kwargs: Additional keyword arguments specific to each clustering method.
 
     Returns:
-        array-like: The cluster labels assigned to each data point.
+        - labels (np.ndarray): The cluster labels.
+        - centers (np.ndarray or None): The cluster centers. if is not supported, None will be returned.
+        - loss (float): The loss value. if is not supported, -1 will be returned.
         
     Notes:
         - Kmeans: 此算法尝试最小化群集内数据点的方差。K 均值最适合用于较小的数据集，因为它遍历所有数据点。
                 这意味着，如果数据集中有大量数据点，则需要更多时间来对数据点进行分类。
         - GaussianMixture: 高斯混合模型使用多个高斯分布来拟合任意形状的数据。
                 在这个混合模型中，有几个单一的高斯模型充当隐藏层。因此，
-                该模型计算数据点属于特定高斯分布的概率，即它将属于的聚类。
+                该模型计算数据点属于特定高斯分布的概率, 即它将属于的聚类。
+        - KBayesian: KBayesian是一种以KMeans为框架的聚类算法, 但其将移动聚类中心的方法改为由Bayesian优化驱动.
     """
     # TODO : imp norm_dim
     if norm_dim is not None:
@@ -446,27 +441,35 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
             
     if method == 'DBSCAN':
         kwargs = set_default_kwargs(kwargs, eps = 0.5, min_samples = 3)
-        return DBSCAN(**kwargs).fit_predict(data)
+        return DBSCAN(**kwargs).fit_predict(data), None, -1
     elif method == 'Birch':
         model = Birch(n_clusters=n_clusters, **kwargs)
-        return model.fit_predict(data)
+        return model.fit_predict(data), model.subcluster_centers_, -1
     elif method == 'KMeans':
-        return sk_KMeans(n_clusters=n_clusters).fit_predict(data)
+        model = sk_KMeans(n_clusters=n_clusters)
+        return model.fit_predict(data), model.cluster_centers_, -1
     elif method == 'MiniBatchKMeans':
-        return MiniBatchKMeans(n_clusters=n_clusters).fit_predict(data)
+        model = MiniBatchKMeans(n_clusters=n_clusters)
+        return model.fit_predict(data), model.cluster_centers_, -1
     elif method == 'MeanShift':
-        return MeanShift().fit_predict(data)
+        model = MeanShift()
+        return model.fit_predict(data), model.cluster_centers_, -1
     elif method == 'GaussianMixture':
         kwargs = set_default_kwargs(kwargs, n_components=n_clusters, random_state = 777)
         model = GaussianMixture(**kwargs)
-        model.fit(data)
-        return model.predict(data)
+        return model.fit_predict(data), model.means_, -1
     elif method == 'AgglomerativeClustering':
         model = AgglomerativeClustering(n_clusters = n_clusters)
-        return model.fit(data).labels_
+        return model.fit(data).labels_, None, -1
     elif method == 'AffinityPropagation':
         model = AffinityPropagation(**kwargs)
-        return model.fit_predict(data)
+        return model.fit_predict(data), None, -1
+    elif method == 'BAKMeans':
+        model = KMeans(n_clusters=n_clusters)
+        return model.fit_predict(data, **kwargs), model.centers, model.loss
+    elif method == 'KBayesian':
+        model = KBayesian(n_clusters=n_clusters)
+        return model.fit_predict(data, **kwargs), model.centers, model.loss
     else:
         return put_err(f'Unknown method {method}, return None', None, 1)
 
@@ -476,34 +479,28 @@ if __name__ == '__main__':
     from mbapy.stats import pca
     n_classes = 3
     # 模拟数据集
-    # X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
-    #                            n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
+    X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
+                               n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
     # 真实数据集MWM
-    df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
-    tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
+    # df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
+    # tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
     # 真实数据集XM
     # df = pd.read_excel(r'data/plot.xlsx',sheet_name='xm')
     # tags = [col for col in df.columns if col not in ['solution', 'type']]
     
-    X = df.loc[ : ,tags].values
+    # X = df.loc[ : ,tags].values
     pos = pca(X, 2)
     print(X.shape, pos.shape)
 
     fig, axs = plt.subplots(2, 5, figsize = (10, 10))
     for i in range(2):
         for j in range(5):
-            if i == 0 and j == 0:
-                method = 'mbapy-KMeans'
-                model = KMeans(n_classes)
-                yhat = model.fit_predict(X, fit_times=10)
-            elif i == 0 and j == 1:
-                method = 'mbapy-KBayesian'
-                model = KBayesian(n_classes, max_iter=200)
-                yhat = model.fit_predict(X, fit_times=1, verbose = True)
-                pass
+            method = cluster_support_methods[i*5+j]
+            yhat, center, loss = cluster(X, n_classes, method, 'div_max')
+            if center is not None and center.shape[0] >= 2:
+                center_pos = pca(center, 2)
             else:
-                method = cluster_support_methods[i*3+j - 1]
-                yhat = cluster(X, n_classes, method, 'div_max')
+                center_pos = None
             # 检索唯一群集
             clusters_id = np.unique(yhat)
             # 为每个群集的样本创建散点图
@@ -512,11 +509,11 @@ if __name__ == '__main__':
                 row_ix = np.where(yhat == cluster_id)
                 # 创建这些样本的散布
                 axs[i][j].scatter(pos[row_ix, 0], pos[row_ix, 1])
-            if 'mbapy' in method:
+            if center_pos is not None:
                 # plot centers
-                center_pos = pca(model.centers, 2)
                 axs[i][j].scatter(center_pos[:, 0], center_pos[:, 1])
-                axs[i][j].text(0, 0, f'loss: {model.loss:.4f}')
+            if loss is not None:
+                axs[i][j].text(0, 0, f'loss: {loss:.4f}')
             axs[i][j].set_title(method)
     # 绘制散点图
     plt.show()
