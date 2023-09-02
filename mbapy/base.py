@@ -2,12 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-03 23:47:05
+LastEditTime: 2023-09-02 16:13:33
 Description: 
 '''
 import ctypes
 import inspect
 import json
+import math
 import os
 import pathlib
 import platform
@@ -20,6 +21,21 @@ import numpy as np
 
 # TODO : add global var modification options support
 __NO_ERR__ = False
+
+def get_num_digits(num:int):
+    """
+    Calculates the number of digits in a given integer.
+
+    Args:
+        num (int): The integer for which to calculate the number of digits.
+
+    Returns:
+        int: The number of digits in the given integer.
+    """
+    if num == 0:
+        return 1
+    else:
+        return int(math.log10(abs(num))) + 1
 
 def get_time(chr:str = ':')->str:
     """
@@ -383,10 +399,12 @@ def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     """
     return MyArgs(defalut_args).get_args(kwargs, True, del_kwargs)
 
-def set_default_kwargs(kwargs: Dict, **default_kwargs: Dict):
+def set_default_kwargs(kwargs: Dict, discard_extra: bool = False, **default_kwargs: Dict):
     for name, value in default_kwargs.items():
         if name not in kwargs:
             kwargs[name] = value
+        elif name not in kwargs and discard_extra:
+            kwargs.__delitem__(name)
     return kwargs
             
 def split_list(lst:list, n = 1, drop_last = False):

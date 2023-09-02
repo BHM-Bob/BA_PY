@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 00:12:58
+LastEditTime: 2023-09-02 17:10:15
 Description: 
 '''
 from typing import Dict, List
@@ -26,12 +26,12 @@ except:
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import (autoparse, get_default_for_None, put_err,
-                            set_default_kwargs)
+    from mbapy.base import (autoparse, get_default_for_None, get_num_digits,
+                            put_err, set_default_kwargs)
 else:
     # release mode
-    from ..base import (autoparse, get_default_for_None, put_err,
-                        set_default_kwargs)
+    from ..base import (autoparse, get_default_for_None, get_num_digits,
+                        put_err, set_default_kwargs)
 
 def linear_reg(x:str, y:str, df:pd.DataFrame):
     """
@@ -258,9 +258,9 @@ class KMeans:
             np.ndarray: The predicted values.
         """
         if fit_times == 1:
-            self.fit(data)
+            self.fit(data, **kwargs)
         else:
-            self.fit_times(data, fit_times)
+            self.fit_times(data, fit_times, **kwargs)
         return self.predict(get_default_for_None(predict_data, data))
     
 class KBayesian(KMeans):
@@ -315,12 +315,17 @@ class KBayesian(KMeans):
         self.space = [[] for _ in range(self.n_clusters)]
         
     def _init_space(self, data: np.ndarray):
+        digits = get_num_digits(self.n_clusters * data.shape[-1]) + 1
         for n_i in range(self.n_clusters):
             for dim_i in range(data.shape[-1]):
-                self.space[n_i].append(hp.uniform(f'{n_i}_{dim_i}',
+                idx = f'{n_i*data.shape[-1]+dim_i:>{digits}}'
+                self.space[n_i].append(hp.uniform(idx,
                                                   data[:, dim_i].min(),
                                                   data[:, dim_i].max()))
         return self.space
+    
+    def _gather_space(self, shape:List[int], space:Dict[str, float]):
+        return np.array(list(space.values())).reshape(shape)
         
     @staticmethod
     def _loss_fn(obj, data:np.ndarray, centers:np.ndarray = None):
@@ -351,23 +356,27 @@ class KBayesian(KMeans):
     
     def fit(self, data:np.ndarray, **kwargs):
         """
-        Fit the KBayesian model to the data using Bayesian optimization.
+        Fit the model to the given data using Bayesian optimization.
 
         Parameters:
-        - data (np.ndarray): The input data.
-        - **kwargs: Additional keyword arguments.
+            - data (np.ndarray): The input data for fitting the model.
+            - **kwargs: Additional keyword arguments.
+                - verbose (bool): Whether to print the progress of the optimization. Default is False.
+                - max_evals (int): The maximum number of evaluations. Default is 1000.
 
         Returns:
-        - best (np.ndarray): The best solution found by Bayesian optimization.
-
+            np.ndarray: An array containing the best values found by the optimization.
         """
+        kwargs = set_default_kwargs(kwargs, True, verbose=False, max_evals=self.max_iter)
         trials = Trials()
         best = fmin(self._objective,
                     space={'obj': self, 'space': self._init_space(data), 'data': data},
                     algo=tpe.suggest,
-                    max_evals=self.max_iter,
                     trials=trials,
-                    rstate= np.random.default_rng(self.randseed))
+                    rstate= np.random.default_rng(self.randseed),
+                    **kwargs)
+        self.centers = self._gather_space([self.n_clusters, data.shape[-1]], best)
+        self.loss = self.loss_fn(data, self.centers)
         return np.array(list(best.values()))
     
     def predict(self, data: np.ndarray):
@@ -459,7 +468,7 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         model = AffinityPropagation(**kwargs)
         return model.fit_predict(data)
     else:
-        return put_err(f'Unknown method {method}, return None', None)
+        return put_err(f'Unknown method {method}, return None', None, 1)
 
 
 if __name__ == '__main__':
@@ -490,7 +499,8 @@ if __name__ == '__main__':
             elif i == 0 and j == 1:
                 method = 'mbapy-KBayesian'
                 model = KBayesian(n_classes, max_iter=200)
-                yhat = model.fit_predict(X, fit_times=1)
+                yhat = model.fit_predict(X, fit_times=1, verbose = True)
+                pass
             else:
                 method = cluster_support_methods[i*3+j - 1]
                 yhat = cluster(X, n_classes, method, 'div_max')
