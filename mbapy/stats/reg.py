@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 18:40:19
+LastEditTime: 2023-09-02 21:59:39
 Description: 
 '''
 from typing import Dict, List
@@ -10,7 +10,7 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import cdist
+import scipy
 from sklearn.cluster import (DBSCAN, AffinityPropagation,
                              AgglomerativeClustering, Birch)
 from sklearn.cluster import KMeans as sk_KMeans
@@ -20,6 +20,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
 
 try:
+    import torch
     from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
 except:
     pass # mbapy now do not compulsively require hyperopt
@@ -70,43 +71,65 @@ class KMeans:
         - tolerance(float): tolerance for convergence, default is 0.0001.
         - max_iter(int): maximum number of iterations, default is 1000.
         - init_method(str): initialization method, either 'prob' or 'max', default is 'prob'.
+        - backend(str): backend for calculating distance, default is 'scipy'.
+            - 'scipy': use scipy cdist.
+            - 'pytorch': use pytorch cdist.
         - **kwargs: additional keyword arguments.
     """
+    class BackEnd:
+        def __init__(self, backend:str) -> None:
+            self.backend = backend
+            if backend == 'scipy':
+                self._backend = np
+                self.array = np.array
+            elif backend == 'pytorch':
+                self._backend = torch
+                self.array = torch.tensor
+        def cat(self, *args, **kwargs):
+            if self.backend == 'scipy':
+                return np.concatenate(*args, **kwargs, axis = 0)
+            elif self.backend == 'pytorch':
+                return torch.cat(*args, **kwargs, dim = 0)
+        def cdist(self, data, centers):
+            if self.backend == 'scipy':
+                return scipy.spatial.distance.cdist(data, centers, metric = 'euclidean')
+            elif self.backend == 'pytorch':
+                if isinstance(centers, np.ndarray):
+                    centers = torch.tensor(centers, dtype = torch.float64, device = data.device)
+                return torch.cdist(data.to(dtype = torch.float64), centers.to(dtype = torch.float64))
+        def random_choice(self, n:int, p):
+            if self.backend == 'scipy':
+                return np.random.choice(n, p = p)
+            elif self.backend == 'pytorch':
+                return torch.multinomial(p, n)[0]
+        
     @autoparse
     def __init__(self, n_clusters:int = None, tolerance:float = 0.0001, max_iter:int = 1000,
-                 init_method = 'prob', **kwargs) -> None:
+                 init_method = 'prob', backend:str = 'scipy', **kwargs) -> None:
         self.centers = None # should be a ndarray with shape [n, D]
         self.data_group_id = None
+        self._backend = self.BackEnd(backend)
         
     def reset(self, **kwargs):
         """
         Reset the centers and data group id to None.
-
-        Parameters:
-            - **kwargs: additional keyword arguments.
         """
         self.centers = None
         self.data_group_id = None
         
-    def _calcu_length_mat(self, data:np.ndarray, centers:np.ndarray = None,
-                      backend:str = 'scipy', metric = 'euclidean'):
+    def _calcu_length_mat(self, data:np.ndarray, centers:np.ndarray = None):
         """
         Calculate the length matrix between data and centers.
 
         Parameters:
             - data(ndarray): data to be clustered, should be a ndarray with shape [N, D].
             - centers(ndarray): centers of the clusters, should be a ndarray with shape [n, D], default is None.
-            - backend(str): backend for calculating distance, either 'scipy' or 'numpy', default is 'scipy'.
-            - metric(str): distance metric, default is 'euclidean'.
 
         Returns:
             - length_mat(ndarray): length matrix with shape [N, n], N is sum data, n is sum clusters(centers).
         """
         centers = get_default_for_None(centers, self.centers)
-        if backend == 'scipy':
-            return cdist(data, centers, metric = metric) # [N, n]
-        else:
-            raise NotImplementedError
+        return self._backend.cdist(data, centers) # [N, n]
         
     def _choose_center_from_data(self, data: np.ndarray, centers:np.ndarray):
         """
@@ -115,8 +138,8 @@ class KMeans:
             - If self.init_method is 'max', then choose the center point with maximum length.
 
         Parameters:
-            data (np.ndarray): The input data array.
-            centers (np.ndarray): The centers array.
+            - data (np.ndarray): The input data array.
+            - centers (np.ndarray): The centers array.
 
         Returns:
             np.ndarray: The selected center point from the data.
@@ -124,31 +147,31 @@ class KMeans:
         # get length for every data to every centers, and calcu sum for each data
         length = self._calcu_length_mat(data, centers).sum(axis = -1) # [N, ]
         # get new_center_idx by prob or just using max
-        if self.init_method == 'prob':                
-            prob = length / np.sum(length)
-            idx = np.random.choice(data.shape[0], p=prob)
+        if self.init_method == 'prob':
+            prob = length / self._backend._backend.sum(length)
+            idx = self._backend.random_choice(data.shape[0], p=prob)
         elif self.init_method == 'max':
-            idx = np.argmax(length)
+            idx = self._backend._backend.argmax(length)
         return data[idx]
-        
+    
     def _init_centers(self, data:np.ndarray):
         """
         Initializes the cluster centers for the K-Means clustering algorithm.
 
         Parameters:
-            data (np.ndarray): The input data for clustering.
+            - data (np.ndarray): The input data for clustering.
+            - backend (str, optional): The backend for calculating distance. Defaults to 'scipy'.
 
         Returns:
             np.ndarray: The initialized cluster centers.
-
         """
         # choose the first center randomly
         first_center_idx = int(np.random.uniform(0, data.shape[0]))
         self.centers = data[first_center_idx].reshape(1, -1) # [n=1, D]
         # generate left centers by kmeans++
         for _ in range(self.n_clusters - 1):
-            new_center = self._choose_center_from_data(data, self.centers)
-            self.centers = np.vstack([self.centers, new_center])
+            new_center = self._choose_center_from_data(data, self.centers).reshape(1, -1)
+            self.centers = self._backend.cat([self.centers, new_center])
         return self.centers
     
     def loss_fn(self, data:np.ndarray, centers:np.ndarray = None):
@@ -171,32 +194,34 @@ class KMeans:
         Fits the K-means clustering model to the given data.
 
         Parameters:
-            data (np.ndarray): The input data for clustering.
-            **kwargs: Additional keyword arguments.
+            - data (np.ndarray): The input data for clustering.
+            - backend (str, optional): The backend for calculating distance. Defaults to 'scipy'.
+            - **kwargs: Additional keyword arguments.
 
         Returns:
             np.ndarray: The final cluster centers.
         """
         self._init_centers(data)
-        prev_loss = np.nan
+        prev_loss = None
         for _ in range(self.max_iter):
             # sort data to groups id by now centers, get data_group_id
-            new_centers = np.zeros([self.n_clusters, data.shape[-1]])
+            kwgs = {'device' : data.device} if self.backend == 'pytorch' else {}
+            new_centers = self._backend._backend.zeros([self.n_clusters, data.shape[-1]], **kwgs)
             length_mat = self._calcu_length_mat(data) # [N, n]
-            data_group_id = length_mat.argmin(axis = -1) # [N, ]
+            data_group_id = length_mat.argmin(-1) # [N, ]
             # sort data to groups, set new centers to be the mean of each group
             for group_x_id in range(self.n_clusters):
-                group_x_data_id = np.argwhere(data_group_id == group_x_id).reshape(-1) # data id for one group
+                group_x_data_id = self._backend._backend.argwhere(data_group_id == group_x_id).reshape(-1) # data id for one group
                 if group_x_data_id.shape[0] == 0:
                     # empty group(center), perform init for this center
-                    non_null_centers = self.centers[np.unique(data_group_id)]
+                    non_null_centers = self.centers[self._backend._backend.unique(data_group_id)]
                     new_centers[group_x_id] = self._choose_center_from_data(data, non_null_centers)
                     # if there has multi null groups,
                     # need update data_group_id to update non_null_centers
                     self.centers[group_x_id] = new_centers[group_x_id]
-                    data_group_id = self._calcu_length_mat(data).argmin(axis = -1)
+                    data_group_id = self._calcu_length_mat(data).argmin(-1)
                 else:
-                    new_centers[group_x_id] = data[group_x_data_id].mean(axis=0)
+                    new_centers[group_x_id] = data[group_x_data_id].mean(0)
             # check if loss has no changes, no tolerance here exactly
             if self.loss_fn(data) == prev_loss:
                 break
@@ -204,6 +229,10 @@ class KMeans:
             # move centers to new centers(average of groups)
             self.centers = new_centers
             self.data_group_id = data_group_id
+        # move centers to cpu if backend is pytorch
+        if self.backend == 'pytorch':
+            self.centers = self.centers.cpu().numpy()
+            self.loss = self.loss.cpu().numpy()
         return self.centers
     
     def fit_times(self, data:np.ndarray, times:int = 3, **kwargs):
@@ -211,9 +240,10 @@ class KMeans:
         Fits the model to the given data for a specified number of times.
 
         Args:
-            data (np.ndarray): The input data to fit the model on.
-            times (int, optional): The number of times to fit the model. Defaults to 3.
-            **kwargs: Additional keyword arguments to be passed to the fit method.
+            - data (np.ndarray): The input data to fit the model on.
+            - times (int, optional): The number of times to fit the model. Defaults to 3.
+            - backend (str, optional): The backend for calculating distance. Defaults to 'scipy'.
+            - **kwargs: Additional keyword arguments to be passed to the fit method.
 
         Returns:
             np.ndarray: The centers of the fitted model.
@@ -242,6 +272,10 @@ class KMeans:
             np.ndarray: The predicted class labels with shape [N, ].
         """
         length_mat = self._calcu_length_mat(data) # [N, n]
+        # move centers to cpu if backend is pytorch
+        if self.backend == 'pytorch':
+            length_mat = length_mat.cpu().numpy()
+        # return labels
         return length_mat.argmin(axis = -1) # [N, ]
         
     def fit_predict(self, data:np.ndarray, predict_data = None, fit_times = 3, **kwargs):
@@ -465,10 +499,10 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         model = AffinityPropagation(**kwargs)
         return model.fit_predict(data), None, -1
     elif method == 'BAKMeans':
-        model = KMeans(n_clusters=n_clusters)
+        model = KMeans(n_clusters=n_clusters, **kwargs)
         return model.fit_predict(data, **kwargs), model.centers, model.loss
     elif method == 'KBayesian':
-        model = KBayesian(n_clusters=n_clusters)
+        model = KBayesian(n_clusters=n_clusters, **kwargs)
         return model.fit_predict(data, **kwargs), model.centers, model.loss
     else:
         return put_err(f'Unknown method {method}, return None', None, 1)
@@ -479,18 +513,20 @@ if __name__ == '__main__':
     from mbapy.stats import pca
     n_classes = 3
     # 模拟数据集
-    X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
-                               n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
+    # X, _ = make_classification(n_samples=1000*n_classes, n_features=2, n_informative=2,
+    #                            n_redundant=0, n_classes=n_classes, n_clusters_per_class=1, random_state=4)
     # 真实数据集MWM
-    # df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
-    # tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
+    df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
+    tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
     # 真实数据集XM
     # df = pd.read_excel(r'data/plot.xlsx',sheet_name='xm')
     # tags = [col for col in df.columns if col not in ['solution', 'type']]
     
-    # X = df.loc[ : ,tags].values
+    X = df.loc[ : ,tags].values
     pos = pca(X, 2)
     print(X.shape, pos.shape)
+    
+    r = cluster(torch.tensor(X, device = 'gpu'), n_classes, 'BAKMeans', backend='pytorch')
 
     fig, axs = plt.subplots(2, 5, figsize = (10, 10))
     for i in range(2):
