@@ -430,40 +430,44 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
     if norm is not None:
         if norm == 'div_max':
             data = data/data.max()
-            
+    loss = -1
+    # match clustering method and do clustering
     if method == 'DBSCAN':
         kwargs = set_default_kwargs(kwargs, eps = 0.5, min_samples = 3)
-        return DBSCAN(**kwargs).fit_predict(data), None, -1
+        labels, centers = DBSCAN(**kwargs).fit_predict(data), None
     elif method == 'Birch':
         model = Birch(n_clusters=n_clusters, **kwargs)
-        return model.fit_predict(data), model.subcluster_centers_, -1
+        labels, centers = model.fit_predict(data), model.subcluster_centers_
     elif method == 'KMeans':
         model = sk_KMeans(n_clusters=n_clusters)
-        return model.fit_predict(data), model.cluster_centers_, -1
+        labels, centers = model.fit_predict(data), model.cluster_centers_
     elif method == 'MiniBatchKMeans':
         model = MiniBatchKMeans(n_clusters=n_clusters)
-        return model.fit_predict(data), model.cluster_centers_, -1
+        labels, centers = model.fit_predict(data), model.cluster_centers_
     elif method == 'MeanShift':
         model = MeanShift()
-        return model.fit_predict(data), model.cluster_centers_, -1
+        labels, centers = model.fit_predict(data), model.cluster_centers_
     elif method == 'GaussianMixture':
         kwargs = set_default_kwargs(kwargs, n_components=n_clusters, random_state = 777)
         model = GaussianMixture(**kwargs)
-        return model.fit_predict(data), model.means_, -1
+        labels, centers = model.fit_predict(data), model.means_
     elif method == 'AgglomerativeClustering':
         model = AgglomerativeClustering(n_clusters = n_clusters)
-        return model.fit(data).labels_, None, -1
+        labels, centers = model.fit(data).labels_, None
     elif method == 'AffinityPropagation':
         model = AffinityPropagation(**kwargs)
-        return model.fit_predict(data), None, -1
+        labels, centers = model.fit_predict(data), None
     elif method == 'BAKMeans':
         model = KMeans(n_clusters=n_clusters, **kwargs)
-        return model.fit_predict(data, **kwargs), model.centers, model.loss
+        labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
     elif method == 'KBayesian':
         model = KBayesian(n_clusters=n_clusters, **kwargs)
-        return model.fit_predict(data, **kwargs), model.centers, model.loss
+        labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
     else:
         return put_err(f'Unknown method {method}, return None', None, 1)
+    if centers is not None and loss == -1:
+        loss = scipy.spatial.distance.cdist(data, centers, metric = 'euclidean').mean()
+    return labels, centers, loss
     
 if __name__ == '__main__':
     # dev code
@@ -472,6 +476,7 @@ if __name__ == '__main__':
     n_classes = 4
     X, _ = make_classification(n_samples=10000*n_classes, n_features=512, n_classes=n_classes,
                             n_clusters_per_class=1, random_state=4)
+    
     model = KMeans(n_clusters=n_classes, mini_batch=0.5)
     
     for i in range(5):
