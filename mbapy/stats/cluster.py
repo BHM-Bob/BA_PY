@@ -165,9 +165,6 @@ class KMeans:
         Sorts the data into groups based on the current centers 
         and calculates the new centers for each group.
         """
-        # MiniBatchKMeans
-        if self.mini_batch < 1:
-            data = self._backend.sample(data, self.mini_batch)
         # sort data to groups id by now centers, get data_group_id
         kwgs = {'device' : data.device} if self.backend == 'pytorch' else {}
         new_centers = self._backend._backend.zeros([self.n_clusters, data.shape[-1]], **kwgs)
@@ -201,6 +198,10 @@ class KMeans:
         Returns:
             np.ndarray: The final cluster centers.
         """
+        # MiniBatchKMeans
+        if self.mini_batch < 1:
+            data = self._backend.sample(data, self.mini_batch)
+        # KMeans++
         self._init_centers(data)
         prev_loss = None
         for _ in range(self.max_iter):

@@ -1,3 +1,9 @@
+'''
+Date: 2023-09-02 22:35:27
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-09-03 14:54:58
+Description: 
+'''
 
 import torch
 from sklearn.datasets import make_classification
@@ -17,17 +23,17 @@ def func(times, data, n_classes, method, **kwargs):
     labels, centers, loss = cluster(data, n_classes, method, 'div_max', **kwargs)
     print(loss)
 
-# for method in ['KMeans', 'MiniBatchKMeans']:
-#     print(method)
-#     func(X, n_classes, method)
+for method in ['KMeans', 'MiniBatchKMeans']:
+    print(method)
+    func(X, n_classes, method)
         
 print('BAKMeans scipy')
-func(X, n_classes, 'BAKMeans', mini_batch = 1, backend = 'scipy')
+func(X, n_classes, 'BAKMeans', mini_batch = 0.1, backend = 'scipy')
         
 print('BAKMeans pytorch cpu')
 X = torch.tensor(X, device = 'cpu')
-func(X, n_classes, 'BAKMeans', mini_batch = 0.5, backend = 'pytorch')
+func(X, n_classes, 'BAKMeans', mini_batch = 0.1, backend = 'pytorch')
 
 print('BAKMeans pytorch cuda')
 X = torch.tensor(X, device = 'cuda')
-func(X, n_classes, 'BAKMeans', mini_batch = 0.5, backend = 'pytorch')
+func(X, n_classes, 'BAKMeans', mini_batch = 0.1, backend = 'pytorch')
