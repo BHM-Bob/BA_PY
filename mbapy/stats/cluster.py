@@ -29,11 +29,11 @@ class KMeans:
     Parameters:
         - n_clusters(int): number of clusters, if set to None, will auto search from 1 to sum of data to make fit for tolerance.
         - tolerance(float): tolerance for convergence, default is 0.0001.
-        - max_iter(int): maximum number of iterations, default is 1000.
+        - max_iter(int): maximum number of iterations, default is 200.
+        - mini_batch(float): mini batch size ratio, default is 1.0.
         - init_method(str): initialization method, either 'prob' or 'max', default is 'prob'.
-        - backend(str): backend for calculating distance, default is 'scipy'.
-            - 'scipy': use scipy cdist.
-            - 'pytorch': use pytorch cdist.
+        - backend(str): backend for calculating distance and other calculations, default is 'scipy'.
+            valid choice are 'scipy', 'pytorch'.
         - **kwargs: additional keyword arguments.
     """
     class BackEnd:
@@ -62,12 +62,20 @@ class KMeans:
                 return np.random.choice(n, p = p)
             elif self.backend == 'pytorch':
                 return torch.multinomial(p, n)[0]
+        def sample(self, data, mini_batch:float):
+            if self.backend == 'scipy':
+                idxs = np.random.permutation(np.arange(data.shape[0]))[:int(data.shape[0]*mini_batch)]
+            elif self.backend == 'pytorch':
+                idxs = torch.randperm(data.shape[0])[:int(data.shape[0]*mini_batch)]
+            return data[idxs, :]
         
     @autoparse
-    def __init__(self, n_clusters:int = None, tolerance:float = 0.0001, max_iter:int = 1000,
-                 init_method = 'prob', backend:str = 'scipy', **kwargs) -> None:
+    def __init__(self, n_clusters:int = None, tolerance:float = 0.0001, max_iter:int = 200,
+                 mini_batch:float = 1., init_method = 'prob', backend:str = 'scipy', **kwargs) -> None:
         self.centers = None # should be a ndarray with shape [n, D]
         self.data_group_id = None
+        self.loss_record = []
+        
         self._backend = self.BackEnd(backend)
         
     def reset(self, **kwargs):
@@ -76,6 +84,7 @@ class KMeans:
         """
         self.centers = None
         self.data_group_id = None
+        self.loss_record = []
         
     def _calcu_length_mat(self, data:np.ndarray, centers:np.ndarray = None):
         """
@@ -116,22 +125,24 @@ class KMeans:
     
     def _init_centers(self, data:np.ndarray):
         """
-        Initializes the cluster centers for the K-Means clustering algorithm.
+        Initializes the cluster centers for the KMeans algorithm.
+            **If self.centers is not None, do nothing for flexibility**.
 
         Parameters:
-            - data (np.ndarray): The input data for clustering.
-            - backend (str, optional): The backend for calculating distance. Defaults to 'scipy'.
+            data (np.ndarray): The input data used to determine the cluster centers.
 
         Returns:
             np.ndarray: The initialized cluster centers.
         """
-        # choose the first center randomly
-        first_center_idx = int(np.random.uniform(0, data.shape[0]))
-        self.centers = data[first_center_idx].reshape(1, -1) # [n=1, D]
-        # generate left centers by kmeans++
-        for _ in range(self.n_clusters - 1):
-            new_center = self._choose_center_from_data(data, self.centers).reshape(1, -1)
-            self.centers = self._backend.cat([self.centers, new_center])
+        # skip if self.centers is not None, to make flexibility
+        if self.centers is None:            
+            # choose the first center randomly
+            first_center_idx = int(np.random.uniform(0, data.shape[0]))
+            self.centers = data[first_center_idx].reshape(1, -1) # [n=1, D]
+            # generate left centers by kmeans++
+            for _ in range(self.n_clusters - 1):
+                new_center = self._choose_center_from_data(data, self.centers).reshape(1, -1)
+                self.centers = self._backend.cat([self.centers, new_center])
         return self.centers
     
     def loss_fn(self, data:np.ndarray, centers:np.ndarray = None):
@@ -149,6 +160,35 @@ class KMeans:
         self.loss = self._calcu_length_mat(data, centers).mean()
         return self.loss
     
+    def _single_iter(self, data):
+        """
+        Sorts the data into groups based on the current centers 
+        and calculates the new centers for each group.
+        """
+        # MiniBatchKMeans
+        if self.mini_batch < 1:
+            data = self._backend.sample(data, self.mini_batch)
+        # sort data to groups id by now centers, get data_group_id
+        kwgs = {'device' : data.device} if self.backend == 'pytorch' else {}
+        new_centers = self._backend._backend.zeros([self.n_clusters, data.shape[-1]], **kwgs)
+        length_mat = self._calcu_length_mat(data) # [N, n]
+        data_group_id = length_mat.argmin(-1) # [N, ]
+        # sort data to groups, set new centers to be the mean of each group
+        for group_x_id in range(self.n_clusters):
+            # data id for one group
+            group_x_data_id = self._backend._backend.argwhere(data_group_id == group_x_id).reshape(-1)
+            if group_x_data_id.shape[0] == 0:
+                # empty group(center), perform init for this center
+                non_null_centers = self.centers[self._backend._backend.unique(data_group_id)]
+                new_centers[group_x_id] = self._choose_center_from_data(data, non_null_centers)
+                # if there has multi null groups,
+                # need update data_group_id to update non_null_centers
+                self.centers[group_x_id] = new_centers[group_x_id]
+                data_group_id = self._calcu_length_mat(data).argmin(-1)
+            else:
+                new_centers[group_x_id] = data[group_x_data_id].mean(0)
+        return new_centers, data_group_id        
+    
     def fit(self, data:np.ndarray, **kwargs):
         """
         Fits the K-means clustering model to the given data.
@@ -164,28 +204,12 @@ class KMeans:
         self._init_centers(data)
         prev_loss = None
         for _ in range(self.max_iter):
-            # sort data to groups id by now centers, get data_group_id
-            kwgs = {'device' : data.device} if self.backend == 'pytorch' else {}
-            new_centers = self._backend._backend.zeros([self.n_clusters, data.shape[-1]], **kwgs)
-            length_mat = self._calcu_length_mat(data) # [N, n]
-            data_group_id = length_mat.argmin(-1) # [N, ]
-            # sort data to groups, set new centers to be the mean of each group
-            for group_x_id in range(self.n_clusters):
-                group_x_data_id = self._backend._backend.argwhere(data_group_id == group_x_id).reshape(-1) # data id for one group
-                if group_x_data_id.shape[0] == 0:
-                    # empty group(center), perform init for this center
-                    non_null_centers = self.centers[self._backend._backend.unique(data_group_id)]
-                    new_centers[group_x_id] = self._choose_center_from_data(data, non_null_centers)
-                    # if there has multi null groups,
-                    # need update data_group_id to update non_null_centers
-                    self.centers[group_x_id] = new_centers[group_x_id]
-                    data_group_id = self._calcu_length_mat(data).argmin(-1)
-                else:
-                    new_centers[group_x_id] = data[group_x_data_id].mean(0)
+            new_centers, data_group_id = self._single_iter(data)
             # check if loss has no changes, no tolerance here exactly
             if self.loss_fn(data) == prev_loss:
                 break
             prev_loss = self.loss
+            self.loss_record.append(self.loss)
             # move centers to new centers(average of groups)
             self.centers = new_centers
             self.data_group_id = data_group_id
@@ -256,6 +280,8 @@ class KMeans:
         else:
             self.fit_times(data, fit_times, **kwargs)
         return self.predict(get_default_for_None(predict_data, data))
+    
+BAKMeans = KMeans
     
 class KBayesian(KMeans):
     """
@@ -364,35 +390,6 @@ class KBayesian(KMeans):
         self.loss = self.loss_fn(data, self.centers)
         return np.array(list(best.values()))
     
-    def predict(self, data: np.ndarray):
-        """
-        Predict the cluster labels for the given data.
-
-        Parameters:
-        - data (np.ndarray): The input data.
-
-        Returns:
-        - labels (np.ndarray): The predicted cluster labels.
-
-        """
-        return super().predict(data)
-    
-    def fit_predict(self, data: np.ndarray, predict_data=None, fit_times=1, **kwargs):
-        """
-        Fit the model to the data and predict the cluster labels.
-
-        Parameters:
-        - data (np.ndarray): The input data.
-        - predict_data: The data to predict. Default is None.
-        - fit_times (int): The number of times to fit the model. Default is 1.
-        - **kwargs: Additional keyword arguments.
-
-        Returns:
-        - labels (np.ndarray): The predicted cluster labels.
-
-        """
-        return super().fit_predict(data, predict_data, fit_times, **kwargs)
-    
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
                            'MeanShift', 'GaussianMixture', 'AgglomerativeClustering',
@@ -466,3 +463,19 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         return model.fit_predict(data, **kwargs), model.centers, model.loss
     else:
         return put_err(f'Unknown method {method}, return None', None, 1)
+    
+if __name__ == '__main__':
+    # dev code
+    import matplotlib.pyplot as plt
+    from sklearn.datasets import make_classification
+    n_classes = 4
+    X, _ = make_classification(n_samples=10000*n_classes, n_features=512, n_classes=n_classes,
+                            n_clusters_per_class=1, random_state=4)
+    model = KMeans(n_clusters=n_classes, mini_batch=0.5)
+    
+    for i in range(5):
+        model.fit(X)
+        plt.plot(list(range(len(model.loss_record))), model.loss_record, label = f'iter{i}')
+        model.reset()
+    
+    plt.show()

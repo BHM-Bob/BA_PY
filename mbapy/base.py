@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 16:13:33
+LastEditTime: 2023-09-02 22:54:53
 Description: 
 '''
 import ctypes
@@ -200,12 +200,24 @@ def put_log(info:str, head = "bapy::log", ret = None):
 
 def TimeCosts(runTimes:int = 1, log_per_iter = True):
     """
-    inner is func(times, *args, **kwargs)
-    @TimeCosts(9)
-    def f(idx, s):
-        return s+idx
-    print(f(8))\n
-    print(f(s = 8))\n
+    A decorator function that measures and logs the time it takes for a function to run.
+
+    Parameters:
+        - runTimes (int): The number of times the function should be executed. Default is 1.
+        - log_per_iter (bool): Whether to log the time taken for each iteration. Default is True.
+
+    Returns:
+        - ret_wrapper (function): The decorated function that measures and logs the time it takes for the original function to run.
+    
+    Notes:
+        inner is func(times, *args, **kwargs)
+        
+    Examples:
+        >>> @TimeCosts(9)
+        >>> def f(idx, s):
+        >>>     return s+idx
+        >>> print(f(8))
+        >>> print(f(s = 8))
     """
     def ret_wrapper( func ):
         def core_wrapper(*args, **kwargs):
