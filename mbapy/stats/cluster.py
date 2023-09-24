@@ -12,29 +12,34 @@ try:
     import torch
     from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
 except:
-    pass # mbapy now do not compulsively require hyperopt
+    pass # mbapy now do not compulsively require pytorch and hyperopt
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import (autoparse, get_default_for_None, get_num_digits,
-                            put_err, set_default_kwargs)
+    from mbapy.base import (autoparse, get_default_call_for_None,
+                            get_default_for_None, get_num_digits, put_err,
+                            set_default_kwargs)
 else:
     # release mode
-    from ..base import (autoparse, get_default_for_None, get_num_digits,
-                        put_err, set_default_kwargs)
+    from ..base import (autoparse, get_default_call_for_None,
+                        get_default_for_None, get_num_digits, put_err,
+                        set_default_kwargs)
 
 class KMeans:
-    """ KMeans clustering algorithm implementation.
+    """ 
+    KMeans clustering algorithm implementation.
 
-    Parameters:
-        - n_clusters(int): number of clusters, if set to None, will auto search from 1 to sum of data to make fit for tolerance.
-        - tolerance(float): tolerance for convergence, default is 0.0001.
-        - max_iter(int): maximum number of iterations, default is 200.
-        - mini_batch(float): mini batch size ratio, default is 1.0.
-        - init_method(str): initialization method, either 'prob' or 'max', default is 'prob'.
-        - backend(str): backend for calculating distance and other calculations, default is 'scipy'.
-            valid choice are 'scipy', 'pytorch'.
-        - **kwargs: additional keyword arguments.
+    Attributes:
+    - space (list): A list of lists representing the search space for Bayesian optimization.
+    - centers (np.ndarray): The final cluster centers.
+    
+    Methods:
+    - reset: Reset the KMeans instance to its initial state.
+    - loss_fn: Calculate the loss function for the given data and centers.
+    - fit: Fit the KMeans model to the given data.
+    - fit_times: Fit the model to the data multiple times and predict the cluster labels, return the best one.
+    - fit_predict: Fit the model to the data and predict the cluster labels.
+    - predict: Predict the cluster labels for the given data.
     """
     class BackEnd:
         def __init__(self, backend:str) -> None:
@@ -72,6 +77,18 @@ class KMeans:
     @autoparse
     def __init__(self, n_clusters:int = None, tolerance:float = 0.0001, max_iter:int = 200,
                  mini_batch:float = 1., init_method = 'prob', backend:str = 'scipy', **kwargs) -> None:
+        """
+        Parameters:
+            - n_clusters(int): number of clusters, if set to None, will auto search from 1 to sum of data to make fit for tolerance.
+            - tolerance(float): tolerance for convergence, default is 0.0001.
+            - max_iter(int): maximum number of iterations, default is 200.
+            - mini_batch(float): mini batch size ratio, default is 1.0.
+            - init_method(str): initialization method, either 'prob' or 'max', default is 'prob'.
+            - backend (str): The backend for calculating distance. Default is 'scipy'.
+                - 'scipy': mainly because scipy.spatial.distance.cdist, it use numpy.NDArray.
+                - 'pytorch': mainly because torch.cdist, it use torch.Tensor.
+            - **kwargs: additional keyword arguments.
+        """
         self.centers = None # should be a ndarray with shape [n, D]
         self.data_group_id = None
         self.loss_record = []
@@ -192,7 +209,6 @@ class KMeans:
 
         Parameters:
             - data (np.ndarray): The input data for clustering.
-            - backend (str, optional): The backend for calculating distance. Defaults to 'scipy'.
             - **kwargs: Additional keyword arguments.
 
         Returns:
@@ -289,14 +305,9 @@ class KBayesian(KMeans):
     KBayesian is a subclass of KMeans that implements the Bayesian version of the K-means clustering algorithm.
     It extends the KMeans class and adds additional functionality for Bayesian optimization.
 
-    Parameters:
-    - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
-    - max_iter (int): The maximum number of iterations. Default is 200.
-    - randseed (int): The random seed for reproducibility. Default is 0.
-    - **kwargs: Additional keyword arguments.
-
     Attributes:
     - space (list): A list of lists representing the search space for Bayesian optimization.
+    - centers (np.ndarray): The final cluster centers.
 
     Methods:
     - reset(**kwargs): Reset the KBayesian instance to its initial state.
@@ -309,17 +320,17 @@ class KBayesian(KMeans):
 
     """
     @autoparse
-    def __init__(self, n_clusters: int = None, max_iter: int = 200, randseed = 0, **kwargs) -> None:
+    def __init__(self, n_clusters: int = None, max_iter: int = 200,
+                 mini_batch: float = 1, randseed = 0, **kwargs) -> None:
         """
-        Initialize a KBayesian instance.
-
         Parameters:
         - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
         - max_iter (int): The maximum number of iterations. Default is 200.
+        - mini_batch (float): mini batch size ratio, default is 1.
         - randseed (int): The random seed for reproducibility. Default is 0.
         - **kwargs: Additional keyword arguments.
         """
-        super().__init__(n_clusters, 0, max_iter, '', **kwargs)
+        super().__init__(n_clusters, 0, max_iter, mini_batch, '', 'scipy', **kwargs)
         self.space = [[] for _ in range(self.n_clusters)]
         
     def reset(self, **kwargs):
@@ -379,6 +390,10 @@ class KBayesian(KMeans):
         Returns:
             np.ndarray: An array containing the best values found by the optimization.
         """
+        # MiniBatchKMeans
+        if self.mini_batch < 1:
+            data = self._backend.sample(data, self.mini_batch)
+        # beyesian optimize
         kwargs = set_default_kwargs(kwargs, True, verbose=False, max_evals=self.max_iter)
         trials = Trials()
         best = fmin(self._objective,
@@ -390,6 +405,89 @@ class KBayesian(KMeans):
         self.centers = self._gather_space([self.n_clusters, data.shape[-1]], best)
         self.loss = self.loss_fn(data, self.centers)
         return np.array(list(best.values()))
+    
+class KOptim(KMeans):
+    """
+    KOptim is a subclass of KMeans that implements the gradient optimization version of the K-means clustering algorithm.
+    
+    Attributes:
+    - centers (np.ndarray): The final cluster centers.
+    - loss (np.ndarray): The loss value.
+    
+    Methods:
+    - fit: Fit the model to the given data.
+    - fit_times: Fit the model to the given data for a specified number of times.
+    """
+    class _Model(torch.nn.Module):
+        def __init__(self, n_cluster: int, dim_feature: int) -> None:
+            super().__init__()
+            self.centers = torch.nn.Embedding(n_cluster, dim_feature, dtype=torch.float64)
+            self.optimizer = torch.optim.Adam(self.centers.parameters())
+        def forward(self, x):
+            loss = torch.cdist(x, self.centers).mean()
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            return loss
+        
+    def __init__(self, n_clusters: int = None, max_iter: int = 200,
+                 batch_size = None, mini_batch: float = 1, init_method='prob', **kwargs) -> None:
+        """
+        Parameters:
+            - n_clusters (int, optional): The number of clusters. Defaults to None.
+            - max_iter (int, optional): The maximum number of iterations. Defaults to 200.
+            - batch_size (optional): The batch size. Defaults to None.
+            - mini_batch (float, optional): The mini batch size. Defaults to 1.
+            - init_method (str, optional): The initialization method. Defaults to 'prob'.
+            - **kwargs: Additional keyword arguments.
+        """
+        super().__init__(n_clusters, 0, max_iter, mini_batch, init_method, 'pytorch', **kwargs)
+        
+    def fit(self, data, **kwargs):
+        """
+        Fits the model to the given data.
+
+        Parameters:
+            - data (ndarray): The input data to fit the model.
+            - **kwargs: Additional keyword arguments.
+                - model (KOptim._Model, optional): The nn model. Defaults to None.
+
+        Returns:
+            ndarray: The computed centers of the model.
+        """
+        # transform data to pytorch
+        if isinstance(data, np.ndarray):
+            data = torch.from_numpy(data)
+        # get nn model if not passed from kwargs, init centers
+        kwgs = set_default_kwargs(kwargs, model = None)
+        model = get_default_call_for_None(kwgs['model'], self._Model(self.n_clusters, data.shape[-1]))
+        model.centers = self._init_centers(data)
+        model = model.to(data.device)
+        # train
+        self.batch_size = get_default_for_None(self.batch_size, data.shape[0])
+        for x in data.split(self.batch_size, dim=0):
+            self.loss = model(x)
+        # move centers to cpu if data's device is not cpu
+        if data.device != 'cpu':
+            self.centers = self.centers.cpu().numpy()
+            self.loss = self.loss.cpu().numpy()
+        return self.centers
+    
+    def fit_times(self, data: np.ndarray, times: int = 3, **kwargs):
+        """
+        Fits the model to the given data for a specified number of times.
+
+        Args:
+            data (np.ndarray): The input data to fit the model.
+            times (int, optional): The number of times to fit the model. Defaults to 3.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            The result of fitting the model to the data.
+        """
+        model = self._Model(self.n_clusters, data.shape[-1])
+        kwargs = set_default_kwargs(kwargs, model = model)
+        return super().fit_times(data, times, **kwargs)
     
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
