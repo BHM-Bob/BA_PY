@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 22:54:53
+LastEditTime: 2023-09-25 14:45:11
 Description: 
 '''
 import ctypes
@@ -412,12 +412,49 @@ def get_wanted_args(defalut_args:dict, kwargs:dict, del_kwargs = True):
     return MyArgs(defalut_args).get_args(kwargs, True, del_kwargs)
 
 def set_default_kwargs(kwargs: Dict, discard_extra: bool = False, **default_kwargs: Dict):
+    """
+    Set default keyword arguments in a dictionary.
+
+    Args:
+        kwargs (Dict): The dictionary of keyword arguments.
+        discard_extra (bool, optional): Whether to discard extra parameters 
+        that are in kwargs but not in default_kwargs. Defaults to False.
+        **default_kwargs (Dict): The default keyword arguments.
+
+    Returns:
+        Dict: The updated dictionary of keyword arguments.
+    """
+    # del extra params, which is in kwargs but not in default_kwargs
+    kwgs = kwargs.copy()
+    if discard_extra:
+        for name, value in kwargs.items():
+            if name not in default_kwargs:
+                kwgs.__delitem__(name)
+    # set key-value pairs from default_kwargs to kwargs
     for name, value in default_kwargs.items():
-        if name not in kwargs:
-            kwargs[name] = value
-        elif name not in kwargs and discard_extra:
-            kwargs.__delitem__(name)
-    return kwargs
+        if name not in kwgs:
+            kwgs[name] = value
+    return kwgs
+
+def get_default_args(kwargs: Dict, **default_kwargs: Dict):
+    """
+    Generate a dictionary of default arguments by combining the provided kwargs dictionary
+    with the default_kwargs dictionary.
+    
+    Args:
+        kwargs (Dict): A dictionary of keyword arguments.
+        **default_kwargs (Dict): Any number of dictionaries containing default keyword arguments.
+        
+    Returns:
+        Dict: A dictionary containing the combined default arguments.
+    """
+    kwgs = {}
+    for name, value in default_kwargs.items():
+        if name in kwargs:
+            kwgs[name] = kwargs[name]
+        else:
+            kwgs[name] = value
+    return kwgs
             
 def split_list(lst:list, n = 1, drop_last = False):
     """
@@ -500,6 +537,7 @@ class CDLL:
 
 if __name__ == '__main__':
     # dev code
+    d = set_default_kwargs({'a':1}, discard_extra=True, eps = 0.5, min_samples = 3)
     # arg checker
     Configs.err_warning_level = 2
     @parameter_checker(check_parameters_path, head = check_parameters_len, raise_err = False)

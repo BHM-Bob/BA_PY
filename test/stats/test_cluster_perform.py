@@ -1,7 +1,7 @@
 '''
 Date: 2023-09-02 22:35:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-03 15:48:25
+LastEditTime: 2023-09-25 14:43:44
 Description: 
 '''
 
@@ -20,7 +20,7 @@ print(X.shape, pos.shape)
 
 @TimeCosts(5, True)
 def func(times, data, n_classes, method, **kwargs):
-    labels, centers, loss = cluster(data, n_classes, method, 'div_max', **kwargs)
+    labels, centers, loss = cluster(data, n_classes, method, **kwargs)
     print(loss)
 
 for method in ['KMeans', 'MiniBatchKMeans']:
@@ -37,3 +37,7 @@ func(X, n_classes, 'BAKMeans', mini_batch = 0.2, backend = 'pytorch')
 print('BAKMeans pytorch cuda')
 X = torch.tensor(X, device = 'cuda')
 func(X, n_classes, 'BAKMeans', mini_batch = 0.2, backend = 'pytorch')
+
+print('KOptim pytorch cuda')
+X = torch.tensor(X, device = 'cuda')
+func(X, n_classes, 'KOptim', mini_batch = 0.2, backend = 'pytorch')

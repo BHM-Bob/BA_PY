@@ -1,7 +1,7 @@
 '''
 Date: 2023-09-02 22:07:00
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-02 22:36:40
+LastEditTime: 2023-09-25 13:27:32
 Description: 
 '''
 '''
@@ -35,12 +35,17 @@ X = df.loc[ : ,tags].values
 pos = pca(X, 2)
 print(X.shape, pos.shape)
 
-r = cluster(torch.tensor(X, device = 'cuda'), n_classes, 'BAKMeans', backend='pytorch')
+# r = cluster(torch.tensor(X, device = 'cuda'), n_classes, 'BAKMeans', backend='pytorch')
 
-fig, axs = plt.subplots(2, 5, figsize = (10, 10))
-for i in range(2):
-    for j in range(5):
-        method = cluster_support_methods[i*5+j]
+fig, axs = plt.subplots(3, 4, figsize = (10, 10))
+for i in range(3):
+    for j in range(4):
+        if i*4+j >= len(cluster_support_methods):
+            continue
+        method = cluster_support_methods[i*4+j]
+        if method == 'KBayesian':
+            continue
+        print('performing:', method, end=' ... ')
         yhat, center, loss = cluster(X, n_classes, method, 'div_max')
         if center is not None and center.shape[0] >= 2:
             center_pos = pca(center, 2)
@@ -60,5 +65,6 @@ for i in range(2):
         if loss is not None:
             axs[i][j].text(0, 0, f'loss: {loss:.4f}')
         axs[i][j].set_title(method)
+        print('done.')
 # 绘制散点图
 plt.show()

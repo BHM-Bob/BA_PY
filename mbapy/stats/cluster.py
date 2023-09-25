@@ -16,12 +16,12 @@ except:
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import (autoparse, get_default_call_for_None,
-                            get_default_for_None, get_num_digits, put_err,
-                            set_default_kwargs)
+    from mbapy.base import (autoparse, get_default_args,
+                            get_default_call_for_None, get_default_for_None,
+                            get_num_digits, put_err, set_default_kwargs)
 else:
     # release mode
-    from ..base import (autoparse, get_default_call_for_None,
+    from ..base import (autoparse, get_default_args, get_default_call_for_None,
                         get_default_for_None, get_num_digits, put_err,
                         set_default_kwargs)
 
@@ -56,9 +56,9 @@ class KMeans:
             elif self.backend == 'pytorch':
                 return torch.cat(*args, **kwargs, dim = 0)
         def cdist(self, data, centers):
-            if self.backend == 'scipy':
+            if self.backend == 'scipy' or isinstance(data, np.ndarray):
                 return scipy.spatial.distance.cdist(data, centers, metric = 'euclidean')
-            elif self.backend == 'pytorch':
+            elif self.backend == 'pytorch' or isinstance(data, torch.Tensor):
                 if isinstance(centers, np.ndarray):
                     centers = torch.tensor(centers, dtype = torch.float64, device = data.device)
                 return torch.cdist(data.to(dtype = torch.float64), centers.to(dtype = torch.float64))
@@ -203,7 +203,7 @@ class KMeans:
                 new_centers[group_x_id] = data[group_x_data_id].mean(0)
         return new_centers, data_group_id        
     
-    def fit(self, data:np.ndarray, **kwargs):
+    def fit(self, data:np.ndarray, reset = True, **kwargs):
         """
         Fits the K-means clustering model to the given data.
 
@@ -214,6 +214,9 @@ class KMeans:
         Returns:
             np.ndarray: The final cluster centers.
         """
+        # reset
+        if reset:
+            self.reset()
         # MiniBatchKMeans
         if self.mini_batch < 1:
             data = self._backend.sample(data, self.mini_batch)
@@ -234,6 +237,7 @@ class KMeans:
         if self.backend == 'pytorch':
             self.centers = self.centers.cpu().numpy()
             self.loss = self.loss.cpu().numpy()
+            self.loss_record = list(map(lambda x: x.cpu().numpy(), self.loss_record))
         return self.centers
     
     def fit_times(self, data:np.ndarray, times:int = 3, **kwargs):
@@ -249,12 +253,12 @@ class KMeans:
         Returns:
             np.ndarray: The centers of the fitted model.
         """
-        self.fit(data)
+        self.fit(data, **kwargs)
         loss_records = [self.loss]
         centers_records = [self.centers]
         for _ in range(times - 1):
             self.reset()
-            self.fit(data)
+            self.fit(data, **kwargs)
             loss_records.append(self.loss)
             centers_records.append(self.centers)
         min_idx = np.argmin(np.array(loss_records))
@@ -274,7 +278,7 @@ class KMeans:
         """
         length_mat = self._calcu_length_mat(data) # [N, n]
         # move centers to cpu if backend is pytorch
-        if self.backend == 'pytorch':
+        if self.backend == 'pytorch' and isinstance(length_mat, torch.Tensor):
             length_mat = length_mat.cpu().numpy()
         # return labels
         return length_mat.argmin(axis = -1) # [N, ]
@@ -304,6 +308,13 @@ class KBayesian(KMeans):
     """
     KBayesian is a subclass of KMeans that implements the Bayesian version of the K-means clustering algorithm.
     It extends the KMeans class and adds additional functionality for Bayesian optimization.
+    
+    Parameters:
+    - n_clusters (int): The number of clusters to form as well as the number of centroids to generate. Default is None.
+    - max_iter (int): The maximum number of iterations. Default is 200.
+    - mini_batch (float): mini batch size ratio, default is 1.
+    - randseed (int): The random seed for reproducibility. Default is 0.
+    - **kwargs: Additional keyword arguments.
 
     Attributes:
     - space (list): A list of lists representing the search space for Bayesian optimization.
@@ -317,7 +328,6 @@ class KBayesian(KMeans):
     - fit(data: np.ndarray, **kwargs): Fit the KBayesian model to the data using Bayesian optimization.
     - predict(data: np.ndarray): Predict the cluster labels for the given data.
     - fit_predict(data: np.ndarray, predict_data=None, fit_times=1, **kwargs): Fit the model to the data and predict the cluster labels.
-
     """
     @autoparse
     def __init__(self, n_clusters: int = None, max_iter: int = 200,
@@ -421,23 +431,22 @@ class KOptim(KMeans):
     class _Model(torch.nn.Module):
         def __init__(self, n_cluster: int, dim_feature: int) -> None:
             super().__init__()
-            self.centers = torch.nn.Embedding(n_cluster, dim_feature, dtype=torch.float64)
-            self.optimizer = torch.optim.Adam(self.centers.parameters())
+            self.centers = torch.nn.Parameter(torch.randn(n_cluster, dim_feature, dtype=torch.float64),
+                                              requires_grad=True)
         def forward(self, x):
-            loss = torch.cdist(x, self.centers).mean()
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            return loss
+            return torch.cdist(x, self.centers).mean()
         
+    @autoparse
     def __init__(self, n_clusters: int = None, max_iter: int = 200,
-                 batch_size = None, mini_batch: float = 1, init_method='prob', **kwargs) -> None:
+                 batch_size = None, mini_batch: float = 1, max_norm: float = 1.,
+                 init_method='prob', **kwargs) -> None:
         """
         Parameters:
             - n_clusters (int, optional): The number of clusters. Defaults to None.
             - max_iter (int, optional): The maximum number of iterations. Defaults to 200.
             - batch_size (optional): The batch size. Defaults to None.
             - mini_batch (float, optional): The mini batch size. Defaults to 1.
+            - max_norm (float, optional): The maximum norm, data = data/data.max()*max_norm. Defaults to 1.
             - init_method (str, optional): The initialization method. Defaults to 'prob'.
             - **kwargs: Additional keyword arguments.
         """
@@ -458,19 +467,40 @@ class KOptim(KMeans):
         # transform data to pytorch
         if isinstance(data, np.ndarray):
             data = torch.from_numpy(data)
+        # MiniBatchKMeans
+        if self.mini_batch < 1:
+            data = self._backend.sample(data, self.mini_batch)
+        # max norm
+        norm_ratio = 1.
+        if self.max_norm is not None and data.max() > self.max_norm:
+            norm_ratio = data.max() / self.max_norm
+            data = data / norm_ratio
         # get nn model if not passed from kwargs, init centers
         kwgs = set_default_kwargs(kwargs, model = None)
-        model = get_default_call_for_None(kwgs['model'], self._Model(self.n_clusters, data.shape[-1]))
-        model.centers = self._init_centers(data)
+        model = get_default_call_for_None(kwgs['model'], self._Model,
+                                          self.n_clusters, data.shape[-1])
+        model.centers = torch.nn.Parameter(self._init_centers(data), requires_grad=True)
         model = model.to(data.device)
+        self.optimizer = torch.optim.Adam(model.parameters())
         # train
+        def train_batch(x):
+            loss = model(x)                
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            return loss
         self.batch_size = get_default_for_None(self.batch_size, data.shape[0])
-        for x in data.split(self.batch_size, dim=0):
-            self.loss = model(x)
-        # move centers to cpu if data's device is not cpu
+        for epoch in range(self.max_iter):
+            self.loss = torch.tensor([train_batch(x) for x in data.split(self.batch_size, dim=0)]).mean()
+            self.loss_record.append(self.loss.detach().cpu().numpy())
+        # re norm and calcu real loss
+        data = data * norm_ratio
+        self.centers = model.centers * norm_ratio
+        self.loss = self.loss_fn(data, self.centers)
+        # move centers and loss to cpu if data's device is not cpu
         if data.device != 'cpu':
-            self.centers = self.centers.cpu().numpy()
-            self.loss = self.loss.cpu().numpy()
+            self.centers = self.centers.detach().cpu().numpy()
+            self.loss = self.loss.detach().cpu().numpy()
         return self.centers
     
     def fit_times(self, data: np.ndarray, times: int = 3, **kwargs):
@@ -489,10 +519,13 @@ class KOptim(KMeans):
         kwargs = set_default_kwargs(kwargs, model = model)
         return super().fit_times(data, times, **kwargs)
     
+    def predict(self, data: np.ndarray):
+        return super().predict(data)
+    
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
                            'MeanShift', 'GaussianMixture', 'AgglomerativeClustering',
-                           'AffinityPropagation', 'BAKMeans', 'KBayesian']
+                           'AffinityPropagation', 'BAKMeans', 'KBayesian', 'KOptim']
     
 def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kwargs):
     """
@@ -504,10 +537,11 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         - method (str): The clustering method to use, one of 
             ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans', 'MeanShift',
             'GaussianMixture', 'AgglomerativeClustering', 'AffinityPropagation',
-            'BAKMeans', 'KBayesian'].
+            'BAKMeans', 'KBayesian', 'KOptim'].
         - norm (str, optional): The normalization method to use. Defaults to None.
         - norm_dim (int, optional): The dimension to normalize over. Defaults to None.
         - **kwargs: Additional keyword arguments specific to each clustering method.
+            - backend (str, optional): for BAKMeans, The backend for calculating distance. Defaults to 'scipy', valid values are ['scipy', 'pytorch'].
 
     Returns:
         - labels (np.ndarray): The cluster labels.
@@ -522,16 +556,20 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
                 该模型计算数据点属于特定高斯分布的概率, 即它将属于的聚类。
         - KBayesian: KBayesian是一种以KMeans为框架的聚类算法, 但其将移动聚类中心的方法改为由Bayesian优化驱动.
     """
+    # kwgs
+    kwgs = get_default_args(kwargs, backend = 'scipy')
+    # norm
     # TODO : imp norm_dim
     if norm_dim is not None:
         raise NotImplementedError
     if norm is not None:
         if norm == 'div_max':
-            data = data/data.max()
+            norm_ratio = data.max()
+            data /= norm_ratio
     loss = -1
     # match clustering method and do clustering
     if method == 'DBSCAN':
-        kwargs = set_default_kwargs(kwargs, eps = 0.5, min_samples = 3)
+        kwargs = set_default_kwargs(kwargs, discard_extra=True, eps = 0.5, min_samples = 3)
         labels, centers = DBSCAN(**kwargs).fit_predict(data), None
     elif method == 'Birch':
         model = Birch(n_clusters=n_clusters, **kwargs)
@@ -546,7 +584,7 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
         model = MeanShift()
         labels, centers = model.fit_predict(data), model.cluster_centers_
     elif method == 'GaussianMixture':
-        kwargs = set_default_kwargs(kwargs, n_components=n_clusters, random_state = 777)
+        kwargs = set_default_kwargs(kwargs, discard_extra=True, n_components=n_clusters, random_state = 777)
         model = GaussianMixture(**kwargs)
         labels, centers = model.fit_predict(data), model.means_
     elif method == 'AgglomerativeClustering':
@@ -561,10 +599,19 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
     elif method == 'KBayesian':
         model = KBayesian(n_clusters=n_clusters, **kwargs)
         labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
+    elif method == 'KOptim':
+        model = KOptim(n_clusters=n_clusters, **kwargs)
+        labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
     else:
         return put_err(f'Unknown method {method}, return None', None, 1)
     if centers is not None and loss == -1:
         loss = scipy.spatial.distance.cdist(data, centers, metric = 'euclidean').mean()
+    # re norm
+    if norm is not None and centers is not None:
+        if norm == 'div_max':
+            if kwgs['backend'] == 'pytorch':
+                norm_ratio = norm_ratio.cpu().numpy()
+            centers *= norm_ratio
     return labels, centers, loss
     
 if __name__ == '__main__':
@@ -575,11 +622,12 @@ if __name__ == '__main__':
     X, _ = make_classification(n_samples=10000*n_classes, n_features=512, n_classes=n_classes,
                             n_clusters_per_class=1, random_state=4)
     
-    model = KMeans(n_clusters=n_classes, mini_batch=0.5)
+    X = torch.from_numpy(X).cuda()
+    cluster(X, n_classes, 'KOptim', norm = 'div_max', backend='pytorch')
+    model = BAKMeans(n_classes, backend='pytorch')
     
     for i in range(5):
         model.fit(X)
         plt.plot(list(range(len(model.loss_record))), model.loss_record, label = f'iter{i}')
-        model.reset()
     
     plt.show()
