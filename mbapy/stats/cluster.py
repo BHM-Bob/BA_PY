@@ -519,15 +519,13 @@ class KOptim(KMeans):
         kwargs = set_default_kwargs(kwargs, model = model)
         return super().fit_times(data, times, **kwargs)
     
-    def predict(self, data: np.ndarray):
-        return super().predict(data)
-    
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',
                            'MeanShift', 'GaussianMixture', 'AgglomerativeClustering',
                            'AffinityPropagation', 'BAKMeans', 'KBayesian', 'KOptim']
     
-def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kwargs):
+def cluster(data, n_clusters:int, method:str,
+            norm = None, norm_dim = None, copy_norm = True, **kwargs):
     """
     Clusters data using various clustering methods.
 
@@ -540,6 +538,7 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
             'BAKMeans', 'KBayesian', 'KOptim'].
         - norm (str, optional): The normalization method to use. Defaults to None.
         - norm_dim (int, optional): The dimension to normalize over. Defaults to None.
+        - copy_norm (bool, optional): Whether to copy the data before normalizing. Defaults to True.
         - **kwargs: Additional keyword arguments specific to each clustering method.
             - backend (str, optional): for BAKMeans, The backend for calculating distance. Defaults to 'scipy', valid values are ['scipy', 'pytorch'].
 
@@ -555,57 +554,62 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
                 在这个混合模型中，有几个单一的高斯模型充当隐藏层。因此，
                 该模型计算数据点属于特定高斯分布的概率, 即它将属于的聚类。
         - KBayesian: KBayesian是一种以KMeans为框架的聚类算法, 但其将移动聚类中心的方法改为由Bayesian优化驱动.
+        - KOptim: KOptim是一种以KMeans为框架的聚类算法, 但其将确定聚类中心的方法改为由梯度优化驱动.
     """
     # kwgs
     kwgs = get_default_args(kwargs, backend = 'scipy')
     # norm
+    if copy_norm:
+        _data = data.copy()
+    else:
+        _data = data
     # TODO : imp norm_dim
     if norm_dim is not None:
         raise NotImplementedError
     if norm is not None:
         if norm == 'div_max':
-            norm_ratio = data.max()
-            data /= norm_ratio
+            norm_ratio = _data.max()
+            _data /= norm_ratio
     loss = -1
     # match clustering method and do clustering
     if method == 'DBSCAN':
         kwargs = set_default_kwargs(kwargs, discard_extra=True, eps = 0.5, min_samples = 3)
-        labels, centers = DBSCAN(**kwargs).fit_predict(data), None
+        labels, centers = DBSCAN(**kwargs).fit_predict(_data), None
     elif method == 'Birch':
         model = Birch(n_clusters=n_clusters, **kwargs)
-        labels, centers = model.fit_predict(data), model.subcluster_centers_
+        labels, centers = model.fit_predict(_data), model.subcluster_centers_
     elif method == 'KMeans':
         model = sk_KMeans(n_clusters=n_clusters)
-        labels, centers = model.fit_predict(data), model.cluster_centers_
+        labels, centers = model.fit_predict(_data), model.cluster_centers_
     elif method == 'MiniBatchKMeans':
         model = MiniBatchKMeans(n_clusters=n_clusters)
-        labels, centers = model.fit_predict(data), model.cluster_centers_
+        labels, centers = model.fit_predict(_data), model.cluster_centers_
     elif method == 'MeanShift':
         model = MeanShift()
-        labels, centers = model.fit_predict(data), model.cluster_centers_
+        labels, centers = model.fit_predict(_data), model.cluster_centers_
     elif method == 'GaussianMixture':
         kwargs = set_default_kwargs(kwargs, discard_extra=True, n_components=n_clusters, random_state = 777)
         model = GaussianMixture(**kwargs)
-        labels, centers = model.fit_predict(data), model.means_
+        labels, centers = model.fit_predict(_data), model.means_
     elif method == 'AgglomerativeClustering':
         model = AgglomerativeClustering(n_clusters = n_clusters)
-        labels, centers = model.fit(data).labels_, None
+        labels, centers = model.fit(_data).labels_, None
     elif method == 'AffinityPropagation':
         model = AffinityPropagation(**kwargs)
-        labels, centers = model.fit_predict(data), None
+        labels, centers = model.fit_predict(_data), None
     elif method == 'BAKMeans':
         model = KMeans(n_clusters=n_clusters, **kwargs)
-        labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
+        labels, centers, loss = model.fit_predict(_data, **kwargs), model.centers, model.loss
     elif method == 'KBayesian':
         model = KBayesian(n_clusters=n_clusters, **kwargs)
-        labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
+        labels, centers, loss = model.fit_predict(_data, **kwargs), model.centers, model.loss
     elif method == 'KOptim':
         model = KOptim(n_clusters=n_clusters, **kwargs)
-        labels, centers, loss = model.fit_predict(data, **kwargs), model.centers, model.loss
+        labels, centers, loss = model.fit_predict(_data, **kwargs), model.centers, model.loss
     else:
         return put_err(f'Unknown method {method}, return None', None, 1)
     if centers is not None and loss == -1:
-        loss = scipy.spatial.distance.cdist(data, centers, metric = 'euclidean').mean()
+        loss = scipy.spatial.distance.cdist(_data, centers, metric = 'euclidean').mean()
     # re norm
     if norm is not None and centers is not None:
         if norm == 'div_max':
@@ -616,14 +620,15 @@ def cluster(data, n_clusters:int, method:str, norm = None, norm_dim = None, **kw
     
 if __name__ == '__main__':
     # dev code
+    import pandas as pd
     import matplotlib.pyplot as plt
     from sklearn.datasets import make_classification
     n_classes = 4
-    X, _ = make_classification(n_samples=10000*n_classes, n_features=512, n_classes=n_classes,
-                            n_clusters_per_class=1, random_state=4)
+    df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
+    tags = [col for col in df.columns if col not in ['Unnamed: 0', 'Animal No.', 'Trial Type', 'Title', 'Start time', 'Memo', 'Day', 'Animal Type']]
+    X = df.loc[ : ,tags].values
     
-    X = torch.from_numpy(X).cuda()
-    cluster(X, n_classes, 'KOptim', norm = 'div_max', backend='pytorch')
+    labels, centers, loss = cluster(X, n_classes, 'KOptim', norm = 'div_max')
     model = BAKMeans(n_classes, backend='pytorch')
     
     for i in range(5):
