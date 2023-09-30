@@ -153,15 +153,18 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
     if file_full_name is None, use the paper's title as the file name, if not, use the paper's DOI as the file name.
 
     Args:
-        dir (str): The directory where the downloaded file will be saved.
-        doi (str): The DOI (Digital Object Identifier) of the paper.
-        file_full_name (str, optional): The name of the downloaded file, include the file extension(.pdf). Defaults to None.
-        use_title_as_name (bool, optional): Whether to use the paper's title as the file name. Defaults to True.
-        valid_path_chr (str, optional): The character used to replace invalid characters in the file name. Defaults to '_'.
+        - dir (str): The directory where the downloaded file will be saved.
+        - doi (str): The DOI (Digital Object Identifier) of the paper.
+        - file_full_name (str, optional): The name of the downloaded file, include the file extension(.pdf). Defaults to None.
+        - use_title_as_name (bool, optional): Whether to use the paper's title as the file name. Defaults to True.
+        - valid_path_chr (str, optional): The character used to replace invalid characters in the file name. Defaults to '_'.
 
     Returns:
         dict or None: If successful, returns a dictionary containing information
             about the downloaded paper. If unsuccessful, returns None.
+            
+    Notes:
+        - if doi is None and can't get doi from sci-hub webpage, doi will be set as %Y%m%d.%H%M%S
     """
     # check dir exists, if not, create it
     if not check_parameters_path(dir):
@@ -176,11 +179,16 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
         result = download_from_scihub_by_title(title)
     if result is None:
         return put_err(f"can't download with \ndoi:{doi}\ntitle:{title}\n, returns None", None)
+    # deal with err title and doi
+    if result['title'] is None:
+        result['title'] = title if title is not None else doi.replace('/', '_')
+    if result['doi'] is None:
+        result['doi'] = doi if doi is not None else get_fmt_time("%Y%m%d.%H%M%S")
     # get the file name, save the file
     if file_full_name is not None:
         file_name = file_full_name
     else:
-        file_name = ((title if title else result['title']) if use_title_as_name else doi) + '.pdf'
+        file_name = ((title if title else result['title']) if use_title_as_name else doi.replace('/', '_')) + '.pdf'
     file_name = file_name.replace('/', ' or ')
     file_name = get_valid_file_path(file_name, valid_path_chr)
     file_path = os.path.join(dir, file_name)
