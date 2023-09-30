@@ -1,4 +1,10 @@
 /*
+ * @Date: 2023-08-22 23:30:32
+ * @LastEditors: BHM-Bob 2262029386@qq.com
+ * @LastEditTime: 2023-08-24 10:39:14
+ * @Description: 
+ */
+/*
 
 */
 #include <iostream>
@@ -14,6 +20,17 @@ extern "C" {
 }
 
 
+/**
+ * Removes similar elements from an array and returns the indices of the removed elements.
+ *
+ * @param arr Pointer to the array of float values
+ * @param len Pointer to the length of the array
+ * @param sh Threshold value for similarity check
+ *
+ * @return Pointer to the array of unsigned long long values containing the indices of the removed elements
+ *
+ * @throws None
+ */
 unsigned long long* remove_simi(float* arr, unsigned long long* len, float sh)
 {
     std::vector<unsigned long long> to_remove_idx = std::vector<unsigned long long>();
@@ -31,6 +48,13 @@ unsigned long long* remove_simi(float* arr, unsigned long long* len, float sh)
     return result;
 }
 
+/**
+ * Frees the memory pointed to by the given pointer.
+ *
+ * @param ptr a pointer to the memory to be freed
+ *
+ * @throws None
+ */
 void freePtr(void* ptr)
 {
     free(ptr);

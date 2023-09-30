@@ -5,6 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import numpy as np
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
@@ -24,6 +25,9 @@ else:
     from ..file import opts_file, read_excel, read_json, save_excel, save_json
 
     # functon assembly
+
+def random_sleep(max_t: float = 10, min_t: float = 1):
+    time.sleep(np.random.uniform(min_t, max_t))
 
 def get_url_page(url:str, coding = 'gbk'):
     """
