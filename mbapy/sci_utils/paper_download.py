@@ -11,12 +11,12 @@ if __name__ == '__main__':
     import mbapy.web as web
     from mbapy.base import *
     from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
-                            replace_invalid_path_chr)
+                            get_valid_file_path)
 else:
     # release mode
     from .. import web
     from ..base import *
-    from ..file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
+    from ..file import convert_pdf_to_txt, opts_file, get_valid_file_path
     
 session = requests.Session()
 
@@ -48,7 +48,14 @@ def _update_available_scihub_urls():
     """
     global available_scihub_urls
     available_scihub_urls = _get_available_scihub_urls() if available_scihub_urls is None else available_scihub_urls
-    return available_scihub_urls    
+    return available_scihub_urls   
+
+def get_clean_doi(doi:str):
+    doi_match = re.search(r'10\.[a-zA-Z0-9./]+', doi)
+    if doi_match:
+        return doi_match.group()
+    else:
+        return ''   
 
 def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
     """
@@ -71,15 +78,26 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
         return link
             
     results = etree.HTML(webpage.text)
+    # get right title and doi from sci-hub webpage is not required
     try:
         title = results.xpath('//div[@id="citation"]/i/text()')[0]
         doi = results.xpath('//div[@id="citation"]//following-sibling::text()')[0]
-        download_link = results.xpath('//div[@id="buttons"]/button[1]/@onclick')[0].split("'")[1]
+    except:
+        try:
+            paper_info = results.xpath('//div[@id="citation"]//text()')[0]
+            doi = get_clean_doi(paper_info)
+            title = doi.replace('/', '_')
+        except:
+            title = None
+            doi = None
+    # get right download link is required
+    try:
+        download_link = results.xpath('//div[@id="buttons"]//@onclick')[0].split("'")[1]
         valid_download_link = _get_valid_download_link(download_link)
         res = session.request(method='GET', url=valid_download_link, proxies=proxies)
-        return {'title': title, 'doi': doi, 'res': res}
+        return {'title': title, 'doi': get_clean_doi(doi), 'res': res}
     except:
-        return put_err(f'can not download', None)
+        return None
 
 @parameter_checker(check_parameters_bool, raise_err = False)
 def download_from_scihub_by_doi(doi:str, proxies = None):
@@ -157,14 +175,18 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
     else:
         result = download_from_scihub_by_title(title)
     if result is None:
-        return None
+        return put_err(f"can't download with \ndoi:{doi}\ntitle:{title}\n, returns None", None)
     # get the file name, save the file
     if file_full_name is not None:
         file_name = file_full_name
     else:
         file_name = ((title if title else result['title']) if use_title_as_name else doi) + '.pdf'
-    file_name = replace_invalid_path_chr(file_name, valid_path_chr)
-    opts_file(os.path.join(dir, file_name), 'wb', data = result['res'].content)
+    file_name = file_name.replace('/', ' or ')
+    file_name = get_valid_file_path(file_name, valid_path_chr)
+    file_path = os.path.join(dir, file_name)
+    opts_file(file_path, 'wb', data = result['res'].content)
+    result['file_name'] = file_name
+    result['file_path'] = file_path
     return result
     
 if __name__ == '__main__':
@@ -175,5 +197,5 @@ if __name__ == '__main__':
     # download
     title = 'Linaclotide: a novel compound for the treatment of irritable bowel syndrome with constipation'
     doi = '10.1517/14656566.2013.833605'
-    dl_result = download_by_scihub('./data_tmp/', title = title)
+    dl_result = download_by_scihub('./data_tmp/papers/', doi = '10.1038/ajg.2008.59')
     download_by_scihub('./data_tmp/', doi, title)
