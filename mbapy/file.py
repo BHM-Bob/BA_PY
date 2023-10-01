@@ -106,10 +106,13 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     Returns:
         str: The path string with all invalid characters replaced by the valid character.
     """
-    invalid_chrs = ':*?"<>|'
+    invalid_chrs = ':*?"<>|\n'
     for invalid_chr in invalid_chrs:
-        path = path.replace(invalid_chr, '_')
+        path = path.replace(invalid_chr, valid_chrs)
     return path
+
+def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len = 250):
+    return replace_invalid_path_chr(path, valid_chrs)[:valid_len]
 
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None, **kwargs):
     """
