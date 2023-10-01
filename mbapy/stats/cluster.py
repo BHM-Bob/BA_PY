@@ -1,3 +1,4 @@
+import copy
 from typing import Dict, List
 
 import numpy as np
@@ -437,7 +438,7 @@ class KOptim(KMeans):
             return torch.cdist(x, self.centers).mean()
         
     @autoparse
-    def __init__(self, n_clusters: int = None, max_iter: int = 200,
+    def __init__(self, n_clusters: int = None, max_iter: int = 200, lr = 1e-4,
                  batch_size = None, mini_batch: float = 1, max_norm: float = 1.,
                  init_method='prob', **kwargs) -> None:
         """
@@ -481,7 +482,7 @@ class KOptim(KMeans):
                                           self.n_clusters, data.shape[-1])
         model.centers = torch.nn.Parameter(self._init_centers(data), requires_grad=True)
         model = model.to(data.device)
-        self.optimizer = torch.optim.Adam(model.parameters())
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
         # train
         def train_batch(x):
             loss = model(x)                
@@ -560,7 +561,7 @@ def cluster(data, n_clusters:int, method:str,
     kwgs = get_default_args(kwargs, backend = 'scipy')
     # norm
     if copy_norm:
-        _data = data.copy()
+        _data = copy.deepcopy(data)
     else:
         _data = data
     # TODO : imp norm_dim
@@ -620,8 +621,8 @@ def cluster(data, n_clusters:int, method:str,
     
 if __name__ == '__main__':
     # dev code
-    import pandas as pd
     import matplotlib.pyplot as plt
+    import pandas as pd
     from sklearn.datasets import make_classification
     n_classes = 4
     df = pd.read_excel(r'data/plot.xlsx',sheet_name='MWM')
