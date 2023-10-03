@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-03 17:38:45
+LastEditTime: 2023-10-03 23:00:40
 Description: 
 '''
 
@@ -26,11 +26,19 @@ class BaseInfo:
         - from_dict(): convert a dictionary to an object.
         - to_json(): update and save a dict from to_dict() to a json file.
         - from_json(): update and load a dict from a json file.
+        - update(): update the un-jsonable attributes of the object after obj.__init__() and from_dict.
     """
     def __init__(self) -> None:
         self.__psd_type__ = type(self).__name__
     def update(self):
-        pass
+        """
+        有些不能序列化保存的info需要以另一些info来生成, 所以在调用from_dict,
+        重新生成class, 加载可序列化info后, 调用update来用加载的info更新那部分不能保存而直接默认生成的info.
+        
+        Notes:
+            - from_dict内部调用update并不会以update返回值赋值给obj
+        """
+        return self
     def add_attr(self, key, value):
         setattr(self, key, value)
     def del_attr(self, key):
@@ -69,11 +77,22 @@ class BaseInfo:
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
     def from_dict(self, dict_: dict):
+        """
+        Deserialize the object from a dictionary representation.
+
+        Parameters:
+            dict_ (dict): The dictionary representation of the object.
+
+        Returns:
+            self: The deserialized object.
+        """
         for k, v in dict_.items():
             if isinstance(v, Dict) and '__psd_type__' in v:
                 exec(f'globals()["new_obj"] = {v["__psd_type__"]}()', globals())
-                new_obj = globals()['new_obj']
-                setattr(self, k, new_obj.from_dict(v))
+                new_obj: BaseInfo = globals()['new_obj']
+                new_obj = new_obj.from_dict(v)
+                new_obj.update()
+                setattr(self, k, new_obj)
                 v = new_obj
             self.__dict__[k] = v
         return self
@@ -96,5 +115,14 @@ class BaseInfo:
         except:
             return {}
     def from_json(self, path: str):
+        """
+        Parses a JSON file located at the specified `path` and updates the current object with the data from the JSON file.
+
+        Parameters:
+            path (str): The path to the JSON file.
+
+        Returns:
+            self: The updated object.
+        """
         self.from_dict(mf.read_json(path, invalidPathReturn={}))
         return self
