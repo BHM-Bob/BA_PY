@@ -1,10 +1,11 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-02 22:59:23
+LastEditTime: 2023-10-03 17:38:45
 Description: 
 '''
 
+import collections
 import os
 from typing import Callable, Dict, List, Tuple
 
@@ -22,12 +23,12 @@ class BaseInfo:
     
     Methods:
         - to_dict(): convert the atributes but not the methods to a dictionary.
-        - from_dict(): convert the dictionary to an object.
-        - to_json(): update and save __dict__ to a json file.
-        - from_json(): update and load __dict__ from a json file.
+        - from_dict(): convert a dictionary to an object.
+        - to_json(): update and save a dict from to_dict() to a json file.
+        - from_json(): update and load a dict from a json file.
     """
     def __init__(self) -> None:
-        self.__dict__ = {}
+        self.__psd_type__ = type(self).__name__
     def update(self):
         pass
     def add_attr(self, key, value):
@@ -36,34 +37,38 @@ class BaseInfo:
         delattr(self, key)
     def to_dict(self, force_update: bool = True, to_json = False):
         """
-        Converts the object to a dictionary representation.
+        Converts the object to a dictionary representation,
+        if obj contains class which is subclass of BaseInfo, it will be converted by to_dict.
 
         Args:
-            - force_update (bool, optional): Determines whether to force an 
-                    update of the object's dictionary representation. 
-                    Defaults to True.
-            - to_json (bool, optional): Determines whether to convert nested 
-                    objects to their JSON representation. Defaults to False.
-
+            - force_update (bool, optional): If True, forces the update of the object's dictionary representation. Defaults to True.
+            - to_json (bool, optional): If True, converts the dictionary representation to JSON format. Defaults to False.
+- 
         Returns:
-            dict: A dictionary representation of the object.
+            dict: The dictionary representation of the object, including its attributes and their values.
             
         Notes:
-            - The __psd_type__ attribute is added to the dictionary 
-                    representation of the object to specify it is from BaseInfo.
+            - __psd_type__ will be added to the dictionary to indicate the type of the object, and will work when reconverting.
         """
         if self.__dict__ or force_update:
-            _dict_, self.__dict__ = vars(self), {}
-            for k, v in _dict_.items():
-                if not isinstance(v, Callable):
-                    if hasattr(v, 'to_dict'):
-                        v = v.to_dict(force_update, to_json)
-                    if not to_json or mf.is_jsonable(v):
-                        self.__dict__[k] = v
-        self.__dict__['__psd_type__'] = type(self).__name__
-        return self.__dict__
+            _dict_ = {}
+            for k, v in vars(self).items():
+                # v就是可to_dict的对象, 直接用to_dict方法转换
+                if hasattr(v, 'to_dict'):
+                    v = v.to_dict(force_update, to_json)
+                # 亦或v是字典类，并且含有可to_dict的对象。将可to_dict的对象用to_dict方法转换后合并，转换为字典
+                elif isinstance(v, collections.abc.Mapping) and any(hasattr(i, 'to_dict') for i in v.values()):
+                    v = {k_i:v_i.to_dict(force_update, to_json) for \
+                            k_i, v_i in v.items() if hasattr(v_i, 'to_dict')}
+                # 亦或v是列表类，并且含有可to_dict的对象。将可to_dict的对象用to_dict方法转换后合并，转换为列表
+                elif isinstance(v, collections.abc.Sequence) and any(hasattr(i, 'to_dict') for i in v):
+                    v = [v_i.to_dict(force_update, to_json) for v_i in v]
+                # 如果需要转换为json，并且v是可to_dict的对象，将v追加到__dict__
+                if not to_json or mf.is_jsonable(v):
+                    _dict_[k] = v
+        _dict_['__psd_type__'] = type(self).__name__
+        return _dict_
     def from_dict(self, dict_: dict):
-        new_obj = None # make vscode happy
         for k, v in dict_.items():
             if isinstance(v, Dict) and '__psd_type__' in v:
                 exec(f'globals()["new_obj"] = {v["__psd_type__"]}()', globals())
@@ -71,6 +76,7 @@ class BaseInfo:
                 setattr(self, k, new_obj.from_dict(v))
                 v = new_obj
             self.__dict__[k] = v
+        return self
     def to_json(self, path: str):
         """
         Convert the object to a JSON string and save it to a file.
@@ -91,3 +97,4 @@ class BaseInfo:
             return {}
     def from_json(self, path: str):
         self.from_dict(mf.read_json(path, invalidPathReturn={}))
+        return self
