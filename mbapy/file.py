@@ -2,9 +2,10 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-22 23:24:03
+LastEditTime: 2023-10-02 22:43:37
 Description: 
 '''
+import collections
 import os
 import shutil
 from glob import glob
@@ -199,6 +200,16 @@ def decode_bits_to_str(bits:bytes):
     else:
         true_text = bits.decode('utf-8', "ignore")
     return true_text
+
+def is_jsonable(data):
+    if isinstance(data, str) or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool) or data is None:
+        return True
+    elif isinstance(data, collections.abc.Mapping):
+        return all(is_jsonable(value) for value in data.values())
+    elif isinstance(data, collections.abc.Sequence):
+        return all(is_jsonable(item) for item in data)
+    else:
+        return False
 
 def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
     """
