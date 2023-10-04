@@ -1,45 +1,9 @@
+import torch
 import torch.nn as nn
 
 import dl_torch
 
 SEQ_MAX_LEN = 522
-
-class Encoder(nn.Module):
-    def __init__(self,  input_dim, hid_dim, n_layers, n_heads, pf_dim, dropout, device, max_length = SEQ_MAX_LEN):
-        super().__init__()
-        self.device = device
-        
-        self.tok_embedding = nn.Embedding(input_dim, hid_dim)
-        self.pos_embedding = nn.Embedding(max_length, hid_dim)
-        
-        self.layers = nn.ModuleList([EncoderLayer(hid_dim, n_heads, pf_dim, dropout, device) 
-                                     for _ in range(n_layers)])
-        
-        self.dropout = nn.Dropout(dropout)
-        
-        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([hid_dim])).to(device)
-        
-    def forward(self, src, src_mask):
-        
-        #src = [batch size, src len]
-        #src_mask = [batch size, 1, 1, src len]
-        
-        batch_size = src.shape[0]
-        src_len = src.shape[1]
-        
-        pos = dl_torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
-        
-        #pos = [batch size, src len]
-        
-        src = self.dropout((self.tok_embedding(src) * self.scale) + self.pos_embedding(pos))
-        #src = [batch size, src len, hid dim]
-        
-        for layer in self.layers:
-            src = layer(src, src_mask)
-            
-        #src = [batch size, src len, hid dim]
-            
-        return src
 
 class PositionwiseFeedforwardLayer(nn.Module):
     def __init__(self, hid_dim, pf_dim, dropout):
@@ -88,40 +52,30 @@ class MultiHeadAttentionLayer(nn.Module):
         
         batch_size = query.shape[0]
         
-        #query = [batch size, query len, hid dim]
-        #key = [batch size, key len, hid dim]
-        #value = [batch size, value len, hid dim]
-                
+        #Q = [batch size, query len, hid dim]
+        #K = [batch size, key len, hid dim]
+        #V = [batch size, value len, hid dim]
         Q = self.fc_q(query)
         K = self.fc_k(key)
         V = self.fc_v(value)
         
-        #Q = [batch size, query len, hid dim]
-        #K = [batch size, key len, hid dim]
-        #V = [batch size, value len, hid dim]
-                
-        Q = Q.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        K = K.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        V = V.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        
         #Q = [batch size, n heads, query len, head dim]
         #K = [batch size, n heads, key len  , head dim]
         #V = [batch size, n heads, value len, head dim]
-                
-        energy = dl_torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
+        Q = Q.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        K = K.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        V = V.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)                        
         
         #energy = [batch size, n heads, query len, key len]
-        
+        energy = torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
         if mask is not None:
             energy = energy.masked_fill(mask == 0, -1e10)
         
-        attention = dl_torch.softmax(energy, dim = -1)
-                
         #attention = [batch size, n heads, query len, key len]
+        attention = torch.softmax(energy, dim = -1)                
                 
-        x = dl_torch.matmul(self.dropout(attention), V)
-        
         #x = [batch size, n heads, query len, head dim]
+        x = torch.matmul(self.dropout(attention), V)        
         
         x = x.permute(0, 2, 1, 3).contiguous()
         
@@ -170,6 +124,43 @@ class EncoderLayer(nn.Module):
         
         return src
 
+class Encoder(nn.Module):
+    def __init__(self,  input_dim, hid_dim, n_layers, n_heads, pf_dim, dropout, device, max_length = SEQ_MAX_LEN):
+        super().__init__()
+        self.device = device
+        
+        self.tok_embedding = nn.Embedding(input_dim, hid_dim)
+        self.pos_embedding = nn.Embedding(max_length, hid_dim)
+        
+        self.layers = nn.ModuleList([EncoderLayer(hid_dim, n_heads, pf_dim, dropout, device) 
+                                     for _ in range(n_layers)])
+        
+        self.dropout = nn.Dropout(dropout)
+        
+        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([hid_dim])).to(device)
+        
+    def forward(self, src, src_mask):
+        
+        #src = [batch size, src len]
+        #src_mask = [batch size, 1, 1, src len]
+        
+        batch_size = src.shape[0]
+        src_len = src.shape[1]
+        
+        pos = dl_torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
+        
+        #pos = [batch size, src len]
+        
+        src = self.dropout((self.tok_embedding(src) * self.scale) + self.pos_embedding(pos))
+        #src = [batch size, src len, hid dim]
+        
+        for layer in self.layers:
+            src = layer(src, src_mask)
+            
+        #src = [batch size, src len, hid dim]
+            
+        return src
+
 class DecoderLayer(nn.Module):
     def __init__(self, 
                  hid_dim, 
@@ -190,6 +181,9 @@ class DecoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, trg, enc_src, trg_mask, src_mask):
+        # 因为是Seq2Seq模型，在decoder时需要之前时间段的predict信息，所以这里无论是训练还是推理，都会掺入trg
+        # 只不过训练时掺入的是真正的trg，推理时掺入的是之前预测的trg
+        # 所以在推理时需要防止trg信息泄露
         
         #trg = [batch size, trg len, hid dim]
         #enc_src = [batch size, src len, hid dim]
@@ -197,14 +191,21 @@ class DecoderLayer(nn.Module):
         #src_mask = [batch size, 1, 1, src len]
         
         #self attention
+        # _trg = [batch size, trg len, hid dim]
+        # _trg在trg len维度：i: 第0 ~ i token做MHSA
         _trg, _ = self.self_attention(trg, trg, trg, trg_mask)
         
         #dropout, residual connection and layer norm
+        # 由于在推理时trg是从<sos>token开始送decoder，然后得到第一个解码token（predicted token），故这里只要做到trg的len与scr的len分离即可
+        # 但是对于训练，这里需要做到在并行predict时，某一时间的predict过程不能掺入对应traget信息。
+        # TODO : 但是这里的残差似乎是忽视了self.self_attention(trg, trg, trg, trg_mask)对trg_mask的努力，
         trg = self.self_attn_layer_norm(trg + self.dropout(_trg))
             
         #trg = [batch size, trg len, hid dim]
             
         #encoder attention
+        # attention: [N, Lt, Ls]
+        # 其中有: x = [N, Lt, Ls] @ [N, Ls, D] = [N, Lt, D]
         _trg, attention = self.encoder_attention(trg, enc_src, enc_src, src_mask)
         
         #dropout, residual connection and layer norm
@@ -221,6 +222,9 @@ class DecoderLayer(nn.Module):
         #trg = [batch size, trg len, hid dim]
         #attention = [batch size, n heads, trg len, src len]
         
+        # 训练时模型输入的src是由<sos>和<eos>包围的，trg有<sos>开头但无<eos>结尾。
+        # 所以第一个predicted token参考的trg是<sos>（如果没有trg信息泄露的话），最后的token可能是预测出的<eos>。
+        # 而label是双包围的trg去掉了开头的<sos>，所以模型需要预测出<eos>，并且第一个token也是符合的。
         return trg, attention
 
 class Decoder(nn.Module):
@@ -263,24 +267,20 @@ class Decoder(nn.Module):
         batch_size = trg.shape[0]
         trg_len = trg.shape[1]
         
+        #pos = [batch size, trg len]
         pos = dl_torch.arange(0, trg_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
                             
-        #pos = [batch size, trg len]
-            
+        #trg = [batch size, trg len, hid dim]
         trg = self.dropout((self.tok_embedding(trg) * self.scale) + self.pos_embedding(pos))
                 
         #trg = [batch size, trg len, hid dim]
-        
-        for layer in self.layers:
-            trg, attention = layer(trg, enc_src, trg_mask, src_mask)
-        
-        #trg = [batch size, trg len, hid dim]
         #attention = [batch size, n heads, trg len, src len]
-        
-        output = self.fc_out(trg)
+        for layer in self.layers:
+            trg, attention = layer(trg, enc_src, trg_mask, src_mask)        
         
         #output = [batch size, trg len, output dim]
-            
+        output = self.fc_out(trg)
+        
         return output, attention
 
 class Seq2Seq(nn.Module):
@@ -304,22 +304,19 @@ class Seq2Seq(nn.Module):
         return src_mask
     
     def make_trg_mask(self, trg):
-        
         #trg = [batch size, trg len]
         
-        trg_pad_mask = (trg != self.trg_pad_idx).unsqueeze(1).unsqueeze(2)
-        
         #trg_pad_mask = [batch size, 1, 1, trg len]
+        trg_pad_mask = (trg != self.trg_pad_idx).unsqueeze(1).unsqueeze(2)
         
         trg_len = trg.shape[1]
         
-        trg_sub_mask = dl_torch.tril(dl_torch.ones((trg_len, trg_len), device = self.device)).bool()
-        
+        # torch.tril取下三角矩阵
         #trg_sub_mask = [trg len, trg len]
+        trg_sub_mask = torch.tril(dl_torch.ones((trg_len, trg_len), device = self.device)).bool()
             
-        trg_mask = trg_pad_mask & trg_sub_mask
-        
         #trg_mask = [batch size, 1, trg len, trg len]
+        trg_mask = trg_pad_mask & trg_sub_mask
         
         return trg_mask
 
