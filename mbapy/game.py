@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-05 20:24:23
+LastEditTime: 2023-10-05 20:37:05
 Description: 
 '''
 
@@ -159,7 +159,7 @@ class ColorSur:
         self.map_x, self.map_y = np.meshgrid(np.arange(self.size.w), np.arange(self.size.h))
         self.map_x = self.map_x.reshape([1, self.size.h, self.size.w]).repeat(sum_dots, axis=0)
         self.map_y = self.map_y.reshape([1, self.size.h, self.size.w]).repeat(sum_dots, axis=0)
-        self.mat = np.zeros([self.size.w, self.size.h, 3], dtype = np.float32)
+        self.mat = np.zeros([self.size.h, self.size.w, 3], dtype = np.float32)
     def _update_dots_pos(self, dot_x_or_y: np.ndarray, dleta_x_or_y: np.ndarray, x_or_y_boundry: int):
         dot_x_or_y += dleta_x_or_y
         # err is 1, else is 0
@@ -191,6 +191,9 @@ class ColorSur:
         self.mat[:,:,2] = (ratio * self.dots_col[2,:,:,:]).sum(axis = 0)
         return self.mat
     def update(self):
+        """
+        calcu once and return a uint8 numpy.NDArray with shape [h, w, 3]
+        """
         self._calc_once()
         self.dots_x, self.delta_x = self._update_dots_pos(self.dots_x, self.delta_x, self.size.w)
         self.dots_y, self.delta_y = self._update_dots_pos(self.dots_y, self.delta_y, self.size.h)
@@ -203,7 +206,7 @@ if __name__ == '__main__':
     import cv2
     startTime = time.time()
     FPSTime = time.time()
-    sur = ColorSur(Size(400, 400))
+    sur = ColorSur(Size(66,34))
     while cv2.waitKey(1) != ord('q') :
         print(f"{1 / (time.time() - FPSTime):.1f} fps")
         FPSTime = time.time()
