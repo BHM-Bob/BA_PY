@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-05 20:37:05
+LastEditTime: 2023-10-05 21:22:31
 Description: 
 '''
 
@@ -163,7 +163,7 @@ class ColorSur:
     def _update_dots_pos(self, dot_x_or_y: np.ndarray, dleta_x_or_y: np.ndarray, x_or_y_boundry: int):
         dot_x_or_y += dleta_x_or_y
         # err is 1, else is 0
-        mask = (0 < dot_x_or_y) & (dot_x_or_y < x_or_y_boundry)
+        mask = (dot_x_or_y <= 0) | (dot_x_or_y >= x_or_y_boundry)
         # err is -1, else is 1
         mask = 1 - 2 * mask.astype(np.int32)
         # change move position if dot meats boundry
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     import cv2
     startTime = time.time()
     FPSTime = time.time()
-    sur = ColorSur(Size(66,34))
+    sur = ColorSur(Size(660,340))
     while cv2.waitKey(1) != ord('q') :
         print(f"{1 / (time.time() - FPSTime):.1f} fps")
         FPSTime = time.time()
