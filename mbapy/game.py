@@ -1,11 +1,12 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-03 23:00:40
+LastEditTime: 2023-10-05 15:25:16
 Description: 
 '''
 
 import collections
+import inspect
 import os
 from typing import Callable, Dict, List, Tuple
 
@@ -61,36 +62,43 @@ class BaseInfo:
         if self.__dict__ or force_update:
             _dict_ = {}
             for k, v in vars(self).items():
-                # v就是可to_dict的对象, 直接用to_dict方法转换
-                if hasattr(v, 'to_dict'):
+                # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
+                if issubclass(v, BaseInfo):
                     v = v.to_dict(force_update, to_json)
                 # 亦或v是字典类，并且含有可to_dict的对象。将可to_dict的对象用to_dict方法转换后合并，转换为字典
-                elif isinstance(v, collections.abc.Mapping) and any(hasattr(i, 'to_dict') for i in v.values()):
+                elif isinstance(v, collections.abc.Mapping) and any(issubclass(i, BaseInfo) for i in v.values()):
                     v = {k_i:v_i.to_dict(force_update, to_json) for \
-                            k_i, v_i in v.items() if hasattr(v_i, 'to_dict')}
+                            k_i, v_i in v.items() if issubclass(v_i, BaseInfo)}
                 # 亦或v是列表类，并且含有可to_dict的对象。将可to_dict的对象用to_dict方法转换后合并，转换为列表
-                elif isinstance(v, collections.abc.Sequence) and any(hasattr(i, 'to_dict') for i in v):
+                elif isinstance(v, collections.abc.Sequence) and any(issubclass(i, BaseInfo) for i in v):
                     v = [v_i.to_dict(force_update, to_json) for v_i in v]
                 # 如果需要转换为json，并且v是可to_dict的对象，将v追加到__dict__
                 if not to_json or mf.is_jsonable(v):
                     _dict_[k] = v
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
-    def from_dict(self, dict_: dict):
+    def from_dict(self, dict_: dict, global_vars:Dict = None):
         """
         Deserialize the object from a dictionary representation.
 
         Parameters:
-            dict_ (dict): The dictionary representation of the object.
+            - dict_ (dict): The dictionary representation of the object.
+            - global_vars (dict): The globals() to init __psd_type__, if None, use inspect.currentframe automatically
 
         Returns:
             self: The deserialized object.
         """
+        if inspect.currentframe().f_back.f_code.co_name == 'from_json':
+            from_json_frame = inspect.currentframe().f_back
+            outer_caller_frame = from_json_frame.f_back
+        else:
+            outer_caller_frame = inspect.currentframe().f_back
+        global_vars = mb.get_default_for_None(global_vars,
+                                              outer_caller_frame.f_globals)
         for k, v in dict_.items():
             if isinstance(v, Dict) and '__psd_type__' in v:
-                exec(f'globals()["new_obj"] = {v["__psd_type__"]}()', globals())
-                new_obj: BaseInfo = globals()['new_obj']
-                new_obj = new_obj.from_dict(v)
+                new_obj: BaseInfo = eval(f'{v["__psd_type__"]}()', global_vars)
+                new_obj = new_obj.from_dict(v, global_vars)
                 new_obj.update()
                 setattr(self, k, new_obj)
                 v = new_obj
@@ -114,15 +122,19 @@ class BaseInfo:
             return self.__dict__
         except:
             return {}
-    def from_json(self, path: str):
+    def from_json(self, path: str, global_vars:Dict = None):
         """
         Parses a JSON file located at the specified `path` and updates the current object with the data from the JSON file.
 
         Parameters:
-            path (str): The path to the JSON file.
+            - path (str): The path to the JSON file.
+            - global_vars (dict): The globals() to init __psd_type__, if None, use inspect.currentframe automatically
 
         Returns:
             self: The updated object.
         """
-        self.from_dict(mf.read_json(path, invalidPathReturn={}))
+        global_vars = mb.get_default_for_None(global_vars,
+                                              inspect.currentframe().f_back.f_globals)
+        self.from_dict(mf.read_json(path, invalidPathReturn={}),
+                       global_vars = global_vars)
         return self
