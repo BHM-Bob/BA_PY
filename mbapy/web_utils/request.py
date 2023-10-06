@@ -1,5 +1,6 @@
 
 import http.cookiejar
+import requests
 import time
 import urllib.error
 import urllib.parse
@@ -28,6 +29,27 @@ else:
 
 def random_sleep(max_t: float = 10, min_t: float = 1):
     time.sleep(np.random.uniform(min_t, max_t))
+
+def get_requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+    from requests.adapters import HTTPAdapter
+    from requests.packages.urllib3.util.retry import Retry
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
 
 def get_url_page(url:str, coding = 'gbk'):
     """
@@ -315,3 +337,19 @@ def scroll_browser(browser, scroll='bottom', duration=0):
             browser.execute_script(f"window.scrollBy(0, {scroll});")
     else:
         return put_err(f"Unknown scroll type {scroll:s}", None)
+
+
+def download_streamly(url: str, path: str, session):
+    from tqdm import tqdm
+    resp = session.get(url, stream=True)
+    total = int(resp.headers.get('content-length', 0))
+    with open(path, 'wb') as file, tqdm(
+        desc=path,
+        total=total,
+        unit='iB',
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as bar:
+        for data in resp.iter_content(chunk_size=1024):
+            size = file.write(data)
+            bar.update(size)

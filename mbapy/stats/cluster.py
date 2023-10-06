@@ -417,108 +417,111 @@ class KBayesian(KMeans):
         self.loss = self.loss_fn(data, self.centers)
         return np.array(list(best.values()))
     
-class KOptim(KMeans):
-    """
-    KOptim is a subclass of KMeans that implements the gradient optimization version of the K-means clustering algorithm.
-    
-    Attributes:
-    - centers (np.ndarray): The final cluster centers.
-    - loss (np.ndarray): The loss value.
-    
-    Methods:
-    - fit: Fit the model to the given data.
-    - fit_times: Fit the model to the given data for a specified number of times.
-    """
-    class _Model(torch.nn.Module):
-        def __init__(self, n_cluster: int, dim_feature: int) -> None:
-            super().__init__()
-            self.centers = torch.nn.Parameter(torch.randn(n_cluster, dim_feature, dtype=torch.float64),
-                                              requires_grad=True)
-        def forward(self, x):
-            return torch.cdist(x, self.centers).mean()
+try:
+    class KOptim(KMeans):
+        """
+        KOptim is a subclass of KMeans that implements the gradient optimization version of the K-means clustering algorithm.
         
-    @autoparse
-    def __init__(self, n_clusters: int = None, max_iter: int = 200, lr = 1e-4,
-                 batch_size = None, mini_batch: float = 1, max_norm: float = 1.,
-                 init_method='prob', **kwargs) -> None:
-        """
-        Parameters:
-            - n_clusters (int, optional): The number of clusters. Defaults to None.
-            - max_iter (int, optional): The maximum number of iterations. Defaults to 200.
-            - batch_size (optional): The batch size. Defaults to None.
-            - mini_batch (float, optional): The mini batch size. Defaults to 1.
-            - max_norm (float, optional): The maximum norm, data = data/data.max()*max_norm. Defaults to 1.
-            - init_method (str, optional): The initialization method. Defaults to 'prob'.
-            - **kwargs: Additional keyword arguments.
-        """
-        super().__init__(n_clusters, 0, max_iter, mini_batch, init_method, 'pytorch', **kwargs)
+        Attributes:
+        - centers (np.ndarray): The final cluster centers.
+        - loss (np.ndarray): The loss value.
         
-    def fit(self, data, **kwargs):
+        Methods:
+        - fit: Fit the model to the given data.
+        - fit_times: Fit the model to the given data for a specified number of times.
         """
-        Fits the model to the given data.
+        class _Model(torch.nn.Module):
+            def __init__(self, n_cluster: int, dim_feature: int) -> None:
+                super().__init__()
+                self.centers = torch.nn.Parameter(torch.randn(n_cluster, dim_feature, dtype=torch.float64),
+                                                requires_grad=True)
+            def forward(self, x):
+                return torch.cdist(x, self.centers).mean()
+            
+        @autoparse
+        def __init__(self, n_clusters: int = None, max_iter: int = 200, lr = 1e-4,
+                    batch_size = None, mini_batch: float = 1, max_norm: float = 1.,
+                    init_method='prob', **kwargs) -> None:
+            """
+            Parameters:
+                - n_clusters (int, optional): The number of clusters. Defaults to None.
+                - max_iter (int, optional): The maximum number of iterations. Defaults to 200.
+                - batch_size (optional): The batch size. Defaults to None.
+                - mini_batch (float, optional): The mini batch size. Defaults to 1.
+                - max_norm (float, optional): The maximum norm, data = data/data.max()*max_norm. Defaults to 1.
+                - init_method (str, optional): The initialization method. Defaults to 'prob'.
+                - **kwargs: Additional keyword arguments.
+            """
+            super().__init__(n_clusters, 0, max_iter, mini_batch, init_method, 'pytorch', **kwargs)
+            
+        def fit(self, data, **kwargs):
+            """
+            Fits the model to the given data.
 
-        Parameters:
-            - data (ndarray): The input data to fit the model.
-            - **kwargs: Additional keyword arguments.
-                - model (KOptim._Model, optional): The nn model. Defaults to None.
+            Parameters:
+                - data (ndarray): The input data to fit the model.
+                - **kwargs: Additional keyword arguments.
+                    - model (KOptim._Model, optional): The nn model. Defaults to None.
 
-        Returns:
-            ndarray: The computed centers of the model.
-        """
-        # transform data to pytorch
-        if isinstance(data, np.ndarray):
-            data = torch.from_numpy(data)
-        # MiniBatchKMeans
-        if self.mini_batch < 1:
-            data = self._backend.sample(data, self.mini_batch)
-        # max norm
-        norm_ratio = 1.
-        if self.max_norm is not None and data.max() > self.max_norm:
-            norm_ratio = data.max() / self.max_norm
-            data = data / norm_ratio
-        # get nn model if not passed from kwargs, init centers
-        kwgs = set_default_kwargs(kwargs, model = None)
-        model = get_default_call_for_None(kwgs['model'], self._Model,
-                                          self.n_clusters, data.shape[-1])
-        model.centers = torch.nn.Parameter(self._init_centers(data), requires_grad=True)
-        model = model.to(data.device)
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
-        # train
-        def train_batch(x):
-            loss = model(x)                
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            return loss
-        self.batch_size = get_default_for_None(self.batch_size, data.shape[0])
-        for epoch in range(self.max_iter):
-            self.loss = torch.tensor([train_batch(x) for x in data.split(self.batch_size, dim=0)]).mean()
-            self.loss_record.append(self.loss.detach().cpu().numpy())
-        # re norm and calcu real loss
-        data = data * norm_ratio
-        self.centers = model.centers * norm_ratio
-        self.loss = self.loss_fn(data, self.centers)
-        # move centers and loss to cpu if data's device is not cpu
-        if data.device != 'cpu':
-            self.centers = self.centers.detach().cpu().numpy()
-            self.loss = self.loss.detach().cpu().numpy()
-        return self.centers
-    
-    def fit_times(self, data: np.ndarray, times: int = 3, **kwargs):
-        """
-        Fits the model to the given data for a specified number of times.
+            Returns:
+                ndarray: The computed centers of the model.
+            """
+            # transform data to pytorch
+            if isinstance(data, np.ndarray):
+                data = torch.from_numpy(data)
+            # MiniBatchKMeans
+            if self.mini_batch < 1:
+                data = self._backend.sample(data, self.mini_batch)
+            # max norm
+            norm_ratio = 1.
+            if self.max_norm is not None and data.max() > self.max_norm:
+                norm_ratio = data.max() / self.max_norm
+                data = data / norm_ratio
+            # get nn model if not passed from kwargs, init centers
+            kwgs = set_default_kwargs(kwargs, model = None)
+            model = get_default_call_for_None(kwgs['model'], self._Model,
+                                            self.n_clusters, data.shape[-1])
+            model.centers = torch.nn.Parameter(self._init_centers(data), requires_grad=True)
+            model = model.to(data.device)
+            self.optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
+            # train
+            def train_batch(x):
+                loss = model(x)                
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                return loss
+            self.batch_size = get_default_for_None(self.batch_size, data.shape[0])
+            for epoch in range(self.max_iter):
+                self.loss = torch.tensor([train_batch(x) for x in data.split(self.batch_size, dim=0)]).mean()
+                self.loss_record.append(self.loss.detach().cpu().numpy())
+            # re norm and calcu real loss
+            data = data * norm_ratio
+            self.centers = model.centers * norm_ratio
+            self.loss = self.loss_fn(data, self.centers)
+            # move centers and loss to cpu if data's device is not cpu
+            if data.device != 'cpu':
+                self.centers = self.centers.detach().cpu().numpy()
+                self.loss = self.loss.detach().cpu().numpy()
+            return self.centers
+        
+        def fit_times(self, data: np.ndarray, times: int = 3, **kwargs):
+            """
+            Fits the model to the given data for a specified number of times.
 
-        Args:
-            data (np.ndarray): The input data to fit the model.
-            times (int, optional): The number of times to fit the model. Defaults to 3.
-            **kwargs: Additional keyword arguments.
+            Args:
+                data (np.ndarray): The input data to fit the model.
+                times (int, optional): The number of times to fit the model. Defaults to 3.
+                **kwargs: Additional keyword arguments.
 
-        Returns:
-            The result of fitting the model to the data.
-        """
-        model = self._Model(self.n_clusters, data.shape[-1])
-        kwargs = set_default_kwargs(kwargs, model = model)
-        return super().fit_times(data, times, **kwargs)
+            Returns:
+                The result of fitting the model to the data.
+            """
+            model = self._Model(self.n_clusters, data.shape[-1])
+            kwargs = set_default_kwargs(kwargs, model = model)
+            return super().fit_times(data, times, **kwargs)
+except:
+    KOptim = KMeans
     
     
 cluster_support_methods = ['DBSCAN', 'Birch', 'KMeans', 'MiniBatchKMeans',

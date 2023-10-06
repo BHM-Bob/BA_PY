@@ -17,8 +17,9 @@ else:
     from .. import web
     from ..base import *
     from ..file import convert_pdf_to_txt, opts_file, get_valid_file_path
-    
-session = requests.Session()
+            
+
+session = web.get_requests_retry_session()
 
 def _get_available_scihub_urls(proxies = None):
     '''
@@ -94,7 +95,7 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
     try:
         download_link = results.xpath('//div[@id="buttons"]//@onclick')[0].split("'")[1]
         valid_download_link = _get_valid_download_link(download_link)
-        res = session.request(method='GET', url=valid_download_link, proxies=proxies)
+        res = session.get(url = valid_download_link, proxies=proxies, stream=False, timeout=60)
         return {'title': title, 'doi': get_clean_doi(doi), 'res': res}
     except:
         return None
@@ -205,5 +206,5 @@ if __name__ == '__main__':
     # download
     title = 'Linaclotide: a novel compound for the treatment of irritable bowel syndrome with constipation'
     doi = '10.1517/14656566.2013.833605'
-    dl_result = download_by_scihub('./data_tmp/papers/', doi = '10.1038/ajg.2008.59')
+    dl_result = download_by_scihub('./data_tmp/papers/', doi = '10.1517/14656566.2013.833605')
     download_by_scihub('./data_tmp/', doi, title)
