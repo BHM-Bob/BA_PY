@@ -83,12 +83,14 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
     try:
         title = results.xpath('//div[@id="citation"]/i/text()')[0]
         doi = results.xpath('//div[@id="citation"]//following-sibling::text()')[0]
-    except:
+    except Exception as e:
+        put_err(e)
         try:
             paper_info = results.xpath('//div[@id="citation"]//text()')[0]
             doi = get_clean_doi(paper_info)
             title = doi.replace('/', '_')
-        except:
+        except Exception as e:
+            put_err(e)
             title = None
             doi = None
     # get right download link is required
@@ -97,7 +99,8 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
         valid_download_link = _get_valid_download_link(download_link)
         res = session.get(url = valid_download_link, proxies=proxies, stream=False, timeout=60)
         return {'title': title, 'doi': get_clean_doi(doi), 'res': res}
-    except:
+    except Exception as e:
+        put_err(e)
         return None
 
 @parameter_checker(check_parameters_bool, raise_err = False)
@@ -116,12 +119,13 @@ def download_from_scihub_by_doi(doi:str, proxies = None):
     Raises:
         Exception: If the DOI does not exist or if there is an error fetching the file from Sci-Hub.
     """
-    # try:
-    available_scihub_urls = _update_available_scihub_urls()
-    res = session.request(method='GET', url=available_scihub_urls[0]+'/'+doi, proxies=proxies)
-    return _download_from_scihub_webpage(res)
-    # except:
-    #     return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
+    try:
+        available_scihub_urls = _update_available_scihub_urls()
+        res = session.request(method='GET', url=available_scihub_urls[0]+'/'+doi, proxies=proxies)
+        return _download_from_scihub_webpage(res)
+    except Exception as e:
+        put_err(e)
+        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
             
 @parameter_checker(check_parameters_bool, raise_err = False)
 def download_from_scihub_by_title(title, proxies = None):
@@ -143,7 +147,8 @@ def download_from_scihub_by_title(title, proxies = None):
         available_scihub_urls = _update_available_scihub_urls()
         res = session.post(available_scihub_urls[0], data = {'request': title}, proxies=proxies)
         return _download_from_scihub_webpage(res)
-    except:
+    except Exception as e:
+        put_err(e)
         return put_err(f'Maybe TITLE: {title:s} does not exist. scihub fetch error', None)
             
 def download_by_scihub(dir: str, doi: str = None, title:str = None,
@@ -206,5 +211,5 @@ if __name__ == '__main__':
     # download
     title = 'Linaclotide: a novel compound for the treatment of irritable bowel syndrome with constipation'
     doi = '10.1517/14656566.2013.833605'
-    dl_result = download_by_scihub('./data_tmp/papers/', doi = '10.1517/14656566.2013.833605')
+    dl_result = download_by_scihub('./data_tmp/papers/', doi = '10.1021/acs.chemrev.7b00522')
     download_by_scihub('./data_tmp/', doi, title)

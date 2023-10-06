@@ -68,19 +68,33 @@ class BaseInfo:
         if self.__dict__ or force_update:
             _dict_ = {}
             for k, v in vars(self).items():
-                # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
-                if issubclass(v, BaseInfo):
-                    v = v.to_dict(force_update, to_json)
-                # 亦或v是字典类，并且含有可to_dict的对象。将可to_dict的对象用to_dict方法转换后合并，转换为字典
-                elif isinstance(v, collections.abc.Mapping) and any(issubclass(i, BaseInfo) for i in v.values()):
-                    v = {k_i:v_i.to_dict(force_update, to_json) for \
-                            k_i, v_i in v.items() if issubclass(v_i, BaseInfo)}
-                # 亦或v是列表类，并且含有可to_dict的对象。将可to_dict的对象用to_dict方法转换后合并，转换为列表
-                elif isinstance(v, collections.abc.Sequence) and any(issubclass(i, BaseInfo) for i in v):
-                    v = [v_i.to_dict(force_update, to_json) for v_i in v]
-                # 如果需要转换为json，并且v是可to_dict的对象，将v追加到__dict__
-                if not to_json or mf.is_jsonable(v):
+                is_jsonable = mf.is_jsonable(v)
+                # 如果不需要转为json或者v可json，直接纳入
+                if not to_json or is_jsonable:
                     _dict_[k] = v
+                # 如果需要转换为json，并且v总体上不是可直接json的对象，那么假定v有以下三种情况，分类处理
+                elif to_json and not is_jsonable:
+                    # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
+                    if issubclass(v, BaseInfo):
+                        v = v.to_dict(force_update, to_json)
+                    # 亦或v是字典类，并且含有可json或继承自BaseInfo的对象。将可json的直接合并，继承自BaseInfo的对象用to_dict方法转换后合并，转换为字典
+                    elif isinstance(v, collections.abc.Mapping):
+                        _v = {}
+                        for k_i, v_i in v.items():
+                            if mf.is_jsonable(v_i):
+                                _v[k_i] = v_i
+                            elif issubclass(v_i, BaseInfo):
+                                _v[k_i] = v_i.to_dict(force_update, to_json)
+                        v = _v
+                    # 亦或v是列表类，并且含有可json或继承自BaseInfo的对象。将可json的直接合并，继承自BaseInfo的对象用to_dict方法转换后合并，转换为字典
+                    elif isinstance(v, collections.abc.Sequence):
+                        _v = []
+                        for v_i in v.values():
+                            if mf.is_jsonable(v_i):
+                                _v.append(v_i)
+                            elif issubclass(v_i, BaseInfo):
+                                _v.append(v_i.to_dict(force_update, to_json))
+                        v = _v
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
     def from_dict(self, dict_: dict, global_vars:Dict = None):
@@ -126,8 +140,8 @@ class BaseInfo:
                 os.makedirs(os.path.dirname(path))
             mf.save_json(path, self.to_dict(True, True))
             return self.__dict__
-        except:
-            return {}
+        except :
+            return self.__dict__
     def from_json(self, path: str, global_vars:Dict = None):
         """
         Parses a JSON file located at the specified `path` and updates the current object with the data from the JSON file.
