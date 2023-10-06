@@ -1,12 +1,12 @@
 
 import http.cookiejar
+import random
 import requests
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
-import numpy as np
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
@@ -27,8 +27,8 @@ else:
 
     # functon assembly
 
-def random_sleep(max_t: float = 10, min_t: float = 1):
-    time.sleep(np.random.uniform(min_t, max_t))
+def random_sleep(max_t: int = 10, min_t: int = 1):
+    time.sleep(random.randint(min_t, max_t))
 
 def get_requests_retry_session(
     retries=3,
