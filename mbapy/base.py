@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-25 14:45:11
+LastEditTime: 2023-10-11 22:56:19
 Description: 
 '''
 import ctypes
@@ -89,6 +89,7 @@ class _Config_Web(_ConfigBase):
 class _Config(_ConfigBase):
     def __init__(self) -> None:
         self.err_warning_level: int = 0 # 0: all, no filter, 1: bapy parameter error, 2: bapy inner error... the bigger, the less error
+        self.logs = []
         self.file = _Config_File()
         self.web = _Config_Web()
     
@@ -166,10 +167,25 @@ class _Config(_ConfigBase):
 
 Configs = _Config()
 
+def get_call_stack():
+    """
+    Returns the call stack of the current execution context.
+    
+    Returns:
+        stack_info (list): A list containing the names of the functions in the call stack.
+            such as: [<module>, lower_caller_name, ..., upper_caller_name_for_get_call_stack]
+    """
+    stack_info = []
+    for frame in inspect.stack():
+        stack_info.append(frame[0].f_code.co_name)
+        if frame[0].f_code.co_name == '<module>':
+            break
+    return stack_info[1:][::-1]
+
 def put_err(info:str, ret = None, warning_level = 0):
     """
     Prints an error message along with the caller's name and arguments, if the warning level is greater than or equal to the error warning level specified in the Configs class.
-    
+        
     Parameters:
         info (str): The error message to be printed.
         ret (Any, optional): The return value of the function. Defaults to None.
@@ -178,24 +194,40 @@ def put_err(info:str, ret = None, warning_level = 0):
     Returns:
         Any: The value specified by the ret parameter.
     
-    Notes: It is recommended to set warning_level:
-        0: normal error, will be closed easily.
-        1: bapy parameter error.
-        2: bapy inner error.
-        3 or bigger: more important error.
+    Notes: 
+        - It is recommended to set warning_level:
+            - 0: normal error, will be closed easily.
+            - 1: bapy parameter error.
+            - 2: bapy inner error.
+            - 3 or bigger: more important error.
+        - It appends the log to the list of logs in the Configs class and prints it.
     """
     if warning_level >= Configs.err_warning_level:
         frame = inspect.currentframe().f_back
         caller_name = frame.f_code.co_name
         caller_args = inspect.getargvalues(frame).args
-        print(f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n')
+        err_str = f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n'
+        print(err_str)
+        Configs.logs.append(err_str)
     return ret
 
 def put_log(info:str, head = "bapy::log", ret = None):
-    frame = inspect.currentframe().f_back
-    caller_name = frame.f_code.co_name
+    """
+    Logs the given information with a formatted timestamp, call stack, and provided head. 
+    Appends the log to the list of logs in the Configs class and prints it.
+    
+    Parameters:
+        info (str): The information to be logged.
+        head (str): The head of the log message. Default is "bapy::log".
+        ret : The value to return. Default is None.
+    
+    Returns:
+        Any: The value specified by the ret parameter.
+    """
     time_str = get_fmt_time()
-    print(f'\n{head:s} {time_str:s}: {caller_name:s}: {info:s}\n')
+    log_str = f'\n{head:s} {time_str:s}: {">".join(get_call_stack()[:-1]):s}: {info:s}\n'
+    Configs.logs.append(log_str)
+    print(log_str)
     return ret
 
 def TimeCosts(runTimes:int = 1, log_per_iter = True):
