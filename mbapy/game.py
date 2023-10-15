@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-15 22:28:13
+LastEditTime: 2023-10-15 22:57:58
 Description: 
 '''
 
@@ -66,6 +66,13 @@ class BaseInfo:
         Notes:
             - __psd_type__ will be added to the dictionary to indicate the type of the object, and will work when reconverting.
         """
+        def _transfer_ndarray(v):
+            return {
+                '__psd_type__NP_NDARRAY__': type(v).__name__,
+                'shape': v.shape,
+                'dtype': str(v.dtype),
+                'data': v.reshape(-1).tolist()
+            }
         def _check_transfer(v, to_json):
             """
             This function checks if a given value `v` needs to be converted to
@@ -99,6 +106,8 @@ class BaseInfo:
                 # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
                 if issubclass(type(v), BaseInfo):
                     return v.to_dict(force_update, to_json)
+                elif isinstance(v, np.ndarray):
+                    return _transfer_ndarray(v)
                 # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
                 elif isinstance(v, collections.abc.Mapping):
                     _v = {}
@@ -107,6 +116,8 @@ class BaseInfo:
                             _v[k_i] = v_i
                         elif issubclass(type(v_i), BaseInfo):
                             _v[k_i] = v_i.to_dict(force_update, to_json)
+                        elif isinstance(v, np.ndarray):
+                            _v[k_i] = _transfer_ndarray(v)
                         elif isinstance(v_i, collections.abc.Mapping) or isinstance(v_i, collections.abc.Sequence):
                             _v[k_i] = _check_transfer(v_i, to_json)
                     return _v
@@ -118,6 +129,8 @@ class BaseInfo:
                             _v.append(v_i)
                         elif issubclass(type(v_i), BaseInfo):
                             _v.append(v_i.to_dict(force_update, to_json))
+                        elif isinstance(v, np.ndarray):
+                            _v.append(_transfer_ndarray(v_i))
                         elif isinstance(v_i, collections.abc.Mapping) or isinstance(v_i, collections.abc.Sequence):
                             _v.append(_check_transfer(v_i, to_json))
                     return _v
@@ -159,6 +172,8 @@ class BaseInfo:
                 new_obj.update()
                 setattr(self, k, new_obj)
                 v = new_obj
+            elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
+                v = np.fromiter(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
             self.__dict__[k] = v
         self.update()
         return self
