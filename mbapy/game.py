@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-12 21:46:19
+LastEditTime: 2023-10-15 22:28:13
 Description: 
 '''
 
@@ -66,6 +66,62 @@ class BaseInfo:
         Notes:
             - __psd_type__ will be added to the dictionary to indicate the type of the object, and will work when reconverting.
         """
+        def _check_transfer(v, to_json):
+            """
+            This function checks if a given value `v` needs to be converted to
+            JSON format (`to_json` flag) and if it is JSON-serializable
+            (`is_jsonable`). If the value does not need to be converted or is
+            already JSON-serializable, it is returned as is. 
+
+            If the value needs to be converted to JSON and it is not JSON-serializable, the function handles three cases:
+
+            1. If the value is an instance of the `BaseInfo` class or a subclass
+                of `BaseInfo`, the `to_dict` method is used to convert it to a dictionary.
+            2. If the value is a mapping (dictionary-like object) and it contains
+                JSON-serializable or `BaseInfo` objects (possibly nested), the function
+                recursively checks and converts them. JSON-serializable objects are
+                merged directly, while `BaseInfo` objects are converted to dictionaries
+                using the `to_dict` method and then merged. Other objects are ignored.
+            3. If the value is a sequence (list-like object) and it contains
+                JSON-serializable or `BaseInfo` objects (possibly nested), the function
+                recursively checks and converts them. JSON-serializable objects are
+                appended directly, while `BaseInfo` objects are converted to dictionaries
+                using the `to_dict` method and then appended. Other objects are ignored.
+
+            The function returns the converted value. 
+            """
+            is_jsonable = mf.is_jsonable(v)
+            # 如果不需要转为json或者v可json, 直接纳入
+            if not to_json or is_jsonable:
+                return v
+            # 如果需要转换为json, 并且v总体上不是可直接json的对象, 那么假定v有以下三种情况, 分类处理
+            elif to_json and not is_jsonable:
+                # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
+                if issubclass(type(v), BaseInfo):
+                    return v.to_dict(force_update, to_json)
+                # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
+                elif isinstance(v, collections.abc.Mapping):
+                    _v = {}
+                    for k_i, v_i in v.items():
+                        if mf.is_jsonable(v_i):
+                            _v[k_i] = v_i
+                        elif issubclass(type(v_i), BaseInfo):
+                            _v[k_i] = v_i.to_dict(force_update, to_json)
+                        elif isinstance(v_i, collections.abc.Mapping) or isinstance(v_i, collections.abc.Sequence):
+                            _v[k_i] = _check_transfer(v_i, to_json)
+                    return _v
+                # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
+                elif isinstance(v, collections.abc.Sequence):
+                    _v = []
+                    for v_i in v:
+                        if mf.is_jsonable(v_i):
+                            _v.append(v_i)
+                        elif issubclass(type(v_i), BaseInfo):
+                            _v.append(v_i.to_dict(force_update, to_json))
+                        elif isinstance(v_i, collections.abc.Mapping) or isinstance(v_i, collections.abc.Sequence):
+                            _v.append(_check_transfer(v_i, to_json))
+                    return _v
+            
         if self.__dict__ or force_update:
             _dict_ = {}
             for k, v in vars(self).items():
@@ -75,27 +131,7 @@ class BaseInfo:
                     _dict_[k] = v
                 # 如果需要转换为json, 并且v总体上不是可直接json的对象, 那么假定v有以下三种情况, 分类处理
                 elif to_json and not is_jsonable:
-                    # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
-                    if issubclass(type(v), BaseInfo):
-                        _dict_[k] = v.to_dict(force_update, to_json)
-                    # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象. 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
-                    elif isinstance(v, collections.abc.Mapping):
-                        _v = {}
-                        for k_i, v_i in v.items():
-                            if mf.is_jsonable(v_i):
-                                _v[k_i] = v_i
-                            elif issubclass(type(v_i), BaseInfo):
-                                _v[k_i] = v_i.to_dict(force_update, to_json)
-                        _dict_[k] = _v
-                    # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象. 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
-                    elif isinstance(v, collections.abc.Sequence):
-                        _v = []
-                        for v_i in v:
-                            if mf.is_jsonable(v_i):
-                                _v.append(v_i)
-                            elif issubclass(type(v_i), BaseInfo):
-                                _v.append(v_i.to_dict(force_update, to_json))
-                        _dict_[k] = _v
+                    _dict_[k] = _check_transfer(v, to_json)
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
     def from_dict(self, dict_: dict, global_vars:Dict = None):
@@ -124,6 +160,7 @@ class BaseInfo:
                 setattr(self, k, new_obj)
                 v = new_obj
             self.__dict__[k] = v
+        self.update()
         return self
     def to_json(self, path: str):
         """
@@ -215,6 +252,7 @@ class ColorSur:
         self.dots_y, self.delta_y = self._update_dots_pos(self.dots_y, self.delta_y, self.size.h)
         self._update_dots_col()
         return (self.mat * 255.).astype(np.uint8)
+        
         
 if __name__ == '__main__':
     import time

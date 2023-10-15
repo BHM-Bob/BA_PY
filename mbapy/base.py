@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-11 22:56:19
+LastEditTime: 2023-10-15 21:12:59
 Description: 
 '''
 import ctypes
@@ -267,11 +267,13 @@ def TimeCosts(runTimes:int = 1, log_per_iter = True):
 def autoparse(init):
     """
     Automatically assign property for __ini__() func
-    Example
-    ---------
-    @autoparse
-        def __init__(self, x):
-            do something
+    
+    Example:
+    --------
+    >>> @autoparse
+    >>> def __init__(self, x):
+    >>>     do something or do something with self.x
+    
     fixed from https://codereview.stackexchange.com/questions/269579/decorating-init-for-automatic-attribute-assignment-safe-and-good-practice
     """
     parnames = list(init.__code__.co_varnames[1:])
@@ -569,10 +571,5 @@ class CDLL:
 
 if __name__ == '__main__':
     # dev code
+    # set_default_kwargs
     d = set_default_kwargs({'a':1}, discard_extra=True, eps = 0.5, min_samples = 3)
-    # arg checker
-    Configs.err_warning_level = 2
-    @parameter_checker(check_parameters_path, head = check_parameters_len, raise_err = False)
-    def arg_checker_test(path:str, length:int, head:str):
-        print(path, length, head)
-    arg_checker_test('./data_tmp/savedrecs.ris', 10, '')

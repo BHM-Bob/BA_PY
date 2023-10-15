@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-02 22:43:37
+LastEditTime: 2023-10-15 19:42:21
 Description: 
 '''
 import collections
@@ -107,7 +107,7 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     Returns:
         str: The path string with all invalid characters replaced by the valid character.
     """
-    invalid_chrs = ':*?"<>|\n'
+    invalid_chrs = ':*?"<>|\n\t'
     for invalid_chr in invalid_chrs:
         path = path.replace(invalid_chr, valid_chrs)
     return path

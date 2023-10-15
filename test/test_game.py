@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-12 21:35:05
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-12 21:39:38
+LastEditTime: 2023-10-15 22:28:37
 Description: just need run on a success
 '''
 
@@ -21,10 +21,19 @@ class Parseable(BaseInfo):
         self.s = 'parseable'
         self.cannot = CannotParse()
         self.list = [1, '2', {3: 4}, CannotParse(), {5: CannotParse()}]
-        self.dict = {'k1': [1, '2', CannotParse(), {3: 4}], 'k2': CannotParse()}
+        self.dict = {'k1': [1, '2', CannotParse(), {3: 4}], 'k2': CannotParse(), 'k3': [1, '2', {3: 4}]}
+        
+class Parseable2(BaseInfo):
+    def __init__(self) -> None:
+        self.test = [[Parseable()],
+                     [Parseable(), CannotParse()],
+                     Parseable()]
+        self.test2 = [[Parseable()],
+                     [Parseable(), CannotParse()],
+                     CannotParse()]
         
 def test_BaseInfo():
-    p = Parseable()
+    p = Parseable2()
     d = p.to_dict(True, True)
     op(d)
     return d
