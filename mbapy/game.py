@@ -5,12 +5,15 @@ LastEditTime: 2023-10-15 22:57:58
 Description: 
 '''
 
+import base64
 import collections
+import gzip
 import inspect
 import os
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
+import pygame as pg
 
 if __name__ == '__main__':
     # dev mode import
@@ -24,6 +27,18 @@ Size = collections.namedtuple('Size', ['w', 'h'])
 Rect = collections.namedtuple('Rect', ['x', 'y', 'w', 'h'])
 Sur = collections.namedtuple('Sur', ['name', 'sur', 'rect'])
 
+
+def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True):
+    if use_gzip: 
+        data = gzip.compress(data)
+    return base64.b64encode(data).decode('utf-8')
+
+def transfer_base64_to_bytes(data: str, use_gzip: bool = True):
+    data = base64.b64decode(data.encode('utf-8'))
+    if use_gzip:
+        data = gzip.decompress(data)
+    return data
+        
 
 class BaseInfo:
     """
@@ -51,14 +66,15 @@ class BaseInfo:
         setattr(self, key, value)
     def del_attr(self, key):
         delattr(self, key)
-    def to_dict(self, force_update: bool = True, to_json = False):
+    def to_dict(self, force_update: bool = True, to_json: bool = True, use_gzip: bool = True):
         """
         Converts the object to a dictionary representation,
         if obj contains class which is subclass of BaseInfo, it will be converted by to_dict.
 
         Args:
             - force_update (bool, optional): If True, forces the update of the object's dictionary representation. Defaults to True.
-            - to_json (bool, optional): If True, converts the dictionary representation to JSON format. Defaults to False.
+            - to_json (bool, optional): If True, converts the dictionary representation to JSON format. Defaults to True.
+            - use_gzip (bool, optional): If true, when comes with bytes(such as numpy.ndarray), use gzip to compress.
 - 
         Returns:
             dict: The dictionary representation of the object, including its attributes and their values.
@@ -66,36 +82,57 @@ class BaseInfo:
         Notes:
             - __psd_type__ will be added to the dictionary to indicate the type of the object, and will work when reconverting.
         """
-        def _transfer_ndarray(v):
-            return {
-                '__psd_type__NP_NDARRAY__': type(v).__name__,
-                'shape': v.shape,
-                'dtype': str(v.dtype),
-                'data': v.reshape(-1).tolist()
-            }
-        def _check_transfer(v, to_json):
+        def _transfer_np_ndarray(v: np.ndarray, to_json: bool, use_gzip: bool):
+            """将numpy.ndarray转为PSD dict格式(array转为list, 或压缩过的bytes再转为base64)"""
+            if to_json:
+                return {
+                    '__psd_type__NP_NDARRAY__': type(v).__name__,
+                    'use_gzip': use_gzip,
+                    'shape': v.shape,
+                    'dtype': str(v.dtype),
+                    'data':  transfer_bytes_to_base64(v.reshape(-1).tobytes(), use_gzip)
+                }
+            else:
+                return v.tolist()
+        def _transfer_pg_surface(v: pg.SurfaceType, to_json: bool, use_gzip: bool):
+            """将pygame.SurfaceType转为PSD dict格式(直接返回, 或压缩过的bytes再转为base64)"""
+            if to_json:
+                return {
+                    '__psd_type__PG_SURFACE__': type(v).__name__,
+                    'use_gzip': use_gzip,
+                    'size': v.get_size(),
+                    'data':  transfer_bytes_to_base64(pg.surfarray.array3d(v).tobytes(), use_gzip)
+                }
+            else:
+                return v
+        def _check_case_transfer(v, to_json, use_gzip):
             """
-            This function checks if a given value `v` needs to be converted to
-            JSON format (`to_json` flag) and if it is JSON-serializable
-            (`is_jsonable`). If the value does not need to be converted or is
-            already JSON-serializable, it is returned as is. 
-
-            If the value needs to be converted to JSON and it is not JSON-serializable, the function handles three cases:
-
-            1. If the value is an instance of the `BaseInfo` class or a subclass
-                of `BaseInfo`, the `to_dict` method is used to convert it to a dictionary.
-            2. If the value is a mapping (dictionary-like object) and it contains
-                JSON-serializable or `BaseInfo` objects (possibly nested), the function
-                recursively checks and converts them. JSON-serializable objects are
-                merged directly, while `BaseInfo` objects are converted to dictionaries
-                using the `to_dict` method and then merged. Other objects are ignored.
-            3. If the value is a sequence (list-like object) and it contains
-                JSON-serializable or `BaseInfo` objects (possibly nested), the function
-                recursively checks and converts them. JSON-serializable objects are
-                appended directly, while `BaseInfo` objects are converted to dictionaries
-                using the `to_dict` method and then appended. Other objects are ignored.
-
-            The function returns the converted value. 
+            检查v的各种受支持的类型并做转换
+            - 可json的对象: 直接返回;
+            - 继承自BaseInfo的对象: 调用to_dict;
+            - numpy.ndarray: 转为bytes后(压缩)再转为base64;
+            - pygame.SurfaceType: 转为bytes后(压缩)再转为base64;
+            - Mapping或Sequence: 递归调用_check_transfer;
+            """
+            if mf.is_jsonable(v):
+                return v
+            elif issubclass(type(v), BaseInfo):
+                return v.to_dict(force_update, to_json, use_gzip)
+            elif isinstance(v, np.ndarray):
+                return _transfer_np_ndarray(v, to_json, use_gzip, use_gzip)
+            elif isinstance(v, pg.SurfaceType):
+                return _transfer_pg_surface(v, to_json, use_gzip, use_gzip)
+            elif isinstance(v, collections.abc.Mapping) or isinstance(v, collections.abc.Sequence):
+                return _check_transfer(v, to_json, use_gzip)
+            return None        
+        def _check_transfer(v, to_json, use_gzip):
+            """
+            检查v的各种受支持的类型并做转换
+            - 可json的对象: 直接返回;
+            - 继承自BaseInfo的对象: 调用to_dict;
+            - numpy.ndarray: 转为bytes后(压缩)再转为base64;
+            - Mapping: 转为dict, 逐个检查并转换元素;
+            - Sequence: 转为list, 逐个检查并转换元素;
             """
             is_jsonable = mf.is_jsonable(v)
             # 如果不需要转为json或者v可json, 直接纳入
@@ -106,33 +143,27 @@ class BaseInfo:
                 # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
                 if issubclass(type(v), BaseInfo):
                     return v.to_dict(force_update, to_json)
+                # v是numpy.ndarray, 直接用to_dict方法转换
                 elif isinstance(v, np.ndarray):
-                    return _transfer_ndarray(v)
+                    return _transfer_np_ndarray(v, to_json, use_gzip)
+                # v是numpy.ndarray, 直接用to_dict方法转换
+                elif isinstance(v, pg.SurfaceType):
+                    return _transfer_pg_surface(v, to_json, use_gzip)
                 # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
                 elif isinstance(v, collections.abc.Mapping):
                     _v = {}
                     for k_i, v_i in v.items():
-                        if mf.is_jsonable(v_i):
+                        v_i = _check_case_transfer(v_i, to_json, use_gzip)
+                        if v_i is not None:
                             _v[k_i] = v_i
-                        elif issubclass(type(v_i), BaseInfo):
-                            _v[k_i] = v_i.to_dict(force_update, to_json)
-                        elif isinstance(v, np.ndarray):
-                            _v[k_i] = _transfer_ndarray(v)
-                        elif isinstance(v_i, collections.abc.Mapping) or isinstance(v_i, collections.abc.Sequence):
-                            _v[k_i] = _check_transfer(v_i, to_json)
                     return _v
                 # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
                 elif isinstance(v, collections.abc.Sequence):
                     _v = []
                     for v_i in v:
-                        if mf.is_jsonable(v_i):
+                        v_i = _check_case_transfer(v_i, to_json, gzip)
+                        if v_i is not None:
                             _v.append(v_i)
-                        elif issubclass(type(v_i), BaseInfo):
-                            _v.append(v_i.to_dict(force_update, to_json))
-                        elif isinstance(v, np.ndarray):
-                            _v.append(_transfer_ndarray(v_i))
-                        elif isinstance(v_i, collections.abc.Mapping) or isinstance(v_i, collections.abc.Sequence):
-                            _v.append(_check_transfer(v_i, to_json))
                     return _v
             
         if self.__dict__ or force_update:
@@ -142,9 +173,9 @@ class BaseInfo:
                 # 如果不需要转为json或者v可json, 直接纳入
                 if not to_json or is_jsonable:
                     _dict_[k] = v
-                # 如果需要转换为json, 并且v总体上不是可直接json的对象, 那么假定v有以下三种情况, 分类处理
+                # 如果需要转换为json, 并且v总体上不是可直接json的对象, 分类处理
                 elif to_json and not is_jsonable:
-                    _dict_[k] = _check_transfer(v, to_json)
+                    _dict_[k] = _check_transfer(v, to_json, use_gzip)
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
     def from_dict(self, dict_: dict, global_vars:Dict = None):
@@ -173,7 +204,12 @@ class BaseInfo:
                 setattr(self, k, new_obj)
                 v = new_obj
             elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
-                v = np.fromiter(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
+                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
+                v = np.frombuffer(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
+            elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
+                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
+                w, h = v['size']
+                v = pg.surfarray.make_surface(np.frombuffer(v['data'], np.uint8).reshape(w, h, 3))
             self.__dict__[k] = v
         self.update()
         return self

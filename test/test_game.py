@@ -6,6 +6,7 @@ Description: just need run on a success
 '''
 
 import numpy as np
+import pygame as pg
 from objprint import op
 
 from mbapy.game import BaseInfo
@@ -26,7 +27,8 @@ class Parseable(BaseInfo):
         
 class Parseable2(BaseInfo):
     def __init__(self) -> None:
-        self.arr = np.arange(10).reshape(1, 2, 5).astype(np.float32)
+        self.arr = np.arange(1000).reshape(1, 20, 50).astype(np.float32)
+        self.sur = pg.Surface((200, 300))
         self.test = [[Parseable()],
                      [Parseable(), CannotParse()],
                      Parseable()]
@@ -36,7 +38,7 @@ class Parseable2(BaseInfo):
         
 def test_BaseInfo():
     p = Parseable2()
-    d = p.to_dict(True, True)
+    d = p.to_dict(True, True, True)
     op(d)
     op(p.from_dict(d).to_dict())
     return d
