@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-16 23:09:03
+LastEditTime: 2023-10-17 00:15:37
 Description: 
 '''
 
@@ -50,6 +50,17 @@ class BaseInfo:
         - to_json(): update and save a dict from to_dict() to a json file.
         - from_json(): update and load a dict from a json file.
         - update(): update the un-jsonable attributes of the object after obj.__init__() and from_dict.
+    
+    Example:
+    ```python
+    class MyInfo(BaseInfo):
+        def __init__(self, **kwargs):
+            super().__init__()
+            self.arr = np.array([1, 2, 3])
+    o1 = MyInfo()
+    d = o1.to_dict()
+    o2 = MyInfo().from_dict(d)
+    ```
     """
     def __init__(self) -> None:
         self.__psd_type__ = type(self).__name__
