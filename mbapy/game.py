@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-15 22:57:58
+LastEditTime: 2023-10-16 23:09:03
 Description: 
 '''
 
@@ -70,12 +70,12 @@ class BaseInfo:
         """
         Converts the object to a dictionary representation,
         if obj contains class which is subclass of BaseInfo, it will be converted by to_dict.
-
+        
         Args:
             - force_update (bool, optional): If True, forces the update of the object's dictionary representation. Defaults to True.
             - to_json (bool, optional): If True, converts the dictionary representation to JSON format. Defaults to True.
             - use_gzip (bool, optional): If true, when comes with bytes(such as numpy.ndarray), use gzip to compress.
-- 
+
         Returns:
             dict: The dictionary representation of the object, including its attributes and their values.
             
@@ -105,6 +105,15 @@ class BaseInfo:
                 }
             else:
                 return v
+        def _transfer_pg_rect(v: pg.Rect, to_json: bool, use_gzip: bool):
+            """将pygame.Rect转为PSD dict格式(直接返回, 或压缩过的bytes再转为base64)"""
+            if to_json:
+                return {
+                    '__psd_type__PG_RECT__': type(v).__name__,
+                    'data': list(v)
+                }
+            else:
+                return v
         def _check_case_transfer(v, to_json, use_gzip):
             """
             检查v的各种受支持的类型并做转换
@@ -112,59 +121,41 @@ class BaseInfo:
             - 继承自BaseInfo的对象: 调用to_dict;
             - numpy.ndarray: 转为bytes后(压缩)再转为base64;
             - pygame.SurfaceType: 转为bytes后(压缩)再转为base64;
+            - pygame.Rect: 转为psd格式的dict;
             - Mapping或Sequence: 递归调用_check_transfer;
             """
+            # 如果不需要转为json或者v可json, 直接纳入
             if mf.is_jsonable(v):
                 return v
+            # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
             elif issubclass(type(v), BaseInfo):
                 return v.to_dict(force_update, to_json, use_gzip)
+            # v是numpy.ndarray, 调用_transfer_np_ndarray方法转换
             elif isinstance(v, np.ndarray):
-                return _transfer_np_ndarray(v, to_json, use_gzip, use_gzip)
+                return _transfer_np_ndarray(v, to_json, use_gzip)
+            # v是pygame.SurfaceType, 调用_transfer_pg_surface方法转换
             elif isinstance(v, pg.SurfaceType):
-                return _transfer_pg_surface(v, to_json, use_gzip, use_gzip)
-            elif isinstance(v, collections.abc.Mapping) or isinstance(v, collections.abc.Sequence):
-                return _check_transfer(v, to_json, use_gzip)
-            return None        
-        def _check_transfer(v, to_json, use_gzip):
-            """
-            检查v的各种受支持的类型并做转换
-            - 可json的对象: 直接返回;
-            - 继承自BaseInfo的对象: 调用to_dict;
-            - numpy.ndarray: 转为bytes后(压缩)再转为base64;
-            - Mapping: 转为dict, 逐个检查并转换元素;
-            - Sequence: 转为list, 逐个检查并转换元素;
-            """
-            is_jsonable = mf.is_jsonable(v)
-            # 如果不需要转为json或者v可json, 直接纳入
-            if not to_json or is_jsonable:
-                return v
-            # 如果需要转换为json, 并且v总体上不是可直接json的对象, 那么假定v有以下三种情况, 分类处理
-            elif to_json and not is_jsonable:
-                # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
-                if issubclass(type(v), BaseInfo):
-                    return v.to_dict(force_update, to_json)
-                # v是numpy.ndarray, 直接用to_dict方法转换
-                elif isinstance(v, np.ndarray):
-                    return _transfer_np_ndarray(v, to_json, use_gzip)
-                # v是numpy.ndarray, 直接用to_dict方法转换
-                elif isinstance(v, pg.SurfaceType):
-                    return _transfer_pg_surface(v, to_json, use_gzip)
-                # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
-                elif isinstance(v, collections.abc.Mapping):
-                    _v = {}
-                    for k_i, v_i in v.items():
-                        v_i = _check_case_transfer(v_i, to_json, use_gzip)
-                        if v_i is not None:
-                            _v[k_i] = v_i
-                    return _v
-                # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
-                elif isinstance(v, collections.abc.Sequence):
-                    _v = []
-                    for v_i in v:
-                        v_i = _check_case_transfer(v_i, to_json, gzip)
-                        if v_i is not None:
-                            _v.append(v_i)
-                    return _v
+                return _transfer_pg_surface(v, to_json, use_gzip)
+            # v是pygame.Rect, 调用_transfer_pg_rect方法转换
+            elif isinstance(v, pg.Rect):
+                return _transfer_pg_rect(v, to_json, use_gzip)
+            # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
+            elif isinstance(v, collections.abc.Mapping):
+                _v = {}
+                for k_i, v_i in v.items():
+                    v_i = _check_case_transfer(v_i, to_json, use_gzip)
+                    if v_i is not None:
+                        _v[k_i] = v_i
+                return _v
+            # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
+            elif isinstance(v, collections.abc.Sequence):
+                _v = []
+                for v_i in v:
+                    v_i = _check_case_transfer(v_i, to_json, use_gzip)
+                    if v_i is not None:
+                        _v.append(v_i)
+                return _v
+            return None
             
         if self.__dict__ or force_update:
             _dict_ = {}
@@ -175,7 +166,7 @@ class BaseInfo:
                     _dict_[k] = v
                 # 如果需要转换为json, 并且v总体上不是可直接json的对象, 分类处理
                 elif to_json and not is_jsonable:
-                    _dict_[k] = _check_transfer(v, to_json, use_gzip)
+                    _dict_[k] = _check_case_transfer(v, to_json, use_gzip)
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
     def from_dict(self, dict_: dict, global_vars:Dict = None):
@@ -210,6 +201,8 @@ class BaseInfo:
                 v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
                 w, h = v['size']
                 v = pg.surfarray.make_surface(np.frombuffer(v['data'], np.uint8).reshape(w, h, 3))
+            elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
+                v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
             self.__dict__[k] = v
         self.update()
         return self
@@ -303,7 +296,7 @@ class ColorSur:
         self.dots_y, self.delta_y = self._update_dots_pos(self.dots_y, self.delta_y, self.size.h)
         self._update_dots_col()
         return (self.mat * 255.).astype(np.uint8)
-        
+
         
 if __name__ == '__main__':
     import time
