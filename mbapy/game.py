@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-17 00:15:37
+LastEditTime: 2023-10-17 13:41:25
 Description: 
 '''
 
@@ -153,10 +153,18 @@ class BaseInfo:
             # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
             elif isinstance(v, collections.abc.Mapping):
                 _v = {}
-                for k_i, v_i in v.items():
-                    v_i = _check_case_transfer(v_i, to_json, use_gzip)
-                    if v_i is not None:
-                        _v[k_i] = v_i
+                for idx, (k_i, v_i) in enumerate(v.items()):
+                    # 由于josn中的key必须是字符串, 所以需要检查一下
+                    if isinstance(k_i, str):
+                        v_i = _check_case_transfer(v_i, to_json, use_gzip)
+                        if v_i is not None:
+                            _v[k_i] = v_i
+                    # 如果key不是字符串，用_check_case_transfer检查并转换，不过不能转换(返回None)，则忽略
+                    else:
+                        k_i = _check_case_transfer(k_i, to_json, use_gzip)
+                        if k_i is not None:
+                            v_i = _check_case_transfer(v_i, to_json, use_gzip)
+                            _v[f'__psd_type__KEY_VALUE_{idx}__'] = {'key': k_i, 'value': v_i}
                 return _v
             # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
             elif isinstance(v, collections.abc.Sequence):
@@ -191,6 +199,41 @@ class BaseInfo:
         Returns:
             self: The deserialized object.
         """
+        def _check_case_transfer(v):
+            # 继承自BaseInfo类的反序列化
+            if isinstance(v, Dict) and '__psd_type__' in v:
+                new_obj: BaseInfo = eval(f'{v["__psd_type__"]}()', global_vars)
+                new_obj = new_obj.from_dict(v, global_vars)
+                new_obj.update()
+                setattr(self, k, new_obj)
+                v = new_obj
+            # numpy.ndarray反序列化
+            elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
+                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
+                v = np.frombuffer(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
+            # pygame.SurfaceType反序列化
+            elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
+                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
+                w, h = v['size']
+                v = pg.surfarray.make_surface(np.frombuffer(v['data'], np.uint8).reshape(w, h, 3))
+            # pygame.Rect反序列化
+            elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
+                v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
+            # 一般list反序列化
+            elif isinstance(v, List):
+                v = [_check_case_transfer(v_i) for v_i in v]
+            # 一般dict反序列化
+            elif isinstance(v, Dict):
+                _dict_ = {}
+                for k_i, v_i in v.items():
+                    if k_i.startswith('__psd_type__KEY_VALUE_'):
+                        new_k_i, new_v_i = _check_case_transfer(v_i['key']), _check_case_transfer(v_i['value'])
+                        _dict_[new_k_i] = new_v_i
+                    else:
+                        _dict_[k_i] = _check_case_transfer(v_i)
+                v = _dict_
+            return v
+            
         if inspect.currentframe().f_back.f_code.co_name == 'from_json':
             from_json_frame = inspect.currentframe().f_back
             outer_caller_frame = from_json_frame.f_back
@@ -199,21 +242,8 @@ class BaseInfo:
         global_vars = mb.get_default_for_None(global_vars,
                                               outer_caller_frame.f_globals)
         for k, v in dict_.items():
-            if isinstance(v, Dict) and '__psd_type__' in v:
-                new_obj: BaseInfo = eval(f'{v["__psd_type__"]}()', global_vars)
-                new_obj = new_obj.from_dict(v, global_vars)
-                new_obj.update()
-                setattr(self, k, new_obj)
-                v = new_obj
-            elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
-                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
-                v = np.frombuffer(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
-            elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
-                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
-                w, h = v['size']
-                v = pg.surfarray.make_surface(np.frombuffer(v['data'], np.uint8).reshape(w, h, 3))
-            elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
-                v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
+            if v is not None:
+                v = _check_case_transfer(v)
             self.__dict__[k] = v
         self.update()
         return self
@@ -310,6 +340,16 @@ class ColorSur:
 
         
 if __name__ == '__main__':
+    # BaseInfo
+    class TestBI(BaseInfo):
+        def __init__(self, x: int, y: int):
+            super().__init__()
+            self.i = {(x, y): x+y}
+    i = TestBI(1, 2)
+    d = i.to_dict(True, True, True)
+    i2 = TestBI(-1, -2).from_dict(d)
+    
+    # ColorSur
     import time
 
     import cv2

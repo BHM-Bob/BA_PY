@@ -16,7 +16,7 @@ mbapy primarily focus on areas such as sci-plot, stats, web-crawler, sci-paper u
 
 ## get start
 
-#### install 
+### install 
 Now, mbapy only support pypi install:  
 ```
 pip install mbapy
@@ -27,7 +27,7 @@ If you find the latest release version has some problems, you can try install th
 pip install git+https://github.com/BHM-Bob/BA_PY.git
 ```
 
-#### docs
+### docs
 The documentation for mbapy can be found on [read the docs](https://ba-py.readthedocs.io/en/latest/), and it is the one that I will regularly update.
 The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob/BA_PY/wiki). However, please note that this wiki on GitHub has not been updated since 2023-07. 
 *Given my limited time, I heavily rely on chatGPT to generate the documentation*.
