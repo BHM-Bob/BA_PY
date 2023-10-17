@@ -58,6 +58,24 @@ def get_clean_doi(doi:str):
     else:
         return ''   
 
+def _get_scihub_valid_download_link(link:str):
+        """
+        Generate the valid Sci-Hub download link for the given input link.
+        
+        Parameters:
+            - link (str): The input link for which the valid Sci-Hub download link needs to be generated.
+        
+        Returns:
+            str: The valid Sci-Hub download link.
+        """
+        available_scihub_urls = _update_available_scihub_urls()
+        if not link.startswith('http:'):
+            if link.find('sci-hub') == -1:
+                link = (available_scihub_urls[0]+'/') + link
+            else:
+                link = 'http:' + link
+        return link
+
 def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
     """
     Downloads a file from the SciHub webpage.
@@ -68,16 +86,7 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
 
     Returns:
         dict: A dictionary containing the title, DOI, and the response object of the download request.
-    """
-    def _get_valid_download_link(link:str):
-        available_scihub_urls = _update_available_scihub_urls()
-        if not link.startswith('http:'):
-            if link.find('sci-hub') == -1:
-                link = (available_scihub_urls[0]+'/') + link
-            else:
-                link = 'http:' + link
-        return link
-            
+    """            
     results = etree.HTML(webpage.text)
     # get right title and doi from sci-hub webpage is not required
     try:
@@ -94,7 +103,7 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
     # get right download link is required
     try:
         download_link = results.xpath('//div[@id="buttons"]//@onclick')[0].split("'")[1]
-        valid_download_link = _get_valid_download_link(download_link)
+        valid_download_link = _get_scihub_valid_download_link(download_link)
         res = session.get(url = valid_download_link, proxies=proxies, stream=False, timeout=60)
         return {'title': title, 'doi': get_clean_doi(doi), 'res': res}
     except:
