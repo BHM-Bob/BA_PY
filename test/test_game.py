@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-12 21:35:05
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-17 13:10:32
+LastEditTime: 2023-10-17 13:56:55
 Description: just need run on a success
 '''
 
@@ -22,7 +22,7 @@ class Parseable(BaseInfo):
         self.i = i
         self.s = 'parseable'
         self.cannot = CannotParse()
-        self.list = [1, '2', {3: 4}, CannotParse(i), {5: CannotParse(i)}]
+        self.list = [1, '2', {(3, ): 4}, CannotParse(i), {5: CannotParse(i)}]
         self.dict = {'k1': [1, '2', CannotParse(i), {3: 4}], 'k2': CannotParse(i), 'k3': [1, '2', {3: 4}]}
         
 class Parseable2(BaseInfo):
@@ -43,7 +43,7 @@ def test_BaseInfo():
     p.to_json('./data_tmp/test_game.json')
     op(d)
     p2 = Parseable2(2)
-    op(p2.from_dict(d).to_dict())
+    op(p2.from_json('./data_tmp/test_game.json').to_dict())
     return d
     
 if __name__ == '__main__':

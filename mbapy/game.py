@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-17 13:41:25
+LastEditTime: 2023-10-17 13:54:07
 Description: 
 '''
 
@@ -161,10 +161,11 @@ class BaseInfo:
                             _v[k_i] = v_i
                     # 如果key不是字符串，用_check_case_transfer检查并转换，不过不能转换(返回None)，则忽略
                     else:
+                        k_i_type = type(k_i).__name__
                         k_i = _check_case_transfer(k_i, to_json, use_gzip)
                         if k_i is not None:
                             v_i = _check_case_transfer(v_i, to_json, use_gzip)
-                            _v[f'__psd_type__KEY_VALUE_{idx}__'] = {'key': k_i, 'value': v_i}
+                            _v[f'__psd_type__KEY_VALUE_{idx}__'] = {'key': k_i, 'key_type': k_i_type, 'value': v_i}
                 return _v
             # 亦或v是列表类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
             elif isinstance(v, collections.abc.Sequence):
@@ -227,7 +228,10 @@ class BaseInfo:
                 _dict_ = {}
                 for k_i, v_i in v.items():
                     if k_i.startswith('__psd_type__KEY_VALUE_'):
+                        k_i_type = v_i['key_type']
                         new_k_i, new_v_i = _check_case_transfer(v_i['key']), _check_case_transfer(v_i['value'])
+                        if k_i_type == 'tuple':
+                            new_k_i = tuple(new_k_i)
                         _dict_[new_k_i] = new_v_i
                     else:
                         _dict_[k_i] = _check_case_transfer(v_i)
