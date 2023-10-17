@@ -1,9 +1,3 @@
-<!--
- * @Date: 2023-10-16 23:52:52
- * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2023-10-17 00:13:36
- * @Description: 
--->
 # mbapy.game
 This module provides utility functions for dataclass reading/writing from/to files and some game GUI.
 
