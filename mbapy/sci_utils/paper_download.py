@@ -10,13 +10,13 @@ if __name__ == '__main__':
     # dev mode
     import mbapy.web as web
     from mbapy.base import *
-    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
-                            get_valid_file_path)
+    from mbapy.file import (convert_pdf_to_txt, get_valid_file_path, opts_file,
+                            read_text)
 else:
     # release mode
     from .. import web
     from ..base import *
-    from ..file import convert_pdf_to_txt, opts_file, get_valid_file_path
+    from ..file import convert_pdf_to_txt, get_valid_file_path, opts_file
             
 
 session = web.get_requests_retry_session()

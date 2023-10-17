@@ -2,15 +2,35 @@
 
 Welcome to the BA_PY docs!
 
-# Install
-This is a PyPI package, you can install it by
+# BA_PY
+[![Downloads](https://static.pepy.tech/badge/mbapy)](https://pepy.tech/project/mbapy) ![PyPI - Downloads](https://img.shields.io/pypi/dm/mbapy) ![GitHub all releases](https://img.shields.io/github/downloads/BHM-Bob/BA_PY/total?label=GitHub%20all%20releases%20downloads)
+
+![GitHub repo size](https://img.shields.io/github/repo-size/BHM-Bob/BA_PY) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/BHM-Bob/BA_PY) [![GitHub Commit Activity](https://img.shields.io/github/commit-activity/m/BHM-Bob/BA_PY)](https://github.com/BHM-Bob/BA_PY/pulse)
+
+![PyPI - Status](https://img.shields.io/pypi/status/mbapy?label=PyPI%20Status) ![PyPI](https://img.shields.io/pypi/v/mbapy) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mbapy)
+
+![Read the Docs](https://img.shields.io/readthedocs/ba-py) ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY) [![built with Codeium](https://codeium.com/badges/main)](https://codeium.com)
+
+mbapy is a Python package that includes a collection of useful Python scripts as sub-modules, and it's goal is *Basic for All in Python*.  
+mbapy primarily focus on areas such as sci-plot, stats, web-crawler, sci-paper utilities, and deep learning with pytorch.  
+
+## get start
+
+#### install 
+Now, mbapy only support pypi install:  
 ```
 pip install mbapy
 ```
-By the way, this package may have a hot-fix for the latest release, so you may try this often
-``` 
-pip install --upgrade mbapy
+
+If you find the latest release version has some problems, you can try install the up-to-date version on github:
 ```
+pip install git+https://github.com/BHM-Bob/BA_PY.git
+```
+
+#### docs
+The documentation for mbapy can be found on [read the docs](https://ba-py.readthedocs.io/en/latest/), and it is the one that I will regularly update.
+The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob/BA_PY/wiki). However, please note that this wiki on GitHub has not been updated since 2023-07. 
+*Given my limited time, I heavily rely on chatGPT to generate the documentation*.
 
 # Contains
 ## [base](base.md)
@@ -31,5 +51,8 @@ Some pytorch utils and some models.
 3. [model](dl_torch/model.md) for some visual and language layers and models.  
 4. [data](dl_torch/data.md) for some data utils.  
 5. [optim](dl_torch/optim.md) for some learning rate utils.  
-## paper
+## [paper](paper.md)
 Some scientific paper utils, including parsing RIS, downloading pdf by title or doi through sci-hub, search through baidu-xueshu, extract specific section from a sci-paper and so on.  
+1. [parse](sci_utils/paper_parse.md) for parsing pdf and extract specific sections.  
+2. [download](sci_utils/paper_download.md) for downloading pdf by title or doi through sci-hub.  
+3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.

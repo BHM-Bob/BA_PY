@@ -1,10 +1,10 @@
 import os
 import random
 import re
-import requests
 from typing import Dict, List
 
 import crossref_commons.retrieval
+import requests
 import rispy
 from lxml import etree
 
