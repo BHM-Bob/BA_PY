@@ -73,13 +73,23 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try
     if try_times <= 0:
         return None
     def _get_valid_download_link(link:str):
-        available_scihub_urls = _update_available_scihub_urls()
         if not link.startswith('http:'):
             if link.find('sci-hub') == -1:
+                available_scihub_urls = _update_available_scihub_urls()
                 link = (available_scihub_urls[0]+'/') + link
             else:
                 link = 'http:' + link
         return link
+    def _download(link: str, proxies = None):
+        res = session.get(url = link, proxies=proxies, stream=False, timeout=60)
+        if res.text.startswith('%PDF'):
+            return {'title': title, 'doi': doi, 'res': res}
+        else:
+            random_sleep = random.randint(30, 60)
+            put_log(f'get download url:{valid_download_link} but error occurs, random sleep '+\
+                f'{random_sleep} secs and try {try_times} time(s).')
+            time.sleep(random_sleep)
+            return None
             
     results = etree.HTML(webpage.text)
     # get right title and doi from sci-hub webpage is not required
@@ -96,18 +106,15 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try
             doi = ''
     # get right download link is required
     try:
+        # parse download link from download button
         download_link = results.xpath('//div[@id="buttons"]//@onclick')[0].split("'")[1]
         valid_download_link = _get_valid_download_link(download_link)
-        res = session.get(url = valid_download_link, proxies=proxies, stream=False, timeout=60)
-        if res.text.startswith('%PDF'):
-            return {'title': title, 'doi': doi, 'res': res}
-        else:
-            random_sleep = random.randint(30, 60)
-            put_log(f'get download url:{valid_download_link} but error occurs, random sleep '+\
-                f'{random_sleep} secs and try {try_times} time(s).')
-            time.sleep(random_sleep)
+        result = _download(valid_download_link, proxies)
+        if result is None:
             return download_from_scihub_by_doi(doi, proxies, try_times-1)
+        return result
     except Exception as e:
+        # 其实也没啥，button解析不到，PDF页面似乎也没啥
         return None
 
 @parameter_checker(check_parameters_bool, raise_err = False)
