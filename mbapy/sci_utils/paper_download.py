@@ -91,14 +91,6 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try
     """
     if try_times <= 0:
         return None
-    def _get_valid_download_link(link:str):
-        if not link.startswith('http:'):
-            if link.find('sci-hub') == -1:
-                available_scihub_urls = _update_available_scihub_urls()
-                link = (available_scihub_urls[0]+'/') + link
-            else:
-                link = 'http:' + link
-        return link
     def _download(link: str, proxies = None):
         res = session.get(url = link, proxies=proxies, stream=False, timeout=60)
         if res.text.startswith('%PDF'):
@@ -127,7 +119,7 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try
     try:
         # parse download link from download button
         download_link = results.xpath('//div[@id="buttons"]//@onclick')[0].split("'")[1]
-        valid_download_link = _get_valid_download_link(download_link)
+        valid_download_link = _get_scihub_valid_download_link(download_link)
         result = _download(valid_download_link, proxies)
         if result is None:
             return download_from_scihub_by_doi(doi, proxies, try_times-1)
