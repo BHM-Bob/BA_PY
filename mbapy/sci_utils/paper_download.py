@@ -11,13 +11,13 @@ if __name__ == '__main__':
     # dev mode
     import mbapy.web as web
     from mbapy.base import *
-    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
-                            get_valid_file_path)
+    from mbapy.file import (convert_pdf_to_txt, get_valid_file_path, opts_file,
+                            read_text)
 else:
     # release mode
     from .. import web
     from ..base import *
-    from ..file import convert_pdf_to_txt, opts_file, get_valid_file_path
+    from ..file import convert_pdf_to_txt, get_valid_file_path, opts_file
             
 
 session = web.get_requests_retry_session()
@@ -58,6 +58,25 @@ def get_clean_doi(doi:str):
         return doi_match.group()
     else:
         return ''   
+
+def _get_scihub_valid_download_link(link:str):
+        """
+        Generate the valid Sci-Hub download link for the given input link.
+        
+        Parameters:
+            - link (str): The input link for which the valid Sci-Hub download link needs to be generated.
+        
+        Returns:
+            str: The valid Sci-Hub download link.
+        """
+        available_scihub_urls = _update_available_scihub_urls()
+        if not link.startswith('http:'):
+            if link.find('sci-hub') == -1:
+                link = (available_scihub_urls[0]+'/') + link
+            else:
+                link = 'http:' + link
+        return link
+
 
 def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try_times = 3):
     """

@@ -145,3 +145,6 @@ data_tmp
 
 # _Config
 mbapy/storage/_Config.json
+
+# .VSCodeCounter
+.VSCodeCounter

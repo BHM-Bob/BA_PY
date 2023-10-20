@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-02 22:43:37
+LastEditTime: 2023-10-17 12:53:12
 Description: 
 '''
 import collections
@@ -107,7 +107,7 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     Returns:
         str: The path string with all invalid characters replaced by the valid character.
     """
-    invalid_chrs = ':*?"<>|\n'
+    invalid_chrs = ':*?"<>|\n\t'
     for invalid_chr in invalid_chrs:
         path = path.replace(invalid_chr, valid_chrs)
     return path
@@ -199,13 +199,13 @@ def decode_bits_to_str(bits:bytes):
         true_text = bits.decode('GB2312', "ignore")
     else:
         true_text = bits.decode('utf-8', "ignore")
-    return true_text
+    return true_text   
 
 def is_jsonable(data):
     if isinstance(data, str) or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool) or data is None:
         return True
     elif isinstance(data, collections.abc.Mapping):
-        return all(is_jsonable(value) for value in data.values())
+        return all((isinstance(k, str) and is_jsonable(v)) for k, v in data.items())
     elif isinstance(data, collections.abc.Sequence):
         return all(is_jsonable(item) for item in data)
     else:

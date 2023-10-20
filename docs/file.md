@@ -3,72 +3,152 @@
 This module provides utility functions for file operations, including reading and writing files, working with different file formats, and handling file paths.  
 
 ## Functions
+### get_paths_with_extension -> List[str]
+Returns a list of file paths within a given folder that have a specified extension.
 
-### replace_invalid_path_chr(path:str, valid_chrs:str = '_') -> str
+#### Params
+- folder_path (str): The path of the folder to search for files.
+- file_extensions (List[str]): A list of file extensions to filter the search by.
 
-Replaces any invalid characters in a given path with a specified valid character.  
+#### Returns
+- List[str]: A list of file paths that match the specified file extensions.
 
-Parameters:  
-- path (str): The path string to be checked for invalid characters.  
-- valid_chrs (str, optional): The valid characters that will replace any invalid characters in the path. Defaults to '_'.  
+#### Notes
+None
 
-Returns:  
-- str: The path string with all invalid characters replaced by the valid character.  
-
-Example:  
+#### Example
 ```python
-replace_invalid_path_chr('C:/Users/John?Doe/Documents')
+folder_path = '/path/to/folder'
+file_extensions = ['.txt', '.csv']
+file_paths = get_paths_with_extension(folder_path, file_extensions)
+print(file_paths)
 ```
 
-### opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None, **kwargs) -> Union[list, str, dict, None]
+### extract_files_from_dir
+Move all files in subdirectories to the root directory and add the subdirectory name as a prefix to the file name.
 
-A function that reads or writes data to a file based on the provided options.  
+#### Params
+- root (str): The root directory path.
+- file_extensions (list[str]): specific file types string (without '.'), if None, means all types.
+- extract_sub_dir (bool, optional): Whether to recursively extract files from subdirectories. If set to False, only files in the immediate subdirectories will be extracted. Defaults to True.
+- join_str (str): string for link prefix and the file name.
 
-Parameters:  
-- path (str): The path to the file.  
-- mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.  
-- encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.  
-- way (str, optional): The way in which the data should be read or written. Defaults to 'lines'.  
-- data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.  
+#### Returns
+None
 
-Returns:  
-- list or str or dict or None: The data read from the file, or None if the file was opened in write mode and no data was provided.  
+#### Notes
+None
 
-Example:  
+#### Example
 ```python
-opts_file('data.txt', mode='r', way='lines')
+root = '/path/to/root'
+file_extensions = ['.txt', '.csv']
+extract_files_from_dir(root, file_extensions, extract_sub_dir=True, join_str='_')
 ```
 
-### read_bits(path:str) -> bytes
+### replace_invalid_path_chr -> str
+Replaces any invalid characters in a given path with a specified valid character.
 
-Reads a file as a byte array.  
+#### Params
+- path (str): The path string to be checked for invalid characters.
+- valid_chrs (str, optional): The valid characters that will replace any invalid characters in the path. Defaults to '_'.
 
-Parameters:  
-- path (str): The path to the file.  
+#### Returns
+- str: The path string with all invalid characters replaced by the valid character.
 
-Returns:  
-- bytes: The byte array read from the file.  
+#### Notes
+None
 
-Example:  
+#### Example
 ```python
-read_bits('data.bin')
+path = '/path/with/invalid?characters'
+valid_path = replace_invalid_path_chr(path, valid_chrs='_')
+print(valid_path)
 ```
 
-### read_text(path:str, decode:str = 'utf-8', way:str = 'lines') -> Union[list, str]
+### get_valid_file_path -> str
+Returns a valid file path by replacing any invalid characters in the given path with a specified valid character and truncating the path to a specified length.
 
-Reads a text file and returns its content as a list of lines or a single string.  
+#### Params
+- path (str): The path string to be checked for invalid characters.
+- valid_chrs (str, optional): The valid characters that will replace any invalid characters in the path. Defaults to '_'.
+- valid_len (int, optional): The maximum length of the valid file path. Defaults to 250.
 
-Parameters:  
-- path (str): The path to the text file.  
-- decode (str, optional): The encoding to use when decoding the file. Defaults to 'utf-8'.  
-- way (str, optional): The way in which the data should be read. Defaults to 'lines'.  
+#### Returns
+- str: The valid file path.
 
-Returns:  
-- list or str: The content of the text file.  
+#### Notes
+None
 
-Example:  
+#### Example
 ```python
-read_text('data.txt')
+path = '/path/with/invalid?characters'
+valid_path = get_valid_file_path(path, valid_chrs='_', valid_len=100)
+print(valid_path)
+```
+
+### opts_file
+A function that reads or writes data to a file based on the provided options.
+
+#### Params
+- path (str): The path to the file.
+- mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.
+- encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
+- way (str, optional): The way in which the data should be read or written. Defaults to 'lines'.
+- data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
+
+#### Returns
+- list or str or dict or None: The data read from the file, or None if the file was opened in write mode and no data was provided.
+
+#### Notes
+None
+
+#### Example
+```python
+path = '/path/to/file.txt'
+data = ['line 1', 'line 2', 'line 3']
+read_data = opts_file(path, mode='w', data=data)
+print(read_data)
+```
+
+### read_bits -> bytes
+Reads a file in binary mode and returns the content as bytes.
+
+#### Params
+- path (str): The path to the file.
+
+#### Returns
+- bytes: The content of the file as bytes.
+
+#### Notes
+None
+
+#### Example
+```python
+path = '/path/to/file.bin'
+content = read_bits(path)
+print(content)
+```
+
+### read_text -> str or List[str]
+Reads a file in text mode and returns the content as a string or a list of lines.
+
+#### Params
+- path (str): The path to the file.
+- decode (str, optional): The encoding of the file. Defaults to 'utf-8'.
+- way (str, optional): The way in which the data should be read. Defaults to 'lines'.
+
+#### Returns
+- str or List[str]: The content of the file as a string or a list of lines.
+
+#### Notes
+None
+
+#### Example
+```python
+path = '/path/to/file.txt'
+content = read_text(path, decode='utf-8', way='lines')
+print(content)
 ```
 
 ### detect_byte_coding(bits:bytes) -> str
@@ -241,4 +321,59 @@ Raises:
 Example:  
 ```python
 convert_pdf_to_txt('document.pdf')
+```
+### is_jsonable -> bool
+This function checks if the given data is JSON serializable.
+
+#### Params
+- data (any): The data to be checked.
+
+#### Returns
+- bool: True if the data is JSON serializable, False otherwise.
+
+#### Notes
+- The function checks if the data is of type str, int, float, bool, or None. These types are JSON serializable.
+- If the data is a mapping (e.g. dict), the function recursively checks if all values in the mapping are JSON serializable.
+- If the data is a sequence (e.g. list, tuple), the function recursively checks if all items in the sequence are JSON serializable.
+- If the data is of any other type, it is not JSON serializable.
+
+#### Example
+```python
+data1 = "Hello"
+print(is_jsonable(data1))  # Output: True
+
+data2 = {"name": "John", "age": 30}
+print(is_jsonable(data2))  # Output: True
+
+data3 = [1, 2, 3, {"name": "John"}]
+print(is_jsonable(data3))  # Output: True
+
+data4 = {"name": "John", "age": datetime.datetime.now()}
+print(is_jsonable(data4))  # Output: False
+```
+
+### convert_pdf_to_txt -> str
+Convert a PDF file to a text file.
+
+#### Params
+- path: The path to the PDF file.
+- backend: The backend library to use for PDF conversion. 
+    - 'PyPDF2' is the default.
+    - 'pdfminer'.
+
+#### Returns
+The extracted text from the PDF file as a string.
+
+#### Raises
+- NotImplementedError: If the specified backend is not supported.
+
+#### Example
+```python
+text = convert_pdf_to_txt('path/to/pdf/file.pdf')
+print(text)
+```
+
+```python
+text = convert_pdf_to_txt('path/to/pdf/file.pdf', backend='pdfminer')
+print(text)
 ```
