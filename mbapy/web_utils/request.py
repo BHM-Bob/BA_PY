@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 
 from bs4 import BeautifulSoup
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -291,8 +292,8 @@ def click_browser(browser, element:str, by:str = 'class', wait = 5):
         WebDriverWait(browser, wait).until(EC.presence_of_element_located((by, element)))
     finally:
         element = browser.find_element(by, element)
-        browser.execute_script("arguments[0].click();", element)
-        from selenium.webdriver.common.action_chains import ActionChains
+        # browser.execute_script("arguments[0].click();", element)
+        ActionChains(browser).move_to_element(element).click().perform()
 
 def scroll_browser(browser, scroll='bottom', duration=0):
     """

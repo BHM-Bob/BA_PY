@@ -126,6 +126,7 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try
         return result
     except Exception as e:
         # 其实也没啥，button解析不到，PDF页面似乎也没啥
+        put_err(f'can not download with parsed doi: {doi} and title: {title}')
         return None
 
 @parameter_checker(check_parameters_bool, raise_err = False)
