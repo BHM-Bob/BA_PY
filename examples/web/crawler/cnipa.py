@@ -5,6 +5,7 @@ from mbapy import web
 from mbapy.file import read_json
 from mbapy.game import BaseInfo
 
+import easyocr
 import pyautogui
 import numpy as np
 
@@ -15,6 +16,7 @@ result_link = 'https://pss-system.cponline.cnipa.gov.cn/retrieveList?prevPageTit
 doc_link = 'https://pss-system.cponline.cnipa.gov.cn/documents/detail?prevPageTit=gaoji'
 user_data = read_json('./data_tmp/id.json')['cnipa']
 records_path = './data_tmp/patents.json'
+reader = easyocr.Reader(['en'], model_storage_directory='./data_tmp/nn_model/EasyOCR', download_enabled=False)
 
 class Records(BaseInfo):
     def __init__(self) -> None:
@@ -38,6 +40,111 @@ def switch_window(name: str, b):
         b.switch_to.window(link2handle[result_link])
     elif name == 'doc':
         b.switch_to.window(link2handle[doc_link])
+        
+def select_item(b, item_idx: int, records: Records):
+    """切换窗口并点击item_idx的结果, 切换至doc窗口"""
+    # 切换至结果窗口
+    switch_window('result', b)
+    # 点击结果条目(如果该条目未收集)
+    request_id_ele = b.find_element(web.transfer_str2by('xpath'),
+                                    f"(//li[@class='text3']/div/span)[{item_idx+1}]")
+    public_id_ele = b.find_element(web.transfer_str2by('xpath'),
+                                    f"(//li[@class='text2 color']/div/span)[{item_idx+1}]")
+    if request_id_ele.text in records.patents:
+        return None
+    else:
+        print(request_id_ele.text)
+    web.random_sleep(10, 5)
+    b.execute_script("arguments[0].scrollIntoView();", public_id_ele)
+    b.execute_script("arguments[0].click();", public_id_ele)
+    web.random_sleep(10, 5)
+    # 切换至文档窗口
+    switch_window('doc', b)
+    # 返回非None值
+    return True
+    
+def download_item(b, try_times: int = 10):
+    if try_times == 0:
+        return None
+    # 获取并输入验证码
+    captcha_element = b.find_element(web.transfer_str2by('xpath'), "//div[@class='authcode']/img[1]")
+    result = reader.readtext(captcha_element.screenshot_as_png)
+    if len(result) == 0 or len(result[0][1]) != 4:
+        # 重载验证码并重试
+        web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/div[3]/span[2]', 'xpath')
+        web.random_sleep(3, 2)
+        return download_item(b, try_times - 1)
+    web.send_browser_key(b, web.Keys.CONTROL + 'a', '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/div[3]/div/input', 'xpath')
+    web.send_browser_key(b, result[0][1], '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/div[3]/div/input', 'xpath')
+    # 点击确定
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[3]/span/button[3]/span', 'xpath')
+    web.random_sleep(5, 3)
+    # 查看是否验证失败
+    download_settings_box = pyautogui.locateOnScreen('./data_tmp/imgs/cnipa download settings.png', confidence=0.99)
+    if download_settings_box is not None:
+        # 重载验证码并重试
+        web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/div[3]/span[2]', 'xpath')
+        web.random_sleep(3, 2)
+        return download_item(b, try_times - 1)   
+        
+def get_patent_info(b):
+    """已经切换至文档窗口后调用此函数, 返回专利名, 申请号, 公开号, 法律状态和全文文本信息"""
+    # 切换至文档窗口
+    switch_window('doc', b)
+    web.random_sleep(3, 2)
+    # 获取专利信息
+    tree = web.etree.HTML(b.page_source)
+    patent_name = ''.join(tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[3]/div[2]/div[6]/div/div[2]//text()'))
+    if len(patent_name) == 0:
+        patent_name = ''.join(tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[1]/div[2]/div[11]/div/div[2]//text()'))
+        # 如果在结果页面点击失效，会直接切换至上次的doc页面
+        if len(patent_name) == 0:
+            return None
+    info_table = tree.xpath('//div[@class="doc-con"]//text()')
+    info_table = np.array(info_table).reshape(-1, 2).tolist()
+    # 点击全文文本按钮
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[1]/ul/li[2]', 'xpath')
+    web.random_sleep(15, 10)
+    # 获取全文文本
+    tree = web.etree.HTML(b.page_source)
+    full_text = '\n'.join(tree.xpath('//div[@class="fullText"]//text()')).replace(f'\n{user_data["query"][1:-1]}\n', f' {user_data["query"][1:-1]} ')
+    # 点击法律状态按钮
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[1]/ul/li[6]', 'xpath')
+    web.random_sleep(3)
+    tree = web.etree.HTML(b.page_source)
+    table = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div[1]/div[3]/table/tbody//text()')
+    law_state = np.array(table).reshape(-1, 4).tolist()
+    # 点击下载按钮
+    web.click_browser(b, "//div[@class='doc-title-container']//span[1]/span[.='下载']", 'xpath')
+    web.random_sleep(3)
+    # 点击录著项目复选框按钮
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/label[1]/span[1]/span', 'xpath')
+    # 点击全文文本复选框按钮
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/label[2]/span[1]/span', 'xpath')
+    # 点击全文图像复选框按钮
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[7]/div/div/div[2]/label[3]/span[1]/span', 'xpath')
+    # 处理验证码并下载文件
+    web.random_sleep(3)
+    download_item(b, try_times=10)
+    # 返回综合后的信息
+    return info_table[0][1], {
+        'info_table': info_table,
+        'full_text': full_text,
+        'law_state': law_state
+    }
+    
+def get_single_patent(b, item_idx: int, records: Records, try_times: int = 5):
+    if try_times == 0:
+        return None
+    # 选择结果条目
+    if select_item(b, item_idx, records) is None:
+        return None
+    # 获取专利信息
+    patent_info = get_patent_info(b)
+    if patent_info is None:        
+        return get_single_patent(b, item_idx, records, try_times-1)
+    return patent_info
+
 
 # 初始化服务
 web.launch_sub_thread()
@@ -102,56 +209,20 @@ sum_item = int(web.etree.HTML(b.page_source).xpath('//*[@id="app"]/div[1]/sectio
 sum_item_per_page = 10
 
 for page_idx in range(math.ceil(sum_item/sum_item_per_page)):
-    # 切换至结果窗口
+    # 切换至结果窗口并获取该页的条目数
     switch_window('result', b)
     sum_items = len(web.etree.HTML(b.page_source).xpath("//li[@class='text2 color']/div/span"))
-    for item_idx in range(sum_items):
-        # 切换至结果窗口
-        switch_window('result', b)
-        web.random_sleep(10, 5)
-        # 点击结果条目
-        web.click_browser(b, f"(//li[@class='text2 color']/div/span)[{item_idx+1}]", 'xpath')
-        web.random_sleep(10, 5)
-        # 切换至文档窗口
-        switch_window('doc', b)
-        web.random_sleep(10, 5)
-        # 获取专利信息
-        tree = web.etree.HTML(b.page_source)
-        patent_name = ''.join(tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[3]/div[2]/div[6]/div/div[2]//text()'))
-        if len(patent_name) == 0:
-            # 如果点击失效，会直接切换页面，此时切回，再次点击 TODO: 递归 + try_time
-            raise NotImplementedError
-        request_id = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[1]/div[2]/div[1]/div/div[2]//text()')[0]
-        request_date = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[1]/div[2]/div[2]/div/div[2]//text()')[0]
-        public_id = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[3]/div[2]/div[1]/div/div[2]//text()')[0]
-        public_date = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div/div[3]/div[2]/div[2]/div/div[2]//text()')[0]
-        abstruct = ' '.join(tree.xpath('//*[@id="cpp_content_i0"]//text()'))
-        # 点击全文文本按钮
-        web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[1]/ul/li[2]', 'xpath')
-        web.random_sleep(5, 3)
-        # 获取全文文本
-        tree = web.etree.HTML(b.page_source)
-        full_text = '\n'.join(tree.xpath('//div[@class="fullText"]//text()')).replace(f'\n{user_data["query"][1:-1]}\n', f' {user_data["query"][1:-1]} ')
-        # 点击法律状态按钮
-        web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[1]/ul/li[6]', 'xpath')
-        web.random_sleep(3)
-        tree = web.etree.HTML(b.page_source)
-        table = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div[1]/div[3]/table/tbody//text()')
-        law_state = np.array(table).reshape(-1, 4).tolist()
-        # 综合专利信息并保存至records
-        records.patents[request_id] = {
-            'request_id': request_id,
-            'request_date': request_date,
-            'public_id': public_id,
-            'public_date': public_date,
-            'abstruct': abstruct,
-            'full_text': full_text,
-            'law_state': law_state
-        }
-        
-    # 切换至结果窗口
-    switch_window('result', b)
-    # 点击下一页
-    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[3]/div/div[1]/div[2]/div[2]/div[4]/div/div/span[3]/div/button[3]/i', 'xpath')
     
-records.to_json(records_path)
+    # 挨个获取专利信息
+    for item_idx in range(sum_items):
+        patent_info = get_single_patent(b, item_idx, records, try_times=5)
+        if patent_info is not None:
+            records.patents[patent_info[0]] = patent_info[1]
+            # 每次都保存
+            records.to_json(records_path)
+            
+    # 切换至结果窗口并点击下一页
+    switch_window('result', b)
+    web.random_sleep(2)
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[3]/div/div[1]/div[2]/div[2]/div[4]/div/div/span[3]/div/button[3]/i', 'xpath')
+    web.random_sleep(5, 3)
