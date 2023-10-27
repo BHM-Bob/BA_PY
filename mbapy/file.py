@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-15 19:42:21
+LastEditTime: 2023-10-19 22:04:05
 Description: 
 '''
 import collections
@@ -28,11 +28,13 @@ if __name__ == '__main__':
 
     # video and image functions assembly
     try:
-        import cv2
-        import torch
+        if 'MBAPY_AUTO_IMPORT_TORCH' in os.environ and\
+            os.environ['MBAPY_AUTO_IMPORT_TORCH'] == 'True':
+                import cv2
+                import torch
 
-        from mbapy.file_utils.image import *
-        from mbapy.file_utils.video import *
+                from mbapy.file_utils.image import *
+                from mbapy.file_utils.video import *
     except:
         pass
 else:
@@ -42,11 +44,13 @@ else:
 
     # video and image functions assembly
     try:# mbapy package now does not require cv2 and torch installed forcibly
-        import cv2
-        import torch
+        if 'MBAPY_AUTO_IMPORT_TORCH' in os.environ and\
+            os.environ['MBAPY_AUTO_IMPORT_TORCH'] == 'True':
+                import cv2
+                import torch
 
-        from .file_utils.image import *
-        from .file_utils.video import *
+                from .file_utils.image import *
+                from .file_utils.video import *
     except:# if cv2 or torch is not installed, skip
         pass
     
@@ -199,13 +203,13 @@ def decode_bits_to_str(bits:bytes):
         true_text = bits.decode('GB2312', "ignore")
     else:
         true_text = bits.decode('utf-8', "ignore")
-    return true_text
+    return true_text   
 
 def is_jsonable(data):
     if isinstance(data, str) or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool) or data is None:
         return True
     elif isinstance(data, collections.abc.Mapping):
-        return all(is_jsonable(value) for value in data.values())
+        return all((isinstance(k, str) and is_jsonable(v)) for k, v in data.items())
     elif isinstance(data, collections.abc.Sequence):
         return all(is_jsonable(item) for item in data)
     else:

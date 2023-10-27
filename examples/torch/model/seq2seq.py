@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-
-import dl_torch
+import spacy
 
 SEQ_MAX_LEN = 522
 
@@ -18,7 +17,7 @@ class PositionwiseFeedforwardLayer(nn.Module):
         
         #x = [batch size, seq len, hid dim]
         
-        x = self.dropout(dl_torch.relu(self.fc_1(x)))
+        x = self.dropout(torch.relu(self.fc_1(x)))
         
         #x = [batch size, seq len, pf dim]
         
@@ -46,7 +45,7 @@ class MultiHeadAttentionLayer(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([self.head_dim])).to(device)
+        self.scale = torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
         
     def forward(self, query, key, value, mask = None):
         
@@ -60,14 +59,14 @@ class MultiHeadAttentionLayer(nn.Module):
         V = self.fc_v(value)
         
         #Q = [batch size, n heads, query len, head dim]
-        #K = [batch size, n heads, key len  , head dim]
+        #K = [batch size, n heads, head dim , key len ]
         #V = [batch size, n heads, value len, head dim]
         Q = Q.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        K = K.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        K = K.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 3, 1)
         V = V.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)                        
         
         #energy = [batch size, n heads, query len, key len]
-        energy = torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
+        energy = torch.matmul(Q, K) / self.scale
         if mask is not None:
             energy = energy.masked_fill(mask == 0, -1e10)
         
@@ -137,7 +136,7 @@ class Encoder(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([hid_dim])).to(device)
+        self.scale = torch.sqrt(torch.FloatTensor([hid_dim])).to(device)
         
     def forward(self, src, src_mask):
         
@@ -147,7 +146,7 @@ class Encoder(nn.Module):
         batch_size = src.shape[0]
         src_len = src.shape[1]
         
-        pos = dl_torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
+        pos = torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
         
         #pos = [batch size, src len]
         
@@ -255,7 +254,7 @@ class Decoder(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-        self.scale = dl_torch.sqrt(dl_torch.FloatTensor([hid_dim])).to(device)
+        self.scale = torch.sqrt(torch.FloatTensor([hid_dim])).to(device)
         
     def forward(self, trg, enc_src, trg_mask, src_mask):
         
@@ -268,7 +267,7 @@ class Decoder(nn.Module):
         trg_len = trg.shape[1]
         
         #pos = [batch size, trg len]
-        pos = dl_torch.arange(0, trg_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
+        pos = torch.arange(0, trg_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
                             
         #trg = [batch size, trg len, hid dim]
         trg = self.dropout((self.tok_embedding(trg) * self.scale) + self.pos_embedding(pos))
@@ -313,7 +312,7 @@ class Seq2Seq(nn.Module):
         
         # torch.tril取下三角矩阵
         #trg_sub_mask = [trg len, trg len]
-        trg_sub_mask = torch.tril(dl_torch.ones((trg_len, trg_len), device = self.device)).bool()
+        trg_sub_mask = torch.tril(torch.ones((trg_len, trg_len), device = self.device)).bool()
             
         #trg_mask = [batch size, 1, trg len, trg len]
         trg_mask = trg_pad_mask & trg_sub_mask
@@ -343,3 +342,54 @@ class Seq2Seq(nn.Module):
         return output, attention
 
 
+def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 50):
+    
+    model.eval()
+        
+    if isinstance(sentence, str):
+        nlp = spacy.load('de_core_news_sm')
+        tokens = [token.text.lower() for token in nlp(sentence)]
+    else:
+        tokens = [token.lower() for token in sentence]
+
+    tokens = [src_field.init_token] + tokens + [src_field.eos_token]
+        
+    src_indexes = [src_field.vocab.stoi[token] for token in tokens]
+    # [1, Ls]
+    src_tensor = torch.LongTensor(src_indexes).unsqueeze(0).to(device)
+    # [1, 1, 1, Ls]
+    src_mask = model.make_src_mask(src_tensor)
+    
+    with torch.no_grad():
+        # [1, Ls, D]
+        enc_src = model.encoder(src_tensor, src_mask)
+        
+    # [1, ]
+    trg_indexes = [trg_field.vocab.stoi[trg_field.init_token]]
+
+    # NOTE: 让模型从sos预测出第一个token，送入预测的trg包含sos，而计入模型预测的tokens不包含sos，从而利用sos错开一位
+    for i in range(max_len):
+        # [1, 1] >>> [1, 2] >>> [1, Lt]
+        trg_tensor = torch.LongTensor(trg_indexes).unsqueeze(0).to(device)
+        # [1, 1, 1, 1] >>> [1, 1, 2, 2] >>> [1, 1, Lt, Lt]
+        trg_mask = model.make_trg_mask(trg_tensor)
+        
+        with torch.no_grad():
+            # trg: [1, 1] => [1, 1, D] >>> [1, 2, D] >>> [1, Lt, D]
+            # enc_src: [1, Ls, D]
+            # trg_mask: [1, 1, 1, 1] >>> [1, 1, 2, 2] >>> [1, 1, Lt, Lt]
+            # src_mask: [1, 1, 1, Ls]
+            # attention = [1, 1, D] @ [1, D, Ls] = [1, 1, Ls] >>> [1. 2. Ls] >>> [1, Lt, Ls]
+            # output = attention @ [1, Ls, D] => [1, 1, D] >>> [1, 2, D] >>> [1, Lt, D]
+            output, attention = model.decoder(trg_tensor, enc_src, trg_mask, src_mask)
+        # [1, 1] >>> [1, 2] >>> [1, Lt]
+        pred_token = output.argmax(2)[:,-1].item()
+        # [2, ] >>> [3. ] >>> [Lt, ]
+        trg_indexes.append(pred_token)
+
+        if pred_token == trg_field.vocab.stoi[trg_field.eos_token]:
+            break
+    
+    trg_tokens = [trg_field.vocab.itos[i] for i in trg_indexes]
+    
+    return trg_tokens[1:], attention

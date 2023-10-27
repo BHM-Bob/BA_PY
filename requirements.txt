@@ -1,10 +1,7 @@
 beautifulsoup4
-bokeh
 chardet
-cn2an
+# cn2an
 imageio
-importlib-metadata
-jieba
 Markdown
 matplotlib
 numpy
@@ -24,3 +21,4 @@ rispy
 PyPDF2
 lxml
 crossref_commons
+wget

@@ -1,4 +1,5 @@
 import os
+import random
 import re
 from typing import Dict, List
 
@@ -10,13 +11,13 @@ if __name__ == '__main__':
     # dev mode
     import mbapy.web as web
     from mbapy.base import *
-    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
-                            get_valid_file_path)
+    from mbapy.file import (convert_pdf_to_txt, get_valid_file_path, opts_file,
+                            read_text)
 else:
     # release mode
     from .. import web
     from ..base import *
-    from ..file import convert_pdf_to_txt, opts_file, get_valid_file_path
+    from ..file import convert_pdf_to_txt, get_valid_file_path, opts_file
             
 
 session = web.get_requests_retry_session()
@@ -58,18 +59,16 @@ def get_clean_doi(doi:str):
     else:
         return ''   
 
-def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
-    """
-    Downloads a file from the SciHub webpage.
-
-    Args:
-        webpage (requests.Response): The response object of the SciHub webpage.
-        proxies (dict, optional): The proxies to be used for the request. Defaults to None.
-
-    Returns:
-        dict: A dictionary containing the title, DOI, and the response object of the download request.
-    """
-    def _get_valid_download_link(link:str):
+def _get_scihub_valid_download_link(link:str):
+        """
+        Generate the valid Sci-Hub download link for the given input link.
+        
+        Parameters:
+            - link (str): The input link for which the valid Sci-Hub download link needs to be generated.
+        
+        Returns:
+            str: The valid Sci-Hub download link.
+        """
         available_scihub_urls = _update_available_scihub_urls()
         if not link.startswith('http:'):
             if link.find('sci-hub') == -1:
@@ -77,31 +76,61 @@ def _download_from_scihub_webpage(webpage:requests.Response, proxies = None):
             else:
                 link = 'http:' + link
         return link
+
+
+def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try_times = 3):
+    """
+    Downloads a file from the SciHub webpage.
+
+    Args:
+        - webpage (requests.Response): The response object of the SciHub webpage.
+        - proxies (dict, optional): The proxies to be used for the request. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the title, DOI, and the response object of the download request.
+    """
+    if try_times <= 0:
+        return None
+    def _download(link: str, proxies = None):
+        res = session.get(url = link, proxies=proxies, stream=False, timeout=60)
+        if res.text.startswith('%PDF'):
+            return {'title': title, 'doi': doi, 'res': res}
+        else:
+            random_sleep = random.randint(30, 60)
+            put_log(f'get download url:{valid_download_link} but error occurs, random sleep '+\
+                f'{random_sleep} secs and try {try_times} time(s).')
+            time.sleep(random_sleep)
+            return None
             
     results = etree.HTML(webpage.text)
     # get right title and doi from sci-hub webpage is not required
     try:
         title = results.xpath('//div[@id="citation"]/i/text()')[0]
-        doi = results.xpath('//div[@id="citation"]//following-sibling::text()')[0]
-    except:
+        doi = get_clean_doi(results.xpath('//div[@id="citation"]//following-sibling::text()')[0])
+    except Exception as e:
         try:
             paper_info = results.xpath('//div[@id="citation"]//text()')[0]
             doi = get_clean_doi(paper_info)
             title = doi.replace('/', '_')
-        except:
-            title = None
-            doi = None
+        except Exception as e:
+            title = ''
+            doi = ''
     # get right download link is required
     try:
+        # parse download link from download button
         download_link = results.xpath('//div[@id="buttons"]//@onclick')[0].split("'")[1]
-        valid_download_link = _get_valid_download_link(download_link)
-        res = session.get(url = valid_download_link, proxies=proxies, stream=False, timeout=60)
-        return {'title': title, 'doi': get_clean_doi(doi), 'res': res}
-    except:
+        valid_download_link = _get_scihub_valid_download_link(download_link)
+        result = _download(valid_download_link, proxies)
+        if result is None:
+            return download_from_scihub_by_doi(doi, proxies, try_times-1)
+        return result
+    except Exception as e:
+        # 其实也没啥，button解析不到，PDF页面似乎也没啥
+        put_err(f'can not download with parsed doi: {doi} and title: {title}')
         return None
 
 @parameter_checker(check_parameters_bool, raise_err = False)
-def download_from_scihub_by_doi(doi:str, proxies = None):
+def download_from_scihub_by_doi(doi:str, proxies = None, try_times = 3):
     """
     Downloads a file from the Sci-Hub database using the DOI.
 
@@ -116,15 +145,15 @@ def download_from_scihub_by_doi(doi:str, proxies = None):
     Raises:
         Exception: If the DOI does not exist or if there is an error fetching the file from Sci-Hub.
     """
-    # try:
-    available_scihub_urls = _update_available_scihub_urls()
-    res = session.request(method='GET', url=available_scihub_urls[0]+'/'+doi, proxies=proxies)
-    return _download_from_scihub_webpage(res)
-    # except:
-    #     return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
-            
+    try:
+        available_scihub_urls = _update_available_scihub_urls()
+        res = session.request(method='GET', url=available_scihub_urls[0]+'/'+doi, proxies=proxies)
+        return _download_from_scihub_webpage(res, try_times = try_times)
+    except Exception as e:
+        return put_err(f'Maybe DOI: {doi:s} does not exist. scihub fetch error', None)
+
 @parameter_checker(check_parameters_bool, raise_err = False)
-def download_from_scihub_by_title(title, proxies = None):
+def download_from_scihub_by_title(title, proxies = None, try_times = 3):
     """
     Downloads a document from Scihub by title.
 
@@ -142,13 +171,13 @@ def download_from_scihub_by_title(title, proxies = None):
     try:
         available_scihub_urls = _update_available_scihub_urls()
         res = session.post(available_scihub_urls[0], data = {'request': title}, proxies=proxies)
-        return _download_from_scihub_webpage(res)
-    except:
+        return _download_from_scihub_webpage(res, try_times = try_times)
+    except Exception as e:
         return put_err(f'Maybe TITLE: {title:s} does not exist. scihub fetch error', None)
             
 def download_by_scihub(dir: str, doi: str = None, title:str = None,
                        file_full_name:str = None, use_title_as_name: bool = True,
-                       valid_path_chr:str = '_'):
+                       valid_path_chr:str = '_', try_times = 3):
     """
     Download a paper from Sci-Hub using its DOI.
     if file_full_name is None, use the paper's title as the file name, if not, use the paper's DOI as the file name.
@@ -175,9 +204,9 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
         return put_err('Either DOI or title must be specified, returns None', None)
     # download from Sci-Hub by DOI or title
     if doi:
-        result = download_from_scihub_by_doi(doi)
+        result = download_from_scihub_by_doi(doi, try_times = try_times)
     else:
-        result = download_from_scihub_by_title(title)
+        result = download_from_scihub_by_title(title, try_times = try_times)
     if result is None:
         return put_err(f"can't download with \ndoi:{doi}\ntitle:{title}\n, returns None", None)
     # deal with err title and doi
@@ -206,5 +235,6 @@ if __name__ == '__main__':
     # download
     title = 'Linaclotide: a novel compound for the treatment of irritable bowel syndrome with constipation'
     doi = '10.1517/14656566.2013.833605'
-    dl_result = download_by_scihub('./data_tmp/papers/', doi = '10.1517/14656566.2013.833605')
-    download_by_scihub('./data_tmp/', doi, title)
+    dl_result1 = download_by_scihub('./data_tmp/papers/', doi = '10.1021/acs.chemrev.7b00522')
+    dl_result2 = download_by_scihub('./data_tmp/', doi, title)
+    print(dl_result1, '\n\n\n', dl_result2)

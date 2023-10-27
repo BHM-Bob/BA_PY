@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-15 21:12:59
+LastEditTime: 2023-10-18 22:30:59
 Description: 
 '''
 import ctypes
@@ -49,7 +49,7 @@ def get_time(chr:str = ':')->str:
     """
     return time.asctime(time.localtime()).replace(':', chr)
 
-def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S", timestamp = None):
+def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S.%f", timestamp = None):
     """
     Returns a formatted string representing the given timestamp in the specified format.
 
@@ -60,9 +60,10 @@ def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S", timestamp = None):
     Returns:
     - str: The formatted timestamp string.
     """
+    from datetime import datetime
     timestamp = get_default_call_for_None(timestamp, time.time)
-    local_time = time.localtime(timestamp)
-    date_str = time.strftime(fmt, local_time)
+    local_time = datetime.fromtimestamp(timestamp)
+    date_str = local_time.strftime(fmt)
     return date_str
 
 class _ConfigBase:
@@ -260,6 +261,26 @@ def TimeCosts(runTimes:int = 1, log_per_iter = True):
                 if log_per_iter:
                     print(f'{times:2d} | {func.__name__:s} used {time.time()-t1:10.3f}s')
             print(f'{func.__name__:s} used {time.time()-t0:10.3f}s in total, {(time.time()-t0)/runTimes:10.3f}s by mean')
+            return ret
+        return core_wrapper
+    return ret_wrapper
+
+def Timer():
+    """
+    A decorator that measures the execution time of a function and logs it with `mbapy.base.put_log`.
+    Access logs by `mbapy.base.Config.logs: List[str]`
+
+    Parameters:
+        func (function): The function to be decorated.
+
+    Returns:
+        function: The decorated function.
+    """
+    def ret_wrapper(func):
+        def core_wrapper(*args, **kwargs):
+            t0 = time.time()
+            ret = func(*args, **kwargs)
+            put_log(f'{func.__name__:s} used {time.time()-t0:10.3f}s')
             return ret
         return core_wrapper
     return ret_wrapper
@@ -568,6 +589,19 @@ class CDLL:
             free_func(ptr)
         else:
             put_err(f'{free_func:s} is not exist')
+
+@parameter_checker(check_parameters_len, raise_err=False)
+def run_cmd(command: str):
+    """
+    Run a command and return the output as a string.
+
+    Args:
+        command (str): The command to run.
+
+    Returns:
+        str: The output of the command as a string.
+    """
+    return '\n'.join(os.popen(f'{command}').readlines())
 
 if __name__ == '__main__':
     # dev code
