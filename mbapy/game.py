@@ -62,7 +62,8 @@ class BaseInfo:
     o2 = MyInfo().from_dict(d)
     ```
     """
-    def __init__(self) -> None:
+    @mb.autoparse
+    def __init__(self, *args, **kwargs) -> None:
         self.__psd_type__ = type(self).__name__
     def update(self):
         """
