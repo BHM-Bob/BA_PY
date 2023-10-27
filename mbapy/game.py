@@ -51,7 +51,8 @@ class BaseInfo:
         - from_json(): update and load a dict from a json file.
         - update(): update the un-jsonable attributes of the object after obj.__init__() and from_dict.
     """
-    def __init__(self) -> None:
+    @mb.autoparse
+    def __init__(self, *args, **kwargs) -> None:
         self.__psd_type__ = type(self).__name__
     def update(self):
         """
