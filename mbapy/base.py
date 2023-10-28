@@ -352,7 +352,7 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
         @wraps(func)
         def wrapper(*args, **kwargs):
             # info string
-            info_string = f"Parameter checher for {func.__code__.co_name} : Invalid value for argument "
+            info_string = f"Parameter checker for {func.__code__.co_name} : Invalid value for argument "
             # check positional arguments
             for i, arg_check in enumerate(arg_checkers):
                 if i < len(args):

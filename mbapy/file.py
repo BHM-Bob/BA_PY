@@ -215,7 +215,7 @@ def is_jsonable(data):
     else:
         return False
 
-def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
+def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True, ensure_ascii = False):
     """
     Saves an object as a JSON file at the specified path.
 
@@ -224,12 +224,13 @@ def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True):
         - obj: The object to be saved as JSON.
         - encoding (str): The encoding of the JSON file. Default is 'utf-8'.
         - forceUpdate (bool): Determines whether to overwrite an existing file at the specified path. Default is True.
+        - ensure_ascii (bool): param for json.dumps
 
     Returns:
         None
     """
     if forceUpdate or not os.path.isfile(path):
-        json_str = json.dumps(obj, indent=1)
+        json_str = json.dumps(obj, indent=1, ensure_ascii=ensure_ascii)
         with open(path, 'w' ,encoding=encoding, errors='ignore') as json_file:
             json_file.write(json_str)
             

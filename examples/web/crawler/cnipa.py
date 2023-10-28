@@ -101,14 +101,36 @@ def get_patent_info(b):
     # 获取全文文本
     tree = web.etree.HTML(b.page_source)
     full_text = '\n'.join(tree.xpath('//div[@class="fullText"]//text()')).replace(f'\n{user_data["query"][1:-1]}\n', f' {user_data["query"][1:-1]} ')
+    # 获取法律状态
+    # TODO: 适配多页, NOTE: UNTESTED 目前只是调整至单页40条
     # 点击法律状态按钮
     web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[1]/ul/li[6]', 'xpath')
     web.random_sleep(3)
+    # 点击页数下拉按钮
+    web.scroll_browser(b, duration=3)
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div[2]/div/div/span[2]/div/div[1]/span/span/i', 'xpath')
+    # 点击40页选项
+    web.random_sleep(2)
+    web.click_browser(b, "//li[.='40 条/页']", 'xpath')
+    # 下滑
+    web.random_sleep(2)
+    web.scroll_browser(b, duration=3)
     tree = web.etree.HTML(b.page_source)
     law_table = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div[1]/div[3]/table/tbody//text()')
     law_state = np.array(law_table).reshape(-1, 4).tolist()
     # 点击同族按钮
     web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[1]/ul/li[7]', 'xpath')
+    # TODO: 适配多页, NOTE: UNTESTED 目前只是调整至单页40条
+    # 点击页数下拉按钮
+    web.scroll_browser(b, duration=3)
+    web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div[2]/div/div/span[2]/div/div[1]/span/span/i', 'xpath')
+    # 点击40页选项
+    web.random_sleep(2)
+    web.click_browser(b, "//li[.='40 条/页']", 'xpath')
+    # 下滑
+    web.random_sleep(2)
+    web.scroll_browser(b, duration=3)
+    tree = web.etree.HTML(b.page_source)
     cluster_table = tree.xpath('//*[@id="app"]/div[1]/section/div/div/div[2]/div[2]/div[2]/div[2]/div[1]/div/div[3]/table/tbody//text()')
     # 点击下载按钮
     while pyautogui.locateOnScreen('./data_tmp/imgs/cnipa download settings.png', confidence=0.99) is None:
