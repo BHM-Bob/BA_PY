@@ -1,3 +1,5 @@
+from typing import List, Union, Tuple
+from functools import wraps
 
 import http.cookiejar
 import random
@@ -8,6 +10,9 @@ import urllib.parse
 import urllib.request
 
 from bs4 import BeautifulSoup
+from lxml import etree
+import selenium
+import numpy as np
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
@@ -354,3 +359,140 @@ def download_streamly(url: str, path: str, session):
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
             bar.update(size)
+            
+            
+ElementType = selenium.webdriver.remote.webelement.WebElement
+
+def BrowserActionWarpper(func):
+    @wraps(func)
+    def core_wrapper(self, sleep_before: Union[None, tuple[int, int]] = None,
+                     sleep_after: Union[None, tuple[int, int]] = (3, 1), *args, **kwargs):
+        if sleep_before is not None and sleep_before[0] >= 0 and sleep_before[1] >= 0:
+            random_sleep(*sleep_before)
+        ret =  func(*args, **kwargs)
+        if sleep_after is not None and sleep_after[0] >= 0 and sleep_after[1] >= 0:
+            random_sleep(*sleep_after)
+        return ret
+    return core_wrapper
+
+def BrowserElementActionWarpper(func):
+    @wraps(func)
+    def core_wrapper(self, element: Union[None, str, ElementType], by: str = 'xpath',
+                     executor: str = 'element', time_out: int = 5,
+                     multi_idx: int = 0, sleep_before: Union[None, tuple[int, int]] = None,
+                     sleep_after: Union[None, tuple[int, int]] = (3, 1), *args, **kwargs):
+        if element is None:
+            element = 'document.body'
+        else:
+            by = self._get_by(by)
+            try:
+                WebDriverWait(self.browser, time_out).until(
+                    EC.presence_of_element_located((by, element)))
+            finally:
+                elements = self.browser.find_elements(by, element)
+                if len(elements) > 0:
+                    element = elements[min(multi_idx, len(elements-1))]
+                else:
+                    return put_err(f'can not find element with expression: {element},\
+                        do nothing and return None')
+        if sleep_before is not None and sleep_before[0] >= 0 and sleep_before[1] >= 0:
+            random_sleep(*sleep_before)
+        ret =  func(*args, element = element, by = by, executor = executor,
+                    time_out = time_out, multi_idx = multi_idx, **kwargs)
+        if sleep_after is not None and sleep_after[0] >= 0 and sleep_after[1] >= 0:
+            random_sleep(*sleep_after)
+        return ret
+    return core_wrapper
+
+class Browser:
+    #
+    def __init__(self, browser_name: str = 'Chrome',
+                 options: List[str] = ['--no-sandbox', '--headless',
+                                       f"--user-agent={Configs.web.chrome_driver_path:s}"],
+                 use_undetected = False) -> None:
+        self.browser_name = browser_name
+        self.options = options
+        self.use_undetected = use_undetected
+        
+        self.browser = get_browser(browser_name, None, options, use_undetected)
+        
+    def _get_by(self, by: str):
+        if by in ['xpath', 'css', 'class']:
+            return transfer_str2by(by)
+        else:
+            return by
+        
+    @BrowserActionWarpper
+    def get(self, url: str,
+            sleep_before: Union[None, tuple[int, int]] = None,
+            sleep_after: Union[None, tuple[int, int]] = (10, 5)):
+        return self.browser.get(url)
+        
+    def execute_script(self, script: str, *args):
+        return self.browser.execute_script(script, *args)
+        
+    @BrowserElementActionWarpper
+    def click(self, element: Union[str, ElementType], by: str = 'xpath',
+              executor: str = 'element', time_out: int = 5, multi_idx: int = 0,
+              sleep_before: Union[None, tuple[int, int]] = None,
+              sleep_after: Union[None, tuple[int, int]] = (3, 1)):
+        if executor == 'element':
+            element.click()
+        elif executor == 'ActionChains':
+            ActionChains(self.browser).move_to_element(element).click().perform()
+        elif executor == 'JS':
+            self.browser.execute_script("arguments[0].click();", element)
+            
+    @BrowserElementActionWarpper
+    def send_key(self, key, element: Union[str, ElementType], by: str = 'xpath',
+              executor: str = 'element', time_out: int = 5, multi_idx: int = 0,
+              sleep_before: Union[None, tuple[int, int]] = None,
+              sleep_after: Union[None, tuple[int, int]] = (3, 1)):
+        if executor == 'element':
+            element.send_key(key)
+        elif executor == 'ActionChains':
+            ActionChains(self.browser).send_keys(key).click().perform()
+        elif executor == 'JS':
+            self.execute_script("arguments[0].value = arguments[1];", element, key)
+            
+    @BrowserElementActionWarpper
+    def scroll_per(self, dx: Union[str, float], dy: Union[str, float], duration: int,
+                   element: Union[None, str, ElementType], by: str = 'xpath',
+                   executor: str = 'JS', time_out: int = 5, multi_idx: int = 0,
+                   sleep_before: Union[None, tuple[int, int]] = None,
+                   sleep_after: Union[None, tuple[int, int]] = (3, 1)):
+        if executor == 'JS':
+            # get _get_scroll_, support bottom and int
+            if dx == 'bottom':
+                _get_scroll_width = lambda element : self.execute_script(
+                    "return arguments[0].scrollWidth", element)
+            else:
+                _get_scroll_width = lambda element : min(dx, self.execute_script(
+                    "return arguments[0].scrollWidth", element))
+            if dy == 'bottom':
+                _get_scroll_height = lambda element : self.execute_script(
+                    "return arguments[0].scrollHeight", element)
+            else:
+                _get_scroll_height = lambda element : min(dy, self.execute_script(
+                    "return arguments[0].scrollHeight", element))
+            
+            scrolled_len, last_len, scroll_len = np.zeros(2), np.zeros(2), np.zeros(2) # w, h
+            end_time = time.time() + duration
+            while time.time() < end_time:
+                scroll_len[0] = _get_scroll_width(element)
+                scroll_len[1] = _get_scroll_height(element)
+                last_len = scroll_len - scrolled_len
+                scroll_per_frame = last_len / (end_time - time.time()) / 10  # 假设每秒10帧
+                scrolled_len += scroll_per_frame
+                self.browser.execute_script("arguments[0].scrollTo(arguments[1], arguments[2]);",
+                                            element, scroll_per_frame[0], scroll_per_frame[1])
+                time.sleep(1 / 10)  # 等待1/10秒，模拟每秒10帧
+        else:
+            return put_err(f'Not implemented with executor {executor},\
+                do nothing and return None')
+        
+        
+        
+if __name__ == '__main__':
+    b = Browser(options=['--no-sandbox'], use_undetected= True)
+    b.get('https://www.runoob.com/python3/python3-tutorial.html')
