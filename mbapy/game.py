@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-17 13:54:07
+LastEditTime: 2023-10-29 21:56:10
 Description: 
 '''
 
@@ -343,6 +343,27 @@ class ColorSur:
         self._update_dots_col()
         return (self.mat * 255.).astype(np.uint8)
 
+
+def make_surface_rgba(array):
+    """
+    Returns a surface made from a [h, w, 4] numpy array with per-pixel alpha
+    NOTE: if pass a array in [w, h, 4] format, you may need pass array.transpose(1, 0, 2)
+    
+    NOTE: copy and edited from https://github.com/pygame/pygame/issues/1244#issuecomment-794617518
+    """
+    if len(array.shape) != 3 and array.shape[2] != 4:
+        if len(array.shape) == 3 and array.shape[2] == 3:
+            mb.put_err('Array is not RGBA but RGB, try pygame.surfarray.make_surface now')
+            return pg.surfarray.make_surface(array)
+        raise ValueError("Array not RGBA or even RGB format")
+    # Create a surface the same width and height as array and with per-pixel alpha.
+    surface = pg.Surface(array.shape[0:2], pg.SRCALPHA, 32)
+    # Copy the rgb part of array to the new surface.
+    pg.pixelcopy.array_to_surface(surface, array[:,:,0:3])
+    # Copy the alpha part of array to the surface using a pixels-alpha view of the surface.
+    surface_alpha = np.array(surface.get_view('A'), copy=False)
+    surface_alpha[:,:] = array[:,:,3]
+    return surface
         
 if __name__ == '__main__':
     # BaseInfo

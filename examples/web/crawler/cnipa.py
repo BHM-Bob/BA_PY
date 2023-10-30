@@ -1,14 +1,13 @@
-import time
 import math
+import time
 from typing import Dict
+
+import easyocr
+import numpy as np
+import pyautogui
 
 from mbapy import web
 from mbapy.file import read_json, save_json
-
-import easyocr
-import pyautogui
-import numpy as np
-
 
 link2handle = {}
 search_link = 'https://pss-system.cponline.cnipa.gov.cn/seniorSearch'
