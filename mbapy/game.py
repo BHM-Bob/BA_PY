@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-29 21:56:10
+LastEditTime: 2023-10-31 10:46:00
 Description: 
 '''
 
@@ -126,6 +126,15 @@ class BaseInfo:
                 }
             else:
                 return v
+        def _transfer_pg_color(v: pg.Color, to_json: bool, use_gzip: bool):
+            """将pygame.Color dict格式(直接返回, 或压缩过的bytes再转为base64)"""
+            if to_json:
+                return {
+                    '__psd_type__PG_COLOR__': type(v).__name__,
+                    'data': list(v)
+                }
+            else:
+                return v
         def _check_case_transfer(v, to_json, use_gzip):
             """
             检查v的各种受支持的类型并做转换
@@ -151,6 +160,9 @@ class BaseInfo:
             # v是pygame.Rect, 调用_transfer_pg_rect方法转换
             elif isinstance(v, pg.Rect):
                 return _transfer_pg_rect(v, to_json, use_gzip)
+            # v是pygame.Color, 调用_transfer_pg_color方法转换
+            elif isinstance(v, pg.Color):
+                return _transfer_pg_color(v, to_json, use_gzip)
             # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
             elif isinstance(v, collections.abc.Mapping):
                 _v = {}
@@ -221,6 +233,9 @@ class BaseInfo:
             # pygame.Rect反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
                 v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
+            # pygame.Color反序列化
+            elif isinstance(v, Dict) and '__psd_type__PG_COLOR__' in v:
+                v = pg.Color(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
             # 一般list反序列化
             elif isinstance(v, List):
                 v = [_check_case_transfer(v_i) for v_i in v]
@@ -351,7 +366,7 @@ def make_surface_rgba(array):
     
     NOTE: copy and edited from https://github.com/pygame/pygame/issues/1244#issuecomment-794617518
     """
-    if len(array.shape) != 3 and array.shape[2] != 4:
+    if len(array.shape) != 3 or array.shape[2] != 4:
         if len(array.shape) == 3 and array.shape[2] == 3:
             mb.put_err('Array is not RGBA but RGB, try pygame.surfarray.make_surface now')
             return pg.surfarray.make_surface(array)
