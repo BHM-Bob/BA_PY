@@ -106,6 +106,16 @@ class BaseInfo:
                 }
             else:
                 return v.tolist()
+        def _transfer_np_scallar(v: np.ScalarType, to_json: bool, use_gzip: bool):
+            """将numpy.ScalarType转为PSD dict格式(取item)"""
+            if to_json:
+                return {
+                    '__psd_type__NP_SCALAR__': type(v).__name__,
+                    'dtype': str(v.dtype) if str(v.dtype) != 'bool' else 'bool_', # https://github.com/numpy/numpy/issues/22021
+                    'data':  v.item()
+                }
+            else:
+                return v
         def _transfer_pg_surface(v: pg.SurfaceType, to_json: bool, use_gzip: bool):
             """将pygame.SurfaceType转为PSD dict格式(直接返回, 或压缩过的bytes再转为base64)"""
             if to_json:
@@ -154,6 +164,9 @@ class BaseInfo:
             # v是numpy.ndarray, 调用_transfer_np_ndarray方法转换
             elif isinstance(v, np.ndarray):
                 return _transfer_np_ndarray(v, to_json, use_gzip)
+            # v是numpy的标量, 调用_transfer_np_ndarray方法转换
+            elif any(isinstance(v, ty) for ty in [np.int_, np.float_, np.bool_]):
+                return _transfer_np_scallar(v, to_json, use_gzip)
             # v是pygame.SurfaceType, 调用_transfer_pg_surface方法转换
             elif isinstance(v, pg.SurfaceType):
                 return _transfer_pg_surface(v, to_json, use_gzip)
@@ -225,6 +238,9 @@ class BaseInfo:
             elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
                 v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
                 v = np.frombuffer(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
+            # numpy.ScalarType反序列化
+            elif isinstance(v, Dict) and '__psd_type__NP_SCALAR__' in v:
+                v = eval(f'np.{v["dtype"]}({v["data"]})') # '_' for https://github.com/numpy/numpy/issues/22021
             # pygame.SurfaceType反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
                 v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
@@ -385,7 +401,7 @@ if __name__ == '__main__':
     class TestBI(BaseInfo):
         def __init__(self, x: int, y: int):
             super().__init__()
-            self.i = {(x, y): x+y}
+            self.i = {np.int_(x*y): y, np.bool_(1): x+y}
     i = TestBI(1, 2)
     d = i.to_dict(True, True, True)
     i2 = TestBI(-1, -2).from_dict(d)
