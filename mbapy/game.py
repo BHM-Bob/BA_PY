@@ -101,7 +101,7 @@ class BaseInfo:
                     '__psd_type__NP_NDARRAY__': type(v).__name__,
                     'use_gzip': use_gzip,
                     'shape': v.shape,
-                    'dtype': str(v.dtype),
+                    'dtype': str(v.dtype) if str(v.dtype) != 'bool' else 'bool_', # https://github.com/numpy/numpy/issues/22021
                     'data':  transfer_bytes_to_base64(v.reshape(-1).tobytes(), use_gzip)
                 }
             else:
