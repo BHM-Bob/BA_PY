@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-31 10:46:00
+LastEditTime: 2023-11-01 11:22:50
 Description: 
 '''
 
@@ -28,12 +28,32 @@ Rect = collections.namedtuple('Rect', ['x', 'y', 'w', 'h'])
 Sur = collections.namedtuple('Sur', ['name', 'sur', 'rect'])
 
 
-def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True):
+def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True) -> str:
+    """
+    Convert a byte data to base64 string.
+
+    Args:
+        data (bytes): The byte data to be converted.
+        use_gzip (bool, optional): Indicates whether to compress the data using gzip. Defaults to True.
+
+    Returns:
+        str: The base64-encoded string.
+    """
     if use_gzip: 
         data = gzip.compress(data)
     return base64.b64encode(data).decode('utf-8')
 
-def transfer_base64_to_bytes(data: str, use_gzip: bool = True):
+def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
+    """
+    Convert a base64 encoded string to bytes.
+
+    Parameters:
+        data (str): The base64 encoded string to convert.
+        use_gzip (bool, optional): Whether to use gzip decompression. Defaults to True.
+
+    Returns:
+        bytes: The converted bytes.
+    """
     data = base64.b64decode(data.encode('utf-8'))
     if use_gzip:
         data = gzip.decompress(data)
@@ -119,10 +139,13 @@ class BaseInfo:
         def _transfer_pg_surface(v: pg.SurfaceType, to_json: bool, use_gzip: bool):
             """将pygame.SurfaceType转为PSD dict格式(直接返回, 或压缩过的bytes再转为base64)"""
             if to_json:
+                alpha_enable = bool(v.get_flags() & pg.SRCALPHA)
                 return {
                     '__psd_type__PG_SURFACE__': type(v).__name__,
                     'use_gzip': use_gzip,
+                    'alpha': alpha_enable,
                     'size': v.get_size(),
+                    'alpha_data': transfer_bytes_to_base64(pg.surfarray.pixels_alpha(v).tobytes(), use_gzip) if alpha_enable else None,
                     'data':  transfer_bytes_to_base64(pg.surfarray.array3d(v).tobytes(), use_gzip)
                 }
             else:
@@ -151,6 +174,7 @@ class BaseInfo:
             - 可json的对象: 直接返回;
             - 继承自BaseInfo的对象: 调用to_dict;
             - numpy.ndarray: 转为bytes后(压缩)再转为base64;
+            - numpy.ScalarType: 直接转为item;
             - pygame.SurfaceType: 转为bytes后(压缩)再转为base64;
             - pygame.Rect: 转为psd格式的dict;
             - Mapping或Sequence: 递归调用_check_transfer;
@@ -243,9 +267,13 @@ class BaseInfo:
                 v = eval(f'np.{v["dtype"]}({v["data"]})') # '_' for https://github.com/numpy/numpy/issues/22021
             # pygame.SurfaceType反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
-                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
                 w, h = v['size']
-                v = pg.surfarray.make_surface(np.frombuffer(v['data'], np.uint8).reshape(w, h, 3))
+                v['data'] = np.frombuffer(transfer_base64_to_bytes(v['data'], v['use_gzip']), np.uint8).reshape(w, h, 3)
+                if v['alpha']:
+                    v['alpha_data'] = np.frombuffer(transfer_base64_to_bytes(v['alpha_data'], v['use_gzip']), np.uint8).reshape(w, h, 1)
+                    v = make_surface_rgba(np.concatenate([v['data'], v['alpha_data']], axis=-1))
+                else:
+                    v = pg.surfarray.make_surface(v['data'])
             # pygame.Rect反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
                 v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
@@ -401,7 +429,7 @@ if __name__ == '__main__':
     class TestBI(BaseInfo):
         def __init__(self, x: int, y: int):
             super().__init__()
-            self.i = {np.int_(x*y): y, np.bool_(1): x+y}
+            self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
     i = TestBI(1, 2)
     d = i.to_dict(True, True, True)
     i2 = TestBI(-1, -2).from_dict(d)
