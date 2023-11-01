@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-01 11:22:50
+LastEditTime: 2023-11-01 22:21:21
 Description: 
 '''
 
@@ -58,6 +58,48 @@ def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
     if use_gzip:
         data = gzip.decompress(data)
     return data
+
+def make_surface_from_array(array: np.ndarray):
+    """
+    Returns a surface made from a [h, w, 4] or [h, w, 3] numpy array with per-pixel alpha
+    NOTE: if pass a array in [w, h, 4] format, you may need pass array.transpose(1, 0, 2)
+    
+    NOTE: copy and edited from https://github.com/pygame/pygame/issues/1244#issuecomment-794617518
+    """
+    if len(array.shape) == 3 and array.shape[2] == 3:
+        return pg.surfarray.make_surface(array)
+    if len(array.shape) != 3 or array.shape[2] != 4:
+        raise ValueError("Array not RGBA or RGB format")
+    # Create a surface the same width and height as array and with per-pixel alpha.
+    surface = pg.Surface(array.shape[0:2], pg.SRCALPHA, 32)
+    # Copy the rgb part of array to the new surface.
+    pg.pixelcopy.array_to_surface(surface, array[:,:,0:3])
+    # Copy the alpha part of array to the surface using a pixels-alpha view of the surface.
+    surface_alpha = np.array(surface.get_view('A'), copy=False)
+    surface_alpha[:,:] = array[:,:,3]
+    return surface
+
+def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
+    """
+    Generate a numpy array from a pygame surface.
+
+    Args:
+        surface (pg.SurfaceType): The pygame surface to convert.
+        copy (bool, optional): Whether to create a copy of the surface or not. Defaults to True.
+
+    Returns:
+        np.ndarray: The numpy array representation of the surface.
+    """
+    # RGB pixels
+    if copy:
+        arr = pg.surfarray.array3d(surface)
+    else:
+        arr = pg.surfarray.pixels3d(surface)
+    # alpha pixels
+    if surface.get_flags() & pg.SRCALPHA:
+        alpha = pg.surfarray.pixels_alpha(surface)
+        arr = np.concatenate([arr, alpha[:, :, None]], axis=-1)
+    return arr
         
 
 class BaseInfo:
@@ -139,14 +181,12 @@ class BaseInfo:
         def _transfer_pg_surface(v: pg.SurfaceType, to_json: bool, use_gzip: bool):
             """将pygame.SurfaceType转为PSD dict格式(直接返回, 或压缩过的bytes再转为base64)"""
             if to_json:
-                alpha_enable = bool(v.get_flags() & pg.SRCALPHA)
+                arr = make_array_from_surface(v)
                 return {
                     '__psd_type__PG_SURFACE__': type(v).__name__,
                     'use_gzip': use_gzip,
-                    'alpha': alpha_enable,
-                    'size': v.get_size(),
-                    'alpha_data': transfer_bytes_to_base64(pg.surfarray.pixels_alpha(v).tobytes(), use_gzip) if alpha_enable else None,
-                    'data':  transfer_bytes_to_base64(pg.surfarray.array3d(v).tobytes(), use_gzip)
+                    'shape': arr.shape,
+                    'data':  transfer_bytes_to_base64(arr.tobytes(), use_gzip)
                 }
             else:
                 return v
@@ -267,13 +307,8 @@ class BaseInfo:
                 v = eval(f'np.{v["dtype"]}({v["data"]})') # '_' for https://github.com/numpy/numpy/issues/22021
             # pygame.SurfaceType反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
-                w, h = v['size']
-                v['data'] = np.frombuffer(transfer_base64_to_bytes(v['data'], v['use_gzip']), np.uint8).reshape(w, h, 3)
-                if v['alpha']:
-                    v['alpha_data'] = np.frombuffer(transfer_base64_to_bytes(v['alpha_data'], v['use_gzip']), np.uint8).reshape(w, h, 1)
-                    v = make_surface_rgba(np.concatenate([v['data'], v['alpha_data']], axis=-1))
-                else:
-                    v = pg.surfarray.make_surface(v['data'])
+                v['data'] = np.frombuffer(transfer_base64_to_bytes(v['data'], v['use_gzip']), np.uint8).reshape(v['shape'])
+                v = make_surface_from_array(v['data'])
             # pygame.Rect反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
                 v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
@@ -402,29 +437,13 @@ class ColorSur:
         self._update_dots_col()
         return (self.mat * 255.).astype(np.uint8)
 
-
-def make_surface_rgba(array):
-    """
-    Returns a surface made from a [h, w, 4] numpy array with per-pixel alpha
-    NOTE: if pass a array in [w, h, 4] format, you may need pass array.transpose(1, 0, 2)
-    
-    NOTE: copy and edited from https://github.com/pygame/pygame/issues/1244#issuecomment-794617518
-    """
-    if len(array.shape) != 3 or array.shape[2] != 4:
-        if len(array.shape) == 3 and array.shape[2] == 3:
-            mb.put_err('Array is not RGBA but RGB, try pygame.surfarray.make_surface now')
-            return pg.surfarray.make_surface(array)
-        raise ValueError("Array not RGBA or even RGB format")
-    # Create a surface the same width and height as array and with per-pixel alpha.
-    surface = pg.Surface(array.shape[0:2], pg.SRCALPHA, 32)
-    # Copy the rgb part of array to the new surface.
-    pg.pixelcopy.array_to_surface(surface, array[:,:,0:3])
-    # Copy the alpha part of array to the surface using a pixels-alpha view of the surface.
-    surface_alpha = np.array(surface.get_view('A'), copy=False)
-    surface_alpha[:,:] = array[:,:,3]
-    return surface
         
 if __name__ == '__main__':
+    # surface and array
+    surface = pg.Surface((2, 2), pg.SRCALPHA)
+    array = make_array_from_surface(surface)
+    surface2 = make_surface_from_array(array)
+    
     # BaseInfo
     class TestBI(BaseInfo):
         def __init__(self, x: int, y: int):
