@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-17 13:54:07
+LastEditTime: 2023-11-01 22:21:21
 Description: 
 '''
 
@@ -28,16 +28,78 @@ Rect = collections.namedtuple('Rect', ['x', 'y', 'w', 'h'])
 Sur = collections.namedtuple('Sur', ['name', 'sur', 'rect'])
 
 
-def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True):
+def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True) -> str:
+    """
+    Convert a byte data to base64 string.
+
+    Args:
+        data (bytes): The byte data to be converted.
+        use_gzip (bool, optional): Indicates whether to compress the data using gzip. Defaults to True.
+
+    Returns:
+        str: The base64-encoded string.
+    """
     if use_gzip: 
         data = gzip.compress(data)
     return base64.b64encode(data).decode('utf-8')
 
-def transfer_base64_to_bytes(data: str, use_gzip: bool = True):
+def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
+    """
+    Convert a base64 encoded string to bytes.
+
+    Parameters:
+        data (str): The base64 encoded string to convert.
+        use_gzip (bool, optional): Whether to use gzip decompression. Defaults to True.
+
+    Returns:
+        bytes: The converted bytes.
+    """
     data = base64.b64decode(data.encode('utf-8'))
     if use_gzip:
         data = gzip.decompress(data)
     return data
+
+def make_surface_from_array(array: np.ndarray):
+    """
+    Returns a surface made from a [h, w, 4] or [h, w, 3] numpy array with per-pixel alpha
+    NOTE: if pass a array in [w, h, 4] format, you may need pass array.transpose(1, 0, 2)
+    
+    NOTE: copy and edited from https://github.com/pygame/pygame/issues/1244#issuecomment-794617518
+    """
+    if len(array.shape) == 3 and array.shape[2] == 3:
+        return pg.surfarray.make_surface(array)
+    if len(array.shape) != 3 or array.shape[2] != 4:
+        raise ValueError("Array not RGBA or RGB format")
+    # Create a surface the same width and height as array and with per-pixel alpha.
+    surface = pg.Surface(array.shape[0:2], pg.SRCALPHA, 32)
+    # Copy the rgb part of array to the new surface.
+    pg.pixelcopy.array_to_surface(surface, array[:,:,0:3])
+    # Copy the alpha part of array to the surface using a pixels-alpha view of the surface.
+    surface_alpha = np.array(surface.get_view('A'), copy=False)
+    surface_alpha[:,:] = array[:,:,3]
+    return surface
+
+def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
+    """
+    Generate a numpy array from a pygame surface.
+
+    Args:
+        surface (pg.SurfaceType): The pygame surface to convert.
+        copy (bool, optional): Whether to create a copy of the surface or not. Defaults to True.
+
+    Returns:
+        np.ndarray: The numpy array representation of the surface.
+    """
+    # RGB pixels
+    if copy:
+        arr = pg.surfarray.array3d(surface)
+    else:
+        arr = pg.surfarray.pixels3d(surface)
+    # alpha pixels
+    if surface.get_flags() & pg.SRCALPHA:
+        alpha = pg.surfarray.pixels_alpha(surface)
+        arr = np.concatenate([arr, alpha[:, :, None]], axis=-1)
+    return arr
         
 
 class BaseInfo:
@@ -101,19 +163,30 @@ class BaseInfo:
                     '__psd_type__NP_NDARRAY__': type(v).__name__,
                     'use_gzip': use_gzip,
                     'shape': v.shape,
-                    'dtype': str(v.dtype),
+                    'dtype': str(v.dtype) if str(v.dtype) != 'bool' else 'bool_', # https://github.com/numpy/numpy/issues/22021
                     'data':  transfer_bytes_to_base64(v.reshape(-1).tobytes(), use_gzip)
                 }
             else:
                 return v.tolist()
+        def _transfer_np_scallar(v: np.ScalarType, to_json: bool, use_gzip: bool):
+            """将numpy.ScalarType转为PSD dict格式(取item)"""
+            if to_json:
+                return {
+                    '__psd_type__NP_SCALAR__': type(v).__name__,
+                    'dtype': str(v.dtype) if str(v.dtype) != 'bool' else 'bool_', # https://github.com/numpy/numpy/issues/22021
+                    'data':  v.item()
+                }
+            else:
+                return v
         def _transfer_pg_surface(v: pg.SurfaceType, to_json: bool, use_gzip: bool):
             """将pygame.SurfaceType转为PSD dict格式(直接返回, 或压缩过的bytes再转为base64)"""
             if to_json:
+                arr = make_array_from_surface(v)
                 return {
                     '__psd_type__PG_SURFACE__': type(v).__name__,
                     'use_gzip': use_gzip,
-                    'size': v.get_size(),
-                    'data':  transfer_bytes_to_base64(pg.surfarray.array3d(v).tobytes(), use_gzip)
+                    'shape': arr.shape,
+                    'data':  transfer_bytes_to_base64(arr.tobytes(), use_gzip)
                 }
             else:
                 return v
@@ -126,12 +199,22 @@ class BaseInfo:
                 }
             else:
                 return v
+        def _transfer_pg_color(v: pg.Color, to_json: bool, use_gzip: bool):
+            """将pygame.Color dict格式(直接返回, 或压缩过的bytes再转为base64)"""
+            if to_json:
+                return {
+                    '__psd_type__PG_COLOR__': type(v).__name__,
+                    'data': list(v)
+                }
+            else:
+                return v
         def _check_case_transfer(v, to_json, use_gzip):
             """
             检查v的各种受支持的类型并做转换
             - 可json的对象: 直接返回;
             - 继承自BaseInfo的对象: 调用to_dict;
             - numpy.ndarray: 转为bytes后(压缩)再转为base64;
+            - numpy.ScalarType: 直接转为item;
             - pygame.SurfaceType: 转为bytes后(压缩)再转为base64;
             - pygame.Rect: 转为psd格式的dict;
             - Mapping或Sequence: 递归调用_check_transfer;
@@ -145,12 +228,18 @@ class BaseInfo:
             # v是numpy.ndarray, 调用_transfer_np_ndarray方法转换
             elif isinstance(v, np.ndarray):
                 return _transfer_np_ndarray(v, to_json, use_gzip)
+            # v是numpy的标量, 调用_transfer_np_ndarray方法转换
+            elif any(isinstance(v, ty) for ty in [np.int_, np.float_, np.bool_]):
+                return _transfer_np_scallar(v, to_json, use_gzip)
             # v是pygame.SurfaceType, 调用_transfer_pg_surface方法转换
             elif isinstance(v, pg.SurfaceType):
                 return _transfer_pg_surface(v, to_json, use_gzip)
             # v是pygame.Rect, 调用_transfer_pg_rect方法转换
             elif isinstance(v, pg.Rect):
                 return _transfer_pg_rect(v, to_json, use_gzip)
+            # v是pygame.Color, 调用_transfer_pg_color方法转换
+            elif isinstance(v, pg.Color):
+                return _transfer_pg_color(v, to_json, use_gzip)
             # 亦或v是字典类, 并且含有可json或继承自BaseInfo的对象(存在嵌套则递归). 将可json的直接合并, 继承自BaseInfo的对象用to_dict方法转换后合并, 转换为字典, 其余不管.
             elif isinstance(v, collections.abc.Mapping):
                 _v = {}
@@ -213,14 +302,19 @@ class BaseInfo:
             elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
                 v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
                 v = np.frombuffer(v['data'], dtype=eval(f'np.{v["dtype"]}')).reshape(v['shape'])
+            # numpy.ScalarType反序列化
+            elif isinstance(v, Dict) and '__psd_type__NP_SCALAR__' in v:
+                v = eval(f'np.{v["dtype"]}({v["data"]})') # '_' for https://github.com/numpy/numpy/issues/22021
             # pygame.SurfaceType反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_SURFACE__' in v:
-                v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
-                w, h = v['size']
-                v = pg.surfarray.make_surface(np.frombuffer(v['data'], np.uint8).reshape(w, h, 3))
+                v['data'] = np.frombuffer(transfer_base64_to_bytes(v['data'], v['use_gzip']), np.uint8).reshape(v['shape'])
+                v = make_surface_from_array(v['data'])
             # pygame.Rect反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_RECT__' in v:
                 v = pg.Rect(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
+            # pygame.Color反序列化
+            elif isinstance(v, Dict) and '__psd_type__PG_COLOR__' in v:
+                v = pg.Color(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
             # 一般list反序列化
             elif isinstance(v, List):
                 v = [_check_case_transfer(v_i) for v_i in v]
@@ -345,11 +439,16 @@ class ColorSur:
 
         
 if __name__ == '__main__':
+    # surface and array
+    surface = pg.Surface((2, 2), pg.SRCALPHA)
+    array = make_array_from_surface(surface)
+    surface2 = make_surface_from_array(array)
+    
     # BaseInfo
     class TestBI(BaseInfo):
         def __init__(self, x: int, y: int):
             super().__init__()
-            self.i = {(x, y): x+y}
+            self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
     i = TestBI(1, 2)
     d = i.to_dict(True, True, True)
     i2 = TestBI(-1, -2).from_dict(d)
