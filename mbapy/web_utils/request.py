@@ -518,6 +518,10 @@ class Browser:
             sleep_before: Union[None, int, float, Tuple[int, int]] = None,
             sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5)):
         return self.browser.get(url)
+    
+    def find_elements(self, element: str, by: str = 'xpath'):
+        by = self._get_by(by)
+        return self.browser.find_elements(by, element)
         
     def execute_script(self, script: str, *args):
         return self.browser.execute_script(script, *args)
@@ -638,6 +642,24 @@ class Browser:
             return put_err(f'Not implemented with executor {executor},\
                 do nothing and return None')
 
+
+__all__ = [
+    'random_sleep',
+    'get_requests_retry_session',
+    'get_url_page',
+    'get_url_page_s',
+    'get_url_page_b',
+    'get_url_page_se',
+    'get_browser',
+    'add_cookies',
+    'transfer_str2by',
+    'wait_for_amount_elements',
+    'send_browser_key',
+    'click_browser',
+    'scroll_browser',
+    'download_streamly',
+    'Browser',
+]
 
 if __name__ == '__main__':
     b = Browser(options=['--no-sandbox'], use_undetected= True)

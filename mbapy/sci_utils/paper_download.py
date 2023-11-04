@@ -60,22 +60,22 @@ def get_clean_doi(doi:str):
         return ''   
 
 def _get_scihub_valid_download_link(link:str):
-        """
-        Generate the valid Sci-Hub download link for the given input link.
-        
-        Parameters:
-            - link (str): The input link for which the valid Sci-Hub download link needs to be generated.
-        
-        Returns:
-            str: The valid Sci-Hub download link.
-        """
-        available_scihub_urls = _update_available_scihub_urls()
-        if not link.startswith('http:'):
-            if link.find('sci-hub') == -1:
-                link = (available_scihub_urls[0]+'/') + link
-            else:
-                link = 'http:' + link
-        return link
+    """
+    Generate the valid Sci-Hub download link for the given input link.
+    
+    Parameters:
+        - link (str): The input link for which the valid Sci-Hub download link needs to be generated.
+    
+    Returns:
+        str: The valid Sci-Hub download link.
+    """
+    available_scihub_urls = _update_available_scihub_urls()
+    if not link.startswith('http:'):
+        if link.find('sci-hub') == -1:
+            link = (available_scihub_urls[0]+'/') + link
+        else:
+            link = 'http:' + link
+    return link
 
 
 def _download_from_scihub_webpage(webpage:requests.Response, proxies = None, try_times = 3):
@@ -226,6 +226,19 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
     result['file_name'] = file_name
     result['file_path'] = file_path
     return result
+    
+
+__all__ = [
+    'session',
+    '_get_available_scihub_urls',
+    '_update_available_scihub_urls',
+    'get_clean_doi',
+    '_get_scihub_valid_download_link',
+    'download_from_scihub_by_doi',
+    'download_from_scihub_by_title',
+    'download_by_scihub',
+]    
+
     
 if __name__ == '__main__':
     # dev code

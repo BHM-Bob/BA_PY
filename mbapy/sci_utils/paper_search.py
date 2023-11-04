@@ -315,6 +315,15 @@ def get_reference_by_doi(doi:str):
         return put_err(f'can not retrive from crossref with doi:{doi}, return None', None)
 
 
+__all__ = [
+    'search_IF',
+    'search_by_baidu',
+    'search_by_pubmed',
+    'search_by_wos',
+    'search',
+    'get_reference_by_doi',
+]
+
 if __name__ == '__main__':
     # dev code
     from mbapy.file import read_json

@@ -1,12 +1,10 @@
 '''
 Date: 2023-07-07 20:51:46
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-17 21:18:03
+LastEditTime: 2023-11-04 19:15:35
 FilePath: \BA_PY\mbapy\paper.py
 Description: 
 '''
-import os
-import re
 from typing import Dict, List
 
 import requests
@@ -14,22 +12,17 @@ import rispy
 
 if __name__ == '__main__':
     # dev mode
-    import mbapy.web as web
-    from mbapy.base import *
-    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
-                            replace_invalid_path_chr)
+    from mbapy.base import check_parameters_path, parameter_checker
+    # Assembly of functions
     from mbapy.sci_utils.paper_download import *
     from mbapy.sci_utils.paper_parse import *
-    # Assembly of functions
     from mbapy.sci_utils.paper_search import *
 else:
     # release mode
-    from . import web
-    from .base import *
-    from .file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
+    from .base import check_parameters_path, parameter_checker
+    # Assembly of functions
     from .sci_utils.paper_download import *
     from .sci_utils.paper_parse import *
-    # Assembly of functions
     from .sci_utils.paper_search import *
 
 
@@ -59,7 +52,8 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
 if __name__ == '__main__':
     # dev code
     from mbapy.base import rand_choose
-    from mbapy.file import convert_pdf_to_txt, read_json
+    from mbapy.file import (convert_pdf_to_txt, read_json,
+                            replace_invalid_path_chr)
 
     # RIS parse
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
