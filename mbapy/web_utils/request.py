@@ -365,8 +365,8 @@ ElementType = selenium.webdriver.remote.webelement.WebElement
 
 def BrowserActionWarpper(func):
     @wraps(func)
-    def core_wrapper(self, *args, sleep_before: Union[None, int, float, tuple[int, int]] = None,
-                     sleep_after: Union[None, int, float, tuple[int, int]] = (3, 1), **kwargs):
+    def core_wrapper(self, *args, sleep_before: Union[None, int, float, Tuple[int, int]] = None,
+                     sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1), **kwargs):
         if sleep_before is not None:
             if isinstance(sleep_before, int) or isinstance(sleep_before, float):
                 random_sleep(sleep_before+1, sleep_before-1)
@@ -385,8 +385,8 @@ def BrowserElementActionWarpper(func):
     @wraps(func)
     def core_wrapper(self, *args, element: Union[None, str, ElementType], by: str = 'xpath',
                      executor: str = 'JS', time_out: int = 5,
-                     multi_idx: int = 0, sleep_before: Union[None, int, float, tuple[int, int]] = None,
-                     sleep_after: Union[None, int, float, tuple[int, int]] = (3, 1), **kwargs):
+                     multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None,
+                     sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1), **kwargs):
         if element is None:
             element = 'document.body'
         else:
@@ -436,8 +436,8 @@ class Browser:
         
     @BrowserActionWarpper
     def get(self, url: str,
-            sleep_before: Union[None, int, float, tuple[int, int]] = None,
-            sleep_after: Union[None, int, float, tuple[int, int]] = (10, 5)):
+            sleep_before: Union[None, int, float, Tuple[int, int]] = None,
+            sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5)):
         return self.browser.get(url)
         
     def execute_script(self, script: str, *args):
@@ -446,8 +446,8 @@ class Browser:
     @BrowserElementActionWarpper
     def click(self, element: Union[str, ElementType], by: str = 'xpath',
               executor: str = 'element', time_out: int = 5, multi_idx: int = 0,
-              sleep_before: Union[None, int, float, tuple[int, int]] = None,
-              sleep_after: Union[None, int, float, tuple[int, int]] = (3, 1)):
+              sleep_before: Union[None, int, float, Tuple[int, int]] = None,
+              sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
         if executor == 'element':
             element.click()
         elif executor == 'ActionChains':
@@ -458,8 +458,8 @@ class Browser:
     @BrowserElementActionWarpper
     def send_key(self, key, element: Union[str, ElementType], by: str = 'xpath',
               executor: str = 'element', time_out: int = 5, multi_idx: int = 0,
-              sleep_before: Union[None, int, float, tuple[int, int]] = None,
-              sleep_after: Union[None, int, float, tuple[int, int]] = (3, 1)):
+              sleep_before: Union[None, int, float, Tuple[int, int]] = None,
+              sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
         if executor == 'element':
             element.send_key(key)
         elif executor == 'ActionChains':
@@ -471,8 +471,8 @@ class Browser:
     def scroll_percent(self, dx: Union[str, float], dy: Union[str, float], duration: int,
                    element: Union[None, str, ElementType], by: str = 'xpath',
                    executor: str = 'JS', time_out: int = 5, multi_idx: int = 0,
-                   sleep_before: Union[None, int, float, tuple[int, int]] = None,
-                   sleep_after: Union[None, int, float, tuple[int, int]] = (3, 1)):
+                   sleep_before: Union[None, int, float, Tuple[int, int]] = None,
+                   sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
         if executor == 'JS':
             # get _get_scroll_, support bottom and int
             if dx == 'bottom':
@@ -501,7 +501,7 @@ class Browser:
                     scroll_per_frame = last_len / last_frames
                     self.execute_script("arguments[0].scrollTo(arguments[1], arguments[2]);",
                                         element, int(scroll_per_frame[0]), int(scroll_per_frame[1]))
-                    time.sleep(1 / 10)  # 等待1/10秒，模拟每秒10帧
+                    time.sleep(1 / 15)  # 等待1/15秒
         else:
             return put_err(f'Not implemented with executor {executor},\
                 do nothing and return None')
@@ -509,7 +509,7 @@ class Browser:
 
 if __name__ == '__main__':
     b = Browser(options=['--no-sandbox'], use_undetected= True)
-    b.get('https://sci-hub.ren/', sleep_after=5)
-    b.scroll_percent(0, 1, 3, element='//*[@id="info"]')
+    b.get('https://sci-hub.ren/', sleep_after=3)
+    b.scroll_percent(0, 0.5, 5, element='//*[@id="info"]')
     b.send_key('mRNA Vaccine', element = '//*[@id="request"]')
     b.click(element = '//*[@id="enter"]/button')

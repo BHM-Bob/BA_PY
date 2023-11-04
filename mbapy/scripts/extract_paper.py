@@ -1,0 +1,58 @@
+'''
+Date: 2023-08-03 19:54:12
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2023-09-06 10:01:09
+Description: 
+'''
+import argparse
+import os
+
+os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'True'
+import mbapy.web as web
+from mbapy.base import *
+from mbapy.file import *
+from mbapy.paper import *
+from tqdm import tqdm
+
+
+if __name__ == '__main__':
+    args_paser = argparse.ArgumentParser()
+    args_paser.add_argument("-i", "--input", type=str, help="paper(pdf) file directory")
+    args_paser.add_argument("-o", "--output", type=str, default='_mbapy_extract_paper.json', help="output file name")
+    args_paser.add_argument("-b", "--backend", type=str, default='pdfminer', help="paper(pdf) file directory")
+    args = args_paser.parse_args()
+    
+    args.input = args.ris.replace('"', '').replace('\'', '')
+    pdf_paths = glob(os.path.join(args.input, '*.pdf'))
+    
+    put_log(f'get args: input: {args.input}')
+    put_log(f'get args: output: {args.output}')
+    put_log(f'get args: backend: {args.backend}')
+    put_log('downloading papers from SCIHUB, Enter e to simply stop.')
+        
+    bar =tqdm(total=len(pdf_paths))
+    web.launch_sub_thread()
+    sum_has_bookmarks = 0
+    data = {}
+    for pdf_path in pdf_paths:
+        try:
+            bookmarks = get_english_part_of_bookmarks(get_section_bookmarks(pdf_path))
+            pdf_text = convert_pdf_to_txt(pdf_path, backend = args.backend)\
+                .replace('\u00a0', ' ').replace('-\n', '').replace('  ', ' ')
+            pdf_data = format_paper_from_txt(pdf_text, bookmarks)
+            if pdf_data is not None:
+                data[pdf_path.split('/')[-1]] = pdf_data
+                sum_has_bookmarks += 1
+        except:
+            try:
+                pdf_text = convert_pdf_to_txt(pdf_path, backend = args.backend)\
+                    .replace('\u00a0', ' ').replace('-\n', '').replace('  ', ' ')
+                data[pdf_path.split('/')[-1]] = pdf_text
+            except:
+                put_err(f'can not parse pdf: {pdf_path}, skip.')
+        bar.update(1)
+        if web.statues_que_opts(web.statuesQue, 'quit', 'getValue'):
+            break
+    save_json(os.path.join(args.input, args.output), data)
+    put_log(f'sum has bookmarks:{sum_has_bookmarks}')
