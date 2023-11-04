@@ -65,10 +65,14 @@ if __name__ == "__main__":
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
     args_paser.add_argument("-r", "--ref", action="store_false", help="enable ref mode to download refrences")
+    args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
     args = args_paser.parse_args()
     
     args.ris = args.ris.replace('"', '').replace('\'', '')
     args.out = args.ris.replace('"', '').replace('\'', '')
+    
+    if not args.log:
+        base.Configs.err_warning_level == 999
     
     infos = paper.parse_ris(args.ris, '')
     records_path = os.path.join(args.out, '_records.json')
@@ -80,6 +84,7 @@ if __name__ == "__main__":
     base.put_log(f'get args: ris: {args.ris}')
     base.put_log(f'get args: out: {args.out}')
     base.put_log(f'get args: ref: {args.ref}')
+    base.put_log(f'get args: log: {args.log}')
     base.put_log('downloading papers from SCIHUB, Enter e to stop and save session.')
     prog_bar = tqdm.tqdm(desc="downloading papers", total= len(infos))
     for info in infos:
