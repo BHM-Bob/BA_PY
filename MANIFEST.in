@@ -1,1 +1,3 @@
 include requirements.txt
+include mbapy/storage/stats.dll
+include mbapy/storage/libstats.so

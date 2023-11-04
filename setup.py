@@ -68,8 +68,7 @@ setup(
     
     packages = find_packages(exclude=["test"]),
     
-    include_package_data = True,
-    package_data= {'mbapy': ['storage/stats.dll', 'storage/libstats.so']},
+    include_package_data = True, # define in MANIFEST.in file
     platforms = "any",
     
     install_requires=requirements,
@@ -78,4 +77,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.3.0.tar.gz
+# twine upload dist/mbapy-0.4.0.tar.gz
