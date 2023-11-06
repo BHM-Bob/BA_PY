@@ -38,55 +38,70 @@ The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob
 # contain  
 ## mbapy python package  
 #### \_\_version\_\_  
-*some version info*
+*some version info*  
 #### base  
+*some utils for easier coding*
 
 #### file
+##### image
+*imgae utils*, including reading, saving and process a image into a feature tensor via pytorch.  
+##### video
+*video utils*, including extract frames or unique frames from a video.  
 
 #### plot
-*pandas.dataFrame utils for plot and some simple plot based on plt*
+*pandas.dataFrame utils for plot and some simple plot based on plt*  
 
 #### web
-*utils for web-crawler*
+*utils for web-crawler*  
+##### request
+*get a web hyml page or a selenium browser warpper for easier usage*.  
+##### parse
+*utils for parsing html*  
+##### task
+*small task manager*  
 
 #### stats
-
+##### cluster
+*BAKmeans, KOptim, KBayesian from KMeans, and a func for many cluster*  
 ##### df
-*pandas.dataFrame utils for stats*
-
+*pandas.dataFrame utils for stats*  
 ##### reg
-*regression*
-
+*regression*  
 ##### test
-*some test func(using scipy and mostly give a support for mbapy-style data input)*
+*some test func(using scipy and mostly give a support for mbapy-style data input)*  
 
 #### dl-torch
-*pytorch utils for deeplearning*
+*pytorch utils for deeplearning*  
 ##### bb
-*basic blocks : tiny network structures*
+*basic blocks : tiny network structures*  
 ##### data
-*utils for dataset loading*
+*utils for dataset loading*  
 ##### loss
-*some loss function*
+*some loss function*  
 ##### m
-*model : deeplearning model constructed with basic blocks*
+*model : deeplearning model constructed with basic blocks*  
 ##### utils
-*deeplearning training utils*
-##### paper
+*deeplearning training utils*  
 
+#### paper
+*sci-paper utils, contains paper searching, downloading and parsing*  
+##### paper_search
+*search papers via pubmed, baidu xueshu, wos*  
+##### paper_download
+*download papers via scihub*  
+##### paper_parse
+*parse paper from a pdf file into a dict of each sections*  
 
 ## examples
 #### file
-*some file utils things*
+*some file utils things*  
 
 #### plot
-1. stack bar plot with hue style
-
-#### torch
-1. seq2seq core from bentrevett/pytorch-seq2seq
+1. stack bar plot with hue style  
 
 #### web/crawler
 1. chaoxin ppt multi threads downloader (jpg->pdf)
 2. wujin search http://www.basechem.org
 3. chemSub search http://chemsub.online.fr
+4. cnipa https://pss-system.cponline.cnipa.gov.cn/seniorSearch
 
