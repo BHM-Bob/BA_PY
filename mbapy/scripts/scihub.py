@@ -7,6 +7,7 @@ Description: try to download all papers in the RIS file
 import argparse
 import os
 import random
+import sys
 import time
 from typing import Any, Dict
 
@@ -62,6 +63,14 @@ def download_center_paper_session(dir:str, info: Dict[str, str], records:Record,
         info.update(result)
         records.center_paper[result['doi']] = info
 
+def handle_exception(exc_type, exc_value, exc_traceback, records):
+    print("Exception occurred!, try saving records.")
+    try:
+        records.to_json(records_path)
+    except:
+        print("Failed to save records, simply exit.")
+        exit(1)
+
 if __name__ == "__main__":
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
@@ -72,7 +81,7 @@ if __name__ == "__main__":
     
     args.ris = args.ris.replace('"', '').replace('\'', '')
     args.out = args.out.replace('"', '').replace('\'', '')
-    if base.check_parameters_path(args.out):
+    if not base.check_parameters_path(args.out):
         os.makedirs(args.out)
     
     if not args.log:
@@ -83,6 +92,7 @@ if __name__ == "__main__":
     records = Record()
     if base.check_parameters_path(records_path):
         records.from_json(records_path)
+    sys.excepthook = lambda et, ev, tb: handle_exception(et, ev, tb, records)
     
     web.launch_sub_thread()
     base.put_log(f'get args: ris: {args.ris}')
@@ -98,7 +108,9 @@ if __name__ == "__main__":
             refs = paper.get_reference_by_doi(info['doi'])
             if refs is not None and 'refs' in records.center_paper[info['doi']]:
                 # NOTE: 有可能一个doi在一个RIS文件中出现了两次，所以此处为了防止第二次出现时报错，先判断是否有key
-                if records.center_paper[info['doi']]['refs'] is None or len(records.center_paper[info['doi']]['refs']) != len(refs):
+                if records.center_paper[info['doi']]['refs'] is None:
+                    download_refs(records_path, refs, records)
+                elif len(records.center_paper[info['doi']]['refs']) != len(refs):
                     download_refs(records_path, records.center_paper[info['doi']]['refs'], records)
                 
         prog_bar.update(1)
