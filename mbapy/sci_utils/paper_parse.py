@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-17 20:41:42
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-17 20:42:36
+LastEditTime: 2023-11-04 19:20:18
 FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
@@ -269,6 +269,16 @@ def format_paper_from_txt(content:str,
     for key in struct:
         struction[key] = get_section_from_paper(content, key, struct)
     return struction
+
+
+__all__ = [
+    'has_sci_bookmarks',
+    'get_sci_bookmarks_from_pdf',
+    'get_section_bookmarks',
+    'get_english_part_of_bookmarks',
+    'get_section_from_paper',
+    'format_paper_from_txt'
+]
 
 if __name__ == '__main__':
     # dev code

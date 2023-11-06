@@ -1,20 +1,21 @@
 '''
 Date: 2023-07-14 19:29:19
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-06 10:00:22
+LastEditTime: 2023-11-04 20:06:25
 Description: try to download all papers in the RIS file
 '''
 import argparse
 import os
 import random
-import requests
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
+import requests
 import tqdm
+
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'True'
-from mbapy import base, paper, web, file, game
+from mbapy import base, file, game, paper, web
 
 
 class Record(game.BaseInfo):
@@ -43,7 +44,8 @@ def download_refs(dir:str, refs:Dict[str, Any], records:Record):
     return refs
         
 # @base.parameter_checker(raise_err=False, dir = base.check_parameters_path)
-def download_center_paper_session(dir:str, doi:str, title:str, records:Record, is_download_ref: bool = False):
+def download_center_paper_session(dir:str, info: Dict[str, str], records:Record,
+                                  is_download_ref: bool = False):
     result = paper.download_by_scihub(dir, info['doi'], info['title'])
     if result is not None and 'doi' in result:
         time.sleep(5 + random.randint(5, 10))
@@ -69,7 +71,7 @@ if __name__ == "__main__":
     args = args_paser.parse_args()
     
     args.ris = args.ris.replace('"', '').replace('\'', '')
-    args.out = args.ris.replace('"', '').replace('\'', '')
+    args.out = args.out.replace('"', '').replace('\'', '')
     
     if not args.log:
         base.Configs.err_warning_level == 999
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     prog_bar = tqdm.tqdm(desc="downloading papers", total= len(infos))
     for info in infos:
         if info['doi'] not in records.center_paper:
-            download_center_paper_session(args.out, info['doi'], info['title'], records, args.ref)
+            download_center_paper_session(args.out, info, records, args.ref)
         else:
             refs = paper.get_reference_by_doi(info['doi'])
             if refs is not None and 'refs' in records.center_paper[info['doi']]:

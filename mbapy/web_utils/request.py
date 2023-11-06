@@ -1,21 +1,20 @@
-from typing import List, Union, Tuple
-from functools import wraps
-
 import http.cookiejar
 import random
-import requests
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from functools import wraps
+from typing import List, Tuple, Union
 
+import numpy as np
+import requests
+import selenium
 from bs4 import BeautifulSoup
 from lxml import etree
-import selenium
-import numpy as np
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -24,14 +23,11 @@ if __name__ == '__main__':
                             check_parameters_path, put_err)
     from mbapy.file import (opts_file, read_excel, read_json, save_excel,
                             save_json)
-
-    # functon assembly
 else:
     from ..base import (Configs, check_parameters_len, check_parameters_path,
                         put_err)
     from ..file import opts_file, read_excel, read_json, save_excel, save_json
-
-    # functon assembly
+    
 
 def random_sleep(max_t: int = 10, min_t: int = 1):
     time.sleep(random.randint(min_t, max_t))
@@ -42,6 +38,18 @@ def get_requests_retry_session(
     status_forcelist=(500, 502, 504),
     session=None,
 ):
+    """
+    Create and return a session object with automatic request retry functionality.
+
+    Parameters:
+        - retries (int): The number of times to retry a request in case of failure. Defaults to 3.
+        - backoff_factor (float): The factor by which the backoff time between retries increases. Defaults to 0.3.
+        - status_forcelist (tuple): The HTTP status codes that should trigger a retry. Defaults to (500, 502, 504).
+        - session (Session): An existing session object to use. If not provided, a new session object will be created.
+
+    Returns:
+    - Session: The session object with retry functionality.
+    """
     from requests.adapters import HTTPAdapter
     from requests.packages.urllib3.util.retry import Retry
     session = session or requests.Session()
@@ -346,6 +354,17 @@ def scroll_browser(browser, scroll='bottom', duration=0):
 
 
 def download_streamly(url: str, path: str, session):
+    """
+    Downloads a file from the given URL to the specified path using a streaming approach.
+
+    Parameters:
+        url (str): The URL of the file to be downloaded.
+        path (str): The path where the downloaded file will be saved.
+        session (object): The session object used for making the HTTP request.
+
+    Returns:
+        None
+    """
     from tqdm import tqdm
     resp = session.get(url, stream=True)
     total = int(resp.headers.get('content-length', 0))
@@ -364,6 +383,23 @@ def download_streamly(url: str, path: str, session):
 ElementType = selenium.webdriver.remote.webelement.WebElement
 
 def BrowserActionWarpper(func):
+    """
+    Decorator function and adds sleep functionality before and after the function call.
+
+    Warpped functon args:
+        self: The instance of the class that the function is a method of.
+        *args: Positional arguments to be passed to the wrapped function.
+        sleep_before (Union[None, int, float, Tuple[int, int]]): Optional. The amount of time to sleep before the function call.
+            If an int or float, the function will sleep for a random amount of time between `sleep_before-1` and `sleep_before+1`.
+            If a tuple of two ints, the function will sleep for a random amount of time between the two values in the tuple.
+        sleep_after (Union[None, int, float, Tuple[int, int]]): Optional. The amount of time to sleep after the function call.
+            If an int or float, the function will sleep for a random amount of time between `sleep_after-1` and `sleep_after+1`.
+            If a tuple of two ints, the function will sleep for a random amount of time between the two values in the tuple.
+        **kwargs: Keyword arguments to be passed to the wrapped function.
+
+    Returns:
+        The return value of the wrapped function.
+    """
     @wraps(func)
     def core_wrapper(self, *args, sleep_before: Union[None, int, float, Tuple[int, int]] = None,
                      sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1), **kwargs):
@@ -382,6 +418,30 @@ def BrowserActionWarpper(func):
     return core_wrapper
 
 def BrowserElementActionWarpper(func):
+    """
+    Decorator function, find the element and adds sleep functionality before and after the function call.
+
+    Warpped functon args:
+        - self: The instance of the class.
+        - *args: Positional arguments passed to the wrapped function.
+        - element (Union[None, str, ElementType]): The element to locate on the page. Defaults to None.
+        - by (str): The locator strategy to use. Defaults to 'xpath'.
+        - executor (str): The script executor to use. Defaults to 'JS'.
+        - time_out (int): The maximum time to wait for the element to be present. Defaults to 5.
+        - multi_idx (int): The index of the element to interact with in case multiple elements are found. Defaults to 0.
+        - sleep_before (Union[None, int, float, Tuple[int, int]]): The sleep interval before executing the wrapped function. 
+            Defaults to None.
+        - sleep_after (Union[None, int, float, Tuple[int, int]]): The sleep interval after executing the wrapped function. 
+            Defaults to (3, 1).
+        - **kwargs: Keyword arguments passed to the wrapped function.
+
+    Returns:
+        The return value of the wrapped function.
+
+    Raises:
+        - TypeError: If `element` is not of type `None`, `str`, or `ElementType`.
+        - TimeoutException: If the element is not found within the specified time out.
+    """
     @wraps(func)
     def core_wrapper(self, *args, element: Union[None, str, ElementType], by: str = 'xpath',
                      executor: str = 'JS', time_out: int = 5,
@@ -417,7 +477,26 @@ def BrowserElementActionWarpper(func):
     return core_wrapper
 
 class Browser:
-    #
+    """
+    Browser class for web automation.
+    
+    Attributes:
+        - browser_name (str): The name of the browser.
+        - options (List[str]): A list of additional options to be passed to the browser.
+        - use_undetected (bool): Whether to use undetected_chromedriver or not.
+        - browser (Browser): The Selenium browser instance.
+        
+    Methods:
+        - get(self, url: str, sleep_before: Union[None, int, float, Tuple[int, int]] = None, sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5))
+        - execute_script(self, script: str, *args)
+        - click(self, element: Union[str, ElementType], by: str = 'xpath', executor: str = 'element', 
+                time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, 
+                sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))
+        - send_key(self, key, element: Union[str, ElementType], by: str = 'xpath', executor: str = 'element', 
+                time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, 
+                sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))
+        - scroll_percent(self, dx: Union[str, float], dy: Union[str, float], duration: int,
+    """
     def __init__(self, browser_name: str = 'Chrome',
                  options: List[str] = ['--no-sandbox', '--headless',
                                        f"--user-agent={Configs.web.chrome_driver_path:s}"],
@@ -439,6 +518,10 @@ class Browser:
             sleep_before: Union[None, int, float, Tuple[int, int]] = None,
             sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5)):
         return self.browser.get(url)
+    
+    def find_elements(self, element: str, by: str = 'xpath'):
+        by = self._get_by(by)
+        return self.browser.find_elements(by, element)
         
     def execute_script(self, script: str, *args):
         return self.browser.execute_script(script, *args)
@@ -448,6 +531,22 @@ class Browser:
               executor: str = 'element', time_out: int = 5, multi_idx: int = 0,
               sleep_before: Union[None, int, float, Tuple[int, int]] = None,
               sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
+        """
+        Clicks on a specified element using different executors.
+
+        Args:
+            - element (Union[str, ElementType]): The element to be clicked. It can be either a string representing the element's xpath or the actual element object.
+                - str: xpath, CSS, class expression to find the element.
+                - ElementType: The actual element object.
+            - by (str, optional): The locator strategy to find the element. Defaults to 'xpath'.
+                - 'xpath', 'css', 'class': The locator strategy to find the element.
+            - executor (str, optional): The executor to be used for the click operation. 
+                - 'element', 'ActionChains', or 'JS'. Defaults to 'element'.
+            - time_out (int, optional): The maximum time to wait for the element to be clickable. Defaults to 5.
+            - multi_idx (int, optional): The index of the element to be clicked if there are multiple elements found with the same locator. Defaults to 0.
+            - sleep_before (Union[None, int, float, Tuple[int, int]], optional): The time to sleep before clicking the element. It can be None, an integer or float representing the sleep time in seconds, or a tuple representing the sleep time range in seconds. Defaults to None.
+            - sleep_after (Union[None, int, float, Tuple[int, int]], optional): The time to sleep after clicking the element. It can be None, an integer or float representing the sleep time in seconds, or a tuple representing the sleep time range in seconds. Defaults to (3, 1).
+        """
         if executor == 'element':
             element.click()
         elif executor == 'ActionChains':
@@ -460,6 +559,24 @@ class Browser:
               executor: str = 'element', time_out: int = 5, multi_idx: int = 0,
               sleep_before: Union[None, int, float, Tuple[int, int]] = None,
               sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
+        """
+        Performs a key press action on a specified element.
+
+        Args:
+            - key (str): The key to be pressed.
+            - element (Union[str, ElementType]): The element to be clicked. It can be either a string representing the element's xpath or the actual element object.
+                - str: xpath, CSS, class expression to find the element.
+                - ElementType: The actual element object.
+            - by (str, optional): The locator strategy to find the element. Defaults to 'xpath'.
+                - 'xpath', 'css', 'class': The locator strategy to find the element.
+            - executor (str, optional): The executor to be used for the click operation. 
+                - 'element', 'ActionChains', or 'JS'. Defaults to 'element'.
+            - executor (str, optional): The method of execution for the key press action. Valid options are 'element', 'ActionChains', and 'JS'. Defaults to 'element'.
+            - time_out (int, optional): The maximum amount of time (in seconds) to wait for the element to be located. Defaults to 5.
+            - multi_idx (int, optional): The index of the element in case multiple elements match the locator. Defaults to 0.
+            - sleep_before (Union[None, int, float, Tuple[int, int]], optional): The amount of time to sleep before executing the action. This can be None, an integer or float representing the number of seconds, or a tuple representing a range of seconds. Defaults to None.
+            - sleep_after (Union[None, int, float, Tuple[int, int]], optional): The amount of time to sleep after executing the action. This can be None, an integer or float representing the number of seconds, or a tuple representing a range of seconds. Defaults to (3, 1).
+        """
         if executor == 'element':
             element.send_key(key)
         elif executor == 'ActionChains':
@@ -473,6 +590,25 @@ class Browser:
                    executor: str = 'JS', time_out: int = 5, multi_idx: int = 0,
                    sleep_before: Union[None, int, float, Tuple[int, int]] = None,
                    sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
+        """
+        Scroll the element by a specific percentage of its scroll width and scroll height.
+
+        Args:
+            - dx (Union[str, float]): The percentage to scroll in the horizontal direction. If 'bottom' is passed, scroll to the bottom of the element.
+            - dy (Union[str, float]): The percentage to scroll in the vertical direction. If 'bottom' is passed, scroll to the bottom of the element.
+            - duration (int): The duration of the scrolling animation in seconds.
+            - element (Union[str, ElementType]): The element to be clicked. It can be either a string representing the element's xpath or the actual element object.
+                - str: xpath, CSS, class expression to find the element.
+                - ElementType: The actual element object.
+            - by (str, optional): The locator strategy to find the element. Defaults to 'xpath'.
+                - 'xpath', 'css', 'class': The locator strategy to find the element.
+            - executor (str, optional): The executor to be used for the click operation. 
+                - now only support 'JS'.
+            - time_out (int): The maximum time to wait for the element to be located in seconds. Defaults to 5.
+            - multi_idx (int): The zero-based index of the element to scroll if multiple elements are located. Defaults to 0.
+            - sleep_before (Union[None, int, float, Tuple[int, int]]): The time to sleep before scrolling in seconds. Defaults to None.
+            - sleep_after (Union[None, int, float, Tuple[int, int]]): The time to sleep after scrolling in seconds. Defaults to (3, 1).
+        """
         if executor == 'JS':
             # get _get_scroll_, support bottom and int
             if dx == 'bottom':
@@ -506,6 +642,24 @@ class Browser:
             return put_err(f'Not implemented with executor {executor},\
                 do nothing and return None')
 
+
+__all__ = [
+    'random_sleep',
+    'get_requests_retry_session',
+    'get_url_page',
+    'get_url_page_s',
+    'get_url_page_b',
+    'get_url_page_se',
+    'get_browser',
+    'add_cookies',
+    'transfer_str2by',
+    'wait_for_amount_elements',
+    'send_browser_key',
+    'click_browser',
+    'scroll_browser',
+    'download_streamly',
+    'Browser',
+]
 
 if __name__ == '__main__':
     b = Browser(options=['--no-sandbox'], use_undetected= True)

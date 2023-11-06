@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-03 19:54:12
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-06 10:01:09
+LastEditTime: 2023-11-04 19:54:16
 Description: 
 '''
 import argparse
@@ -9,12 +9,12 @@ import os
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'True'
+from tqdm import tqdm
+
 import mbapy.web as web
 from mbapy.base import *
 from mbapy.file import *
 from mbapy.paper import *
-from tqdm import tqdm
-
 
 if __name__ == '__main__':
     args_paser = argparse.ArgumentParser()

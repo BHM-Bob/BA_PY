@@ -87,3 +87,9 @@ def parse_xpath_info(xpath_search_key:str, xpath_obj, is_single: bool = True):
         return get_default_for_bool(search_result, [''])[0].strip()
     return get_default_for_bool(search_result, [''])
 
+
+__all__ = [
+    'get_between',
+    'get_between_re',
+    'parse_xpath_info',
+]
