@@ -66,12 +66,14 @@ if __name__ == "__main__":
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
-    args_paser.add_argument("-r", "--ref", action="store_false", help="enable ref mode to download refrences")
+    args_paser.add_argument("-r", "--ref", action="store_true", help="enable ref mode to download refrences")
     args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
     args = args_paser.parse_args()
     
     args.ris = args.ris.replace('"', '').replace('\'', '')
     args.out = args.out.replace('"', '').replace('\'', '')
+    if base.check_parameters_path(args.out):
+        os.makedirs(args.out)
     
     if not args.log:
         base.Configs.err_warning_level == 999
@@ -96,7 +98,7 @@ if __name__ == "__main__":
             refs = paper.get_reference_by_doi(info['doi'])
             if refs is not None and 'refs' in records.center_paper[info['doi']]:
                 # NOTE: 有可能一个doi在一个RIS文件中出现了两次，所以此处为了防止第二次出现时报错，先判断是否有key
-                if len(records.center_paper[info['doi']]['refs']) != len(refs):
+                if records.center_paper[info['doi']]['refs'] is None or len(records.center_paper[info['doi']]['refs']) != len(refs):
                     download_refs(records_path, records.center_paper[info['doi']]['refs'], records)
                 
         prog_bar.update(1)
