@@ -9,6 +9,7 @@ scripts_info = {
             'detailed': 
                 """
                 If it can be downloaded, download and store it into session.
+                Example: python -m mbapy.scripts.scihub -i "E:\\peptide.ris" -o "E:\\peptide papers" -log
                 """,
         },
     'extract_paper':
@@ -17,6 +18,7 @@ scripts_info = {
             'detailed': 
                 """
                 If it can be parsed to sections, output each sections separatly, else all text content.
+                Example: python -m mbapy.scripts.extract_paper -i "E:\\peptide papers" -log
                 """,
         },
 }

@@ -21,6 +21,7 @@ if __name__ == '__main__':
     args_paser.add_argument("-i", "--input", type=str, help="paper(pdf) file directory")
     args_paser.add_argument("-o", "--output", type=str, default='_mbapy_extract_paper.json', help="output file name")
     args_paser.add_argument("-b", "--backend", type=str, default='pdfminer', help="paper(pdf) file directory")
+    args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
     args = args_paser.parse_args()
     
     args.input = args.input.replace('"', '').replace('\'', '')
@@ -29,7 +30,11 @@ if __name__ == '__main__':
     put_log(f'get args: input: {args.input}')
     put_log(f'get args: output: {args.output}')
     put_log(f'get args: backend: {args.backend}')
-    put_log('downloading papers from SCIHUB, Enter e to simply stop.')
+    put_log(f'get args: log: {args.log}')
+    put_log('extracting papers content, Enter e to simply stop.')
+        
+    if not args.log:
+        Configs.err_warning_level == 999
         
     bar =tqdm(total=len(pdf_paths))
     web.launch_sub_thread()

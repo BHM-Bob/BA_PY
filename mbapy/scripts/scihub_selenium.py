@@ -117,6 +117,8 @@ if __name__ == "__main__":
     # command line path process
     args.ris = args.ris.replace('"', '').replace('\'', '')
     args.out = args.out.replace('"', '').replace('\'', '')
+    if check_parameters_path(args.out):
+        os.makedirs(args.out)
     
     # get available_scihub_urls
     try:
@@ -161,7 +163,7 @@ if __name__ == "__main__":
             refs = get_reference_by_doi(info['doi'])
             if refs is not None and 'refs' in records.center_paper[info['doi']]:
                 # NOTE: 有可能一个doi在一个RIS文件中出现了两次，所以此处为了防止第二次出现时报错，先判断是否有key
-                if len(records.center_paper[info['doi']]['refs']) != len(refs):
+                if records.center_paper[info['doi']]['refs'] is None or len(records.center_paper[info['doi']]['refs']) != len(refs):
                     download_refs(b, records_path, records.center_paper[info['doi']]['refs'], records)
                 
         prog_bar.update(1)
