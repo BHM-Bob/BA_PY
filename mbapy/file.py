@@ -9,7 +9,7 @@ import collections
 import os
 import shutil
 from glob import glob
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import chardet
 
@@ -273,15 +273,15 @@ def save_excel(path:str, obj:List[List[str]], columns:List[str], encoding:str = 
         return True
     return False
 
-def read_excel(path:str, sheet_name:str = None, ignore_head:bool = True,
-                  ignore_first_col:bool = True, invalid_path_return = None):
+def read_excel(path:str, sheet_name:Union[None, str, List[str]] = None, ignore_first_row:bool = False,
+               ignore_first_col:bool = False, invalid_path_return = None, **kwargs):
     """
     Reads an Excel file and returns a pandas DataFrame.
     
     Args:
         path (str): The path to the Excel file.
-        sheet_name (str, optional): The name of the sheet to read. Defaults to None.
-        ignore_head (bool, optional): Whether to ignore the first row (header) of the sheet. Defaults to True.
+        sheet_name (str, list[str], optional): The name of the sheet to read. Defaults to None.
+        ignore_first_row (bool, optional): Whether to ignore the first row (header) of the sheet. Defaults to True.
         ignore_first_col (bool, optional): Whether to ignore the first column of the sheet. Defaults to True.
         invalid_path_return (Any, optional): The value to return if the path is invalid. Defaults to None.
     
@@ -290,13 +290,18 @@ def read_excel(path:str, sheet_name:str = None, ignore_head:bool = True,
             or:
         invalid_path_return (Any): The value specified if the path is invalid.
     """
+    # Forward Compatibility
+    if 'ignore_head' in kwargs:
+        ignore_first_row = kwargs['ignore_head']
+    # if read head
+    header = None if ignore_first_row else 'infer'
+    # read excel
     if os.path.isfile(path):
-        df = pd.read_excel(path, sheet_name)
-        if ignore_head:
-            df = df.iloc[1:]  # 忽略第一行（表头）
-        if ignore_first_col:
-            df = df.iloc[:, 1:]  # 忽略第一列
-        return df
+        df = pd.read_excel(path, sheet_name, header=header)
+        if isinstance(df, dict):
+            return {k:v.iloc[int(ignore_first_row):, int(ignore_first_col):] for k,v in df.items()}
+        else:
+            return df.iloc[int(ignore_first_row):, int(ignore_first_col):]
     return invalid_path_return
 
 def write_sheets(path:str, sheets:Dict[str, pd.DataFrame]):
