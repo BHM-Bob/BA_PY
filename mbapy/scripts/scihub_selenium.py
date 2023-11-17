@@ -6,9 +6,7 @@ Description:
 '''
 import argparse
 import os
-import random
 import sys
-import time
 import urllib
 from typing import Any, Dict
 
@@ -18,7 +16,7 @@ import wget
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'True'
-from mbapy.base import (check_parameters_path, get_storage_path, put_err,
+from mbapy.base import (check_parameters_path, Configs, get_storage_path, put_err,
                         put_log)
 from mbapy.file import get_valid_file_path, opts_file
 from mbapy.game import BaseInfo
@@ -35,19 +33,17 @@ class Record(BaseInfo):
         self.doi: Dict[str, Dict[str, str]] = {} # doi(str) - download_info(Dict[str, str])
         self.center_paper: Dict[str, Dict[str, Any]] = {} # doi(str) - center_paper_info(Dict[str, str|Dict[str, str]])
         
-        
 def download_by_scihub(b: Browser, dir:str, doi: str, avaliable_scihub_url: str):
-    b.get(url = f"{avaliable_scihub_url}/{doi}")
+    try:
+        b.get(url = f"{avaliable_scihub_url}/{doi}")
+    except:
+        return None
     # check if there has captcha
     if b.find_elements('//*[@id="h-captcha"]'):
-        if '--headless' in b.browser.options.arguments:
-            # headless mode, no GUI to let user pass captcha manually, return None
-            return None
-        else:
-            # let user pass captcha manually
-            while b.find_elements('//*[@id="h-captcha"]'):
-                put_log("NOTE: Please pass captcha manually")
-                random_sleep(5, 3)
+        # let user pass captcha manually
+        while b.find_elements('//*[@id="h-captcha"]'):
+            put_log("NOTE: Please pass captcha manually")
+            random_sleep(5, 3)
     # get download link and download
     try:
         doc_ele = b.find_elements('//*[@id="pdf"]')
@@ -56,13 +52,13 @@ def download_by_scihub(b: Browser, dir:str, doi: str, avaliable_scihub_url: str)
             file_name = get_valid_file_path(doi.replace('/', '_') + wget.detect_filename(download_link))
             file_path = os.path.join(dir, file_name)
             try:
-                wget.download(download_link, os.path.join(dir, file_name))
+                wget.download(download_link, file_path)
             except urllib.error.HTTPError:
                 res = session.get(url = download_link, stream=False, timeout=60)
                 if res.text.startswith('%PDF'):
                     opts_file(file_path, 'wb', data = result['res'].content)
-            result = {'file_name': file_name, 'file_path': os.path.join(dir, file_name)}
-            random_sleep(10, 5)
+            result = {'doi': doi, 'file_name': file_name, 'file_path': os.path.join(dir, file_name)}
+            random_sleep(20, 15)
             return result
     except:
         return put_err(f'Failed to download paper from {avaliable_scihub_url}/{doi}', None)
@@ -71,7 +67,6 @@ def download_refs(b: Browser, dir:str, refs:Dict[str, Any], records:Record,
                   available_scihub_url: str):
     for ref_info in refs:
         if 'DOI' in ref_info and ref_info['DOI'] not in records.doi:
-            random_sleep(15, 10)
             try:
                 ref_result = download_by_scihub(b, dir, ref_info['DOI'], available_scihub_url)
             except requests.exceptions.TooManyRedirects as e:
@@ -93,7 +88,6 @@ def download_center_paper_session(b: Browser, dir:str, info: Dict[str, str], rec
     # download center paper
     result = download_by_scihub(b, dir, info['doi'], available_scihub_url)
     if result is not None and 'doi' in result:
-        time.sleep(5 + random.randint(5, 10))
         records.doi[result['doi']] = result
         if is_download_ref:
             # get refs
@@ -108,6 +102,9 @@ def download_center_paper_session(b: Browser, dir:str, info: Dict[str, str], rec
 
 def handle_exception(exc_type, exc_value, exc_traceback, records):
     print("Exception occurred!, try saving records.")
+    print("Exception Type:", str(exc_type))
+    print("Exception Value:", str(exc_value))
+    exc_traceback.print_exc()
     try:
         records.to_json(records_path)
     except:
@@ -127,7 +124,7 @@ if __name__ == "__main__":
     # command line path process
     args.ris = args.ris.replace('"', '').replace('\'', '')
     args.out = args.out.replace('"', '').replace('\'', '')
-    if check_parameters_path(args.out):
+    if not check_parameters_path(args.out):
         os.makedirs(args.out)
     
     # get available_scihub_urls
@@ -136,7 +133,7 @@ if __name__ == "__main__":
     except:
         available_scihub_url = 'https://sci-hub.ren'
         put_err(f"can not get available_scihub_urls, try with {available_scihub_url}")
-    
+
     # parse ris and set records
     infos = parse_ris(args.ris, '')
     records_path = os.path.join(args.out, '_records.json')
@@ -144,11 +141,11 @@ if __name__ == "__main__":
     if check_parameters_path(records_path):
         records.from_json(records_path)
     sys.excepthook = lambda et, ev, tb: handle_exception(et, ev, tb, records)
-        
+
     # check output directory
     if not check_parameters_path(args.out):
         os.makedirs(args.out)
-        
+
     # show args
     put_log(f'get args: ris: {args.ris}')
     put_log(f'get args: out: {args.out}')
@@ -158,11 +155,15 @@ if __name__ == "__main__":
     put_log('downloading papers from SCIHUB, Enter e to stop and save session.')
     
     # setup web server
-    launch_sub_thread()
+    launch_sub_thread(key2action={
+        'save': ('running', records.to_json, [records_path], {})
+    })
     if args.head:
-        b = Browser('Chrome', options=['--no-sandbox'], use_undetected=args.undetected)
+        b = Browser('Chrome', options=['--no-sandbox'], use_undetected=args.undetected,
+                    driver_path=Configs.web.chrome_driver_path)
     else:
-        b = Browser('Chrome', options=['--headless', '--no-sandbox'], use_undetected=args.undetected)
+        b = Browser('Chrome', options=['--headless', '--no-sandbox'], use_undetected=args.undetected,
+                    driver_path=Configs.web.chrome_driver_path)
 
     # download
     prog_bar = tqdm.tqdm(desc="downloading papers", total= len(infos))
@@ -170,14 +171,15 @@ if __name__ == "__main__":
         if info['doi'] not in records.center_paper:
             download_center_paper_session(b, args.out, info, records,
                                           available_scihub_url, args.ref)
-        else:
+        elif args.ref:
             refs = get_reference_by_doi(info['doi'])
             if refs is not None and 'refs' in records.center_paper[info['doi']]:
                 # NOTE: 有可能一个doi在一个RIS文件中出现了两次，所以此处为了防止第二次出现时报错，先判断是否有key
                 if records.center_paper[info['doi']]['refs'] is None:
-                    download_refs(records_path, refs, records)
+                    download_refs(b, args.out, refs, records, available_scihub_url)
                 elif len(records.center_paper[info['doi']]['refs']) != len(refs):
-                    download_refs(records_path, records.center_paper[info['doi']]['refs'], records)
+                    download_refs(b, args.out, records.center_paper[info['doi']]['refs'],
+                                  records, available_scihub_url)
                 
         prog_bar.update(1)
         

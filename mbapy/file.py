@@ -368,13 +368,55 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
         with open(path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
             return '\n'.join([page.extract_text() for page in reader.pages])
-    elif backend == 'pdfminer':        
+    elif backend == 'pdfminer':
         from pdfminer.high_level import extract_text
         return extract_text(path)
     else:
         raise NotImplementedError
+    
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
+from pdfminer.pdftypes import resolve1
+from pdfminer.layout import LAParams
+from pdfminer.pdfinterp import PDFResourceManager
+from pdfminer.pdfinterp import PDFPageInterpreter
+from pdfminer.converter import PDFPageAggregator
+from pdfminer.pdfpage import PDFPage
+from pdfminer.layout import LTTextBoxHorizontal
+
+def extract_links_from_pdf(file_path):
+    document = open(file_path, 'rb')
+    #Create resource manager
+    rsrcmgr = PDFResourceManager()
+    # Set parameters for analysis.
+    laparams = LAParams()
+    # Create a PDF page aggregator object.
+    device = PDFPageAggregator(rsrcmgr, laparams=laparams)
+    interpreter = PDFPageInterpreter(rsrcmgr, device)
+    for page in PDFPage.get_pages(document):
+        links = []
+        interpreter.process_page(page)
+        # 
+        if 'Annots' in page.attrs:
+            annotations = resolve1(page.attrs['Annots'])
+            for annotation in annotations:
+                if annotation.resolve()['Subtype'].name == 'Link':
+                    obj = annotation.doc.getobj(annotation.objid)
+                    obj_dict = obj['A'].resolve()
+                    if obj_dict['S'].name == 'URI':
+                        links.append(obj_dict['URI'])
+                    elif obj_dict['S'].name == 'GoTo':
+                        links.append(obj_dict['D'])
+                    else:
+                        pass
+        # receive the LTPage object for the page.
+        layout = device.get_result()
+        for element in layout:
+            if isinstance(element, LTTextBoxHorizontal):
+                print(element.get_text())
+
 
 if __name__ == '__main__':
     # dev code
-    pass
-        
+    links = extract_links_from_pdf(r'./data_tmp\papers\Laxative effect and mechanism of Tiantian Capsule on loperamide-induced constipation in rats.pdf')
+    convert_pdf_to_txt(r'./data_tmp\papers\A review of the clinical efficacy of linaclotide in irritable bowel syndrome with constipation.pdf')

@@ -65,6 +65,9 @@ def download_center_paper_session(dir:str, info: Dict[str, str], records:Record,
 
 def handle_exception(exc_type, exc_value, exc_traceback, records):
     print("Exception occurred!, try saving records.")
+    print("Exception Type:", str(exc_type))
+    print("Exception Value:", str(exc_value))
+    exc_traceback.print_exc()
     try:
         records.to_json(records_path)
     except:
@@ -104,7 +107,7 @@ if __name__ == "__main__":
     for info in infos:
         if info['doi'] not in records.center_paper:
             download_center_paper_session(args.out, info, records, args.ref)
-        else:
+        elif args.ref:
             refs = paper.get_reference_by_doi(info['doi'])
             if refs is not None and 'refs' in records.center_paper[info['doi']]:
                 # NOTE: 有可能一个doi在一个RIS文件中出现了两次，所以此处为了防止第二次出现时报错，先判断是否有key

@@ -270,6 +270,13 @@ def format_paper_from_txt(content:str,
         struction[key] = get_section_from_paper(content, key, struct)
     return struction
 
+def get_citation_position(content: str, refs: List[Dict[str, str]] = None):
+    # refs是从corssref获取的refs，作为参考文献数目的参考
+    
+    # find with []
+    patten_1 = re.findall('( \[(\d+(-\d+)?)(,)?(\d+(-\d+)?)?\])', content)
+    # find with ()
+    patten_1 = re.findall('( \((\d+(-\d+)?)(,)?(\d+(-\d+)?)?\))', content)
 
 __all__ = [
     'has_sci_bookmarks',

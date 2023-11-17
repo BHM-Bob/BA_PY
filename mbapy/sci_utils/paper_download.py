@@ -222,7 +222,11 @@ def download_by_scihub(dir: str, doi: str = None, title:str = None,
     file_name = file_name.replace('/', ' or ')
     file_name = get_valid_file_path(file_name, valid_path_chr)
     file_path = os.path.join(dir, file_name)
-    opts_file(file_path, 'wb', data = result['res'].content)
+    try:
+        opts_file(file_path, 'wb', data = result['res'].content)
+    except:
+        put_err(f'can not save file: {file_path}, skip and return None.')
+        return None
     result['file_name'] = file_name
     result['file_path'] = file_path
     return result

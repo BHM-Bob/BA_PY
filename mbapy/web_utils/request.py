@@ -153,9 +153,11 @@ def get_browser(browser:str, browser_driver_path:str = None,
     """
     # get browser driver
     if browser == 'Edge':
+        from selenium.webdriver.edge.service import Service
         from selenium.webdriver import Edge as Browser
         from selenium.webdriver.edge.options import Options
     elif browser == 'Chrome':
+        from selenium.webdriver.chrome.service import Service
         if use_undetected:
             from undetected_chromedriver import Chrome as Browser
             from undetected_chromedriver import ChromeOptions as Options
@@ -171,7 +173,7 @@ def get_browser(browser:str, browser_driver_path:str = None,
     # set Browser kwargs
     kwargs = {'options': opts}
     if browser_driver_path is not None:
-        kwargs['executable_path'] = browser_driver_path
+        kwargs['service'] = Service(browser_driver_path)
     # return browser instance
     return Browser(**kwargs)
 
@@ -500,12 +502,12 @@ class Browser:
     def __init__(self, browser_name: str = 'Chrome',
                  options: List[str] = ['--no-sandbox', '--headless',
                                        f"--user-agent={Configs.web.chrome_driver_path:s}"],
-                 use_undetected = False) -> None:
+                 use_undetected = False, driver_path = None) -> None:
         self.browser_name = browser_name
         self.options = options
         self.use_undetected = use_undetected
         
-        self.browser = get_browser(browser_name, None, options, use_undetected)
+        self.browser = get_browser(browser_name, driver_path, options, use_undetected)
         
     def _get_by(self, by: str):
         if by in ['xpath', 'css', 'class']:
@@ -662,7 +664,7 @@ __all__ = [
 ]
 
 if __name__ == '__main__':
-    b = Browser(options=['--no-sandbox'], use_undetected= True)
+    b = Browser(options=['--no-sandbox'], use_undetected= True, driver_path=Configs.web.chrome_driver_path)
     b.get('https://sci-hub.ren/', sleep_after=3)
     b.scroll_percent(0, 0.5, 5, element='//*[@id="info"]')
     b.send_key('mRNA Vaccine', element = '//*[@id="request"]')

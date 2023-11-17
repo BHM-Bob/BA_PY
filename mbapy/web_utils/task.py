@@ -1,18 +1,20 @@
-
+from typing import Dict, Callable, List, Tuple, Any
 import _thread
 import os
 import time
 from queue import Queue
 
+from mbapy.base import put_err
+
 statuesQue = Queue()
 
-def _wait_for_quit(statuesQue,):
-    flag = 1
-    while flag:
+def _wait_for_quit(statuesQue, key2action: Dict[str, Tuple[Callable, List, Dict]]):
+    flag = 'running'
+    while flag != 'exit':
         s = input()
-        if s == "e":
-            statues_que_opts(statuesQue, "quit", "setValue", True)
-            flag = 0
+        if s in key2action:
+            key2action[s][1](*key2action[s][2], **key2action[s][3])
+            flag = key2action[s][0]
         else:
             statues_que_opts(statuesQue, "input", "setValue", s)
     return 0
@@ -54,9 +56,19 @@ def get_input(promot:str = '', end = '\n'):
     statues_que_opts(statuesQue, "input", "setValue", None)
     return ret
     
-def launch_sub_thread(statuesQue = statuesQue):
+def launch_sub_thread(statuesQue = statuesQue, key2action: Dict[str, Tuple[str, Callable, List, Dict]] = {}):
     """
     Launches a sub-thread to run a separate task concurrently with the main thread.
+    
+    Parameters:
+        - statuesQue: ...
+        - key2action(dict): key to action
+            - key(str): action name
+            - value(tuple): action
+                - inner_signal(str): signal for control _wait_for_quit func, such as ‘running' and 'exit'.  
+                - func(Callable): action func.  
+                - *args(list): *args for action func.  
+                - **kwargs(dict): **kwargs for action func.  
 
     This function creates a global `statuesQue` queue and puts a dictionary with the keys `quit` and `input` into the queue. The `quit` key is set to `False` and the `input` key is set to `None`. 
     The function then starts a new thread by calling the `_wait_for_quit` function with the `statuesQue` queue as an argument. 
@@ -68,7 +80,17 @@ def launch_sub_thread(statuesQue = statuesQue):
             "input": None,
         }
     )
-    _thread.start_new_thread(_wait_for_quit, (statuesQue,))
+    k2a = {
+        'e': ('exit', statues_que_opts, [statuesQue, "quit", "setValue", True], {}),
+    }
+    for key, action in key2action.items():
+        if key in k2a:
+            put_err(f'key conflict with {key}, set with new action')
+        if len(action) != 4:
+            put_err(f'action broken with {len(action)} menber(s), skip this action.')
+        else:
+            k2a[key] = action
+    _thread.start_new_thread(_wait_for_quit, (statuesQue, k2a))
     print('mbapy::web: web sub thread started')
 
 def show_prog_info(idx:int, sum:int = -1, freq:int = 10, otherInfo:str = ''):
@@ -160,3 +182,18 @@ __all__ = [
     'Timer',
     'ThreadsPool',
 ]
+
+if __name__ == '__main__':
+    class test_class:
+        def test_func(self, a, b, c):
+            print(a+b+c)
+    tc = test_class()
+    launch_sub_thread(statuesQue, {
+        '1': ('running', tc.test_func, [1, 1], {'c': 1}),
+        '2': ('running', tc.test_func, [2, 2], {'c': 2}),
+        '3': ('running', tc.test_func, [3, 3], {'c': 3}),
+    })
+    while True:
+        if statues_que_opts(statuesQue, 'quit', 'getValue'):
+            break
+        time.sleep(1)

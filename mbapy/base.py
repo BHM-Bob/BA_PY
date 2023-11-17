@@ -84,7 +84,13 @@ class _Config_File(_ConfigBase):
 class _Config_Web(_ConfigBase):
     def __init__(self) -> None:
         self.auto_launch_sub_thread: bool = False
-        self.chrome_driver_path = r"C:\Users\Administrator\AppData\Local\Google\Chrome\Application\chromedriver.exe"
+        if platform.system().lower() == 'windows':
+            self.chrome_driver_path = os.path.expanduser("~/AppData/Local/Google/Chrome/Application/chromedriver.exe")
+        elif platform.system().lower() == 'linux':
+            self.chrome_driver_path = os.path.expanduser("~/bin/chromedriver")
+        else:
+            print(f'\nmbapy::_Config_Web: unkown os name: {platform.system().lower()}, use windows default chromedriver path\n')
+            self.chrome_driver_path = os.path.expanduser("~/AppData/Local/Google/Chrome/Application/chromedriver.exe")
         self.quest_head = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
     
 class _Config(_ConfigBase):
