@@ -1,14 +1,14 @@
 '''
 Date: 2023-07-17 20:41:42
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-04 19:20:18
+LastEditTime: 2023-11-19 12:45:31
 FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
 
 import os
 import re
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import PyPDF2
 import rispy
@@ -270,13 +270,75 @@ def format_paper_from_txt(content:str,
         struction[key] = get_section_from_paper(content, key, struct)
     return struction
 
-def get_citation_position(content: str, refs: List[Dict[str, str]] = None):
+
+def get_citation_position(pdf_path, refs: List[Dict[str, str]] = None):
     # refs是从corssref获取的refs，作为参考文献数目的参考
+    import pdfplumber
+    def _extract_text_by_rect(page, annot):
+        if annot['top'] > annot['bottom']:
+            annot['top'], annot['bottom'] = annot['bottom'], annot['top']
+        sub_page = page.crop((annot['x0']-15, annot['top'],
+                              annot['x1']+15, annot['bottom']))
+        return sub_page.extract_text(y_tolerance = 1, x_tolerance = 3, layout=True)
+    def _parse_annot_text(text: str, full_text: str):
+        if text.count('\n') > 0:
+            # 多行文本，此时可能是上标，取倒数第二行为数字上标，最后一行为被插入文本
+            # 在被插入文本的约中间位置的第一个空格前插入数字上标
+            annot_lines = text.split('\n')
+            # get insert pos
+            if ' ' in annot_lines[-1]:
+                st_pos = int(len(annot_lines[-1]) * 0.2)
+                insert_pos = annot_lines[-1][st_pos:].find(' ') + st_pos
+            else:
+                insert_pos = len(annot_lines[-1])
+            # get ref number str
+            results = re.findall('\d.+', annot_lines[-2])
+            ref_num = results[0] if results else '' # 如果倒二行没有数字, 说明上标被识别到倒一行了, 此时将跳过ref_num
+            text = annot_lines[-1][:insert_pos] + ref_num + annot_lines[-1][insert_pos:]
+        result =  re.findall('\S.+', text)[0] # 非空格开头
+        result = re.sub('\s+', ' ', result) # 将连续空格替换为单个空格
+        result = result[:-1] if result[-1] == ' ' else result # 去除结尾空格
+        if result not in full_text:
+            # 如果此时不能匹配，则忽略空格做最大匹配
+            non_sp_result = result.replace(' ', '')
+            first_chr = non_sp_result[0].replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)')
+            for matched in re.finditer(first_chr, full_text):
+                if non_sp_result in full_text[matched.regs[0][0]:matched.regs[0][0]+2*len(result)+1].replace(' ', ''):
+                    return full_text[matched.regs[0][0]:matched.regs[0][0]+2*len(result)+1]
+            # TODO: fix more
+        return result
     
-    # find with []
-    patten_1 = re.findall('( \[(\d+(-\d+)?)(,)?(\d+(-\d+)?)?\])', content)
-    # find with ()
-    patten_1 = re.findall('( \((\d+(-\d+)?)(,)?(\d+(-\d+)?)?\))', content)
+    pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')
+    pdf_text = pdf_text.replace('ﬁ', 'fi')
+    opts_file('./data_tmp/pdf.txt', mode = 'w', data=pdf_text)
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            for annot in page.annots:
+                if 'Dest' in annot['data'] and 'bib' in annot['data']['Dest'].decode():
+                    # Example: bib1 for Refs No.1
+                    # Example: lbib3 for Refs No.3
+                    ref = re.findall('bib\d+$', annot['data']['Dest'].decode())
+                    if not ref:
+                        continue
+                    annot_idx = int(ref[0][3:])
+                    annot_str = _parse_annot_text(_extract_text_by_rect(page, annot), pdf_text)
+                    print(f'{annot_idx:3d}: ({annot_str in pdf_text}) |{annot_str}|')
+                elif 'A' in annot['data'] and annot['data']['A']['S'].name == 'GoTo':
+                    # Example: 4e8697fe-fcf7-4002-8235-59e0e1d0f61f.indd:R6:1811 for Refs No.6
+                    # Example: 4e8697fe-fcf7-4002-8235-59e0e1d0f61f.indd:BLK_F1:2010 for Figure No.1
+                    ref = re.findall('R\d+', annot['data']['A']['D'].decode())
+                    if not ref:
+                        continue
+                    annot_idx = int(ref[0][1:])
+                    annot_str = _parse_annot_text(_extract_text_by_rect(page, annot), pdf_text)
+                    print(f'{annot_idx:3d}: ({annot_str in pdf_text}) |{annot_str}|')
+                else:
+                    pass
+            pass
+    # # find with []
+    # patten_1 = re.findall('( \[(\d+(-\d+)?)(,)?(\d+(-\d+)?)?\])', content)
+    # # find with ()
+    # patten_1 = re.findall('( \((\d+(-\d+)?)(,)?(\d+(-\d+)?)?\))', content)
 
 __all__ = [
     'has_sci_bookmarks',
@@ -289,12 +351,17 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
+    # extract refs pos from pdf
+    get_citation_position(r'./data_tmp\papers\10.1016_S0939-6411(03)00161-9berger2004.pdf')
+    # get_citation_position(r'./data_tmp\papers\O-Acyl isopeptide method.pdf')
+    # get_citation_position(r'./data_tmp\papers\Best management of IBS.pdf')
+    # get_citation_position(r'./data_tmp\papers\Laxative effect and mechanism.pdf')
+    # convert pdf to text
     pdf_path = r'data_tmp\papers\Contrasting effects of linaclotide and lubiprostone on restitution of epithelial cell barrier properties and cellular homeostasis after exposure to cell stressors.pdf'
     pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')\
         .replace('\u00a0', ' ').replace('-\n', '').replace('  ', ' ')
     opts_file('data_tmp/text.txt', 'w', data = pdf_text)
     print(pdf_path)
-    # pdf_text = convert_pdf_to_txt(pdf_path).replace('-\n', '').replace('  ', ' ')
     bookmarks = get_english_part_of_bookmarks(get_section_bookmarks(pdf_path))
     pdf_data = format_paper_from_txt(pdf_text, bookmarks)
     pass
