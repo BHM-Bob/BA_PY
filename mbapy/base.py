@@ -11,6 +11,7 @@ import json
 import math
 import os
 import pathlib
+import pkgutil
 import platform
 import sys
 import time
@@ -97,6 +98,10 @@ class _Config(_ConfigBase):
     def __init__(self) -> None:
         self.err_warning_level: int = 0 # 0: all, no filter, 1: bapy parameter error, 2: bapy inner error... the bigger, the less error
         self.logs = []
+        if pkgutil.find_loader('torch'):
+            self.is_torch_avaliable = True
+        else:
+            self.is_torch_avaliable = False
         self.file = _Config_File()
         self.web = _Config_Web()
     

@@ -78,7 +78,7 @@ if __name__ == "__main__":
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
-    args_paser.add_argument("-r", "--ref", action="store_true", help="enable ref mode to download refrences")
+    args_paser.add_argument("-r", "--ref", action="store_true", help="FLAGS, enable ref mode to download refrences")
     args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
     args = args_paser.parse_args()
     

@@ -37,6 +37,7 @@ def download_by_scihub(b: Browser, dir:str, doi: str, avaliable_scihub_url: str)
     try:
         b.get(url = f"{avaliable_scihub_url}/{doi}")
     except:
+        put_err(f'can not open url: {avaliable_scihub_url}/{doi}, return None')
         return None
     # check if there has captcha
     if b.find_elements('//*[@id="h-captcha"]'):
@@ -56,7 +57,7 @@ def download_by_scihub(b: Browser, dir:str, doi: str, avaliable_scihub_url: str)
             except urllib.error.HTTPError:
                 res = session.get(url = download_link, stream=False, timeout=60)
                 if res.text.startswith('%PDF'):
-                    opts_file(file_path, 'wb', data = result['res'].content)
+                    opts_file(file_path, 'wb', data = res.content)
             result = {'doi': doi, 'file_name': file_name, 'file_path': os.path.join(dir, file_name)}
             random_sleep(20, 15)
             return result
@@ -119,6 +120,7 @@ if __name__ == "__main__":
     args_paser.add_argument("-r", "--ref", action="store_true", help="FLAG, enable ref mode to download refrences")
     args_paser.add_argument("--head", action="store_true", help="FLAG, enable browser GUI")
     args_paser.add_argument("-u", "--undetected", action="store_true", help="FLAG, enable to use undetected_chromedriver")
+    args_paser.add_argument("-l", "--log", action="store_true", help="FLAG, enable to verbose mbapy log info")
     args = args_paser.parse_args()
     
     # command line path process
@@ -126,6 +128,9 @@ if __name__ == "__main__":
     args.out = args.out.replace('"', '').replace('\'', '')
     if not check_parameters_path(args.out):
         os.makedirs(args.out)
+    
+    if not args.log:
+        Configs.err_warning_level == 999
     
     # get available_scihub_urls
     try:
@@ -159,10 +164,12 @@ if __name__ == "__main__":
         'save': ('running', records.to_json, [records_path], {})
     })
     if args.head:
-        b = Browser('Chrome', options=['--no-sandbox'], use_undetected=args.undetected,
+        b = Browser('Chrome', options=['--no-sandbox', '--ignore-certificate-errors'],
+                    use_undetected=args.undetected,
                     driver_path=Configs.web.chrome_driver_path)
     else:
-        b = Browser('Chrome', options=['--headless', '--no-sandbox'], use_undetected=args.undetected,
+        b = Browser('Chrome', options=['--headless', '--no-sandbox', '--ignore-certificate-errors'],
+                    use_undetected=args.undetected,
                     driver_path=Configs.web.chrome_driver_path)
 
     # download

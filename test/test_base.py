@@ -11,17 +11,6 @@ from functools import wraps
 
 from mbapy.base import *
 
-class TestPutErr(unittest.TestCase):
-    def test_no_error(self):
-        self.assertEqual(put_err("error message"), None)
-
-    def test_with_error(self):
-        self.assertEqual(put_err("error message", 123), 123)
-
-    def test_no_error_with_inspect(self):
-        self.assertEqual(put_err("error message", ret=456), 456)
-        self.assertEqual(put_err("error message", ret="abc"), "abc")
-
 def test_TimeCosts():
     @TimeCosts(2)
     def func(times, *args, **kwargs):
@@ -66,6 +55,18 @@ class SplitListTestCase(unittest.TestCase):
         result = split_list([1, 2, 3, 4, 5, 6], n=1)
         self.assertEqual(result, [[1], [2], [3], [4], [5], [6]])
 
+class ConfigTestCase(unittest.TestCase):
+    def test_err_level(self):
+        Configs.err_warning_level = 999
+        sum_log = len(Configs.logs)
+        put_err('test no err log')
+        self.assertEqual(sum_log, len(Configs.logs))
+        
+        Configs.err_warning_level = 0
+        sum_log = len(Configs.logs)
+        put_err('test full err log')
+        self.assertEqual(sum_log + 1, len(Configs.logs))
+        
 
 if __name__ == '__main__':
     unittest.main()

@@ -175,7 +175,21 @@ def get_browser(browser:str, browser_driver_path:str = None,
     if browser_driver_path is not None:
         kwargs['service'] = Service(browser_driver_path)
     # return browser instance
-    return Browser(**kwargs)
+    try:
+        return Browser(**kwargs)
+    except:
+        if browser_driver_path is not None and\
+            'AppData/Local/Google/Chrome/Application' in browser_driver_path:
+            try:
+                another_path = 'C:/Program Files/Google/Chrome/chromedriver.exe'
+                kwargs['service'] = Service(another_path)
+                put_err(f'can not use chromedriver with default setting, try {another_path}')
+                return Browser(**kwargs)
+            except:
+                put_err(f'can not use chromedriver with default setting, return None')
+                # just raise error
+                return None
+                
 
 def add_cookies(browser, cookies_path:str = None, cookies_string:str = None):
     """
