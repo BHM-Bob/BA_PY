@@ -559,6 +559,7 @@ class CDLL:
         self.PTR = ctypes.POINTER # pointer type
         self.INT = ctypes.c_int # int type
         self.LONG = ctypes.c_long # long type
+        self.LONGLONG = ctypes.c_longlong # long long type
         self.ULL = ctypes.c_uint64 # unsigned long long type
         self.FLOAT = ctypes.c_float # float type
         self.BOOL = ctypes.c_bool # bool type
