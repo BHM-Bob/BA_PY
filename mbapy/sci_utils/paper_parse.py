@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-17 20:41:42
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-23 11:14:15
+LastEditTime: 2023-11-23 23:44:27
 FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
@@ -377,7 +377,7 @@ def get_citation_position(pdf_path, refs: List[Dict[str, str]] = None):
                 pass
 
 @parameter_checker(check_parameters_path, raise_err=False)
-def parse_grobid(xml_path: str):
+def parse_grobid(xml_path: str, encoding = 'utf-8'):
     def _T(element: bsel.Tag):
         if isinstance(element, bsel.Tag):
             return element.text.strip()
@@ -387,7 +387,7 @@ def parse_grobid(xml_path: str):
             return [_T(v_i) for v_i in element]
         else:
             return element
-    soup = BeautifulSoup(open(xml_path), 'xml')
+    soup = BeautifulSoup(open(xml_path, encoding=encoding), 'xml')
     article_title = soup.find('titleStmt')
     date = soup.find('publicationStmt').find('date')
     article_publication_date = date['when'] if date and 'when' in date else _T(date)
@@ -409,15 +409,25 @@ def parse_grobid(xml_path: str):
     article_doi = soup.find('idno', type="DOI")
     article_submission = soup.find('note', type="submission")
     article_abs = soup.find('abstract').find('p')
-    article_sections = {}
+    article_sections = []
     for section in soup.find('body').findAll('div', xmlns="http://www.tei-c.org/ns/1.0"):
-        content, ref_pos = str(section.find('p')), []
+        content, ref_pos, fig_ref_pos = '\n'.join([str(sec)[3:-3] for sec in section.findAll('p')]), [], []
+        # 转化figure的XML格式
+        while re.search(r'<ref[^>]*?type="figure"[^>]*?>.+?</ref>', content, re.DOTALL):
+            # r'<ref.+?type="figure".+?</ref>'似乎也行，但有时候不行（同字符串）？
+            ref = re.search(r'<ref[^>]*?type="figure"[^>]*?>.+?</ref>', content, re.DOTALL)
+            ref_idx = re.search(r'\d+', ref.group(0), re.DOTALL).group(0)
+            fig_ref_pos.append({'ref_idx':ref_idx, 'ref_pos': ref.regs[0][0]})
+            content = content.replace(ref.group(0), ref_idx)
+        # 转化ref的XML格式
         while re.search(r'<ref target=.+?</ref>', content, re.DOTALL):
+            # 似乎soup会把ref的tag内重排为<ref target="#b0" type="bibr">
             ref = re.search(r'<ref target=.+?</ref>', content, re.DOTALL)
             ref_idx = re.search(r'\d+', ref.group(0), re.DOTALL).group(0)
             ref_pos.append({'ref_idx':ref_idx, 'ref_pos': ref.regs[0][0]})
             content = content.replace(ref.group(0), ref_idx+',')
-        article_sections[section.find('head')] = {'content': content, 'ref_pos': ref_pos}
+        article_sections.append({'title':section.find('head'), 'content': content,
+                                 'ref_pos': ref_pos, 'fig_ref_pos': fig_ref_pos})
     refs = []
     for ref in soup.find('back').findAll('biblStruct'):
         idx = re.findall('\d+', ref['xml:id'])[0] # start from '0'
@@ -449,6 +459,7 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
+    parse_grobid('./data_tmp\papers\An Evidence-Based Review of Novel and Emerging Therapies for Constipation in Patients Taking Opioid Analgesics. The American Journal of Gastroenterology Supplements, 2(1), 38–46..grobid.tei.xml')
     # convert pdf to text
     pdf_path = r'data_tmp\papers\Contrasting effects of linaclotide and lubiprostone on restitution of epithelial cell barrier properties and cellular homeostasis after exposure to cell stressors.pdf'
     pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')\
