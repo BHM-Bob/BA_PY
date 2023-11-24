@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-17 20:41:42
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-23 23:44:27
+LastEditTime: 2023-11-24 10:06:09
 FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
@@ -387,6 +387,9 @@ def parse_grobid(xml_path: str, encoding = 'utf-8'):
             return [_T(v_i) for v_i in element]
         else:
             return element
+    def _search_ref(content: str, types: List[str] = ['bibr', 'figure', 'table']):
+        return re.search('|'.join([f'(?:<ref[^>]*?type="{ty}"[^>]*?>.+?</ref>)' for ty in types]),
+                         content, re.DOTALL)
     soup = BeautifulSoup(open(xml_path, encoding=encoding), 'xml')
     article_title = soup.find('titleStmt')
     date = soup.find('publicationStmt').find('date')
@@ -411,23 +414,26 @@ def parse_grobid(xml_path: str, encoding = 'utf-8'):
     article_abs = soup.find('abstract').find('p')
     article_sections = []
     for section in soup.find('body').findAll('div', xmlns="http://www.tei-c.org/ns/1.0"):
-        content, ref_pos, fig_ref_pos = '\n'.join([str(sec)[3:-3] for sec in section.findAll('p')]), [], []
-        # 转化figure的XML格式
-        while re.search(r'<ref[^>]*?type="figure"[^>]*?>.+?</ref>', content, re.DOTALL):
-            # r'<ref.+?type="figure".+?</ref>'似乎也行，但有时候不行（同字符串）？
-            ref = re.search(r'<ref[^>]*?type="figure"[^>]*?>.+?</ref>', content, re.DOTALL)
-            ref_idx = re.search(r'\d+', ref.group(0), re.DOTALL).group(0)
-            fig_ref_pos.append({'ref_idx':ref_idx, 'ref_pos': ref.regs[0][0]})
-            content = content.replace(ref.group(0), ref_idx)
-        # 转化ref的XML格式
-        while re.search(r'<ref target=.+?</ref>', content, re.DOTALL):
-            # 似乎soup会把ref的tag内重排为<ref target="#b0" type="bibr">
-            ref = re.search(r'<ref target=.+?</ref>', content, re.DOTALL)
-            ref_idx = re.search(r'\d+', ref.group(0), re.DOTALL).group(0)
-            ref_pos.append({'ref_idx':ref_idx, 'ref_pos': ref.regs[0][0]})
+        content, ref_pos = '\n'.join([str(sec)[3:-4] for sec in section.findAll('p')]), []
+        # 转化figure, ref的XML格式
+        while _search_ref(content):
+            # figure的XML会有变化:<ref target="#fig_0" type="figure">1</ref>和<ref type="figure">2</ref>
+            # ref的XML为<ref target="#b5" type="bibr">( 6 )</ref>
+            ref = _search_ref(content)
+            if 'figure' in ref.group(0) or 'table' in ref.group(0):
+                ref_idx = re.search(r'>[^<]+?<', ref.group(0)).group(0)[1:-1]
+            elif 'bibr' in ref.group(0):
+                ref_idx = re.search(r'\d+', ref.group(0))
+                if ref_idx:
+                    ref_idx= ref_idx.group(0)
+                else:
+                    content = content.replace(ref.group(0), ' ')
+                    continue
+            ref_type = re.search(r'type="\w+?"', ref.group(0)).group(0)[6:-1]
+            ref_pos.append({'ref_type': ref_type, 'ref_idx':ref_idx, 'ref_pos': ref.regs[0][0]})
             content = content.replace(ref.group(0), ref_idx+',')
         article_sections.append({'title':section.find('head'), 'content': content,
-                                 'ref_pos': ref_pos, 'fig_ref_pos': fig_ref_pos})
+                                 'ref_pos': ref_pos})
     refs = []
     for ref in soup.find('back').findAll('biblStruct'):
         idx = re.findall('\d+', ref['xml:id'])[0] # start from '0'
@@ -459,7 +465,6 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
-    parse_grobid('./data_tmp\papers\An Evidence-Based Review of Novel and Emerging Therapies for Constipation in Patients Taking Opioid Analgesics. The American Journal of Gastroenterology Supplements, 2(1), 38–46..grobid.tei.xml')
     # convert pdf to text
     pdf_path = r'data_tmp\papers\Contrasting effects of linaclotide and lubiprostone on restitution of epithelial cell barrier properties and cellular homeostasis after exposure to cell stressors.pdf'
     pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')\
