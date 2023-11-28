@@ -1,8 +1,8 @@
-from typing import Dict, Callable, List, Tuple, Any
 import _thread
 import os
 import time
 from queue import Queue
+from typing import Any, Callable, Dict, List, Tuple
 
 from mbapy.base import put_err
 

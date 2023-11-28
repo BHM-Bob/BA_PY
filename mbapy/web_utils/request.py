@@ -153,9 +153,9 @@ def get_browser(browser:str, browser_driver_path:str = None,
     """
     # get browser driver
     if browser == 'Edge':
-        from selenium.webdriver.edge.service import Service
         from selenium.webdriver import Edge as Browser
         from selenium.webdriver.edge.options import Options
+        from selenium.webdriver.edge.service import Service
     elif browser == 'Chrome':
         from selenium.webdriver.chrome.service import Service
         if use_undetected:
