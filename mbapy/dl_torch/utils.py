@@ -69,7 +69,7 @@ class Mprint:
         return f'path={self.path:s}, mode={self.mode:s}, topString={self.topString:s}'
             
 class GlobalSettings(MyArgs):
-    def __init__(self, mp:Mprint, model_root:str):
+    def __init__(self, mp:Mprint, model_root:str, seed: int = 777, benchmark = True):
         # data loading
         self.read = {}# for data reading
         self.batch_size =  64
@@ -87,7 +87,7 @@ class GlobalSettings(MyArgs):
         self.test_freq = 5
         self.momentum = 0.9
         self.weight_decay = 1e-4        
-        self.seed = 777
+        self.seed = seed
         self.start_epoch = 0
         self.moco_m = 0.999
         self.moco_k = 3200
@@ -104,11 +104,14 @@ class GlobalSettings(MyArgs):
         self.mp = mp#Mp        
         if self.seed is not None:
             import random
-
-            import torch.backends.cudnn as cudnn
-            random.seed(self.seed)
-            torch.manual_seed(self.seed)
-            cudnn.deterministic = True
+            torch.manual_seed(self.seed)  # 设置PyTorch的随机种子，用于生成随机数，确保结果的可重复性。
+            torch.cuda.manual_seed(self.seed)  # 设置PyTorch的CUDA随机种子，用于在GPU上生成随机数，确保结果的可重复性。
+            torch.cuda.manual_seed_all(self.seed)  # 如果使用多个GPU，设置所有GPU的随机种子，确保结果的可重复性。
+            np.random.seed(self.seed)  # 设置NumPy的随机种子，用于生成NumPy模块中的随机数，确保结果的可重复性。
+            random.seed(self.seed)  # 设置Python标准库中random模块的随机种子，用于生成Python中的随机数，确保结果的可重复性。
+            torch.manual_seed(self.seed)  # 再次设置PyTorch的随机种子，确保在后续代码中生成的随机数仍然是基于相同的种子。
+            torch.backends.cudnn.benchmark = False  # 禁用cuDNN的自动寻找最适合当前配置的高效算法，以确保结果的可重复性。
+            torch.backends.cudnn.deterministic = True  # 设置cuDNN的随机数生成策略为确定性模式，以确保结果的可重复性。
     def toDict(self, printOut = False, mp = None):
         dic = {}
         for attr in vars(self):
@@ -133,7 +136,16 @@ def init_model_parameter(model):
                 nn.init.constant_(m.weight, 1)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Linear):  # 线性层初始化
+            if m.weight is not None:
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leaky_relu')
+        elif isinstance(m, nn.RNN):  # 循环神经网络层初始化
+            if m.weight_ih_l0 is not None:
+                nn.init.xavier_normal_(m.weight_ih_l0)
+            if m.weight_hh_l0 is not None:
+                nn.init.xavier_normal_(m.weight_hh_l0)
     return model
+
 
 def adjust_learning_rate(optimizer, now_epoch, args):
     """

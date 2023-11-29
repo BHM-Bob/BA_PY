@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-18 22:30:59
+LastEditTime: 2023-11-28 22:24:48
 Description: 
 '''
 import ctypes
@@ -308,7 +308,7 @@ def autoparse(init):
     
     fixed from https://codereview.stackexchange.com/questions/269579/decorating-init-for-automatic-attribute-assignment-safe-and-good-practice
     """
-    parnames = list(init.__code__.co_varnames[1:])
+    parnames = list(init.__code__.co_varnames[1:init.__code__.co_argcount])
     defaults = init.__defaults__
     @wraps(init)
     def wrapped_init(self, *args, **kwargs):
@@ -614,6 +614,7 @@ def run_cmd(command: str):
         str: The output of the command as a string.
     """
     return '\n'.join(os.popen(f'{command}').readlines())
+
 
 if __name__ == '__main__':
     # dev code
