@@ -11,6 +11,7 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+import scipy
 
 if __name__ == '__main__':
     # dev mode
@@ -299,6 +300,17 @@ def merge_col2row(df:pd.DataFrame, cols:List[str],
     # 重新设置索引
     new_df = new_df.reset_index(drop=True)
     return new_df
+
+def make_three_line_table(factors:List[str], tags:List[str], df:pd.DataFrame,
+                          float_fmt: str = '.3f', t_samples: int = 30):
+    ndf = pro_bar_data(factors, tags, df)
+    for tag in tags:
+        coff = ndf[tag+'_SE'].copy()
+        t_value = ndf[tag+'_N'].apply(lambda x:scipy.stats.t.ppf(0.975, df=x-1))
+        coff[ndf[tag+'_N']<=t_samples] = t_value[ndf[tag+'_N']<=t_samples]
+        ndf[tag] = ndf[tag].apply(lambda x: f'{x:{float_fmt}}') + ' (±' + (coff*ndf[tag+'_SE']).apply(lambda x: f'{x:{float_fmt}}') + ')'
+        ndf.drop(tag+'_SE', axis=1, inplace = True)
+    return ndf
 
 
 if __name__ == '__main__':

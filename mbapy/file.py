@@ -253,6 +253,46 @@ def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
         return json.loads(json_str)
     return invalidPathReturn
 
+def save_yaml(path:str, obj, indent = 2, encoding:str = 'utf-8',
+              force_update = True, allow_unicode = True):
+    """
+    Saves an object as a YAML file at the specified path.
+
+    Parameters:
+        - path (str): The path where the YAML file will be saved.
+        - obj: The object to be saved as YAML.
+        - indent (int): indent for YAML.
+        - encoding (str): The encoding of the YAML file. Default is 'utf-8'.
+        - forceUpdate (bool): Determines whether to overwrite an existing file at the specified path. Default is True.
+        - allow_unicode (bool): param for yaml.dump
+
+    Returns:
+        None
+    """
+    import yaml
+    if force_update or not os.path.isfile(path):
+        with open(path, 'w' ,encoding=encoding, errors='ignore') as fh:
+            fh.write(yaml.dump(obj, indent=indent, allow_unicode=allow_unicode))
+            
+def read_yaml(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
+    """
+    Read a YMAL file from the given path and return the parsed YMAL data.
+
+    Parameters:
+        path (str): The path to the YMAL file.
+        encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
+        invalidPathReturn (any, optional): The value to return if the path is invalid. Defaults to None.
+
+    Returns:
+        dict: The parsed YMAL data.
+        invalidPathReturn (any): The value passed as `invalidPathReturn` if the path is invalid.
+    """
+    import yaml
+    if os.path.isfile(path):
+        with open(path, 'r' ,encoding=encoding, errors='ignore') as fh:
+            return yaml.load(fh, Loader=yaml.FullLoader)
+    return invalidPathReturn
+
 def save_excel(path:str, obj:List[List[str]], columns:List[str], encoding:str = 'utf-8', forceUpdate = True):
     """
     Save a list of lists as an Excel file.

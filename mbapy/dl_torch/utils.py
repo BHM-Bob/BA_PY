@@ -5,40 +5,43 @@ import os
 import time
 from queue import Queue
 
+from typing import Dict, List, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ..base import MyArgs, get_default_for_None
+from ..base import MyArgs, get_default_for_None, get_fmt_time
 from ..file import read_json, save_json
 
-_Params = {
-    'USE_VIZDOM':False,
-}
+viz = None
+viz_record = []
 
-if _Params['USE_VIZDOM']:
+def launch_visdom():
+    global viz, viz_record
     import visdom
     viz = visdom.Visdom()
-    vizRecord = []
+    viz_record = []
+    return viz, viz_record
 
 class Mprint:
     """logging tools"""
-    def __init__(self, path="log.txt", mode="lazy", cleanFirst=True):
+    def __init__(self, path="log.txt", mode="lazy", clean_first=True):
         self.path = path
         self.mode = mode
-        self.topString = " "
+        self.top_string = " "
         self.string = ""
 
-        if cleanFirst:
+        if clean_first:
             with open(path, "w") as f:
                 f.write("Mprint : cleanFirst\n")
 
     def mprint(self, *args):
-        string = '[{''} - {''}] '.format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), self.topString)
+        string = f'[{get_fmt_time("%Y%m%d-%H%M%S.%f")} - {self.top_string}] '
         for item in args:
-            if type(item) != "":
+            if not isinstance(item, str):
                 item = str(item)
-            string += item + " "
+            string += (item + " ")
 
         print(string)
 
@@ -46,10 +49,10 @@ class Mprint:
             with open(self.path, "a+") as f:
                 f.write(string + "\n")
         else:
-            self.string += string + "\n"
+            self.string += string + "\n"     
 
-    def logOnly(self, *args):
-        string = '[{''} - {''}] '.format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), self.topString)
+    def log_only(self, *args):
+        string = '[{''} - {''}] '.format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), self.top_string)
         for item in args:
             if type(item) != "":
                 item = str(item)
@@ -60,13 +63,19 @@ class Mprint:
                 f.write(string + "\n")
         else:
             self.string += string + "\n"
+            
+    def __call__(self, *args, log_only = False):
+        if log_only:
+            return self.log_only(*args)
+        else:
+            return self.mprint(*args)   
 
-    def exit(self):
-        with open(self.path, "a+") as f:
+    def exit(self, mode ='a+'):
+        with open(self.path, mode) as f:
             f.write(self.string)
             
     def __str__(self):
-        return f'path={self.path:s}, mode={self.mode:s}, topString={self.topString:s}'
+        return f'path={self.path:s}, mode={self.mode:s}, top_string={self.top_string:s}'
             
 class GlobalSettings(MyArgs):
     def __init__(self, mp:Mprint, model_root:str, seed: int = 777, benchmark = True):
@@ -83,12 +92,13 @@ class GlobalSettings(MyArgs):
         self.load_db_ratio =  1
         # default var
         self.epochs = 1500
+        self.now_epoch = 0
+        self.left_epochs = self.epochs - self.now_epoch
         self.print_freq = 40
         self.test_freq = 5
         self.momentum = 0.9
         self.weight_decay = 1e-4        
         self.seed = seed
-        self.start_epoch = 0
         self.moco_m = 0.999
         self.moco_k = 3200
         self.byolq_k = 3200
@@ -112,7 +122,14 @@ class GlobalSettings(MyArgs):
             torch.manual_seed(self.seed)  # 再次设置PyTorch的随机种子，确保在后续代码中生成的随机数仍然是基于相同的种子。
             torch.backends.cudnn.benchmark = False  # 禁用cuDNN的自动寻找最适合当前配置的高效算法，以确保结果的可重复性。
             torch.backends.cudnn.deterministic = True  # 设置cuDNN的随机数生成策略为确定性模式，以确保结果的可重复性。
-    def toDict(self, printOut = False, mp = None):
+    def add_epoch(self, addon: int = 1) -> bool:
+        """
+        return True if self.now_epoch > self.epochs
+        """
+        self.now_epoch += 1
+        self.left_epochs -= 1
+        return self.now_epoch > self.epochs
+    def to_dict(self, printOut = False, mp = None):
         dic = {}
         for attr in vars(self):
             dic[attr] = getattr(self,attr)
@@ -145,7 +162,6 @@ def init_model_parameter(model):
             if m.weight_hh_l0 is not None:
                 nn.init.xavier_normal_(m.weight_hh_l0)
     return model
-
 
 def adjust_learning_rate(optimizer, now_epoch, args):
     """
@@ -238,22 +254,22 @@ class TimeLast(object):
         sum_last_time = left_tasks * used_time / just_done_tasks
         return sum_last_time            
             
-def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:dict, tailName:str):
+def save_checkpoint(epoch: float, args:GlobalSettings, model: torch.nn.Module,
+                    optimizer: torch.optim.Optimizer, loss: float, other:dict, tailName:str):
     """
     Saves a checkpoint of the model and optimizer state, along with other information 
-    such as epoch, loss, and arguments. The checkpoint file is named as 
-    "checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar" 
+    using `to_save_dict.update(other)`. The checkpoint file is named as 
+    "checkpoint_tailName_%Y%m%d-%H%M%S.%f.pth.tar" 
     and saved in the directory specified by args.model_root.
 
-    :param epoch: An integer representing the current epoch number.
-    :param args: A GlobalSettings object containing various hyperparameters and settings.
-    :param model: The model whose state needs to be saved.
-    :param optimizer: The optimizer whose state needs to be saved.
-    :param loss: The current loss value.
-    :param other: A dictionary containing any other information that needs to be saved.
-    :param tailName: A string to be used in the checkpoint file name for better identification.
-
-    :return: None
+    Params:
+        - epoch: An integer representing the current epoch number.
+        - args: A GlobalSettings object containing various hyperparameters and settings.
+        - model: The model whose state needs to be saved.
+        - optimizer: The optimizer whose state needs to be saved.
+        - loss: The current loss value.
+        - other: A dictionary containing any other information that needs to be saved.
+        - tailName: A string to be used in the checkpoint file name for better identification.
     """
     state = {
         "epoch": epoch + 1,
@@ -261,69 +277,77 @@ def save_checkpoint(epoch, args:GlobalSettings, model, optimizer, loss, other:di
         "state_dict": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "loss": loss,
-        "args":args.toDict(),
+        "args":args.to_dict(),
     }
     state.update(other)
     filename = os.path.join(args.model_root,
-                            f"checkpoint_{tailName:s}_{time.asctime(time.localtime()).replace(':', '-'):s}.pth.tar")
+                            f"checkpoint_{tailName:s}_{get_fmt_time('%Y%m%d-%H%M%S.%f')}.pth.tar")
     torch.save(state, filename)
 
-def resume(args, model, optimizer, other:dict = {}):
+def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
+                      optimizer: torch.optim.Optimizer) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float, Dict]:
     """
     Resumes the training from the last checkpoint if it exists, otherwise starts from scratch.
 
-    :param args: Namespace object containing parsed command-line arguments.
-    :param model: Model to be trained.
-    :param optimizer: Optimizer to be used for training.
-    :param other: Optional dictionary containing additional objects to be updated from checkpoint.
+    Params:
+        - args: Namespace object containing parsed command-line arguments.
+        - model: Model to be trained.
+        - optimizer: Optimizer to be used for training.
+        - other: Optional dictionary containing additional objects to be updated from checkpoint.
 
-    :return: Tuple of the model, optimizer, and old_losses if checkpoint exists, otherwise tuple of model, optimizer, and 0.
+    Returns:
+        - Tuple of the model, optimizer, and old_losses if checkpoint exists, otherwise tuple of model, optimizer, and 0.
     """
     if args.resume and os.path.isfile(args.resume):
         args.mp.mprint("=> loading checkpoint '{}'".format(args.resume))
-        if args.gpu is None:
-            checkpoint = torch.load(args.resume)
-        else:
-            # Map model to be loaded to specified single gpu.
-            # loc = "cuda:{}".format(args.gpu)
-            checkpoint = torch.load(args.resume)  # , map_location=loc)
-        args.start_epoch = checkpoint["epoch"]
+        checkpoint = torch.load(args.resume)
+        args.now_epoch = checkpoint["epoch"]
         model.load_state_dict(checkpoint["state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         old_losses = checkpoint["loss"]
-        args.mp.mprint(
-            "=> loaded checkpoint '{}' (epoch {})".format(
-                args.resume, checkpoint["epoch"]
-            )
-        )
-        if other:
-            other.update()
-            for key in other.keys():
-                if key in checkpoint:
-                    other[key] = checkpoint[key]
-        return model, optimizer, old_losses
+        args.mp.mprint(f'loaded checkpoint {args.resume} (epoch {checkpoint["epoch"]})')
+        return model, optimizer, old_losses, checkpoint
     else:
         args.mp.mprint("=> no checkpoint found at '{}'".format(args.resume))
-        args.mp.logOnly(str(model))
-        return model, optimizer, 0
+        args.mp.log_only(str(model))
+        return model, optimizer, 0, {}
     
-if _Params['USE_VIZDOM']:
-    def VizLine(Y:float, X:float, win:str, title:str = 'N', name:str = 'N',
-                update:str = 'append', opts:dict = {}):
-        global vizRecord
-        if opts:
-            viz.line(Y = [Y],X = [X],
-                    win=win, update=update,opts =  opts)
-            vizRecord.append([Y, X, win, opts['title'], name, update, opts])
-        else:
-            viz.line(Y = [Y],X = [X],name = name,
-                    win=win, update=update,opts =  dict(title = title))
-            opts = {'title' : title}
-            vizRecord.append([Y, X, win, title, name, update, opts])
-        pass
+def viz_line(Y:float, X:float, win:str, title:str = None, name:str = None,
+            update:str = 'append', opts:dict = {}):
+    global viz_record
+    if opts and 'title' in opts:
+        viz.line(Y = [Y],X = [X],
+                win=win, update=update,opts =  opts)
+        viz_record.append([Y, X, win, opts['title'], name, update, opts])
+    else:
+        title = get_default_for_None(title, win)
+        name = get_default_for_None(name, win)
+        viz.line(Y = [Y], X = [X], name = name,
+                win=win, update=update, opts =  dict(title = title))
+        opts = {'title' : title}
+        viz_record.append([Y, X, win, title, name, update, opts])
 
-    def re_viz_from_json_record(path):
-        if os.path.isfile(path):
-            for log in read_json(path):
-                viz.line(Y = [log[0]], X = [log[1]], win = log[2], name = log[4],
-                        update = log[5],opts =  log[6])
+def re_viz_from_json_record(path):
+    if os.path.isfile(path):
+        for log in read_json(path):
+            viz.line(Y = [log[0]], X = [log[1]], win = log[2], name = log[4],
+                    update = log[5],opts =  log[6])
+            
+
+__all__ = [
+    'viz',
+    'viz_record',
+    'launch_visdom',
+    'Mprint',
+    'GlobalSettings',
+    'init_model_parameter',
+    'adjust_learning_rate',
+    'format_secs',
+    'AverageMeter',
+    'ProgressMeter',
+    'TimeLast',
+    'save_checkpoint',
+    'resume_checkpoint',
+    'viz_line',
+    're_viz_from_json_record',
+]
