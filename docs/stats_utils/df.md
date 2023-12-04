@@ -1,4 +1,4 @@
-# mbapy.dataframe
+# mbapy.stats.df
 
 This module provides utility functions for working with pandas DataFrames.  
 
