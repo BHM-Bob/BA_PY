@@ -1,8 +1,8 @@
 import _thread
-from collections import namedtuple
 import os
 import re
 import time
+from collections import namedtuple
 from queue import Queue
 from typing import Any, Callable, Dict, List, Tuple
 

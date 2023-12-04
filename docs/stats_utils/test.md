@@ -8,19 +8,19 @@ This module provides statistical analysis functions for data analysis.
 
 Calculate the confidence interval.  
 
-Parameters:  
+#### Parameters  
 - mean (float, optional): The mean value. Defaults to None.  
 - se (float, optional): The standard error. Defaults to None.  
 - data (np.ndarray or List[int] or pd.Series, optional): The data. Defaults to None.  
 - confidence (float, optional): The confidence level. Defaults to 0.95.  
 
-Returns:  
+#### Returns
 - Tuple[Tuple[float, float], Dict[str, Any]]: The confidence interval and additional information.  
 
-Notes:  
+#### Notes
 - The confidence interval is calculated as ± 1.96 * SE or other depends on the confidence level.  
 
-Example:  
+#### Example
 ```python
 get_interval(mean=10, se=2, confidence=0.95)
 ```
@@ -29,7 +29,7 @@ get_interval(mean=10, se=2, confidence=0.95)
 
 Perform a one-sample t-test.  
 
-Parameters:  
+#### Parameters  
 - x1 (float or None, optional): The first sample. Defaults to None.  
 - x2 (float, optional): The second sample. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
@@ -37,10 +37,10 @@ Parameters:
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the t-test.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The p-value and the t-statistic.  
 
-Example:  
+#### Example
 ```python
 ttest_1samp(x1=10, tag='score', df=data)
 ```
@@ -49,7 +49,7 @@ ttest_1samp(x1=10, tag='score', df=data)
 
 Perform an independent samples t-test.  
 
-Parameters:  
+#### Parameters  
 - x1 (float or None, optional): The first sample. Defaults to None.  
 - x2 (float or None, optional): The second sample. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
@@ -57,10 +57,10 @@ Parameters:
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the t-test.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The p-value from the Levene's test and the p-value from the t-test.  
 
-Example:  
+#### Example
 ```python
 ttest_ind(factors={'group': ['A', 'B']}, tag='score', df=data)
 ```
@@ -69,7 +69,7 @@ ttest_ind(factors={'group': ['A', 'B']}, tag='score', df=data)
 
 Perform a paired samples t-test.  
 
-Parameters:  
+#### Parameters  
 - x1 (float or None, optional): The first sample. Defaults to None.  
 - x2 (float or None, optional): The second sample. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
@@ -77,10 +77,10 @@ Parameters:
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the t-test.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The p-value and the t-statistic.  
 
-Example:  
+#### Example
 ```python
 ttest_rel(factors={'group': ['A', 'B']}, tag='score', df=data)
 ```
@@ -89,7 +89,7 @@ ttest_rel(factors={'group': ['A', 'B']}, tag='score', df=data)
 
 Perform a Mann-Whitney U test.  
 
-Parameters:  
+#### Parameters  
 - x1 (float or None, optional): The first sample. Defaults to None.  
 - x2 (float or None, optional): The second sample. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
@@ -97,10 +97,10 @@ Parameters:
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the Mann-Whitney U test.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The p-value and the U statistic.  
 
-Example:  
+#### Example
 ```python
 mannwhitneyu(factors={'group': ['A', 'B']}, tag='score', df=data)
 ```
@@ -109,17 +109,17 @@ mannwhitneyu(factors={'group': ['A', 'B']}, tag='score', df=data)
 
 Perform a Shapiro-Wilk test for normality.  
 
-Parameters:  
+#### Parameters  
 - x1 (float or None, optional): The sample. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
 - tag (str, optional): The column name of the data. Defaults to None.  
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the Shapiro-Wilk test.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The test statistic and the p-value.  
 
-Example:  
+#### Example
 ```python
 shapiro(factors={'group': ['A', 'B']}, tag='score', df=data)
 ```
@@ -128,7 +128,7 @@ shapiro(factors={'group': ['A', 'B']}, tag='score', df=data)
 
 Calculate the Pearson correlation coefficient.  
 
-Parameters:  
+#### Parameters  
 - x1 (float or None, optional): The first sample. Defaults to None.  
 - x2 (float or None, optional): The second sample. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
@@ -136,10 +136,10 @@ Parameters:
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the Pearson correlation coefficient.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The correlation coefficient and the p-value.  
 
-Example:  
+#### Example
 ```python
 pearsonr(factors={'group': ['A', 'B']}, tags=['x', 'y'], df=data)
 ```
@@ -148,17 +148,17 @@ pearsonr(factors={'group': ['A', 'B']}, tags=['x', 'y'], df=data)
 
 Perform a chi-squared test for independence.  
 
-Parameters:  
+#### Parameters  
 - observed (np.ndarray or None, optional): The observed frequencies. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
 - tag (str, optional): The column name of the data. Defaults to None.  
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the chi-squared test.  
 
-Returns:  
+#### Returns
 - Tuple[Tuple[float, float, int, np.ndarray], pd.DataFrame]: The test statistic, the p-value, the degrees of freedom, the expected frequencies, and the observed frequencies.  
 
-Example:  
+#### Example
 ```python
 chi2_contingency(factors={'group': ['A', 'B']}, tag='outcome', df=data)
 ```
@@ -167,17 +167,17 @@ chi2_contingency(factors={'group': ['A', 'B']}, tag='outcome', df=data)
 
 Perform a Fisher's exact test.  
 
-Parameters:  
+#### Parameters  
 - observed (np.ndarray or None, optional): The observed frequencies. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
 - tag (str, optional): The column name of the data. Defaults to None.  
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 - kwargs: Additional arguments for the Fisher's exact test.  
 
-Returns:  
+#### Returns
 - Tuple[Tuple[float, float], pd.DataFrame]: The odds ratio, the p-value, the expected frequencies, and the observed frequencies.  
 
-Example:  
+#### Example
 ```python
 fisher_exact(factors={'group': ['A', 'B']}, tag='outcome', df=data)
 ```
@@ -186,16 +186,16 @@ fisher_exact(factors={'group': ['A', 'B']}, tag='outcome', df=data)
 
 Perform a one-way ANOVA.  
 
-Parameters:  
+#### Parameters  
 - Xs (list or None, optional): The samples. Defaults to None.  
 - factors (Dict[str, List[str]], optional): The factors for data filtering. Defaults to None.  
 - tag (str, optional): The column name of the data. Defaults to None.  
 - df (pd.DataFrame, optional): The data frame. Defaults to None.  
 
-Returns:  
+#### Returns
 - Tuple[float, float]: The F-statistic and the p-value.  
 
-Example:  
+#### Example
 ```python
 f_oneway(Xs=[x1, x2, x3], factors={'group': ['A', 'B', 'C']}, tag='score', df=data)
 ```
@@ -204,16 +204,16 @@ f_oneway(Xs=[x1, x2, x3], factors={'group': ['A', 'B', 'C']}, tag='score', df=da
 
 Perform a Tukey's HSD test for multiple comparisons.  
 
-Parameters:  
+#### Parameters  
 - factors (Dict[str, List[str]]): The factors for data filtering.  
 - tag (str): The column name of the data.  
 - df (pd.DataFrame): The data frame.  
 - alpha (float, optional): The significance level. Defaults to 0.05.  
 
-Returns:  
+#### Returns
 - sm.stats.multicomp.pairwise_tukeyhsd: The result object from the Tukey's HSD test.  
 
-Example:  
+#### Example
 ```python
 multicomp_turkeyHSD(factors={'group': ['A', 'B', 'C']}, tag='score', df=data)
 ```
@@ -222,13 +222,13 @@ multicomp_turkeyHSD(factors={'group': ['A', 'B', 'C']}, tag='score', df=data)
 
 Generate a table summarizing the results of the Tukey's HSD test.  
 
-Parameters:  
+#### Parameters  
 - turkey_result (sm.stats.multicomp.pairwise_tukeyhsd): The result object from the Tukey's HSD test.  
 
-Returns:  
+#### Returns
 - pd.DataFrame: A DataFrame containing the results of the Tukey's HSD test.  
 
-Example:  
+#### Example
 ```python
 turkey_result = multicomp_turkeyHSD(factors={'group': ['A', 'B', 'C']}, tag='score', df=data)
 turkey_to_table(turkey_result)
@@ -238,17 +238,17 @@ turkey_to_table(turkey_result)
 
 Perform a Dunnett's test for multiple comparisons.  
 
-Parameters:  
+#### Parameters  
 - factor (str): The column name of the factor.  
 - exp (List[str]): The names of the experimental groups.  
 - control (str): The name of the control group.  
 - df (pd.DataFrame): The data frame.  
 - kwargs: Additional arguments for the Dunnett's test.  
 
-Returns:  
+#### Returns
 - scipy.stats.dunnett: The result object from the Dunnett's test.  
 
-Example:  
+#### Example
 ```python
 multicomp_dunnett(factor='group', exp=['A', 'B', 'C'], control='D', df=data)
 ```
@@ -257,16 +257,16 @@ multicomp_dunnett(factor='group', exp=['A', 'B', 'C'], control='D', df=data)
 
 Perform a Bonferroni correction for multiple comparisons.  
 
-Parameters:  
+#### Parameters  
 - factors (Dict[str, List[str]]): The factors for data filtering.  
 - tag (str): The column name of the data.  
 - df (pd.DataFrame): The data frame.  
 - alpha (float, optional): The significance level. Defaults to 0.05.  
 
-Returns:  
+#### Returns
 - pd.DataFrame: A DataFrame containing the p-values after Bonferroni correction.  
 
-Example:  
+#### Example
 ```python
 multicomp_bonferroni(factors={'group': ['A', 'B', 'C']}, tag='score', df=data)
 ```
@@ -277,13 +277,13 @@ multicomp_bonferroni(factors={'group': ['A', 'B', 'C']}, tag='score', df=data)
 
 Convert a p-value to stars indicating the significance level.  
 
-Parameters:  
+#### Parameters  
 - p_value (float): The p-value to convert to stars.  
 
-Returns:  
+#### Returns
 - str: The string representation of the number of stars. If p >= 0.05, return ''.  
 
-Example:  
+#### Example
 ```python
 p_value_to_stars(0.01)
 ```

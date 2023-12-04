@@ -1,152 +1,140 @@
 # mbapy.sci_utils.paper_download
 
-### get_clean_doi -> str
-This function takes a DOI (Digital Object Identifier) as input and returns a cleaned version of the DOI.
+### \_get_available_scihub_urls -> list
+**Finds available scihub urls via http://tool.yovisun.com/scihub/**
 
 #### Params
-- doi (str): The DOI to be cleaned.
+- proxies (dict, optional): A dictionary of proxies to be used for the HTTP request. Defaults to None.
 
 #### Returns
-- str: The cleaned DOI.
+- list: A list of available SciHub URLs.
 
 #### Notes
-- The function uses regular expressions to extract the DOI from the input string.
-- If a valid DOI is found, it is returned. Otherwise, an empty string is returned.
+- This function sends a GET request to 'http://tool.yovisun.com/scihub/' to find available SciHub URLs.
 
 #### Example
 ```python
-doi = "10.1234/abcd.1234"
-clean_doi = get_clean_doi(doi)
-print(clean_doi)
-# Output: "10.1234/abcd.1234"
+available_urls = _get_available_scihub_urls(proxies={'http': 'http://proxy.example.com:8080'})
 ```
 
-### _get_available_scihub_urls -> List[str]
-This function finds available SciHub URLs by scraping the website http://tool.yovisun.com/scihub/.
+### \_update_available_scihub_urls -> list
+**Updates the list of available SciHub URLs.**
 
 #### Returns
-- List[str]: A list of available SciHub URLs.
+- list: The updated list of available SciHub URLs.
 
 #### Notes
-- The function sends a GET request to the website and parses the HTML response to extract the available URLs.
-- The function checks the status of each URL and only includes the ones that are labeled as "可用" (available) in the list of available URLs.
+- This function updates the global variable `available_scihub_urls` by calling the `_get_available_scihub_urls()` function if `available_scihub_urls` is None. Otherwise, it returns the current value of `available_scihub_urls`.
 
 #### Example
 ```python
-available_urls = _get_available_scihub_urls()
-print(available_urls)
-# Output: ["https://sci-hub.se", "https://sci-hub.st"]
+updated_urls = _update_available_scihub_urls()
 ```
 
-### _update_available_scihub_urls -> List[str]
-This function updates the list of available SciHub URLs.
+### get_clean_doi -> str
+**Cleans and returns the DOI string.**
+
+#### Params
+- doi (str): The DOI string to be cleaned.
 
 #### Returns
-- List[str]: The updated list of available SciHub URLs.
-
-#### Notes
-- The function checks if the global variable `available_scihub_urls` is None.
-- If it is None, the function calls `_get_available_scihub_urls()` to update the list of available URLs and assigns it to `available_scihub_urls`.
-- If `available_scihub_urls` is not None, it returns the current value of `available_scihub_urls`.
+- str: The cleaned DOI string.
 
 #### Example
 ```python
-available_urls = _update_available_scihub_urls()
-print(available_urls)
-# Output: ["https://sci-hub.se", "https://sci-hub.st"]
+cleaned_doi = get_clean_doi('10.123/abc.456')
 ```
 
-### _download_from_scihub_webpage -> Dict[str, Union[str, requests.Response]]
-This function downloads a file from the SciHub webpage.
+### \_get_scihub_valid_download_link -> str
+**Generates the valid Sci-Hub download link for the given input link.**
+
+#### Params
+- link (str): The input link for which the valid Sci-Hub download link needs to be generated.
+
+#### Returns
+- str: The valid Sci-Hub download link.
+
+#### Example
+```python
+valid_link = _get_scihub_valid_download_link('http://example.com/paper.pdf')
+```
+
+### \_download_from_scihub_webpage -> dict
+**Downloads a file from the SciHub webpage.**
 
 #### Params
 - webpage (requests.Response): The response object of the SciHub webpage.
 - proxies (dict, optional): The proxies to be used for the request. Defaults to None.
+- try_times (int): The number of times to attempt the download.
 
 #### Returns
-- Dict[str, Union[str, requests.Response]]: A dictionary containing the title, DOI, and the response object of the download request.
+- dict: A dictionary containing the title, DOI, and the response object of the download request.
 
 #### Notes
-- The function parses the HTML response of the SciHub webpage to extract the title, DOI, and download link.
-- It then sends a GET request to the download link and returns the response object.
+- This function attempts to download a file from the SciHub webpage and returns the result as a dictionary.
 
 #### Example
 ```python
-webpage = requests.get("https://sci-hub.se")
-download_result = _download_from_scihub_webpage(webpage)
-print(download_result)
-# Output: {'title': 'Example Paper', 'doi': '10.1234/abcd.1234', 'res': <Response [200]>}
+download_result = _download_from_scihub_webpage(webpage, proxies={'http': 'http://proxy.example.com:8080'}, try_times=3)
 ```
 
-### download_from_scihub_by_doi -> Dict[str, Union[str, requests.Response]] or None
-This function downloads a file from the Sci-Hub database using the DOI.
+### download_from_scihub_by_doi -> dict or None
+**Downloads a file from the Sci-Hub database using the DOI.**
 
 #### Params
 - doi (str): The DOI of the file to download.
 - proxies (dict): A dictionary of proxies to use for the request.
+- try_times (int): The number of times to attempt the download.
 
 #### Returns
-- Dict[str, Union[str, requests.Response]] or None: A dictionary containing the title, DOI, and the response object of the download request. If an error occurs, None is returned.
+- dict or None: A dictionary containing the title, DOI, and the response object of the download request. If meets error, returns None.
 
 #### Raises
 - Exception: If the DOI does not exist or if there is an error fetching the file from Sci-Hub.
 
 #### Example
 ```python
-doi = "10.1234/abcd.1234"
-download_result = download_from_scihub_by_doi(doi)
-print(download_result)
-# Output: {'title': 'Example Paper', 'doi': '10.1234/abcd.1234', 'res': <Response [200]>}
+download_result = download_from_scihub_by_doi('10.123/abc.456', proxies={'http': 'http://proxy.example.com:8080'}, try_times=3)
 ```
 
-### download_from_scihub_by_title -> Dict[str, Union[str, requests.Response]] or None
-This function downloads a document from Scihub by title.
+### download_from_scihub_by_title -> dict or None
+**Downloads a document from Scihub by title.**
 
 #### Params
 - title (str): The title of the document to be downloaded.
 - proxies (dict, optional): A dictionary of proxies to be used for the HTTP request.
+- try_times (int): The number of times to attempt the download.
 
 #### Returns
-- Dict[str, Union[str, requests.Response]] or None: A dictionary containing the title, DOI, and the response object of the download request. If an error occurs, None is returned.
+- dict or None: A dictionary containing the title, DOI, and the response object of the download request. If meets error, returns None.
 
 #### Raises
 - Exception: If the document with the given title does not exist on Scihub.
 
 #### Example
 ```python
-title = "Example Paper"
-download_result = download_from_scihub_by_title(title)
-print(download_result)
-# Output: {'title': 'Example Paper', 'doi': '10.1234/abcd.1234', 'res': <Response [200]>}
+download_result = download_from_scihub_by_title('Sample Paper Title', proxies={'http': 'http://proxy.example.com:8080'}, try_times=3)
 ```
 
-### download_by_scihub -> Dict[str, Union[str, None]] or None
-This function downloads a paper from Sci-Hub using its DOI or title.
+### download_by_scihub -> dict or None
+**Download a paper from Sci-Hub using its DOI.**
 
 #### Params
 - dir (str): The directory where the downloaded file will be saved.
 - doi (str): The DOI (Digital Object Identifier) of the paper.
-- title (str): The title of the paper.
-- file_full_name (str, optional): The name of the downloaded file, including the file extension (.pdf). Defaults to None.
+- title (str): The title of the document to be downloaded.
+- file_full_name (str, optional): The name of the downloaded file, include the file extension(.pdf). Defaults to None.
 - use_title_as_name (bool, optional): Whether to use the paper's title as the file name. Defaults to True.
 - valid_path_chr (str, optional): The character used to replace invalid characters in the file name. Defaults to '_'.
+- try_times (int): The number of times to attempt the download.
 
 #### Returns
-- Dict[str, Union[str, None]] or None: If successful, returns a dictionary containing information about the downloaded paper. If unsuccessful, returns None.
+- dict or None: If successful, returns a dictionary containing information about the downloaded paper. If unsuccessful, returns None.
 
 #### Notes
-- The function first checks if the specified directory exists. If not, it creates the directory.
-- It then checks whether the DOI or title is specified. If neither is specified, it returns an error.
-- The function downloads the paper from Sci-Hub using the DOI or title and saves it in the specified directory.
-- If the file_full_name is specified, it uses that as the file name. Otherwise, it uses the paper's title (or DOI if use_title_as_name is False) as the file name.
-- The function replaces invalid characters in the file name with the valid_path_chr character.
-- The function returns a dictionary containing the file name, file path, title, DOI, and the response object of the download request.
+- If doi is None and can't get doi from sci-hub webpage, doi will be set as %Y%m%d.%H%M%S.
 
 #### Example
 ```python
-dir = "/path/to/directory"
-doi = "10.1234/abcd.1234"
-download_result = download_by_scihub(dir, doi=doi)
-print(download_result)
-# Output: {'file_name': 'Example_Paper.pdf', 'file_path': '/path/to/directory/Example_Paper.pdf', 'title': 'Example Paper', 'doi': '10.1234/abcd.1234', 'res': <Response [200]>}
+download_result = download_by_scihub(dir='path/to/save', doi='10.123/abc.456', try_times=3)
 ```

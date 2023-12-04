@@ -8,19 +8,19 @@ This function performs linear regression on a given DataFrame.
 
 Perform linear regression on the given DataFrame.
 
-Parameters:
+#### Parameters
 - x (str): The column name for the independent variable.
 - y (str): The column name for the dependent variable.
 - df (pd.DataFrame): The DataFrame containing the data.
 
-Returns:
+#### Returns
 - dict: A dictionary containing the regression model, slope, intercept, and R-squared value.
     - 'regressor' (LinearRegression): The fitted regression model.
     - 'a' (float): The slope of the regression line.
     - 'b' (float): The intercept of the regression line.
     - 'r2' (float): The R-squared value of the regression.
 
-Example:
+#### Example
 ```python
 import pandas as pd
 from sklearn.linear_model import LinearRegression
