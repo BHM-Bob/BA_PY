@@ -285,7 +285,7 @@ def save_checkpoint(epoch: float, args:GlobalSettings, model: torch.nn.Module,
     torch.save(state, filename)
 
 def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
-                      optimizer: torch.optim.Optimizer) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float, Dict]:
+                      optimizer: torch.optim.Optimizer, strict=False) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float, Dict]:
     """
     Resumes the training from the last checkpoint if it exists, otherwise starts from scratch.
 
@@ -302,7 +302,7 @@ def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
         args.mp.mprint("=> loading checkpoint '{}'".format(args.resume))
         checkpoint = torch.load(args.resume)
         args.now_epoch = checkpoint["epoch"]
-        model.load_state_dict(checkpoint["state_dict"])
+        model.load_state_dict(checkpoint["state_dict"], strict = strict)
         optimizer.load_state_dict(checkpoint["optimizer"])
         old_losses = checkpoint["loss"]
         args.mp.mprint(f'loaded checkpoint {args.resume} (epoch {checkpoint["epoch"]})')
@@ -315,17 +315,21 @@ def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
 def viz_line(Y:float, X:float, win:str, title:str = None, name:str = None,
             update:str = 'append', opts:dict = {}):
     global viz_record
+    if not viz_record:
+        update = None
     if opts and 'title' in opts:
-        viz.line(Y = [Y],X = [X],
-                win=win, update=update,opts =  opts)
+        win = viz.line(Y = [Y],X = [X],
+                       win=win, update=update, opts =  opts)
         viz_record.append([Y, X, win, opts['title'], name, update, opts])
     else:
         title = get_default_for_None(title, win)
-        name = get_default_for_None(name, win)
-        viz.line(Y = [Y], X = [X], name = name,
-                win=win, update=update, opts =  dict(title = title))
-        opts = {'title' : title}
+        if 'legend' not in opts and 'label' not in opts:
+            name = get_default_for_None(name, win)
+        opts.update({'title' : title})
+        win = viz.line(Y = [Y], X = [X], name = name,
+                       win=win, update=update, opts =  opts)
         viz_record.append([Y, X, win, title, name, update, opts])
+    return win
 
 def re_viz_from_json_record(path):
     if os.path.isfile(path):

@@ -13,8 +13,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..base import autoparse
-from . import paper
+if __name__ == '__main__':
+    from mbapy.base import autoparse
+    from mbapy.dl_torch import paper
+else:
+    from ..base import autoparse
+    from . import paper
 
 
 class CnnCfg:
@@ -208,27 +212,31 @@ class MultiHeadAttentionLayer(nn.Module):
         self.hid_dim = hid_dim
         self.n_heads = n_heads
         self.head_dim = hid_dim // n_heads
-        self.fc_q = nn.Linear(hid_dim, hid_dim)
-        self.fc_k = nn.Linear(hid_dim, hid_dim)
-        self.fc_v = nn.Linear(hid_dim, hid_dim)
+        self.input_dim = kwargs.get('input_dim', hid_dim)
+        self.fc_q = nn.Linear(self.input_dim, hid_dim)
+        self.fc_k = nn.Linear(self.input_dim, hid_dim)
+        self.fc_v = nn.Linear(self.input_dim, hid_dim)
         self.fc_o = nn.Linear(hid_dim, hid_dim)
         if 'out_dim' in kwargs:
             self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
         self.dropout = nn.Dropout(dropout)
         self.scale = 1.0 / torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
-    def forward(self, query, key, value):
+    def forward(self, query, key, value, mask = None):
         batch_size = query.shape[0]
-        # Q = [batch size, query len, hid dim] => [batch size, n heads, query len, head dim]
-        # K = [batch size, key len,   hid dim] => [batch size, n heads, key len  , head dim]
-        # V = [batch size, value len, hid dim] => [batch size, n heads, value len, head dim]
+        # Q = [batch size, query len, input dim] => [batch size, n heads, query len, head dim]
+        # K = [batch size, key len,   input dim] => [batch size, n heads, key len  , head dim]
+        # V = [batch size, value len, input dim] => [batch size, n heads, value len, head dim]
         Q = self.fc_q(query).\
             reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
         K = self.fc_k(key).\
             reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
         V = self.fc_v(value).\
-            reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)        
-        # attention = [batch size, n heads, query len, key len]
-        attention = Q.matmul(K.permute(0, 1, 3, 2)).multiply(self.scale).softmax(dim=-1)
+            reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        # energy & attention: [batch size, n heads, query len, key len]
+        energy = Q.matmul(K.permute(0, 1, 3, 2)).multiply(self.scale)
+        if mask is not None:
+            energy = energy.masked_fill(mask == 0, -1e10)
+        attention = energy.softmax(dim=-1)
         # x = [batch size, query len, hid dim]
         x = self.dropout(attention).matmul(V).\
             permute(0, 2, 1, 3).contiguous().\
@@ -290,7 +298,9 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
         return self.fc_o(x)
     
 class EncoderLayer(nn.Module):
-    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device = 'cuda', **kwargs):
+    def __init__(self, q_len: None, class_num: None,
+                 hid_dim: int, n_heads: int, pf_dim: int, dropout: float,
+                 device = 'cuda', **kwargs):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
         self.ff_layer_norm = nn.LayerNorm(hid_dim)
@@ -301,12 +311,12 @@ class EncoderLayer(nn.Module):
         elif 'use_HydraAttention' in kwargs and kwargs['use_HydraAttention']:
             self.self_attention = paper.bb.HydraAttention(hid_dim, **kwargs)
         else:
-            self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+            self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device, **kwargs)
         self.dropout = nn.Dropout(dropout)
-    def forward(self, src):
+    def forward(self, src, mask = None):
         # src = [batch size, src len, hid dim]
         # self attention
-        _src = self.self_attention(src, src, src)
+        _src = self.self_attention(src, src, src, mask = mask)
         # dropout, residual connection and layer norm
         src = self.self_attn_layer_norm(src + self.dropout(_src))
         # src = [batch size, src len, hid dim]
@@ -317,7 +327,9 @@ class EncoderLayer(nn.Module):
         return self.ff_layer_norm(src + self.dropout(_src))
 
 class OutEncoderLayer(EncoderLayer):
-    def __init__(self, q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device = 'cuda', **kwargs):
+    def __init__(self, q_len: int, class_num: int,
+                 hid_dim: int, n_heads: int, pf_dim: int, dropout: float,
+                 device = 'cuda', **kwargs):
         kwargs.update({'do_not_ff':True})
         super().__init__(q_len, class_num, hid_dim, n_heads, pf_dim, dropout, device, **kwargs)
         self.class_num = class_num
