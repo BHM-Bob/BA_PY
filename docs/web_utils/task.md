@@ -2,101 +2,148 @@
 
 This module provides functions for launching a sub-thread to run a separate task concurrently with the main thread.  
 
-## Functions
+### Queue
+**General description**
 
-### launch_sub_thread()
+A simple implementation of a queue data structure.
 
-Launches a sub-thread to run a separate task concurrently with the main thread.  
+### Key2Action
+**General description**
 
-This function creates a global `statuesQue` queue and puts a dictionary with the keys `quit` and `input` into the queue. The `quit` key is set to `False` and the `input` key is set to `None`. 
-The function then starts a new thread by calling the `_wait_for_quit` function with the `statuesQue` queue as an argument. 
-Finally, the function prints the message "web sub thread started".  
+A named tuple representing an action triggered by a specific key.
 
-Example:  
-```python
-launch_sub_thread()
-```
+#### Attributes
+- `statue` (str): The signal for controlling the `_wait_for_quit` function, such as 'running' and 'exit'.
+- `func` (Callable): The action function.
+- `args` (list): The arguments for the action function.
+- `kwgs` (dict): The keyword arguments for the action function.
+- `is_reg` (bool, default=False): Indicates whether to use regular expression to match the key.
+- `lock` (_thread.lock, default=None): Thread lock.
 
-### _wait_for_quit(statuesQue)
+### _wait_for_quit
+**General description**
 
-Waits for user input to quit the sub-thread.  
+Waits for keyboard input and triggers corresponding actions based on the input.
 
-Parameters:  
-- statuesQue (Queue): The queue used for communication between the main thread and the sub-thread.  
+#### Params
+- `statuesQue` (Queue): The queue for managing status information.
+- `key2action` (Dict[str, List[Key2Action]]): A dictionary mapping keys to a list of Key2Action objects.
 
-Returns:  
-- int: Always returns 0.  
+#### Returns
+- int: 0 upon completion.
 
-### statues_que_opts(theQue, var_name, opts, *args)
+#### Notes
+- If no match is found without using regular expressions, it will attempt to match using regular expressions.
 
-Performs various operations on a dictionary stored in a queue.  
-
-Parameters:  
-- theQue (Queue): The queue containing the dictionary.  
-- var_name (str): The key of the value to operate on.  
-- opts (str): The operation to perform. Can be one of the following:  
-  - "getValue": Get the value of the specified key.  
-  - "setValue": Set the value of the specified key to the first argument.  
-  - "putValue": Put the first argument as the value of the specified key in the dictionary.  
-  - "reduceBy": Subtract the first argument from the value of the specified key.  
-  - "addBy": Add the first argument to the value of the specified key.  
-- *args: Additional arguments required for certain operations.  
-
-Returns:  
-- Any: The value returned by the operation.  
-
-### get_input(promot='', end='\n')
-
-Gets user input from the sub-thread.  
-
-Parameters:  
-- promot (str, optional): The prompt message to display. Defaults to an empty string.  
-- end (str, optional): The end character to use when displaying the prompt message. Defaults to '\n'.  
-
-Returns:  
-- Any: The user input.  
-
-### show_prog_info(idx, sum=-1, freq=10, otherInfo='')
-
-Prints the progress information at regular intervals.  
-
-Parameters:  
-- idx (int): The current index.  
-- sum (int, optional): The total number of items. Defaults to -1.  
-- freq (int, optional): The frequency at which progress information is printed. Defaults to 10.  
-- otherInfo (str, optional): Additional information to display. Defaults to an empty string.  
-
-Returns:  
-- None
-
-## Classes
-
-### Timer
-
-A class that represents a timer.  
-
-Methods:  
-- __init__(self): Initializes the Timer object.  
-- OnlyUsed(self): Returns the time elapsed since the last call to the timer.  
-- __call__(self) -> float: Returns the time elapsed since the last call to the timer and updates the timer.  
-
-### ThreadsPool
-
-A class that represents a pool of threads.  
-
-Methods:  
-- __init__(self, sum_threads, self_func, other_data, name='ThreadsPool'): Initializes the ThreadsPool object with the specified number of threads, a function to be executed by each thread, additional data for the function, and an optional name for the pool.  
-- put_task(self, data): Puts a task into the pool.  
-- loop2quit(self, wait2quitSignal): Sends a "wait to quit" signal to each thread in the pool and starts looping to wait for the threads to finish.  
-- 
-
-## Constants
-
-### statuesQue
-
-A global variable that represents a queue used for communication between the main thread and the sub-thread.  
-
-Example:  
+#### Example
 ```python
 statuesQue = Queue()
+key2action = {
+    's': [Key2Action('running', some_function, [arg1, arg2], {'kwarg1': val1})]
+}
+_wait_for_quit(statuesQue, key2action)
+```
+
+### statues_que_opts
+**General description**
+
+Performs various operations on the data stored in the queue.
+
+#### Params
+- `theQue` (Queue): The queue containing the data.
+- `var_name` (str): The name of the variable to be operated on.
+- `opts` (str): The operation to be performed.
+- `args` (Any): Additional arguments for the operation.
+
+#### Returns
+- Any: The result of the operation, if applicable.
+
+#### Notes
+- The `opts` parameter can take the values: 'getValue', 'setValue', 'putValue', 'reduceBy', and 'addBy'.
+
+#### Example
+```python
+result = statues_que_opts(statuesQue, "variable1", "getValue")
+```
+
+### get_input
+**General description**
+
+Gets input from the user.
+
+#### Params
+- `promot` (str, default=''): The prompt message.
+- `end` (str, default='\n'): The ending character for the prompt message.
+
+#### Returns
+- Any: The user input.
+
+### launch_sub_thread
+**General description**
+
+Launches a sub-thread to run a separate task concurrently with the main thread.
+
+#### Params
+- `statuesQue` (Queue): The queue for managing status information.
+- `key2action` (List[Tuple[str, Key2Action]], default={}): A list of tuples representing key-to-action mappings.
+
+#### Notes
+- The `statuesQue` queue has two keys for internal usage: `__is_quit__` and `__inputs__`.
+- Only if no match is found without using regular expressions, then it tries to match with regular expressions.
+
+#### Example
+```python
+launch_sub_thread(statuesQue, [('e', Key2Action('exit', statues_que_opts, [statuesQue, "__is_quit__", "setValue", True], {})])
+```
+
+### show_prog_info
+**General description**
+
+Prints the progress information at regular intervals.
+
+#### Params
+- `idx` (int): The current index.
+- `sum` (int, default=-1): The total number of items.
+- `freq` (int, default=10): The frequency at which progress information is printed.
+- `otherInfo` (str, default=''): Additional information to display.
+
+#### Returns
+- None
+
+### Timer
+**General description**
+
+A simple timer class.
+
+#### Methods
+- `OnlyUsed() -> float`: Returns the time elapsed since the last call.
+- `__call__() -> float`: Returns the time elapsed since the last call and updates the last call time.
+
+### ThreadsPool
+**General description**
+
+A pool of threads for concurrent task execution.
+
+#### Attributes
+- `sumThreads` (int): The total number of threads in the pool.
+- `sumTasks` (int): The total number of tasks executed.
+- `name` (str): The name of the thread pool.
+- `timer` (Timer): An instance of the Timer class.
+- `sig` (Queue): The queue for sending signals.
+- `putDataQues` (List[Queue]): The queues for putting data.
+- `getDataQues` (List[Queue]): The queues for getting data.
+- `quePtr` (int): Pointer for selecting the queue.
+
+#### Methods
+- `put_task(data) -> None`: Puts a task into the queue for execution.
+- `loop2quit(wait2quitSignal) -> list`: Waits for all tasks to be completed and returns the results.
+
+#### Notes
+- The `self_func` parameter in the constructor is a function that takes four parameters: a queue for getting data, a queue for sending completed data to the main thread, a queue to send a quit signal when receiving a `wait2quitSignal`, and other data.
+
+#### Example
+```python
+pool = ThreadsPool(5, some_function, other_data, 'MyPool')
+pool.put_task(task_data)
+results = pool.loop2quit('quit')
 ```

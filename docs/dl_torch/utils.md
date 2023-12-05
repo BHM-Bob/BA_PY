@@ -2,169 +2,268 @@
 
 This module provides functions and classes related to model initialization, training, and checkpoint management.  
 
-## Functions
+### launch_visdom -> (visdom.Visdom, list)
+**General description**
 
-### init_model_parameter(model: nn.Module) -> nn.Module
+This function initializes the visdom server and returns the visdom object and an empty list for recording.
 
-Initialize the parameters of the model.  
+#### Returns
+- vis (visdom.Visdom): The initialized visdom object.
+- viz_record (list): An empty list for recording.
 
-Parameters:  
-- model (nn.Module): The model to initialize.  
+#### Notes
+This function should be called before using any visualization functions.
 
-Returns:  
-- nn.Module: The initialized model.  
-
-### adjust_learning_rate(optimizer: torch.optim.Optimizer, now_epoch: int, args: GlobalSettings) -> None
-
-Adjusts the learning rate of the optimizer based on the current epoch and arguments.  
-
-Parameters:  
-- optimizer (torch.optim.Optimizer): The optimizer to adjust the learning rate of.  
-- now_epoch (int): The current epoch number.  
-- args (GlobalSettings): The parsed command-line arguments.  
-
-Returns:  
-- None
-
-### format_secs(sumSecs: int) -> Tuple[int, int, int]
-
-Formats a given number of seconds into hours, minutes, and seconds.  
-
-Parameters:  
-- sumSecs (int): The total number of seconds.  
-
-Returns:  
-- Tuple[int, int, int]: A tuple containing three integers representing the number of hours, minutes, and seconds respectively.  
-
-### save_checkpoint(epoch: int, args: GlobalSettings, model: nn.Module, optimizer: torch.optim.Optimizer, loss, other: dict, tailName: str) -> None
-
-Saves a checkpoint of the model and optimizer state, along with other information such as epoch, loss, and arguments.  
-
-Parameters:  
-- epoch (int): The current epoch number.  
-- args (GlobalSettings): The GlobalSettings object containing various hyperparameters and settings.  
-- model (nn.Module): The model whose state needs to be saved.  
-- optimizer (torch.optim.Optimizer): The optimizer whose state needs to be saved.  
-- loss: The current loss value.  
-- other (dict): A dictionary containing any other information that needs to be saved.  
-- tailName (str): A string to be used in the checkpoint file name for better identification.  
-
-Returns:  
-- None
-
-### resume(args: GlobalSettings, model: nn.Module, optimizer: torch.optim.Optimizer, other: dict = {}) -> Tuple[nn.Module, torch.optim.Optimizer, Union[int, float]]
-
-Resumes the training from the last checkpoint if it exists, otherwise starts from scratch.  
-
-Parameters:  
-- args (GlobalSettings): The GlobalSettings object containing various hyperparameters and settings.  
-- model (nn.Module): The model to be trained.  
-- optimizer (torch.optim.Optimizer): The optimizer to be used for training.  
-- other (dict, optional): A dictionary containing additional objects to be updated from the checkpoint. Defaults to {}.  
-
-Returns:  
-- Tuple[nn.Module, torch.optim.Optimizer, Union[int, float]]: A tuple of the model, optimizer, and old_losses if the checkpoint exists, otherwise a tuple of the model, optimizer, and 0.  
-
-## Classes
-
-### AverageMeter
-
-A class that computes and stores the average and current value.  
-
-Methods:  
-- __init__(self, name: str, fmt: str = ":f"): Initializes the AverageMeter object with the given name and format.  
-- reset(self): Resets the values of the AverageMeter object.  
-- update(self, val, n=1): Updates the values of the AverageMeter object with the given value and count.  
-- __str__(self): Returns a string representation of the AverageMeter object.  
-
-### ProgressMeter
-
-A class that displays the progress of training.  
-
-Methods:  
-- __init__(self, num_batches: int, meters, prefix: str = "", mp = None): Initializes the ProgressMeter object with the given number of batches, meters, prefix, and Mprint object.  
-- display(self, batch): Displays the progress of training.  
-- _get_batch_fmtstr(self, num_batches: int): Returns the format string for displaying the batch progress.  
-
-### TimeLast
-
-A class that calculates the estimated time remaining for a task.  
-
-Methods:  
-- __init__(self): Initializes the TimeLast object.  
-- update(self, left_tasks: int, just_done_tasks: int = 1): Updates the TimeLast object with the number of tasks remaining and the number of tasks just completed.  
+#### Example
+```python
+vis, viz_record = launch_visdom()
+```
 
 ### Mprint
+**General description**
 
-A class that provides logging tools.  
+This class provides logging tools for printing and saving logs to a file.
 
-Methods:  
-- __init__(self, path: str = "log.txt", mode: str = "lazy", cleanFirst: bool = True): Initializes the Mprint object with the given log file path, mode, and cleanFirst flag.  
-- mprint(self, *args): Prints the log message and writes it to the log file.  
-- logOnly(self, *args): Writes the log message to the log file without printing.  
-- exit(self): Writes the remaining log messages to the log file and closes it.  
-- __str__(self): Returns a string representation of the Mprint object.  
+#### Attrs
+- path (str): The path to the log file.
+- mode (str): The mode for logging, either "lazy" or "normal".
+- top_string (str): The top string for the log.
+- string (str): The log string.
+
+#### Methods
+- mprint(*args) -> None: Prints the log and saves it to the log file based on the mode.
+- log_only(*args) -> None: Logs the message to the log file without printing.
+- exit(mode='a+') -> None: Writes the log string to the log file and closes it.
+- \_\_str\_\_() -> str: Returns the string representation of the Mprint object.
+
+#### Notes
+- The `mprint` method prints the log and saves it to the log file based on the mode.
+- The `log_only` method logs the message to the log file without printing.
+- The `exit` method writes the log string to the log file and closes it.
+
+#### Example
+```python
+logger = Mprint("log.txt", "normal")
+logger.mprint("Logging message")
+logger.exit()
+```
 
 ### GlobalSettings
+**General description**
 
-A class that represents a collection of global settings and hyperparameters.  
+This class contains global settings and hyperparameters for the model.
 
-Methods:  
-- __init__(self, mp: Mprint, model_root: str): Initializes the GlobalSettings object with the given Mprint object and model root directory.  
-- toDict(self, printOut: bool = False, mp: Mprint = None): Converts the GlobalSettings object to a dictionary.  
-- set_resume(self): Updates the resume paths based on the model root directory.  
+#### Attrs
+- read (dict): Dictionary for data reading.
+- batch_size (int): Batch size for data loading.
+- load_shape (list): Shape for data loading.
+- model (None): The model object.
+- arch (None): The architecture of the model.
+- lr (float): Learning rate.
+- in_shape (list): Input shape for the model.
+- out_shape (list): Output shape for the model.
+- load_db_ratio (float): Load database ratio.
+- epochs (int): Total number of epochs.
+- now_epoch (int): Current epoch number.
+- left_epochs (int): Number of epochs left.
+- print_freq (int): Frequency of printing logs.
+- test_freq (int): Frequency of testing the model.
+- momentum (float): Momentum for optimization.
+- weight_decay (float): Weight decay for optimization.
+- seed (int): Random seed for reproducibility.
+- moco_m (float): Moco m parameter.
+- moco_k (int): Moco k parameter.
+- byolq_k (int): Byolq k parameter.
+- moco_t (float): Moco t parameter.
+- cos (bool): Cosine flag.
+- paths (dict): Dictionary for paths.
+- data (str): Data information.
+- model_root (str): Root directory for the model.
+- resume_paths (list): List of paths for resuming the model.
+- resume (str): Path for resuming the model.
+- mp (Mprint): Mprint object for logging.
 
-Attributes:  
-- read (dict): A dictionary for data reading.  
-- batch_size (int): The batch size for training.  
-- load_shape (List[int]): The shape of the input data.  
-- model (Any): The model object.  
-- arch (Any): The architecture object.  
-- lr (float): The learning rate.  
-- in_shape (List[int]): The shape of the input data.  
-- out_shape (List[int]): The shape of the output data.  
-- load_db_ratio (float): The ratio of the loaded data.  
-- epochs (int): The number of training epochs.  
-- print_freq (int): The frequency of printing training information.  
-- test_freq (int): The frequency of testing the model.  
-- momentum (float): The momentum for the optimizer.  
-- weight_decay (float): The weight decay for the optimizer.  
-- seed (int): The random seed.  
-- start_epoch (int): The starting epoch number.  
-- moco_m (float): The moco_m parameter.  
-- moco_k (int): The moco_k parameter.  
-- byolq_k (int): The byolq_k parameter.  
-- moco_t (float): The moco_t parameter.  
-- cos (bool): Whether to use cosine learning rate schedule.  
-- paths (dict): A dictionary of paths.  
-- data (str): The data directory.  
-- model_root (str): The model root directory.  
-- resume_paths (List[str]): The paths of the checkpoint files.  
-- resume (str): The path of the resume checkpoint file.  
-- mp (Mprint): The Mprint object for logging.  
+#### Methods
+- add_epoch(addon: int) -> bool: Adds an epoch and returns True if the current epoch is greater than the total epochs.
+- to_dict(printOut=False, mp=None) -> dict: Converts the object attributes to a dictionary and prints it if printOut is True.
+- set_resume() -> None: Sets the resume path for the model.
 
-Example:  
+#### Notes
+- The `add_epoch` method adds an epoch and returns True if the current epoch is greater than the total epochs.
+- The `to_dict` method converts the object attributes to a dictionary and prints it if printOut is True.
+- The `set_resume` method sets the resume path for the model.
+
+#### Example
 ```python
 mp = Mprint()
-settings = GlobalSettings(mp, 'model/')
-settings.toDict(printOut=True, mp=mp)
+settings = GlobalSettings(mp, "model_root", seed=777)
+settings.add_epoch()
+settings.to_dict(printOut=True, mp=mp)
 settings.set_resume()
 ```
 
-## Constants
+### init_model_parameter
+**General description**
 
-### _Params
+This function initializes the model parameters.
 
-A dictionary that contains various parameters for the module.  
+#### Params
+- model (torch.nn.Module): The model to be initialized.
 
-### USE_VIZDOM
+#### Returns
+- model (torch.nn.Module): The initialized model.
 
-A global variable that controls whether to use the Vizdom library for visualization. Set to False to disable Vizdom.  
+#### Notes
+This function initializes the model parameters using specific initialization methods for different types of layers.
 
-### viz
+#### Example
+```python
+model = init_model_parameter(model)
+```
 
-A Vizdom object used for visualization.  
+### adjust_learning_rate
+**General description**
 
-### vizRecord
+This function adjusts the learning rate of the given optimizer based on the current epoch and arguments.
 
-A list that records the visualization logs.  
+#### Params
+- optimizer (torch.optim.Optimizer): Optimizer to adjust the learning rate of.
+- now_epoch (int): Current epoch number.
+- args (argparse.Namespace): Parsed command-line arguments.
+
+#### Returns
+- None
+
+#### Notes
+This function adjusts the learning rate based on the cosine or stepwise learning rate schedule.
+
+#### Example
+```python
+adjust_learning_rate(optimizer, now_epoch, args)
+```
+
+### format_secs
+**General description**
+
+This function formats a given number of seconds into hours, minutes, and seconds.
+
+#### Params
+- sumSecs (int): Total number of seconds.
+
+#### Returns
+- tuple: A tuple containing three integers representing the number of hours, minutes, and seconds respectively.
+
+#### Notes
+This function formats the total number of seconds into hours, minutes, and seconds.
+
+#### Example
+```python
+hours, minutes, seconds = format_secs(3600)
+```
+
+### AverageMeter
+**General description**
+
+This class computes and stores the average and current value.
+
+#### Attrs
+- name (str): Name of the meter.
+- fmt (str): Format for displaying the values.
+
+#### Methods
+- reset() -> None: Resets the values of the meter.
+- update(val, n=1) -> None: Updates the meter with a new value and count.
+- \_\_str\_\_() -> str: Returns the string representation of the AverageMeter object.
+
+#### Notes
+This class computes and stores the average and current value for a specific metric.
+
+### ProgressMeter
+**General description**
+
+This class displays the progress of the training process.
+
+#### Attrs
+- num_batches (int): Total number of batches.
+- meters (list): List of meters for displaying progress.
+- prefix (str): Prefix for the progress display.
+
+#### Methods
+- display(batch) -> None: Displays the progress for the current batch.
+
+#### Notes
+This class displays the progress of the training process with the specified meters.
+
+### TimeLast
+**General description**
+
+This class calculates the time remaining for a given number of tasks.
+
+#### Methods
+- update(left_tasks:int, just_done_tasks:int = 1) -> float: Updates the time remaining based on the number of tasks completed.
+
+#### Notes
+This class calculates the time remaining for a given number of tasks based on the time taken for the last task.
+
+### save_checkpoint
+**General description**
+
+This function saves a checkpoint of the model and optimizer state, along with other information.
+
+#### Params
+- epoch (float): Current epoch number.
+- args (GlobalSettings): Global settings and hyperparameters.
+- model (torch.nn.Module): The model to be saved.
+- optimizer (torch.optim.Optimizer): The optimizer to be saved.
+- loss (float): Current loss value.
+- other (dict): Additional information to be saved.
+- tailName (str): A string for better identification in the checkpoint file name.
+
+#### Notes
+This function saves the model and optimizer state along with other information to a checkpoint file.
+
+### resume_checkpoint
+**General description**
+
+This function resumes the training from the last checkpoint if it exists, otherwise starts from scratch.
+
+#### Params
+- args (GlobalSettings): Global settings and hyperparameters.
+- model (torch.nn.Module): Model to be trained.
+- optimizer (torch.optim.Optimizer): Optimizer to be used for training.
+
+#### Returns
+- tuple: Tuple of the model, optimizer, and old_losses if checkpoint exists, otherwise tuple of model, optimizer, and 0.
+
+#### Notes
+This function resumes the training from the last checkpoint if it exists, otherwise starts from scratch.
+
+### viz_line
+**General description**
+
+This function visualizes a line plot using the visdom server.
+
+#### Params
+- Y (float): Y-axis value.
+- X (float): X-axis value.
+- win (str): Window name for the plot.
+- title (str): Title for the plot.
+- name (str): Name for the line.
+- update (str): Update method for the plot.
+- opts (dict): Additional options for the plot.
+
+#### Notes
+This function visualizes a line plot using the visdom server and records the plot details.
+
+### re_viz_from_json_record
+**General description**
+
+This function re-visualizes the recorded plots from a JSON record file.
+
+#### Params
+- path (str): Path to the JSON record file.
+
+#### Notes
+This function re-visualizes the recorded plots from a JSON record file.
+
+Hope this helps! Let me know if you need anything else.
