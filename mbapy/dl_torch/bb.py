@@ -140,12 +140,12 @@ class SCANN(nn.Module):
                           enumerate(torch.split(x, self.group, dim=1))], dim=1)
 
 class PositionalEncoding(nn.Module):
-# from https://zhuanlan.zhihu.com/p/338592312
-    def __init__(self, d_model, max_len=5000):
+    # from https://zhuanlan.zhihu.com/p/338592312
+    def __init__(self, dim: int, max_len: int = 5000):
         super(PositionalEncoding, self).__init__()       
-        pe = torch.zeros(max_len, d_model)
+        pe = torch.zeros(max_len, dim)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(0, dim, 2).float() * (-math.log(10000.0) / dim))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
@@ -160,20 +160,22 @@ class RoPE(nn.Module):
     from Meta LLAMA
     edit from https://mp.weixin.qq.com/s/LH1leSGJSloxQXPYM1wzog
     """
-    def __init__(self, dim: int, seq_len: int, theta: float = 10000.0) -> None:
+    def __init__(self, dim: int, max_len: int, theta: float = 10000.0) -> None:
         super().__init__()
         # 计算词向量元素两两分组之后，每组元素对应的旋转角度\theta_i
         freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
         # 生成 token 序列索引 t = [0, 1,..., seq_len-1]
-        t = torch.arange(seq_len, device=freqs.device)
+        t = torch.arange(max_len, device=freqs.device)
         # freqs.shape = [seq_len, dim // 2] 
         freqs = torch.outer(t, freqs).float()  # 计算m * \theta
         # 计算结果是个复数向量
         # 假设 freqs = [x, y]
         # 则 freqs_cis = [cos(x) + sin(x)i, cos(y) + sin(y)i]
-        self.freqs_cis = torch.polar(torch.ones_like(freqs), freqs)
+        self.register_buffer('freqs_cis',
+                             torch.polar(torch.ones_like(freqs), freqs))
     def forward(self, xq:torch.Tensor, xk:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         # xq.shape = [batch_size, seq_len, dim]
+        seq_len = xq.shape[1]
         # xq_.shape = [batch_size, seq_len, dim // 2, 2]
         xq_ = xq.float().reshape(*xq.shape[:-1], -1, 2)
         xk_ = xk.float().reshape(*xk.shape[:-1], -1, 2)
@@ -182,8 +184,8 @@ class RoPE(nn.Module):
         xk_ = torch.view_as_complex(xk_)
         # 应用旋转操作，然后将结果转回实数域
         # xq_out.shape = [batch_size, seq_len, dim]
-        xq_out = torch.view_as_real(xq_ * self.freqs_cis).flatten(2)
-        xk_out = torch.view_as_real(xk_ * self.freqs_cis).flatten(2)
+        xq_out = torch.view_as_real(xq_ * self.freqs_cis[:seq_len, :]).flatten(2)
+        xk_out = torch.view_as_real(xk_ * self.freqs_cis[:seq_len, :]).flatten(2)
         return xq_out.type_as(xq), xk_out.type_as(xk)
 
 class PositionwiseFeedforwardLayer(nn.Module):
@@ -200,11 +202,13 @@ class PositionwiseFeedforwardLayer(nn.Module):
         return self.nn(x)
 
 class MultiHeadAttentionLayer(nn.Module):
-    """MultiHeadAttentionLayer\n
-    if kwargs['use_enhanced_fc_q'] and 'q_len' in kwargs and 'out_len' in kwargs\n
-    use fc_q mlp like PositionwiseFeedforwardLayer to output a tensor with out_len\n
-    if 'out_dim' in kwargs\n
-    self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
+    """
+    MultiHeadAttentionLayer
+    
+        - if kwargs['use_enhanced_fc_q'] and 'q_len' in kwargs and 'out_len' in kwargs, use fc_q mlp like PositionwiseFeedforwardLayer to output a tensor with out_len\n
+        - if 'out_dim' in kwargs, self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
+    NOTE: 
+        - energy = energy.masked_fill(mask==0, -1e10)
     """
     def __init__(self, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
         super().__init__()
@@ -221,26 +225,32 @@ class MultiHeadAttentionLayer(nn.Module):
             self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
         self.dropout = nn.Dropout(dropout)
         self.scale = 1.0 / torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
-    def forward(self, query, key, value, mask = None):
+    def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
         batch_size = query.shape[0]
-        # Q = [batch size, query len, input dim] => [batch size, n heads, query len, head dim]
-        # K = [batch size, key len,   input dim] => [batch size, n heads, key len  , head dim]
-        # V = [batch size, value len, input dim] => [batch size, n heads, value len, head dim]
-        Q = self.fc_q(query).\
-            reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        K = self.fc_k(key).\
-            reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
-        V = self.fc_v(value).\
-            reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        # Q = [batch size, query len, input dim] => [batch size, query len, hid_dim][batch size, n heads, query len, head dim]
+        # K = [batch size, key len,   input dim] => [batch size, key len,   hid_dim][batch size, n heads, key len  , head dim]
+        # V = [batch size, value len, input dim] => [batch size, value len, hid_dim][batch size, n heads, value len, head dim]
+        Q = self.fc_q(query)
+        K = self.fc_k(key)
+        V = self.fc_v(value)
+        # RoPE
+        if RoPE is not None:
+            Q, K = RoPE(Q, K)
+        # reshape and permute
+        # Q = [batch size, query len, hid_dim] => [batch size, n heads, query len, head dim]
+        # K = [batch size, key len,   hid_dim] => [batch size, n heads, key len  , head dim]
+        # V = [batch size, value len, hid_dim] => [batch size, n heads, value len, head dim]
+        Q = Q.reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        K = K.reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
+        V = V.reshape(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
         # energy & attention: [batch size, n heads, query len, key len]
         energy = Q.matmul(K.permute(0, 1, 3, 2)).multiply(self.scale)
         if mask is not None:
-            energy = energy.masked_fill(mask == 0, -1e10)
+            energy = energy.masked_fill(mask==0, -1e10)
         attention = energy.softmax(dim=-1)
         # x = [batch size, query len, hid dim]
-        x = self.dropout(attention).matmul(V).\
-            permute(0, 2, 1, 3).contiguous().\
-            reshape(batch_size, -1, self.hid_dim)
+        x = self.dropout(attention).matmul(V).permute(0, 2, 1, 3).contiguous()\
+            .reshape(batch_size, -1, self.hid_dim)
         # x = [batch size, query len, hid dim]
         return self.fc_o(x)
     
@@ -251,7 +261,7 @@ class FastMultiHeadAttentionLayer(nn.Module):
         assert paper.bb.FlashMHA is not None, 'paper.bb.FlashMHA is None'
         self.net = paper.bb.FlashMHA(hid_dim, n_heads,
                                      device=device, dtype = torch.float16)
-    def forward(self, query, key, value):
+    def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
         ori_type = query.dtype
         query = query.to(dtype = torch.float16)
         query = self.net(query)[0]
@@ -273,7 +283,7 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
                                       nn.GELU(),
                                       nn.Dropout(dropout),
                                       nn.Linear(hid_dim, class_num))
-    def forward(self, query, key, value):
+    def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
         # query = [batch size, query len, hid dim]
         # key = [batch size, key len, hid dim]
         # value = [batch size, value len, hid dim]
@@ -313,10 +323,10 @@ class EncoderLayer(nn.Module):
         else:
             self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device, **kwargs)
         self.dropout = nn.Dropout(dropout)
-    def forward(self, src, mask = None):
+    def forward(self, src, RoPE: RoPE = None, mask = None):
         # src = [batch size, src len, hid dim]
         # self attention
-        _src = self.self_attention(src, src, src, mask = mask)
+        _src = self.self_attention(src, src, src, RoPE = RoPE, mask = mask)
         # dropout, residual connection and layer norm
         src = self.self_attn_layer_norm(src + self.dropout(_src))
         # src = [batch size, src len, hid dim]
