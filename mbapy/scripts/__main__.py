@@ -1,8 +1,16 @@
 
 import argparse
-import os
 
 scripts_info = {
+    'cnipa':
+        {
+            'brief': 'get patents info from CNIPA.',
+            'detailed': 
+                """
+                If it accessible, get info and store it into a json session file.
+                Example: python -m mbapy.scripts.cnipa -q "peptide" -o "E:\\peptide patents" -log
+                """,
+        },
     'scihub':
         {
             'brief': 'download papers and it\'s refs(optional) from scihub.',
@@ -10,6 +18,15 @@ scripts_info = {
                 """
                 If it can be downloaded, download and store it into session.
                 Example: python -m mbapy.scripts.scihub -i "E:\\peptide.ris" -o "E:\\peptide papers" -log
+                """,
+        },
+    'scihub_selenium':
+        {
+            'brief': 'download papers and it\'s refs(optional) from scihub using selenium.',
+            'detailed': 
+                """
+                If it can be downloaded, download and store it into session.
+                Example: python -m mbapy.scripts.scihub_selenium -i "E:\\peptide.ris" -o "E:\\peptide papers" -log -gui
                 """,
         },
     'extract_paper':

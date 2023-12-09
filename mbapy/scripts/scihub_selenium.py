@@ -118,7 +118,7 @@ if __name__ == "__main__":
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
     args_paser.add_argument("-r", "--ref", action="store_true", help="FLAG, enable ref mode to download refrences")
-    args_paser.add_argument("-g", "--gpu", action="store_true", help="FLAG, enable browser GUI")
+    args_paser.add_argument("-g", "--gui", action="store_true", help="FLAG, enable browser GUI")
     args_paser.add_argument("-u", "--undetected", action="store_true", help="FLAG, enable to use undetected_chromedriver")
     args_paser.add_argument("-l", "--log", action="store_true", help="FLAG, enable to verbose mbapy log info")
     args = args_paser.parse_args()
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     put_log(f'get args: ris: {args.ris}')
     put_log(f'get args: out: {args.out}')
     put_log(f'get args: ref: {args.ref}')
-    put_log(f'get args: gpu: {args.gpu}')
+    put_log(f'get args: gui: {args.gui}')
     put_log(f'get args: undetected: {args.undetected}')
     put_log('downloading papers from SCIHUB, Enter e to stop and save session.')
     
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     launch_sub_thread(key2action={
         'save': ('running', records.to_json, [records_path], {})
     })
-    if args.gpu:
+    if args.gui:
         b = Browser('Chrome', options=['--no-sandbox', '--ignore-certificate-errors'],
                     use_undetected=args.undetected,
                     driver_path=Configs.web.chrome_driver_path)
