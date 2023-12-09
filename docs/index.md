@@ -53,7 +53,7 @@ Some scientific paper utils, including parsing RIS, downloading pdf by title or 
 3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.
 ## [scripts](scripts.md)
 Some helpful command line scripts.
-1. [cnipa](scripts.md#cnipa)
-2. [extract_paper](scripts.md#extract_paper)
-3. [scihub_selenium](scripts.md#scihub_selenium)
-4. [scihub](scripts.md#scihub)
+1. [cnipa](scripts.md#cnipa)  
+2. [extract_paper](scripts.md#extract_paper)  
+3. [scihub_selenium](scripts.md#scihub_selenium)  
+4. [scihub](scripts.md#scihub)  
