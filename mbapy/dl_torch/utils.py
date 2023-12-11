@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..base import MyArgs, get_default_for_None, get_fmt_time
+from ..base import MyArgs, get_default_for_None, get_fmt_time, put_err
 from ..file import read_json, save_json
 
 viz = None
@@ -36,23 +36,8 @@ class Mprint:
             with open(path, "w") as f:
                 f.write("Mprint : cleanFirst\n")
 
-    def mprint(self, *args):
-        string = f'[{get_fmt_time("%Y%m%d-%H%M%S.%f")} - {self.top_string}] '
-        for item in args:
-            if not isinstance(item, str):
-                item = str(item)
-            string += (item + " ")
-
-        print(string)
-
-        if self.mode != "lazy":
-            with open(self.path, "a+") as f:
-                f.write(string + "\n")
-        else:
-            self.string += string + "\n"     
-
     def log_only(self, *args):
-        string = '[{''} - {''}] '.format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), self.top_string)
+        string = f'[{get_fmt_time("%Y%m%d-%H%M%S.%f")} - {self.top_string}] '
         for item in args:
             if type(item) != "":
                 item = str(item)
@@ -63,6 +48,11 @@ class Mprint:
                 f.write(string + "\n")
         else:
             self.string += string + "\n"
+            
+        return string
+
+    def mprint(self, *args):
+        print(self.log_only(*args))   
             
     def __call__(self, *args, log_only = False):
         if log_only:
@@ -184,7 +174,7 @@ def adjust_learning_rate(optimizer, now_epoch, args):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def format_secs(sumSecs):
+def format_secs(sum_secs, fmt: str = None):
     """
     Formats a given number of seconds into hours, minutes, and seconds.
 
@@ -192,10 +182,16 @@ def format_secs(sumSecs):
     :return: A tuple containing three integers representing the number of hours,
              minutes, and seconds respectively.
     """
-    sumHs = int(sumSecs//3600)
-    sumMs = int((sumSecs-sumHs*3600)//60)
-    sumSs = int(sumSecs-sumHs*3600-sumMs*60)
-    return sumHs, sumMs, sumSs
+    sum_hh = int(sum_secs//3600)
+    sum_mm = int((sum_secs-sum_hh*3600)//60)
+    sum_ss = int(sum_secs-sum_mm*3600-sum_mm*60)
+    if fmt is None:
+        return sum_hh, sum_mm, sum_ss
+    elif isinstance(fmt, str):
+        return fmt.format(sum_hh, sum_mm, sum_ss)
+    else:
+        return put_err(f'unsupport fmt: {fmt}, return hh, mm, ss',
+                       (sum_hh, sum_mm, sum_ss))
 
 class AverageMeter(object):
     """

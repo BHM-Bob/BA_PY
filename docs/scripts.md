@@ -54,11 +54,11 @@ python cnipa_script.py -q "peptide" -o "E:\\peptide_patents" -m "E:\\easyocr_mod
 - 请确保已准备好验证码识别所需的模型文件（如果使用了自定义模型）。
 - 脚本执行过程中保持浏览器窗口最大化并且为置顶状态。
 
-### SciHub
+### sciHub
 从 SciHub 下载论文及其引用（可选）。
 ##### 安装
 确保已安装以下 Python 模块：
-- tqdm
+- tqdm  
 
 ##### 使用方法
 ```bash
@@ -78,7 +78,7 @@ python scihub_script.py -i "E:\\peptide.ris" -o "E:\\peptide_papers" -r -l
 
 ##### 注意事项
 - 该脚本会从 SciHub 下载论文及其引用（如果启用了引用模式）。
-- 在下载过程中，按下 "e" 键可以停止并保存会话。
+- 在下载过程中，依次按下 "e" + "Enter" 键可以停止并保存会话以便下次启动时恢复进度。
 
 ### sciHub_selenium
 使用 Selenium 从 SciHub 下载论文及其引用（可选）。
@@ -109,6 +109,7 @@ python scihub_selenium_script.py -i "E:\\peptide.ris" -o "E:\\peptide_papers" -r
 ##### 注意事项
 - 该脚本会从 SciHub 下载论文及其引用（如果启用了引用模式）。
 - 请确保已安装 Chrome 浏览器，并且已配置好 Chrome WebDriver。
+- 在下载过程中，依次按下 "e" + "Enter" 键可以停止并保存会话以便下次启动时恢复进度。
 
 
 ### extract_paper
