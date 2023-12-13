@@ -48,6 +48,35 @@ def parse_ris(ris_path:str, fill_none_doi:str = None):
                     r['doi'] = fill_none_doi
         return ris
     
+    
+__all__ = [
+    'parse_ris',
+    
+    'session',
+    '_get_available_scihub_urls',
+    '_update_available_scihub_urls',
+    'get_clean_doi',
+    '_get_scihub_valid_download_link',
+    'download_from_scihub_by_doi',
+    'download_from_scihub_by_title',
+    'download_by_scihub',
+    
+    'has_sci_bookmarks',
+    'get_sci_bookmarks_from_pdf',
+    'get_section_bookmarks',
+    'get_english_part_of_bookmarks',
+    'get_section_from_paper',
+    'format_paper_from_txt',
+    'parse_grobid',
+    
+    'search_IF',
+    'search_by_baidu',
+    'search_by_pubmed',
+    'search_by_wos',
+    'search',
+    'get_reference_by_doi',
+]  
+
 
 if __name__ == '__main__':
     # dev code
@@ -63,7 +92,6 @@ if __name__ == '__main__':
     # search
     search_result_bd = search_by_baidu('linaclotide', 11)
     search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
-    search_result_wos = search_by_wos("linaclotide", 11, browser_driver_path=web.CHROMEDRIVERPATH)
     
     # download
     dl_result = download_by_scihub('./data_tmp/', title = search_result_bd[0]['title'])
