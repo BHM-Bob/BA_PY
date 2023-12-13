@@ -14,10 +14,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 if __name__ == '__main__':
-    from mbapy.base import autoparse
+    from mbapy.base import autoparse, get_default_for_None
     from mbapy.dl_torch import paper
 else:
-    from ..base import autoparse
+    from ..base import autoparse, get_default_for_None
     from . import paper
 
 
@@ -225,7 +225,8 @@ class MultiHeadAttentionLayer(nn.Module):
             self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
         self.dropout = nn.Dropout(dropout)
         self.scale = 1.0 / torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
-    def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
+    def forward(self, query, key, value, RoPE: RoPE = None,
+                mask = None, pad_id = None):
         batch_size = query.shape[0]
         # Q = [batch size, query len, input dim] => [batch size, query len, hid_dim][batch size, n heads, query len, head dim]
         # K = [batch size, key len,   input dim] => [batch size, key len,   hid_dim][batch size, n heads, key len  , head dim]
@@ -247,6 +248,8 @@ class MultiHeadAttentionLayer(nn.Module):
         energy = Q.matmul(K.permute(0, 1, 3, 2)).multiply(self.scale)
         if mask is not None:
             energy = energy.masked_fill(mask==0, -1e10)
+        elif pad_id is not None:
+            energy = energy.masked_fill(energy==pad_id, -1e10)
         attention = energy.softmax(dim=-1)
         # x = [batch size, query len, hid dim]
         x = self.dropout(attention).matmul(V).permute(0, 2, 1, 3).contiguous()\
@@ -322,13 +325,19 @@ class EncoderLayer(nn.Module):
             self.self_attention = FastMultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
         elif kwargs.get('use_HydraAttention', False):
             self.self_attention = paper.bb.HydraAttention(hid_dim, **kwargs)
+        elif kwargs.get('MHSA', False) and issubclass(kwargs['MHSA'], nn.Module):
+            self.self_attention = kwargs['MHSA']
         else:
             self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device, **kwargs)
         self.dropout = nn.Dropout(dropout)
-    def forward(self, src, RoPE: RoPE = None, mask = None):
+    def forward(self, src, k = None, v = None, RoPE: RoPE = None,
+                mask = None, pad_id = None):
         # src = [batch size, src len, hid dim]
         # self attention
-        _src = self.self_attention(src, src, src, RoPE = RoPE, mask = mask)
+        k = get_default_for_None(k, src)
+        v = get_default_for_None(v, src)
+        _src = self.self_attention(src, k, v, RoPE = RoPE,
+                                   mask = mask, pad_id = pad_id)
         # dropout, residual connection and layer norm
         src = self.self_attn_layer_norm(src + self.dropout(_src))
         # src = [batch size, src len, hid dim]
