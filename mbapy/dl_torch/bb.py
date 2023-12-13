@@ -314,11 +314,13 @@ class EncoderLayer(nn.Module):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
         self.ff_layer_norm = nn.LayerNorm(hid_dim)
-        if 'do_not_ff' not in kwargs or ('do_not_ff' in kwargs and not kwargs['do_not_ff']):
+        if not kwargs.get('do_not_ff', False):
             self.positionwise_feedforward = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
-        if 'use_FastMHA' in kwargs and kwargs['use_FastMHA']:
+        else:
+            self.positionwise_feedforward = nn.Identity()
+        if kwargs.get('use_FastMHA', False):
             self.self_attention = FastMultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
-        elif 'use_HydraAttention' in kwargs and kwargs['use_HydraAttention']:
+        elif kwargs.get('use_HydraAttention', False):
             self.self_attention = paper.bb.HydraAttention(hid_dim, **kwargs)
         else:
             self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device, **kwargs)
