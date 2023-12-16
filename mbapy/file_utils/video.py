@@ -226,10 +226,17 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
     video.release()
     return unique_frames_idx, unique_frames
 
+__all__ = [
+    'get_cv2_video_attr',
+    'extract_frames_by_index',
+    'extract_frame_to_img',
+    'extract_unique_frames',
+]
 
 if __name__ == '__main__':
     # dev code
     # extract unique frames
+    import time
     from glob import glob
     video_paths = glob(r"./data_tmp/*.mp4")
     interval, backend = 10, 'torch-res50'

@@ -143,6 +143,14 @@ def calculate_frame_features(frame:Union[cv2.Mat, List[cv2.Mat]], model:torch.nn
             features = model(x).view(-1)
     return features
 
+__all__ = [
+    'imread',
+    'imwrite',
+    '_load_nn_model',
+    '_get_transform',
+    'calculate_frame_features',    
+]
+
 if __name__ == '__main__':
     # 加载帧
     frame1 = cv2.imread("./data_tmp/extract_frames/frame_0-0-0.jpg")
