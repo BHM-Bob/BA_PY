@@ -1,7 +1,7 @@
 '''
 Date: 2023-11-04 18:43:38
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-04 22:38:51
+LastEditTime: 2023-11-28 17:33:49
 Description: 
 '''
 import argparse
@@ -16,8 +16,8 @@ import wget
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'True'
-from mbapy.base import (check_parameters_path, Configs, get_storage_path, put_err,
-                        put_log)
+from mbapy.base import (Configs, check_parameters_path, get_storage_path,
+                        put_err, put_log)
 from mbapy.file import get_valid_file_path, opts_file
 from mbapy.game import BaseInfo
 from mbapy.paper import (_get_scihub_valid_download_link,
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
     args_paser.add_argument("-r", "--ref", action="store_true", help="FLAG, enable ref mode to download refrences")
-    args_paser.add_argument("--head", action="store_true", help="FLAG, enable browser GUI")
+    args_paser.add_argument("-g", "--gui", action="store_true", help="FLAG, enable browser GUI")
     args_paser.add_argument("-u", "--undetected", action="store_true", help="FLAG, enable to use undetected_chromedriver")
     args_paser.add_argument("-l", "--log", action="store_true", help="FLAG, enable to verbose mbapy log info")
     args = args_paser.parse_args()
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     put_log(f'get args: ris: {args.ris}')
     put_log(f'get args: out: {args.out}')
     put_log(f'get args: ref: {args.ref}')
-    put_log(f'get args: head: {args.head}')
+    put_log(f'get args: gui: {args.gui}')
     put_log(f'get args: undetected: {args.undetected}')
     put_log('downloading papers from SCIHUB, Enter e to stop and save session.')
     
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     launch_sub_thread(key2action={
         'save': ('running', records.to_json, [records_path], {})
     })
-    if args.head:
+    if args.gui:
         b = Browser('Chrome', options=['--no-sandbox', '--ignore-certificate-errors'],
                     use_undetected=args.undetected,
                     driver_path=Configs.web.chrome_driver_path)

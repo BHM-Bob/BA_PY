@@ -27,11 +27,6 @@ If you find the latest release version has some problems, you can try install th
 pip install git+https://github.com/BHM-Bob/BA_PY.git
 ```
 
-### docs
-The documentation for mbapy can be found on [read the docs](https://ba-py.readthedocs.io/en/latest/), and it is the one that I will regularly update.
-The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob/BA_PY/wiki). However, please note that this wiki on GitHub has not been updated since 2023-07. 
-*Given my limited time, I heavily rely on chatGPT to generate the documentation*.
-
 # Contains
 ## [base](base.md)
 Some global utils in this package, most of them are also for users.  
@@ -56,3 +51,9 @@ Some scientific paper utils, including parsing RIS, downloading pdf by title or 
 1. [parse](sci_utils/paper_parse.md) for parsing pdf and extract specific sections.  
 2. [download](sci_utils/paper_download.md) for downloading pdf by title or doi through sci-hub.  
 3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.
+## [scripts](scripts.md)
+Some helpful command line scripts.  
+1. [cnipa](scripts.md#cnipa)  
+2. [extract_paper](scripts.md#extract_paper)  
+3. [scihub_selenium](scripts.md#scihub_selenium)  
+4. [scihub](scripts.md#scihub)  

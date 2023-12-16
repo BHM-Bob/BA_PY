@@ -267,6 +267,7 @@ if __name__ == '__main__':
     args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
     args = args_paser.parse_args()
     # command line path process
+    args.query = args.query.replace('"', '').replace('\'', '')
     args.out = args.out.replace('"', '').replace('\'', '')
     if check_parameters_path(args.out):
         os.makedirs(args.out)

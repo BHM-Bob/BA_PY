@@ -164,9 +164,6 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0])
     if args.font_size is not None:
         plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
-    # err bar
-    if args.err is not None:        
-        plt.errorbar(pos[0], bottom, yerr=1.96 * args.err, **args.err_kwargs)
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
@@ -180,6 +177,10 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         axs[-1].axis["top"].major_ticks.set_ticksize(0)
         # TODO : do not work
         axs[-1].axis["right"].major_ticks.set_ticksize(0)
+        
+    # err bar, put here because errorbar will change ax obj and occur errs
+    if args.err is not None:        
+        ax1.errorbar(pos[0], bottom, yerr=1.96 * args.err, **args.err_kwargs)
     
     return np.array(pos[0]), ax1
 
@@ -259,6 +260,7 @@ def qqplot(tags:List[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
         if 'label_size' in kwargs:
             axs[-1].set_xlabel('Theoretical Quantiles', fontsize = kwargs['label_size'])
             axs[-1].set_ylabel('Sample Quantiles', fontsize = kwargs['label_size'])
+    return axs
             
 def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
     """
@@ -276,14 +278,14 @@ def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
     plt.show()
     
-def plot_turkey(means, std_errs, tukey_results):
+def plot_turkey(means, std_errs, tukey_results, min_star = 1):
     """
     Plot a bar chart showing the means of different groups along with the standard errors.
 
     Parameters:
-        means: A list of mean values for each group.
-        std_errs: A list of standard errors for each group.
-        tukey_results: The Tukey's test results object.
+        - means: A list of mean values for each group.
+        - std_errs: A list of standard errors for each group.
+        - tukey_results: The Tukey's test results object.
 
     Returns:
         The current `Axes` instance.
@@ -299,7 +301,8 @@ def plot_turkey(means, std_errs, tukey_results):
     min_height = 0.05 * height
     endpoint_height = [height - 0.05 * min_height, height + 0.05 * min_height]
     for i, combination in enumerate(combins):
-        if tukey_results.reject[i]:
+        if tukey_results.reject[i] \
+                and len(p_value_to_stars(tukey_results.pvalues[i])) >= min_star:
             plt.plot(combination, [height, height], color='black')
             plt.plot([combination[0], combination[0]], endpoint_height, color='black')
             plt.plot([combination[1], combination[1]], endpoint_height, color='black')

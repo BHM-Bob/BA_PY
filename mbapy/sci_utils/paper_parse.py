@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-17 20:41:42
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-19 12:45:31
+LastEditTime: 2023-11-24 10:06:09
 FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
@@ -12,17 +12,19 @@ from typing import Dict, List, Tuple
 
 import PyPDF2
 import rispy
+from bs4 import BeautifulSoup
+from bs4 import element as bsel
 
 if __name__ == '__main__':
     # dev mode
-    import mbapy.web as web
-    from mbapy.base import *
-    from mbapy.file import (convert_pdf_to_txt, opts_file, read_text,
+    from mbapy.base import (check_parameters_path, get_default_for_None,
+                            parameter_checker, put_err)
+    from mbapy.file import (convert_pdf_to_txt, opts_file,
                             replace_invalid_path_chr)
 else:
     # release mode
-    from .. import web
-    from ..base import *
+    from ..base import (check_parameters_path, get_default_for_None,
+                        parameter_checker, put_err)
     from ..file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
 
 
@@ -274,12 +276,22 @@ def format_paper_from_txt(content:str,
 def get_citation_position(pdf_path, refs: List[Dict[str, str]] = None):
     # refs是从corssref获取的refs，作为参考文献数目的参考
     import pdfplumber
+    def _encode_bytes(data: bytes):
+        try:
+            return data.decode('utf-8')
+        except:
+            try:
+                return data.decode('utf-16')
+            except:
+                return str(data).replace("'", "")[1:] # maybe "b'bib1'", transfer to "bib1"
     def _extract_text_by_rect(page, annot):
+        if annot['top'] < 0 and annot['bottom'] < 0:
+            annot['top'], annot['bottom'] = -annot['top'], -annot['bottom']
         if annot['top'] > annot['bottom']:
             annot['top'], annot['bottom'] = annot['bottom'], annot['top']
         sub_page = page.crop((annot['x0']-15, annot['top'],
                               annot['x1']+15, annot['bottom']))
-        return sub_page.extract_text(y_tolerance = 1, x_tolerance = 3, layout=True)
+        return sub_page.extract_text(y_tolerance = 0, x_tolerance = 3, layout=True)
     def _parse_annot_text(text: str, full_text: str):
         if text.count('\n') > 0:
             # 多行文本，此时可能是上标，取倒数第二行为数字上标，最后一行为被插入文本
@@ -292,53 +304,154 @@ def get_citation_position(pdf_path, refs: List[Dict[str, str]] = None):
             else:
                 insert_pos = len(annot_lines[-1])
             # get ref number str
-            results = re.findall('\d.+', annot_lines[-2])
+            results = re.findall('\d+', annot_lines[-2])
             ref_num = results[0] if results else '' # 如果倒二行没有数字, 说明上标被识别到倒一行了, 此时将跳过ref_num
             text = annot_lines[-1][:insert_pos] + ref_num + annot_lines[-1][insert_pos:]
         result =  re.findall('\S.+', text)[0] # 非空格开头
         result = re.sub('\s+', ' ', result) # 将连续空格替换为单个空格
         result = result[:-1] if result[-1] == ' ' else result # 去除结尾空格
-        if result not in full_text:
+        success = result in full_text
+        if not success:
             # 如果此时不能匹配，则忽略空格做最大匹配
             non_sp_result = result.replace(' ', '')
             first_chr = non_sp_result[0].replace('[', '\[').replace(']', '\]').replace('(', '\(').replace(')', '\)')
             for matched in re.finditer(first_chr, full_text):
                 if non_sp_result in full_text[matched.regs[0][0]:matched.regs[0][0]+2*len(result)+1].replace(' ', ''):
-                    return full_text[matched.regs[0][0]:matched.regs[0][0]+2*len(result)+1]
+                    return full_text[matched.regs[0][0]:matched.regs[0][0]+2*len(result)+1], True
             # TODO: fix more
-        return result
-    
-    pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')
-    pdf_text = pdf_text.replace('ﬁ', 'fi')
-    opts_file('./data_tmp/pdf.txt', mode = 'w', data=pdf_text)
-    with pdfplumber.open(pdf_path) as pdf:
+        return result, success
+    def _parse_annots(pdf: pdfplumber.PDF):
+        annots = []
         for page in pdf.pages:
-            for annot in page.annots:
-                if 'Dest' in annot['data'] and 'bib' in annot['data']['Dest'].decode():
-                    # Example: bib1 for Refs No.1
-                    # Example: lbib3 for Refs No.3
-                    ref = re.findall('bib\d+$', annot['data']['Dest'].decode())
-                    if not ref:
+            try:
+                page_annots = page.annots
+            except:
+                continue
+            for annot in page_annots:
+                if 'Dest' in annot['data'] and isinstance(annot['data']['Dest'], bytes):
+                    # dest start with bib or R or bb, if not, just assign to ' '
+                    dest = (re.findall(r'(?:bib\d+$|R\d+|bb\d+$)', _encode_bytes(annot['data']['Dest'])) or ' ')[0]
+                    if dest.startswith('bib'):
+                        # Example: bib1 for Refs No.1
+                        # Example: lbib3 for Refs No.3
+                        annot_idx = int(dest[3:])
+                    elif dest.startswith('R'):
+                        annot_idx = int(dest[1:])
+                    elif dest.startswith('bb'):
+                        annot_idx = -1 # 'bb0005' may means ref1, do not assgin ref_idx
+                    else:
                         continue
-                    annot_idx = int(ref[0][3:])
-                    annot_str = _parse_annot_text(_extract_text_by_rect(page, annot), pdf_text)
-                    print(f'{annot_idx:3d}: ({annot_str in pdf_text}) |{annot_str}|')
+                    annot_str, annot_success = _parse_annot_text(_extract_text_by_rect(page, annot), pdf_text)
+                    annots.append([annot_idx, annot_str, annot_success])
+                elif 'Dest' in annot['data'] and isinstance(annot['data']['Dest'], list):
+                    pass
                 elif 'A' in annot['data'] and annot['data']['A']['S'].name == 'GoTo':
                     # Example: 4e8697fe-fcf7-4002-8235-59e0e1d0f61f.indd:R6:1811 for Refs No.6
                     # Example: 4e8697fe-fcf7-4002-8235-59e0e1d0f61f.indd:BLK_F1:2010 for Figure No.1
-                    ref = re.findall('R\d+', annot['data']['A']['D'].decode())
+                    ref = re.findall('R\d+', _encode_bytes(annot['data']['A']['D']))
                     if not ref:
                         continue
                     annot_idx = int(ref[0][1:])
-                    annot_str = _parse_annot_text(_extract_text_by_rect(page, annot), pdf_text)
-                    print(f'{annot_idx:3d}: ({annot_str in pdf_text}) |{annot_str}|')
+                    annot_str, annot_success = _parse_annot_text(_extract_text_by_rect(page, annot), pdf_text)
+                    annots.append([annot_idx, annot_str, annot_success])
                 else:
                     pass
             pass
-    # # find with []
-    # patten_1 = re.findall('( \[(\d+(-\d+)?)(,)?(\d+(-\d+)?)?\])', content)
-    # # find with ()
-    # patten_1 = re.findall('( \((\d+(-\d+)?)(,)?(\d+(-\d+)?)?\))', content)
+        return annots    
+    
+    try:
+        pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')
+    except:
+        return put_err(f'Maybe not a valid pdf file: {pdf_path}, return None', None)
+    pdf_text = pdf_text.replace('ﬁ', 'fi')
+    # opts_file('./data_tmp/pdf.txt', mode = 'w', data=pdf_text)
+    with pdfplumber.open(pdf_path) as pdf:
+        annots = _parse_annots(pdf)
+        if not annots:
+            # find with []
+            bracket_patten = re.findall('\[ ?\d+ ?(?:[-–][ \d]+)?(?: *,[ \d]+(?:[-–][ \d]+)?)*\]', pdf_text)
+            if len(bracket_patten) < 10:
+                # find with ()
+                bracket_patten = re.findall('\( ?\d+ ?(?:[-–][ \d]+)?(?: *,[ \d]+(?:[-–][ \d]+)?)*\)', pdf_text)
+            if len(bracket_patten) < 10:
+                pass
+
+@parameter_checker(check_parameters_path, raise_err=False)
+def parse_grobid(xml_path: str, encoding = 'utf-8'):
+    def _T(element: bsel.Tag):
+        if isinstance(element, bsel.Tag):
+            return element.text.strip()
+        elif isinstance(element, dict):
+            return {_T(k_i):_T(v_i) for k_i, v_i in element.items()}
+        elif isinstance(element, list) or isinstance(element, tuple):
+            return [_T(v_i) for v_i in element]
+        else:
+            return element
+    def _search_ref(content: str, types: List[str] = ['bibr', 'figure', 'table']):
+        return re.search('|'.join([f'(?:<ref[^>]*?type="{ty}"[^>]*?>.+?</ref>)' for ty in types]),
+                         content, re.DOTALL)
+    soup = BeautifulSoup(open(xml_path, encoding=encoding), 'xml')
+    article_title = soup.find('titleStmt')
+    date = soup.find('publicationStmt').find('date')
+    article_publication_date = date['when'] if date and 'when' in date else _T(date)
+    article_authors, authors = soup.find('sourceDesc').findAll('author'), {}
+    for author in article_authors:
+        author_name = author.find('persName')
+        if author_name:
+            author_name = author_name
+            authors[author_name] = {'email': author.find('email')}
+            for i, aff in enumerate(author.findAll('affiliation')):
+                has_org, has_add =  aff.find('orgName'), aff.find('address')
+                authors[author_name][f'aff_{i}'] = {
+                    'department': aff.find('orgName', type="department") if has_org else None,
+                    'institution': aff.find('orgName', type="institution") if has_org else None,
+                    'settlement': aff.find('address').find('settlement') if has_add else None,
+                    'region': aff.find('address').find('region') if has_add else None,
+                    'country': aff.find('address').find('country') if has_add else None,
+                }
+    article_doi = soup.find('idno', type="DOI")
+    article_submission = soup.find('note', type="submission")
+    article_abs = soup.find('abstract').find('p')
+    article_sections = []
+    for section in soup.find('body').findAll('div', xmlns="http://www.tei-c.org/ns/1.0"):
+        content, ref_pos = '\n'.join([str(sec)[3:-4] for sec in section.findAll('p')]), []
+        # 转化figure, ref的XML格式
+        while _search_ref(content):
+            # figure的XML会有变化:<ref target="#fig_0" type="figure">1</ref>和<ref type="figure">2</ref>
+            # ref的XML为<ref target="#b5" type="bibr">( 6 )</ref>
+            ref = _search_ref(content)
+            if 'figure' in ref.group(0) or 'table' in ref.group(0):
+                ref_idx = re.search(r'>[^<]+?<', ref.group(0)).group(0)[1:-1]
+            elif 'bibr' in ref.group(0):
+                ref_idx = re.search(r'\d+', ref.group(0))
+                if ref_idx:
+                    ref_idx= ref_idx.group(0)
+                else:
+                    content = content.replace(ref.group(0), ' ')
+                    continue
+            ref_type = re.search(r'type="\w+?"', ref.group(0)).group(0)[6:-1]
+            ref_pos.append({'ref_type': ref_type, 'ref_idx':ref_idx, 'ref_pos': ref.regs[0][0]})
+            content = content.replace(ref.group(0), ref_idx+',')
+        article_sections.append({'title':section.find('head'), 'content': content,
+                                 'ref_pos': ref_pos})
+    refs = []
+    for ref in soup.find('back').findAll('biblStruct'):
+        idx = re.findall('\d+', ref['xml:id'])[0] # start from '0'
+        refs.append({
+            'title': ref.find('title', level="a", type="main"),
+            'authors': [au for au in ref.findAll('author')],
+            'monogr': {ref.find('monogr').find('title'): ref.find('monogr').find('date')},
+        })
+    return _T({
+        'title': article_title,
+        'submission': article_submission,
+        'pub_date': article_publication_date,
+        'authors': authors,
+        'doi': article_doi,
+        'abs': article_abs,
+        'sections': article_sections,
+        'refs': refs,
+        })
 
 __all__ = [
     'has_sci_bookmarks',
@@ -346,16 +459,12 @@ __all__ = [
     'get_section_bookmarks',
     'get_english_part_of_bookmarks',
     'get_section_from_paper',
-    'format_paper_from_txt'
+    'format_paper_from_txt',
+    'parse_grobid',
 ]
 
 if __name__ == '__main__':
     # dev code
-    # extract refs pos from pdf
-    get_citation_position(r'./data_tmp\papers\10.1016_S0939-6411(03)00161-9berger2004.pdf')
-    # get_citation_position(r'./data_tmp\papers\O-Acyl isopeptide method.pdf')
-    # get_citation_position(r'./data_tmp\papers\Best management of IBS.pdf')
-    # get_citation_position(r'./data_tmp\papers\Laxative effect and mechanism.pdf')
     # convert pdf to text
     pdf_path = r'data_tmp\papers\Contrasting effects of linaclotide and lubiprostone on restitution of epithelial cell barrier properties and cellular homeostasis after exposure to cell stressors.pdf'
     pdf_text = convert_pdf_to_txt(pdf_path, backend = 'pdfminer')\

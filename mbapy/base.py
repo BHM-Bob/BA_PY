@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-18 22:30:59
+LastEditTime: 2023-11-28 22:24:48
 Description: 
 '''
 import ctypes
@@ -16,11 +16,11 @@ import platform
 import sys
 import time
 from functools import wraps
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 
-# TODO : add global var modification options support
+
 __NO_ERR__ = False
 
 def get_num_digits(num:int):
@@ -55,11 +55,11 @@ def get_fmt_time(fmt = "%Y-%m-%d %H-%M-%S.%f", timestamp = None):
     Returns a formatted string representing the given timestamp in the specified format.
 
     Parameters:
-    - fmt (str): The format string to use for formatting the timestamp. Defaults to "%Y-%m-%d %H-%M-%S".
-    - timestamp (float or None): The timestamp to format. If None, the current time will be used. Defaults to None.
+        - fmt (str): The format string to use for formatting the timestamp. Defaults to "%Y-%m-%d %H-%M-%S".
+        - timestamp (float or None): The timestamp to format. If None, the current time will be used. Defaults to None.
 
     Returns:
-    - str: The formatted timestamp string.
+        - str: The formatted timestamp string.
     """
     from datetime import datetime
     timestamp = get_default_call_for_None(timestamp, time.time)
@@ -229,9 +229,9 @@ def put_log(info:str, head = "bapy::log", ret = None):
     Appends the log to the list of logs in the Configs class and prints it.
     
     Parameters:
-        info (str): The information to be logged.
-        head (str): The head of the log message. Default is "bapy::log".
-        ret : The value to return. Default is None.
+        - info (str): The information to be logged.
+        - head (str): The head of the log message. Default is "bapy::log".
+        - ret : The value to return. Default is None.
     
     Returns:
         Any: The value specified by the ret parameter.
@@ -308,7 +308,7 @@ def autoparse(init):
     
     fixed from https://codereview.stackexchange.com/questions/269579/decorating-init-for-automatic-attribute-assignment-safe-and-good-practice
     """
-    parnames = list(init.__code__.co_varnames[1:])
+    parnames = list(init.__code__.co_varnames[1:init.__code__.co_argcount])
     defaults = init.__defaults__
     @wraps(init)
     def wrapped_init(self, *args, **kwargs):
@@ -392,17 +392,17 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
         return wrapper
     return decorator
 
-def rand_choose_times(choices_range:List[int] = [0,10], times:int = 100):
+def rand_choose_times(choices_range:Tuple[int, int] = (0,10), times:int = 100):
     """
     Generates a random sequence of integers within a given range and 
     counts the frequency of each number. Returns the most frequent number.
     
-    :param choices_range: A list of two integers representing the lower and upper bounds of the range. Default is [0,10].
-    :type choices_range: List[int]
-    :param times: An integer representing the number of times the random sequence will be generated. Default is 100.
-    :type times: int
-    :return: An integer representing the most frequent number in the generated sequence.
-    :rtype: int
+    Parameters:
+        - choices_range: A tuple of two integers representing the lower and upper bounds of the range. Default is [0,10].
+        - times: An integer representing the number of times the random sequence will be generated. Default is 100.
+        
+    Returns:
+        An integer representing the most frequent number in the generated sequence.
     """
     randSeq = np.random.randint(low = choices_range[0], high = choices_range[1]+1, size = [times])
     count = [ np.sum(np.equal(randSeq,i)) for i in range(choices_range[0],choices_range[1]+1) ]
@@ -427,13 +427,15 @@ def rand_choose(lst:list, seed = None):
         np.random.seed(seed)
     return np.random.choice(lst)
 
-def format_secs(sumSecs):
+def format_secs(sumSecs: int):
     """
     Formats a given number of seconds into hours, minutes, and seconds.
 
-    :param sumSecs: An integer representing the total number of seconds.
-    :return: A tuple containing three integers representing the number of hours,
-             minutes, and seconds respectively.
+    Parameters:
+        - sumSecs: An integer representing the total number of seconds.
+        
+    Returns: A tuple containing three integers representing the number of hours,
+        minutes, and seconds respectively.
     """
     sumHs = int(sumSecs//3600)
     sumMs = int((sumSecs-sumHs*3600)//60)
@@ -442,16 +444,12 @@ def format_secs(sumSecs):
 
 class MyArgs():
     def __init__(self, args:dict) -> None:
-        self.args = dict()
-        args = self.get_args(args)
-    def get_args(self, args:dict, force_update = True, del_origin = False):
+        self.__args = dict()
+        self.get_args(args)
+    def update_args(self, args:dict, force_update = True):
         for arg_name in list(args.keys()):
-            if arg_name in self.args and not force_update:
-                pass
-            else:
+            if (arg_name not in self.__args) or force_update:
                 setattr(self, arg_name, args[arg_name])
-            if del_origin:
-                del args[arg_name]
         return self
     def add_arg(self, arg_name:str, arg_value, force_update = True):
         setattr(self, arg_name, arg_value)
@@ -559,6 +557,7 @@ class CDLL:
         self.PTR = ctypes.POINTER # pointer type
         self.INT = ctypes.c_int # int type
         self.LONG = ctypes.c_long # long type
+        self.LONGLONG = ctypes.c_longlong # long long type
         self.ULL = ctypes.c_uint64 # unsigned long long type
         self.FLOAT = ctypes.c_float # float type
         self.BOOL = ctypes.c_bool # bool type
