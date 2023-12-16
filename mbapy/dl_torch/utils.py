@@ -11,16 +11,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ..base import MyArgs, get_default_for_None, get_fmt_time, put_err
+from ..base import MyArgs, get_default_for_None, get_fmt_time, put_err, format_secs
 from ..file import read_json, save_json
 
 viz = None
 viz_record = []
 
-def launch_visdom():
+def launch_visdom(env: str = 'main'):
     global viz, viz_record
     import visdom
-    viz = visdom.Visdom()
+    viz = visdom.Visdom(env = env)
     viz_record = []
     return viz, viz_record
 
@@ -37,6 +37,15 @@ class Mprint:
                 f.write("Mprint : cleanFirst\n")
 
     def log_only(self, *args):
+        """
+        Logs the provided arguments to a file or stores them in memory, depending on the mode.
+        
+        Parameters:
+            *args (tuple): The arguments to be logged.
+            
+        Returns:
+            string: The log string that was written to the file or stored in memory.
+        """
         string = f'[{get_fmt_time("%Y%m%d-%H%M%S.%f")} - {self.top_string}] '
         for item in args:
             if type(item) != "":
@@ -52,6 +61,15 @@ class Mprint:
         return string
 
     def mprint(self, *args):
+        """
+        Prints the output of the `log_only` method.
+
+        Args:
+            *args: Variable length argument list.
+
+        Returns:
+            None
+        """
         print(self.log_only(*args))   
             
     def __call__(self, *args, log_only = False):
@@ -61,6 +79,15 @@ class Mprint:
             return self.mprint(*args)   
 
     def exit(self, mode ='a+'):
+        """
+        Writes the `string` attribute of the current instance to a file specified by the `path` attribute.
+
+        Parameters:
+            mode (str): The mode in which the file should be opened. Default is 'a+'.
+
+        Returns:
+            None
+        """
         with open(self.path, mode) as f:
             f.write(self.string)
             
@@ -133,7 +160,15 @@ class GlobalSettings(MyArgs):
         self.resume = self.resume_paths[0] if len(self.resume_paths) > 0 else 'None'
 
 def init_model_parameter(model):
-    """model initilization"""
+    """
+    Initialize the parameters of a given model.
+
+    Args:
+        model (nn.Module): The model to initialize.
+
+    Returns:
+        nn.Module: The initialized model.
+    """
     for m in model.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
             if m.weight is not None:
@@ -174,29 +209,20 @@ def adjust_learning_rate(optimizer, now_epoch, args):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def format_secs(sum_secs, fmt: str = None):
-    """
-    Formats a given number of seconds into hours, minutes, and seconds.
-
-    :param sumSecs: An integer representing the total number of seconds.
-    :return: A tuple containing three integers representing the number of hours,
-             minutes, and seconds respectively.
-    """
-    sum_hh = int(sum_secs//3600)
-    sum_mm = int((sum_secs-sum_hh*3600)//60)
-    sum_ss = int(sum_secs-sum_mm*3600-sum_mm*60)
-    if fmt is None:
-        return sum_hh, sum_mm, sum_ss
-    elif isinstance(fmt, str):
-        return fmt.format(sum_hh, sum_mm, sum_ss)
-    else:
-        return put_err(f'unsupport fmt: {fmt}, return hh, mm, ss',
-                       (sum_hh, sum_mm, sum_ss))
-
 class AverageMeter(object):
     """
     Computes and stores the average and current value
-    from FAIR or MAIR 's MoCo
+    from FAIR or MAIR 's MoCo.
+    The AverageMeter class is used to compute and store the average and 
+    current value. Here's what each class method does:
+
+    - __init__(self, name, fmt=":f"): Initializes the AverageMeter object 
+    with a given name and format for printing.
+    - reset(self): Resets the values of val, avg, sum, and count to zero.
+    - update(self, val, n=1): Updates the val, sum, count, and avg values 
+    based on the given val and n.
+    - __str__(self): Returns a string representation of the AverageMeter 
+    object with the name, current value (val), and average value (avg).
     """
     def __init__(self, name, fmt=":f"):
         self.name = name
@@ -204,12 +230,25 @@ class AverageMeter(object):
         self.reset()
 
     def reset(self):
+        """
+        Resets all the variables in the class to their initial values.
+        """
         self.val = 0
         self.avg = 0.0
         self.sum = 0
         self.count = 0
 
     def update(self, val, n=1):
+        """
+        Updates the value of the object with the given value `val`. By default, it increments the count of the object by `n` (default value is 1) and updates the sum and average accordingly.
+
+        Parameters:
+            val (Any): The value to be updated in the object.
+            n (int): The number of times to increment the count (default is 1).
+
+        Returns:
+            None
+        """
         self.val = val
         self.sum += val * n
         self.count += n
@@ -220,7 +259,20 @@ class AverageMeter(object):
         return fmtstr.format(**self.__dict__)
     
 class ProgressMeter(object):
-    """from FAIR or MAIR 's MoCo"""
+    """from FAIR or MAIR 's MoCo.
+    This class is a progress meter that can display the progress of a batch process.
+     Here's a breakdown of each class method:
+
+    - __init__(self, num_batches, meters, prefix="", mp = None): Initializes the 
+    progress meter with the number of batches, a list of meters, an optional prefix,
+    and an optional mp parameter.
+    - display(self, batch): Displays the progress of the current batch. It prints
+    the prefix and the formatted batch progress, followed by the values of each meter.
+    - _get_batch_fmtstr(self, num_batches): Generates a format string for displaying
+    the batch progress. It calculates the number of digits in the total number of
+    batches and returns a formatted string with the current batch and the total
+    number of batches.
+    """
     def __init__(self, num_batches, meters, prefix="", mp = None):
         self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
         self.meters = meters
@@ -228,6 +280,15 @@ class ProgressMeter(object):
         self.mp = mp
 
     def display(self, batch):
+        """
+        Display the given batch information and meters.
+
+        Args:
+            batch (int): The batch information to be displayed.
+
+        Returns:
+            None
+        """
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
         if self.mp is None:
@@ -241,7 +302,27 @@ class ProgressMeter(object):
         return "[" + fmt + "/" + fmt.format(num_batches) + "]"
     
 class TimeLast(object):
+    """
+    The TimeLast class is used to track the time taken for certain tasks.
+
+    - The __init__ method initializes the last_time attribute with the current time.
+    - The update method calculates the time taken for a certain number of tasks by 
+    subtracting the last_time from the current time and then updating last_time with 
+    the current time. It returns the total time taken for the remaining tasks based 
+    on the time taken for the just completed tasks.
+    """
     def __init__(self):
+        """
+        Initializes the object.
+
+        This function is the constructor of the class. It initializes the object by setting the `last_time` attribute to the current time using the `time.time()` function.
+
+        Parameters:
+            self (object): The instance of the class.
+
+        Returns:
+            None
+        """
         self.last_time = time.time()
 
     def update(self, left_tasks:int, just_done_tasks:int = 1):
@@ -310,6 +391,21 @@ def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
     
 def viz_line(Y:float, X:float, win:str, title:str = None, name:str = None,
             update:str = 'append', opts:dict = {}):
+    """
+    Generates a line visualization using the specified data.
+
+    Parameters:
+        Y (float): The Y-axis values of the line plot.
+        X (float): The X-axis values of the line plot.
+        win (str): The window ID of the visualization.
+        title (str, optional): The title of the visualization. Defaults to None.
+        name (str, optional): The name of the line plot. Defaults to None.
+        update (str, optional): The update mode for the visualization. Defaults to 'append'.
+        opts (dict, optional): Additional options for the visualization. Defaults to {}.
+
+    Returns:
+        str: The updated window ID of the visualization.
+    """
     global viz_record
     if not viz_record:
         update = None

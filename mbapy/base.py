@@ -427,20 +427,31 @@ def rand_choose(lst:list, seed = None):
         np.random.seed(seed)
     return np.random.choice(lst)
 
-def format_secs(sumSecs: int):
+
+def format_secs(sum_secs, fmt: str = None):
     """
-    Formats a given number of seconds into hours, minutes, and seconds.
+    Format seconds into hours, minutes, and seconds.
 
     Parameters:
-        - sumSecs: An integer representing the total number of seconds.
-        
-    Returns: A tuple containing three integers representing the number of hours,
-        minutes, and seconds respectively.
+        sum_secs (int): The total number of seconds to be formatted.
+        fmt (str, optional): The format string to be used for formatting the output. Defaults to None.
+
+    Returns:
+        tuple or str: If `fmt` is None, returns a tuple containing the formatted hours, minutes, and seconds.
+                      If `fmt` is a string, returns the formatted output using the provided format string.
+                      If `fmt` is neither None nor a string, returns an error message.
+
     """
-    sumHs = int(sumSecs//3600)
-    sumMs = int((sumSecs-sumHs*3600)//60)
-    sumSs = int(sumSecs-sumHs*3600-sumMs*60)
-    return sumHs, sumMs, sumSs
+    sum_hh = int(sum_secs//3600)
+    sum_mm = int((sum_secs-sum_hh*3600)//60)
+    sum_ss = int(sum_secs-sum_mm*3600-sum_mm*60)
+    if fmt is None:
+        return sum_hh, sum_mm, sum_ss
+    elif isinstance(fmt, str):
+        return fmt.format(sum_hh, sum_mm, sum_ss)
+    else:
+        return put_err(f'unsupport fmt: {fmt}, return hh, mm, ss',
+                       (sum_hh, sum_mm, sum_ss))
 
 class MyArgs():
     def __init__(self, args:dict) -> None:
