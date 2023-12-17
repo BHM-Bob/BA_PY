@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-28 22:24:48
+LastEditTime: 2023-12-17 10:06:55
 Description: 
 '''
 import ctypes
@@ -19,7 +19,6 @@ from functools import wraps
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-
 
 __NO_ERR__ = False
 
@@ -336,6 +335,8 @@ def check_parameters_path(path):
     return os.path.exists(path)
 def check_parameters_none(arg):
     return arg is None
+def check_parameters_None(arg):
+    return arg is None
 def check_parameters_len(arg):
     return len(arg) > 0
 def check_parameters_bool(arg):
@@ -437,8 +438,10 @@ def format_secs(sum_secs, fmt: str = None):
         fmt (str, optional): The format string to be used for formatting the output. Defaults to None.
 
     Returns:
-        tuple or str: If `fmt` is None, returns a tuple containing the formatted hours, minutes, and seconds.
-                      If `fmt` is a string, returns the formatted output using the provided format string.
+        tuple or str: If `fmt` is None, returns a tuple containing the formatted
+                        hours, minutes, and seconds.
+                      If `fmt` is a string, returns the formatted output using 
+                        the provided format string with fmt.format(sum_hh, sum_mm, sum_ss).
                       If `fmt` is neither None nor a string, returns an error message.
 
     """
@@ -639,15 +642,16 @@ __all__ = [
     'check_parameters_len',
     'check_parameters_path',
     'check_parameters_none',
+    'check_parameters_None',
     'check_parameters_bool',
     'parameter_checker',
     'rand_choose_times',
     'rand_choose',
     'format_secs',
     'MyArgs',
-    'get_default_for_none',
+    'get_default_for_None',
     'get_default_for_bool',
-    'get_default_call_for_none',
+    'get_default_call_for_None',
     'get_wanted_args',
     'set_default_kwargs',
     'get_default_args',

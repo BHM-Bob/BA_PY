@@ -1,5 +1,6 @@
 
 import os
+from pathlib import Path
 from typing import Dict, List, Union
 
 import cv2
@@ -66,8 +67,9 @@ def extract_frames_by_index(video_path:str, frame_indices:List[int]):
     return frames
     
 @parameter_checker(check_parameters_path, raise_err=False)
-def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False, write_file = True, dir:str = None,
-                         sum_frame = -1, read_frame_interval = 0, img_size = [-1, -1], **kwargs):
+def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False,
+                         write_file = True, dir:str = None, sum_frame = -1,
+                         read_frame_interval = 0, img_size = [-1, -1], **kwargs):
     """
     Extract frames from a video and save them as images.
 
@@ -92,14 +94,13 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
 
     # Create the directory if it doesn't exist
     if write_file:
-        if dir and not os.path.exists(dir):
+        video_path = Path(video_path)
+        if not dir:
+            dir = video_path.parent / video_path.stem
+        if not os.path.exists(dir):
             os.makedirs(dir)
-        else:
-            dir = video_path[:video_path.rfind('.')]
-            if not os.path.exists(dir):
-                os.makedirs(dir)
     # Open the video file
-    video = cv2.VideoCapture(video_path)
+    video = cv2.VideoCapture(str(video_path))
     sum_frame = get_cv2_video_attr(video, 'FRAME_COUNT') if sum_frame == -1 else sum_frame
     frame_size = [get_cv2_video_attr(video, 'FRAME_WIDTH'), get_cv2_video_attr(video, 'FRAME_HEIGHT')]
     fps = get_cv2_video_attr(video, 'FPS')
@@ -107,8 +108,8 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
     img_size[1] = frame_size[1] if img_size[1] <= 0 else img_size[1]
     is_img_size_changed = img_size[0] != frame_size[0] and img_size[1] != frame_size
     # Read frames from the video
-    frame_idx, frames = 0, []
-    bar = tqdm(range(sum_frame), desc='extract frames')
+    frame_idx, fps_idx, frames = 0, 0, []
+    bar = tqdm(range(sum_frame), desc=f'extract frames in {video_path.stem}')
     while True:
         # must read before skip
         success, frame = video.read()
@@ -121,13 +122,16 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
                 frames.append(frame)
             # write frames to img file if needed
             if write_file:
-                time = '-'.join(map(lambda x: str(x), format_secs(frame_idx / fps)))
-                img_name = f"frame_{time}.{img_type}"
+                time = format_secs(frame_idx // fps, '{0:d}-{1:d}-{2:d}')
+                img_name = f"{video_path.stem}_{time}-{fps_idx}.{img_type}"
                 img_path = os.path.join(dir, img_name) if dir else img_name
                 cv2.imwrite(img_path, frame)
             # update progress bar
             bar.update(read_frame_interval+1)
         frame_idx += 1
+        fps_idx +=1
+        if fps_idx == fps:
+            fps_idx = 0
     # Release the video file
     video.release()
     # return frames lst
@@ -235,6 +239,7 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
+    extract_frame_to_img('./data_tmp/video.mp4', dir = './data_tmp/video_full')
     # extract unique frames
     import time
     from glob import glob
