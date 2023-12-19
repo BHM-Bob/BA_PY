@@ -18,8 +18,8 @@ def calcu_substitution_value(args):
     print(f'\nAvg Substitution Value: {mean_subval}')
     
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.set_xlim(0, m.max()*1.2)
-    ax.set_ylim(0, a.max()*1.2)
+    ax.set_xlim(0, max(20, m.max()*1.2))
+    ax.set_ylim(0, max(0.4, a.max()*1.2))
 
     regressor = LinearRegression()
     regressor = regressor.fit(m.reshape(-1, 1), a.reshape(-1, 1))
@@ -29,11 +29,13 @@ def calcu_substitution_value(args):
     sns.regplot(x = m, y = a, color = 'black', marker = 'o', truncate = False,
                 ax = ax)
 
-    equationStr = f'OD = {equation_a:5.4f} \\times m + {equation_b:5.4f}'
+    equationStr = f'OD = {equation_a:5.4f} * m {" " if equation_b<0 else "+ ":}{equation_b:5.4f}'
+    print(equationStr, '\n', 'R^2 = ', equation_r2)
     plt.text(0.1, 0.1, '$'+equationStr+'$', fontsize=20)
-    plt.text(0.1, 0.05, '$R^2 = $'+equation_r2, fontsize=20)
+    plt.text(0.1, 0.3, '$R^2 = $'+equation_r2, fontsize=20)
     plt.xticks(size = 20)
     plt.yticks(size = 20)
+    ax.set_title(f'Avg Substitution Value: {mean_subval:.5f}', fontsize=25)
     ax.set_xlabel('Weight of Resin (mg)', fontsize=25)
     ax.set_ylabel('OD (304 nm)', fontsize=25)
     plt.show()
