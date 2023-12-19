@@ -38,6 +38,15 @@ scripts_info = {
                 Example: python -m mbapy.scripts.extract_paper -i "E:\\peptide papers" -log
                 """,
         },
+    'peptide':
+        {
+            'breif': 'tools for peptide.',
+            'detailed':
+                """
+                sub command 1: subval:
+                    : calcu SPPS substitution value for a release test of resin.
+                """
+        }
 }
 
 def print_scripts_list():
