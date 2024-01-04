@@ -7,10 +7,15 @@ Description: some helpful python scripts in plot, stats and deeplearning
 '''
 import os
 
+# os.environ.__getitem__(self, key), no default value
 if 'MBAPY_AUTO_IMPORT_TORCH' not in os.environ:
     os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'True'
-
-from . import base, file, paper, plot, stats, web
+if 'MBAPY_FAST_LOAD' not in os.environ:
+    os.environ['MBAPY_FAST_LOAD'] = 'False'
+    
+if os.environ['MBAPY_FAST_LOAD'] == 'False':
+    from . import base, file, paper, plot, stats, web
+    
 from .__version__ import (__author__, __author_email__, __build__,
                           __description__, __license__, __title__, __url__,
                           __version__)

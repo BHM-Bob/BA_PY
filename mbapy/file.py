@@ -8,10 +8,7 @@ Description:
 import collections
 import os
 import shutil
-from glob import glob
 from typing import Dict, List, Union
-
-import chardet
 
 try:
     import ujson as json
@@ -19,7 +16,6 @@ except:
     import json
 
 import pandas as pd
-from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
@@ -168,6 +164,9 @@ def detect_byte_coding(bits:bytes):
     Returns:
         str: The decoded text.
     """
+    # for FAST LOAD
+    import chardet
+    
     adchar = chardet.detect(bits[:(1000 if len(bits) > 1000 else len(bits))])['encoding']
     if adchar == 'gbk' or adchar == 'GBK' or adchar == 'GB2312':
         true_text = bits.decode('GB2312', "ignore")
@@ -186,6 +185,9 @@ def get_byte_coding(bits:bytes, max_detect_len = 1000):
     Returns:
         str: The detected byte coding of the input sequence.
     """
+    # for FAST LOAD
+    import chardet
+    
     return chardet.detect(bits[ : min(max_detect_len, len(bits))])['encoding']
 
 def decode_bits_to_str(bits:bytes):

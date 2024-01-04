@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 
-from collections import namedtuple
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -10,7 +9,8 @@ from typing import Dict, List
 import numpy as np
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
-from mbapy import base, plot, file
+os.environ['MBAPY_FAST_LOAD'] = 'True'
+from mbapy import base, file
 
 
 class AnimoAcid:
@@ -49,27 +49,28 @@ class AnimoAcid:
     all_mwd = deepcopy(aa_mwd)
     all_mwd.update(pg_mwd)
     def __init__(self, repr: str) -> None:
-        parts = repr.split('-')
-        if len(parts) == 1:
-            assert parts[0][:3] in self.aa_mwd.keys(), f'{repr} is not a valid animo acid, it has noly one part and should in {self.aa_mwd.keys()}'
-            parts = ['H'] + parts + ['OH']
-        elif len(parts) == 2:
-            if parts[0][:3] in self.aa_mwd.keys():
-                parts = ['H'] + parts
-            elif parts[1][:3] in self.aa_mwd.keys():
-                parts = parts + ['OH']
+        if repr is not None:
+            parts = repr.split('-')
+            if len(parts) == 1:
+                assert parts[0][:3] in self.aa_mwd.keys(), f'{repr} is not a valid animo acid, it has noly one part and should in {self.aa_mwd.keys()}'
+                parts = ['H'] + parts + ['OH']
+            elif len(parts) == 2:
+                if parts[0][:3] in self.aa_mwd.keys():
+                    parts = ['H'] + parts
+                elif parts[1][:3] in self.aa_mwd.keys():
+                    parts = parts + ['OH']
+                else:
+                    raise ValueError(f'{repr} is not a valid animo acid, it has two parts and none is in {self.aa_mwd.keys()} with it\'s previous 3 chars')
+            elif len(parts) > 3:
+                raise ValueError(f'{repr} is not a valid animo acid, it has more than 3 parts splited by dash \'-\'')
+            self.N_protect = parts[0]
+            self.animo_acid = parts[1]
+            self.C_protect = parts[2]
+            if len(parts[1]) > 3:
+                self.animo_acid = parts[1][0:3]
+                self.R_protect = parts[1][4:-1]
             else:
-                raise ValueError(f'{repr} is not a valid animo acid, it has two parts and none is in {self.aa_mwd.keys()} with it\'s previous 3 chars')
-        elif len(parts) > 3:
-            raise ValueError(f'{repr} is not a valid animo acid, it has more than 3 parts splited by dash \'-\'')
-        self.N_protect = parts[0]
-        self.animo_acid = parts[1]
-        self.C_protect = parts[2]
-        if len(parts[1]) > 3:
-            self.animo_acid = parts[1][0:3]
-            self.R_protect = parts[1][4:-1]
-        else:
-            self.R_protect = 'H'
+                self.R_protect = 'H'
     def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False):
         parts = []
         parts += ([f'{self.N_protect}-'] if (self.N_protect != 'H' or is_N_terminal) else [])
@@ -91,18 +92,26 @@ class AnimoAcid:
         if self.R_protect != 'H':
             mw -= 1.0 # because R-terminal residue has no H but AA has H, so we need to minus 1.0 for AA
         return mw
+    def copy(self):
+        cp = AnimoAcid(None)
+        cp.animo_acid = self.animo_acid
+        cp.C_protect = self.C_protect
+        cp.N_protect = self.N_protect
+        cp.R_protect = self.R_protect
+        return cp
     
 class Peptide:
     def __init__(self, repr: str) -> None:
-        parts = repr.split('-')
-        if parts[0] in AnimoAcid.pg_mwd.keys():
-            parts[1] = '-'.join(parts[0:2])
-            del parts[0]
-        if parts[-1] in AnimoAcid.pg_mwd.keys():
-            parts[-2] = '-'.join(parts[-2:])
-            del parts[-1]
-            
-        self.AAs = [AnimoAcid(part) for part in parts]
+        if repr is not None:
+            parts = repr.split('-')
+            if parts[0] in AnimoAcid.pg_mwd.keys():
+                parts[1] = '-'.join(parts[0:2])
+                del parts[0]
+            if parts[-1] in AnimoAcid.pg_mwd.keys():
+                parts[-2] = '-'.join(parts[-2:])
+                del parts[-1]
+                
+            self.AAs = [AnimoAcid(part) for part in parts]
         
     def flatten(self, inplace: bool = False):
         """
@@ -134,6 +143,11 @@ class Peptide:
         mw = sum([aa.calcu_mw(expand_mw_dict) for aa in self.AAs])
         mw -= (len(self.AAs) - 1) * 18.02 # because single AA do not has peptide bond, so we need to minus 18.02 for each bond
         return mw
+    
+    def copy(self):
+        cp = Peptide(None)
+        cp.AAs = [aa.copy() for aa in self.AAs]
+        return cp
     
 
 def calcu_substitution_value(args):
@@ -201,6 +215,10 @@ class MutationOpts:
     C_protect_deletion: bool = True # whether delete C-terminal protect group can be performed
     R_protect_deletion: bool = True # whether delete R-terminal protect group can be performed
     
+    def copy(self):
+        return MutationOpts(self.AA_deletion, self.AA_repeat, self.N_protect_deletion,
+                            self.C_protect_deletion, self.R_protect_deletion)
+    
     def check_empty(self, _pos: List[int], seq: Peptide):
         """
         return list of signals which is able to opt, if empty, the lis is also empty.
@@ -257,7 +275,7 @@ class MutationOpts:
         """
         pos, repeat_pos, sum_repeat = tree.pos
         # perform repeat_AA mutation in tree.mutate branch
-        tree.mutate.seq.AAs[pos] = [deepcopy(tree.mutate.seq.AAs[pos]) \
+        tree.mutate.seq.AAs[pos] = [tree.mutate.seq.AAs[pos].copy() \
             for _ in range(tree.opts.AA_repeat + 1)]
         # change repeated AAs' N/C protect group if needed
         if pos == 0 and tree.peptide.AAs[pos].N_protect != 'H':
@@ -331,7 +349,7 @@ class MutationOpts:
     
 @dataclass
 class MutationTree:
-    peptide: Peptide # mother peptide and remians unchanged
+    peptide: Peptide # mother peptide, READ ONLY, remians unchanged
     seq: Peptide # this dot's peptide seqeunce to perform mutate
     opts: MutationOpts # opts left to perform
     # [current AA pos, current repeat pos, sum repeat in this AA in seq], if last number is 1, means no repeat in this AA
@@ -339,6 +357,28 @@ class MutationTree:
     father: 'MutationTree' = None # father dot
     remain: 'MutationTree' = None # father dot
     mutate: 'MutationTree' = None # father dot
+    
+    def copy(self, copy_peptide: bool = False, copy_branch: bool = False,
+             father: 'MutationTree' = None, remain: 'MutationTree' = None,
+             mutate: 'MutationTree' = None):
+        """
+        Params:
+            - copy_peptide: bool, whether to copy mother peptide.
+            - copy_branch: bool, whether to copy father, remain, mutate branch via deepcopy. If False, leave it None.
+        """
+        if copy_peptide:
+            cp = MutationTree(self.peptide.copy(), self.seq.copy(), self.opts.copy(), [i for i in self.pos])
+        else:
+            cp = MutationTree(self.peptide, self.seq.copy(), self.opts.copy(), [i for i in self.pos])
+        if copy_branch:
+            cp.father = deepcopy(self.father)
+            cp.remain = deepcopy(self.remain)
+            cp.mutate = deepcopy(self.mutate)
+        else:
+            cp.father = father
+            cp.remain = remain
+            cp.mutate = mutate
+        return cp
     
     def extract_mutations(self):
         """
@@ -361,12 +401,8 @@ class MutationTree:
         
     def generate_two_branch(self):
         """Generate two branch with all None remian and mutate branch, return itself."""
-        self.remain = deepcopy(self)
-        self.remain.father = self
-        self.remain.remain = self.remain.mutate = None
-        self.mutate = deepcopy(self)
-        self.mutate.father = self
-        self.mutate.remain = self.mutate.mutate = None
+        self.remain = self.copy(father=self)
+        self.mutate = self.copy(father=self)
         return self
         
     def move_to_next(self, max_repeat: int):
@@ -423,27 +459,35 @@ def calcu_mw_of_mutations(args):
         f = open(args.out, 'w')
     else:
         f = None
+    # show args
+    _print(f'get arg: seqeunce: {args.seq}', f)
+    _print(f'get arg: weight: {args.weight}', f)
+    _print(f'get arg: max-repeat: {args.max_repeat}', f)
+    _print(f'get arg: out: {args.out}', f)
     # show mother peptide info
     peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
     # calcu mutations
-    all_mutations = MutationTree(peptide=peptide, seq=deepcopy(peptide),
+    all_mutations = MutationTree(peptide=peptide, seq=peptide.copy(),
                                  opts=MutationOpts(AA_repeat=args.max_repeat),
                                  pos=[0, 0, 1])
     all_mutations = mutate_peptide(all_mutations, args.max_repeat)
     all_mutations = all_mutations.extract_mutations()
-    mw2pep = {}
-    for mutation in all_mutations:
-        if len(mutation.AAs):
-            mw = mutation.calcu_mw()
-            if mw in mw2pep:
-                mw2pep[mw].append(mutation)
-            else:
-                mw2pep[mw] = [mutation]
+    mw2pep, peps = {}, {}
+    for pep in all_mutations:
+        if len(pep.AAs):
+            pep_repr = str(pep)
+            if pep_repr not in peps:
+                peps[pep_repr] = len(peps)
+                mw = pep.calcu_mw()
+                if mw in mw2pep:
+                    mw2pep[mw].append(pep)
+                else:
+                    mw2pep[mw] = [pep]
     # output info
-    _print(f'\n{len(all_mutations)-1} mutations found, followings include one original peptide seqeunce:\n', f)
+    _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f)
     idx = 0
     for i, mw in enumerate(sorted(mw2pep)):
-        _print(f'\nMW: {mw:10.5}', f)
+        _print(f'\nMW: {mw:10.5f}', f)
         for j, pep in enumerate(mw2pep[mw]):
             _print(f'    pep-{i:>4}-{j:<4}({idx:8d}): {pep}', f)
             idx += 1
@@ -464,8 +508,8 @@ _str2func = {
 # if __name__ == '__main__':
 #     # dev code
 #     from mbapy.game import BaseInfo
-#     calcu_mw_of_mutations(BaseInfo(seq = 'Boc-Asn(Trt)-Asp(OtBu)-Glu(OtBu)',
-#                                    max_repeat = 0, weight = ''))
+#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
+#                                    max_repeat = 1, weight = ''))
 
 
 if __name__ == "__main__":
