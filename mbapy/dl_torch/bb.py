@@ -175,7 +175,8 @@ class RoPE(nn.Module):
                              torch.polar(torch.ones_like(freqs), freqs))
     def forward(self, xq:torch.Tensor, xk:torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         # xq.shape = [batch_size, seq_len, dim]
-        seq_len = xq.shape[1]
+        xq_seq_len = xq.shape[1]
+        xk_seq_len = xk.shape[1]
         # xq_.shape = [batch_size, seq_len, dim // 2, 2]
         xq_ = xq.float().reshape(*xq.shape[:-1], -1, 2)
         xk_ = xk.float().reshape(*xk.shape[:-1], -1, 2)
@@ -184,8 +185,8 @@ class RoPE(nn.Module):
         xk_ = torch.view_as_complex(xk_)
         # 应用旋转操作，然后将结果转回实数域
         # xq_out.shape = [batch_size, seq_len, dim]
-        xq_out = torch.view_as_real(xq_ * self.freqs_cis[:seq_len, :]).flatten(2)
-        xk_out = torch.view_as_real(xk_ * self.freqs_cis[:seq_len, :]).flatten(2)
+        xq_out = torch.view_as_real(xq_ * self.freqs_cis[:xq_seq_len, :]).flatten(2)
+        xk_out = torch.view_as_real(xk_ * self.freqs_cis[:xk_seq_len, :]).flatten(2)
         return xq_out.type_as(xq), xk_out.type_as(xk)
 
 class PositionwiseFeedforwardLayer(nn.Module):
@@ -217,9 +218,10 @@ class MultiHeadAttentionLayer(nn.Module):
         self.n_heads = n_heads
         self.head_dim = hid_dim // n_heads
         self.input_dim = kwargs.get('input_dim', hid_dim)
+        self.kv_input_dim = kwargs.get('kv_input_dim', self.input_dim)
         self.fc_q = nn.Linear(self.input_dim, hid_dim)
-        self.fc_k = nn.Linear(self.input_dim, hid_dim)
-        self.fc_v = nn.Linear(self.input_dim, hid_dim)
+        self.fc_k = nn.Linear(self.kv_input_dim, hid_dim)
+        self.fc_v = nn.Linear(self.kv_input_dim, hid_dim)
         self.fc_o = nn.Linear(hid_dim, hid_dim)
         if 'out_dim' in kwargs:
             self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
