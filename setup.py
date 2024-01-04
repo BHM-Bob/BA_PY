@@ -77,4 +77,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.5.0.tar.gz
+# twine upload dist/mbapy-0.6.0.tar.gz
