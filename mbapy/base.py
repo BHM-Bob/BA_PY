@@ -447,7 +447,7 @@ def format_secs(sum_secs, fmt: str = None):
     """
     sum_hh = int(sum_secs//3600)
     sum_mm = int((sum_secs-sum_hh*3600)//60)
-    sum_ss = int(sum_secs-sum_mm*3600-sum_mm*60)
+    sum_ss = int(sum_secs-sum_hh*3600-sum_mm*60)
     if fmt is None:
         return sum_hh, sum_mm, sum_ss
     elif isinstance(fmt, str):
