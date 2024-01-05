@@ -1,7 +1,6 @@
 import argparse
 import os
 import sys
-
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -36,7 +35,7 @@ class AnimoAcid:
         "Tyr": 181.19,
         "Val": 117.15
     }
-    pg_mwd = { # protect group molcular weight dict
+    pg_mwd = { # protect group molecular weight dict
         'H': 0, # do not calcu mw
         'OH': 0, # do not calcu mw
         'Acm': 72.10, # = 73.10 - 1.0(H)
@@ -45,6 +44,36 @@ class AnimoAcid:
         'OtBu': 57.12, # = 58.12 - 1.0(H)
         'tBu': 57.12, # = 58.12 - 1.0(H)
         'Trt': 243.34, # = 244.34 - 1.0(H)
+    }
+    mfd = { # AnimoAcid molecular formula dict
+        "Ala": {'C': 3, 'H': 7, 'O':2, 'N':1, 'S':0, 'P':0},
+        "Arg": {'C': 6, 'H':14, 'O':2, 'N':4, 'S':0, 'P':0},
+        "Asn": {'C': 4, 'H': 8, 'O':3, 'N':2, 'S':0, 'P':0},
+        "Asp": {'C': 4, 'H': 7, 'O':4, 'N':1, 'S':0, 'P':0},
+        "Cys": {'C': 3, 'H': 7, 'O':2, 'N':1, 'S':1, 'P':0},
+        "Gln": {'C': 5, 'H':10, 'O':3, 'N':2, 'S':0, 'P':0},
+        "Glu": {'C': 5, 'H': 9, 'O':4, 'N':1, 'S':0, 'P':0},
+        "Gly": {'C': 2, 'H': 5, 'O':2, 'N':0, 'S':0, 'P':0},
+        "His": {'C': 6, 'H': 9, 'O':2, 'N':3, 'S':0, 'P':0},
+        "Ile": {'C': 6, 'H':13, 'O':2, 'N':1, 'S':0, 'P':0},
+        "Leu": {'C': 6, 'H':13, 'O':2, 'N':1, 'S':0, 'P':0},
+        "Lys": {'C': 6, 'H':14, 'O':2, 'N':2, 'S':0, 'P':0},
+        "Met": {'C': 5, 'H':11, 'O':2, 'N':1, 'S':1, 'P':0},
+        "Phe": {'C': 9, 'H':11, 'O':2, 'N':1, 'S':0, 'P':0},
+        "Pro": {'C': 5, 'H': 9, 'O':2, 'N':1, 'S':0, 'P':0},
+        "Ser": {'C': 3, 'H': 7, 'O':3, 'N':1, 'S':0, 'P':0},
+        "Thr": {'C': 4, 'H': 9, 'O':3, 'N':1, 'S':0, 'P':0},
+        "Trp": {'C':11, 'H':12, 'O':2, 'N':2, 'S':0, 'P':0},
+        "Tyr": {'C': 9, 'H':11, 'O':3, 'N':1, 'S':0, 'P':0},
+        "Val": {'C': 5, 'H':11, 'O':2, 'N':1, 'S':0, 'P':0},
+        'H'   :{'C': 0, 'H': 1, 'O':0, 'N':0, 'S':0, 'P':0},
+        'OH'  :{'C': 0, 'H': 1, 'O':1, 'N':0, 'S':0, 'P':0},
+        'Acm' :{'C': 3, 'H': 6, 'O':1, 'N':1, 'S':0, 'P':0}, # deleted (H)
+        'Boc' :{'C': 5, 'H': 9, 'O':2, 'N':0, 'S':0, 'P':0}, # deleted (H)
+        'Fmoc':{'C':15, 'H':11, 'O':2, 'N':0, 'S':0, 'P':0}, # deleted (H)
+        'OtBu':{'C': 4, 'H': 9, 'O':0, 'N':0, 'S':0, 'P':0}, # deleted (H)
+        'tBu' :{'C': 4, 'H': 9, 'O':0, 'N':0, 'S':0, 'P':0}, # deleted (H)
+        'Trt' :{'C':19, 'H':15, 'O':0, 'N':0, 'S':0, 'P':0}, # deleted (H)
     }
     all_mwd = deepcopy(aa_mwd)
     all_mwd.update(pg_mwd)
@@ -71,14 +100,17 @@ class AnimoAcid:
                 self.R_protect = parts[1][4:-1]
             else:
                 self.R_protect = 'H'
+                
     def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False):
         parts = []
         parts += ([f'{self.N_protect}-'] if (self.N_protect != 'H' or is_N_terminal) else [])
         parts += ([self.animo_acid] if self.R_protect == 'H' else [f'{self.animo_acid}({self.R_protect})'])
         parts += ([f'-{self.C_protect}'] if (self.C_protect != 'OH' or is_C_terminal) else [])
         return ''.join(parts)
+    
     def __repr__(self) -> str:
         return self.make_pep_repr(True, True)
+    
     def calcu_mw(self, expand_mw_dict: Dict[str, float] = None):
         if expand_mw_dict is not None:
             assert isinstance(expand_mw_dict, dict), 'expand_mw_dict should be a dict contains protect group molecular weight'
@@ -92,6 +124,40 @@ class AnimoAcid:
         if self.R_protect != 'H':
             mw -= 1.0 # because R-terminal residue has no H but AA has H, so we need to minus 1.0 for AA
         return mw
+    
+    def get_molecular_formula_dict(self):
+        mfd = {k:v for k,v in self.mfd[self.animo_acid].items()} # deepcopy may slow
+        if self.N_protect != 'H':
+            mfd['H'] -= 1 # because N-terminal residue has no H but AA has H, so we need to minus one H for AA
+            for k,v in self.mfd[self.N_protect].items():
+                mfd[k] += v
+        if self.C_protect != 'OH':
+            mfd['H'] -= 1 # because C-terminal residue has no OH but AA has OH, so we need to minus one H for AA
+            mfd['O'] -= 1 # because C-terminal residue has no OH but AA has OH, so we need to minus one H for AA
+            for k,v in self.mfd[self.C_protect].items():
+                mfd[k] += v
+        if self.R_protect != 'H':
+            mfd['H'] -= 1 # because C-terminal residue has no OH but AA has OH, so we need to minus one H for AA
+            for k,v in self.mfd[self.R_protect].items():
+                mfd[k] += v
+        return mfd
+    
+    def get_molecular_formula(self, molecular_formula_dict: Dict[str, int] = None):
+        if not isinstance(molecular_formula_dict, dict):
+            molecular_formula_dict = self.get_molecular_formula_dict()
+        return ''.join([f'{k}{v}' for k,v in molecular_formula_dict.items() if v > 0])
+    
+    def calcu_mass(self, molecular_formula: str = None,
+                   molecular_formula_dict: Dict[str, int] = None):
+        if not isinstance(molecular_formula, str):
+            if not isinstance(molecular_formula_dict, dict):
+                mfd = self.get_molecular_formula_dict()
+            else:
+                mfd = molecular_formula_dict
+            molecular_formula = ''.join([f'{k}{v}' for k,v in mfd.items() if v > 0])
+        from pyteomics import mass
+        return mass.calculate_mass(formula=molecular_formula)
+    
     def copy(self):
         cp = AnimoAcid(None)
         cp.animo_acid = self.animo_acid
@@ -136,6 +202,20 @@ class Peptide:
                                           is_C_terminal=(i==len(seq)-1)) \
                                               for i, aa in enumerate(seq)])
     
+    def get_molecular_formula_dict(self):
+        mfd = self.AAs[0].get_molecular_formula_dict()
+        for aa in self.AAs[1:]:
+            for k,v in aa.get_molecular_formula_dict().items():
+                mfd[k] += v
+            mfd['H'] -= 2
+            mfd['O'] -= 1
+        return mfd
+    
+    def get_molecular_formula(self, molecular_formula_dict: Dict[str, int] = None):
+        if not isinstance(molecular_formula_dict, dict):
+            molecular_formula_dict = self.get_molecular_formula_dict()
+        return ''.join([f'{k}{v}' for k,v in molecular_formula_dict.items() if v > 0])
+    
     def calcu_mw(self, expand_mw_dict: Dict[str, float] = None):
         if expand_mw_dict is not None:
             assert isinstance(expand_mw_dict, dict), 'expand_mw_dict should be a dict contains protect group molecular weight'
@@ -143,6 +223,14 @@ class Peptide:
         mw = sum([aa.calcu_mw(expand_mw_dict) for aa in self.AAs])
         mw -= (len(self.AAs) - 1) * 18.02 # because single AA do not has peptide bond, so we need to minus 18.02 for each bond
         return mw
+    
+    def calcu_mass(self, molecular_formula: str = None,
+                   molecular_formula_dict: Dict[str, int] = None):
+        if not isinstance(molecular_formula, str) and\
+            not isinstance(molecular_formula_dict, dict):
+            mfd = self.get_molecular_formula_dict()
+        return self.AAs[0].calcu_mass(molecular_formula = molecular_formula,
+                                      molecular_formula_dict=mfd)
     
     def copy(self):
         cp = Peptide(None)
@@ -167,9 +255,9 @@ def calcu_substitution_value(args):
     性回归模型拟合数据，并计算拟合方程的参数和R平方值。最后，函数在散点图上绘制线性回归线，并
     显示方程和R平方值。
     """
-    from sklearn.linear_model import LinearRegression
     import matplotlib.pyplot as plt
     import seaborn as sns
+    from sklearn.linear_model import LinearRegression
     
     a = np.array([float(i) for i in args.absorbance.split(',') if len(i)])
     m = np.array([float(i) for i in args.weight.split(',') if len(i)])
@@ -204,6 +292,8 @@ def calcu_mw(args, _print = print):
     peptide = Peptide(args.seq)
     _print(f'\npeptide: {peptide}')
     _print(f'MW: {peptide.calcu_mw(expand_mw_dict)}')
+    if args.mass:
+        _print(f'Chemical Formular: {peptide.get_molecular_formula()}, Exact Mass: {peptide.calcu_mass()}', f)
     return peptide, expand_mw_dict
     
     
@@ -464,6 +554,7 @@ def calcu_mw_of_mutations(args):
     _print(f'get arg: weight: {args.weight}', f)
     _print(f'get arg: max-repeat: {args.max_repeat}', f)
     _print(f'get arg: out: {args.out}', f)
+    _print(f'get arg: mass: {args.mass}', f)
     # show mother peptide info
     peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
     # calcu mutations
@@ -478,16 +569,19 @@ def calcu_mw_of_mutations(args):
             pep_repr = str(pep)
             if pep_repr not in peps:
                 peps[pep_repr] = len(peps)
-                mw = pep.calcu_mw()
+                if args.mass:
+                    mw = pep.calcu_mass()
+                else:
+                    mw = pep.calcu_mw()
                 if mw in mw2pep:
                     mw2pep[mw].append(pep)
                 else:
                     mw2pep[mw] = [pep]
     # output info
     _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f)
-    idx = 0
+    idx, weigth_type = 0, 'Exact Mass' if args.mass else 'MW'
     for i, mw in enumerate(sorted(mw2pep)):
-        _print(f'\nMW: {mw:10.5f}', f)
+        _print(f'\n{weigth_type}: {mw:10.5f}', f)
         for j, pep in enumerate(mw2pep[mw]):
             _print(f'    pep-{i:>4}-{j:<4}({idx:8d}): {pep}', f)
             idx += 1
@@ -509,7 +603,9 @@ _str2func = {
 #     # dev code
 #     from mbapy.game import BaseInfo
 #     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
-#                                    max_repeat = 1, weight = ''))
+#                                    max_repeat = 1, weight = '', mass = False))
+#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
+#                                    max_repeat = 1, weight = '', mass = True))
 
 
 if __name__ == "__main__":
@@ -517,19 +613,32 @@ if __name__ == "__main__":
     subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
     
     sub_val_args = subparsers.add_parser('subval', aliases = ['sb'], description='calcu SPPS substitution value for a release test of resin.')
-    sub_val_args.add_argument('-a', '-A', '--absorbance', '--Absorbance', type = str, help='Absorbance (OD value), input as 0.503,0.533')
-    sub_val_args.add_argument('-m', '-w', '--weight', type = str, help='resin wight (mg), input as 0.165,0.155')
-    sub_val_args.add_argument('-c', '--coff', default = 16.4, type = float, help='coff, default is 16.4')
+    sub_val_args.add_argument('-a', '-A', '--absorbance', '--Absorbance', type = str,
+                              help='Absorbance (OD value), input as 0.503,0.533')
+    sub_val_args.add_argument('-m', '-w', '--weight', type = str,
+                              help='resin wight (mg), input as 0.165,0.155')
+    sub_val_args.add_argument('-c', '--coff', default = 16.4, type = float,
+                              help='coff, default is 16.4')
     
     molecularnweight = subparsers.add_parser('molecularnweight', aliases = ['mw'], description='calcu MW of peptide.')
-    molecularnweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-    molecularnweight.add_argument('-w', '--weight', type = str, default = '', help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+    molecularnweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
+                                  help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
+    molecularnweight.add_argument('-w', '--weight', type = str, default = '',
+                                  help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+    molecularnweight.add_argument('-m', '--mass', action='store_true', default=False,
+                                  help='calcu Exact Mass instead of Molecular Weight.')
     
     mutationweight = subparsers.add_parser('mutationweight', aliases = ['mmw'], description='calcu MW of each peptide mutations syn by SPPS.')
-    mutationweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-    mutationweight.add_argument('-w', '--weight', type = str, default = '', help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
-    mutationweight.add_argument('--max-repeat', type = int, default = 1, help='max times for repeat a AA in sequence')
-    mutationweight.add_argument('-o', '--out', type = str, default = None, help='save results to output file/dir. Defaults None, do not save.')
+    mutationweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
+                                help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
+    mutationweight.add_argument('-w', '--weight', type = str, default = '',
+                                help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+    mutationweight.add_argument('--max-repeat', type = int, default = 1,
+                                help='max times for repeat a AA in sequence')
+    mutationweight.add_argument('-o', '--out', type = str, default = None,
+                                help='save results to output file/dir. Defaults None, do not save.')
+    mutationweight.add_argument('-m', '--mass', action='store_true', default=False,
+                                help='calcu Exact Mass instead of Molecular Weight.')
     
     args = args_paser.parse_args()
     
