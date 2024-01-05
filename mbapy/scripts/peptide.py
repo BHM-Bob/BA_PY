@@ -293,7 +293,7 @@ def calcu_mw(args, _print = print):
     _print(f'\npeptide: {peptide}')
     _print(f'MW: {peptide.calcu_mw(expand_mw_dict)}')
     if args.mass:
-        _print(f'Chemical Formular: {peptide.get_molecular_formula()}, Exact Mass: {peptide.calcu_mass()}', f)
+        _print(f'Chemical Formular: {peptide.get_molecular_formula()}, Exact Mass: {peptide.calcu_mass()}')
     return peptide, expand_mw_dict
     
     
