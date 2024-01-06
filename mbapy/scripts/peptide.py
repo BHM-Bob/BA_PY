@@ -78,6 +78,12 @@ class AnimoAcid:
     all_mwd = deepcopy(aa_mwd)
     all_mwd.update(pg_mwd)
     def __init__(self, repr: str) -> None:
+        """
+        Initializes an instance of the class with the given representation string.
+
+        Parameters:
+            repr (str): The representation string of a peptide to initialize the instance with.
+        """
         if repr is not None:
             parts = repr.split('-')
             if len(parts) == 1:
@@ -102,6 +108,16 @@ class AnimoAcid:
                 self.R_protect = 'H'
                 
     def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False):
+        """
+        Generate a PEP representation of the amino acid sequence.
+
+        Args:
+            is_N_terminal (bool, optional): Whether the sequence is at the N-terminus. Defaults to False.
+            is_C_terminal (bool, optional): Whether the sequence is at the C-terminus. Defaults to False.
+
+        Returns:
+            str: The PEP representation of the amino acid sequence.
+        """
         parts = []
         parts += ([f'{self.N_protect}-'] if (self.N_protect != 'H' or is_N_terminal) else [])
         parts += ([self.animo_acid] if self.R_protect == 'H' else [f'{self.animo_acid}({self.R_protect})'])
@@ -112,6 +128,15 @@ class AnimoAcid:
         return self.make_pep_repr(True, True)
     
     def calcu_mw(self, expand_mw_dict: Dict[str, float] = None):
+        """
+        Calculate the molecular weight of the peptide sequence.
+
+        Args:
+            expand_mw_dict (Dict[str, float], optional): A dictionary containing the molecular weights of the protect groups. Defaults to None.
+
+        Returns:
+            float: The calculated molecular weight of the peptide sequence.
+        """
         if expand_mw_dict is not None:
             assert isinstance(expand_mw_dict, dict), 'expand_mw_dict should be a dict contains protect group molecular weight'
             self.all_mwd.update(expand_mw_dict)
@@ -126,6 +151,14 @@ class AnimoAcid:
         return mw
     
     def get_molecular_formula_dict(self):
+        """
+        Returns a dictionary containing the molecular formula of the protein sequence.
+        
+        The function creates a deep copy of the molecular formula dictionary for the current amino acid. If the N-terminal protecting group is not 'H', it subtracts one hydrogen atom from the dictionary to account for the absence of a hydrogen atom in the N-terminal residue. It then adds the molecular formula of the N-terminal protecting group to the dictionary. Similarly, if the C-terminal protecting group is not 'OH', it subtracts one hydrogen atom and one oxygen atom from the dictionary to account for the absence of these atoms in the C-terminal residue. It then adds the molecular formula of the C-terminal protecting group to the dictionary. Finally, if the side chain protecting group is not 'H', it subtracts one hydrogen atom from the dictionary to account for the absence of a hydrogen atom in the side chain. It then adds the molecular formula of the side chain protecting group to the dictionary.
+
+        Returns:
+            mfd (dict): A dictionary containing the molecular formula of the protein sequence.
+        """
         mfd = {k:v for k,v in self.mfd[self.animo_acid].items()} # deepcopy may slow
         if self.N_protect != 'H':
             mfd['H'] -= 1 # because N-terminal residue has no H but AA has H, so we need to minus one H for AA
@@ -143,12 +176,38 @@ class AnimoAcid:
         return mfd
     
     def get_molecular_formula(self, molecular_formula_dict: Dict[str, int] = None):
+        """
+        Generates the molecular formula from a given dictionary of element symbols and their counts.
+
+        Args:
+            molecular_formula_dict (Dict[str, int], optional): A dictionary containing element symbols as keys and their counts as values. Defaults to None.
+
+        Returns:
+            str: The molecular formula generated from the dictionary, with element symbols and their counts concatenated.
+
+        Example:
+            >>> molecular_formula_dict = {'C': 6, 'H': 12, 'O': 6}
+            >>> get_molecular_formula(molecular_formula_dict)
+            'C6H12O6'
+        """
         if not isinstance(molecular_formula_dict, dict):
             molecular_formula_dict = self.get_molecular_formula_dict()
         return ''.join([f'{k}{v}' for k,v in molecular_formula_dict.items() if v > 0])
     
     def calcu_mass(self, molecular_formula: str = None,
                    molecular_formula_dict: Dict[str, int] = None):
+        """
+        Calculate the mass of a molecule based on its molecular formula.
+
+        Args:
+            molecular_formula (str, optional): The molecular formula of the molecule. Defaults to None.
+            molecular_formula_dict (Dict[str, int], optional): A dictionary representing the molecular formula of 
+                the molecule, where the keys are element symbols and the values are the number of atoms. 
+                Defaults to None.
+
+        Returns:
+            float: The calculated mass of the molecule.
+        """
         if not isinstance(molecular_formula, str):
             if not isinstance(molecular_formula_dict, dict):
                 mfd = self.get_molecular_formula_dict()
@@ -159,6 +218,12 @@ class AnimoAcid:
         return mass.calculate_mass(formula=molecular_formula)
     
     def copy(self):
+        """
+        Creates a copy of the current instance.
+
+        Returns:
+            An `AnimoAcid` object that is a copy of the current instance.
+        """
         cp = AnimoAcid(None)
         cp.animo_acid = self.animo_acid
         cp.C_protect = self.C_protect
@@ -167,6 +232,22 @@ class AnimoAcid:
         return cp
     
 class Peptide:
+    """
+    This class definition is for a Peptide class.
+
+    Attributes:
+        - AAs (List[AnimoAcid]): A list of AnimoAcid objects representing the amino acids in the peptide.
+        
+    Methods:
+        - __init__(self, repr: str): Initializes a Peptide object by splitting the input string and creating a list of AnimoAcid objects.
+        - flatten(self, inplace: bool = False): Flattens the list of AnimoAcid objects into a single list. If inplace is True, the method makes the change in place and returns self, otherwise it returns the changed sequence only.
+        - __repr__(self): Returns a string representation of the Peptide object by joining the representations of each AnimoAcid object in the sequence.
+        - get_molecular_formula_dict(self): Returns a dictionary representing the molecular formula of the Peptide object by summing the molecular formulas of each AnimoAcid object in the sequence.
+        - get_molecular_formula(self, molecular_formula_dict: Dict[str, int] = None): Returns a string representation of the molecular formula of the Peptide object by joining the elements of the molecular_formula_dict dictionary.
+        - calcu_mw(self, expand_mw_dict: Dict[str, float] = None): Calculates the molecular weight of the Peptide object by summing the molecular weights of each AnimoAcid object in the sequence.
+        - calcu_mass(self, molecular_formula: str = None, molecular_formula_dict: Dict[str, int] = None): Calculates the mass of the Peptide object by calling the calcu_mass method of the first AnimoAcid object in the sequence.
+        - copy(self): Creates a copy of the Peptide object by creating a new Peptide object and copying the list of AnimoAcid objects.
+    """
     def __init__(self, repr: str) -> None:
         if repr is not None:
             parts = repr.split('-')
@@ -203,6 +284,12 @@ class Peptide:
                                               for i, aa in enumerate(seq)])
     
     def get_molecular_formula_dict(self):
+        """
+        Calculates the molecular formula of the protein by summing the molecular formula of each amino acid.
+
+        Returns:
+            dict: A dictionary representing the molecular formula of the protein, where the keys are the elements and the values are the corresponding counts.
+        """
         mfd = self.AAs[0].get_molecular_formula_dict()
         for aa in self.AAs[1:]:
             for k,v in aa.get_molecular_formula_dict().items():
@@ -212,11 +299,32 @@ class Peptide:
         return mfd
     
     def get_molecular_formula(self, molecular_formula_dict: Dict[str, int] = None):
+        """
+        Generate the molecular formula from the given molecular formula dictionary.
+
+        Args:
+            molecular_formula_dict (Dict[str, int], optional): A dictionary representing the molecular formula, 
+                where the keys are the element symbols and the values are the corresponding counts. 
+                Defaults to None.
+
+        Returns:
+            str: The molecular formula as a string.
+
+        """
         if not isinstance(molecular_formula_dict, dict):
             molecular_formula_dict = self.get_molecular_formula_dict()
         return ''.join([f'{k}{v}' for k,v in molecular_formula_dict.items() if v > 0])
     
     def calcu_mw(self, expand_mw_dict: Dict[str, float] = None):
+        """
+        Calculate the molecular weight (mw) of the peptide.
+
+        Args:
+            expand_mw_dict (Optional[Dict[str, float]]): A dictionary containing the molecular weights of the protected group. Defaults to None.
+
+        Returns:
+            float: The calculated molecular weight of the peptide.
+        """
         if expand_mw_dict is not None:
             assert isinstance(expand_mw_dict, dict), 'expand_mw_dict should be a dict contains protect group molecular weight'
             AnimoAcid.all_mwd.update(expand_mw_dict)
@@ -226,6 +334,20 @@ class Peptide:
     
     def calcu_mass(self, molecular_formula: str = None,
                    molecular_formula_dict: Dict[str, int] = None):
+        """
+        Calculates the mass of a molecule based on its molecular formula.
+
+        Args:
+            molecular_formula (str, optional): The molecular formula of the molecule. Defaults to None.
+            molecular_formula_dict (Dict[str, int], optional): The dictionary representation of the molecular formula. Defaults to None.
+
+        Returns:
+            float: The calculated mass of the molecule.
+
+        Example:
+            >>> calcu_mass('H2O')
+            18.01528
+        """
         if not isinstance(molecular_formula, str) and\
             not isinstance(molecular_formula_dict, dict):
             mfd = self.get_molecular_formula_dict()
@@ -233,6 +355,12 @@ class Peptide:
                                       molecular_formula_dict=mfd)
     
     def copy(self):
+        """
+        Create a copy of the Peptide object.
+
+        Returns:
+            Peptide: A new Peptide object that is an exact copy of the original.
+        """
         cp = Peptide(None)
         cp.AAs = [aa.copy() for aa in self.AAs]
         return cp
@@ -287,6 +415,25 @@ def calcu_substitution_value(args):
 
 
 def calcu_mw(args, _print = print):
+    """
+    Calculates the molecular weight (MW) of a peptide based on its amino acid sequence and a dictionary of weights for each amino acid.
+
+    Args:
+        args (Namespace): An object containing the command line arguments.
+        _print (function, optional): A function used for printing. Defaults to the built-in print function.
+
+    Returns:
+        tuple: A tuple containing the peptide object and the expanded MW dictionary.
+
+    Example:
+        >>> args = Namespace(seq='A-C-D-E', weight='A-71.04,C-103.01,D-115.03,E-129.04', mass=True)
+        >>> calcu_mw(args)
+        peptide: ACDE
+        MW: 418.12
+        Chemical Formular: C5H10N2O3
+        Exact Mass: 118.07
+        (<peptide object>, {'A': '71.04', 'C': '103.01', 'D': '115.03', 'E': '129.04'})
+    """
     expand_mw_dict = [i.split('-') for i in args.weight.split(',') if len(i) > 2]
     expand_mw_dict = {i[0]:i[1] for i in expand_mw_dict}
     peptide = Peptide(args.seq)
@@ -536,6 +683,34 @@ def mutate_peptide(tree: MutationTree, max_repeat: int):
     return tree
 
 def calcu_mw_of_mutations(args):
+    """
+    Calculates the molecular weight of mutations based on the given arguments.
+
+    Args:
+        args (object): An object that contains the following attributes:
+            - seq (str): The input sequence.
+            - weight (bool): If True, the weight of the peptide will be calculated instead of the mass.
+            - max_repeat (int): The maximum number of repeat amino acids allowed in the peptide.
+            - out (str): The output file path. If None, the output will be printed to the console.
+            - mass (bool): If True, the mass of the peptide will be calculated instead of the weight.
+
+    Prints the molecular weight of the mutations and the corresponding peptide sequences.
+
+    The function first sets up a helper function, `_print`, for printing information to the console and/or a file.
+    It then processes the `args.out` attribute to obtain a valid file path if it is a directory.
+    Next, it opens the output file for writing if `args.out` is not None, otherwise it sets `f` to None.
+    The function then prints the values of the input arguments using `_print`.
+    After that, it calls the `calcu_mw` function to calculate the molecular weight of the peptide and obtain a dictionary of expanded molecular weights.
+    Following that, it creates a `MutationTree` object to hold the peptide and its mutations.
+    It then mutates the peptide according to the maximum repeat allowed.
+    Next, it extracts the individual mutations from the `all_mutations` object.
+    The function then initializes dictionaries to store the molecular weight to peptide mapping and the unique peptide sequences.
+    It iterates over each individual mutation and calculates its molecular weight.
+    If the molecular weight is already present in `mw2pep`, the mutation is appended to the list of peptides with the same molecular weight.
+    Otherwise, a new entry is created in `mw2pep` with the molecular weight as the key and the mutation as the value.
+    Finally, the function prints the number of mutations found and the details of each mutation, along with their respective indices.
+    If an output file was specified, it is closed at the end.
+    """
     # set _print
     def _print(content: str, f):
         if f is not None:
