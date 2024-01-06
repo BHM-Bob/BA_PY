@@ -1,0 +1,35 @@
+{
+    "std": 
+    [
+        "beautifulsoup4",
+        "chardet",
+        "matplotlib",
+        "numpy",
+        "pandas",
+        "Pillow",
+        "requests",
+        "scikit-learn",
+        "scipy",
+        "seaborn",
+        "selenium",
+        "urllib3",
+        "statsmodels",
+        "scikit_posthocs",
+        "rispy",
+        "lxml",
+        "crossref_commons"
+    ],
+    "full":
+    [
+        "cn2an",
+        "yaml",
+        "PyPDF2",
+        "Markdown",
+        "imageio",
+        "wget",
+        "pyteomics",
+        "opencv-python",
+        "pygame",
+        "easyocr"
+    ]
+}

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-12-04 21:22:17
+LastEditTime: 2024-01-06 19:57:31
 Description: 
 '''
 """
@@ -16,6 +16,7 @@ https://packaging.python.org/guides/distributing-packages-using-setuptools/
 https://github.com/pypa/sampleproject
 """
 
+import json
 import pathlib
 
 # Always prefer setuptools over distutils
@@ -25,7 +26,7 @@ here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
 long_description = (here / "README.md").read_text(encoding="utf-8")
-requirements = (here / "requirements.txt").read_text(encoding="utf-8").split('\n')
+requirements = json.loads((here / "requirements.json").read_text())
 version_info = (here / "mbapy/__version__.py").read_text(encoding="utf-8")
 for line in version_info.split('\n'):
     if '__version__' in line:
@@ -69,9 +70,20 @@ setup(
     packages = find_packages(exclude=["test"]),
     
     include_package_data = True, # define in MANIFEST.in file
+    
+    # deprecated, function replaced by entry_points. remain this line for further usage.
+    # data_files=[('Scripts', ['mbapy/storage/mbapy.exe'])],
+    
+    entry_points={
+        "console_scripts": [
+            "mbapy-cli=mbapy.scripts:main",
+        ],
+    },
+    
     platforms = "any",
     
-    install_requires=requirements,
+    install_requires=requirements['std'],
+    extras_require={'full': requirements['std'] + requirements['full']},
 )
 
 # pip install .

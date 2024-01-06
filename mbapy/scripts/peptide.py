@@ -607,8 +607,7 @@ _str2func = {
 #     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
 #                                    max_repeat = 1, weight = '', mass = True))
 
-
-if __name__ == "__main__":
+def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
     subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
     
@@ -640,10 +639,13 @@ if __name__ == "__main__":
     mutationweight.add_argument('-m', '--mass', action='store_true', default=False,
                                 help='calcu Exact Mass instead of Molecular Weight.')
     
-    args = args_paser.parse_args()
+    args = args_paser.parse_args(sys_args)
     
     if args.sub_command in _str2func:
         print(f'excuting command: {args.sub_command}')
         _str2func[args.sub_command](args)
     else:
         base.put_err(f'no such sub commmand: {args.sub_command}')
+
+if __name__ == "__main__":
+    main()

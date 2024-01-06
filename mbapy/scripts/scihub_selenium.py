@@ -1,14 +1,14 @@
 '''
 Date: 2023-11-04 18:43:38
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-28 17:33:49
+LastEditTime: 2024-01-06 21:35:59
 Description: 
 '''
 import argparse
 import os
 import sys
 import urllib
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import requests
 import tqdm
@@ -101,7 +101,7 @@ def download_center_paper_session(b: Browser, dir:str, info: Dict[str, str], rec
         info.update(result)
         records.center_paper[result['doi']] = info
 
-def handle_exception(exc_type, exc_value, exc_traceback, records):
+def handle_exception(exc_type, exc_value, exc_traceback, records, records_path):
     print("Exception occurred!, try saving records.")
     print("Exception Type:", str(exc_type))
     print("Exception Value:", str(exc_value))
@@ -112,7 +112,8 @@ def handle_exception(exc_type, exc_value, exc_traceback, records):
         print("Failed to save records, simply exit.")
         exit(1)
 
-if __name__ == "__main__":
+
+def main(sys_args: List[str] = None):
     # process args
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
@@ -121,7 +122,7 @@ if __name__ == "__main__":
     args_paser.add_argument("-g", "--gui", action="store_true", help="FLAG, enable browser GUI")
     args_paser.add_argument("-u", "--undetected", action="store_true", help="FLAG, enable to use undetected_chromedriver")
     args_paser.add_argument("-l", "--log", action="store_true", help="FLAG, enable to verbose mbapy log info")
-    args = args_paser.parse_args()
+    args = args_paser.parse_args(sys_args)
     
     # command line path process
     args.ris = args.ris.replace('"', '').replace('\'', '')
@@ -145,7 +146,7 @@ if __name__ == "__main__":
     records = Record()
     if check_parameters_path(records_path):
         records.from_json(records_path)
-    sys.excepthook = lambda et, ev, tb: handle_exception(et, ev, tb, records)
+    sys.excepthook = lambda et, ev, tb: handle_exception(et, ev, tb, records, records_path)
 
     # check output directory
     if not check_parameters_path(args.out):
@@ -194,3 +195,6 @@ if __name__ == "__main__":
             break
     
     records.to_json(records_path)
+
+if __name__ == "__main__":
+    main()
