@@ -2,14 +2,14 @@ import argparse
 import math
 import os
 import time
-from typing import Dict
+from typing import Dict, List
 
 import easyocr
 import numpy as np
 import pyautogui
 
-from mbapy.base import Configs, check_parameters_path, put_log
 from mbapy import web
+from mbapy.base import Configs, check_parameters_path, put_log
 from mbapy.file import read_json, save_json
 
 link2handle = {}
@@ -167,7 +167,7 @@ def get_single_patent(b, item_idx: int, patents: Dict, reader: easyocr.Reader, t
         return get_single_patent(b, item_idx, patents, try_times-1)
     return patent_info
 
-def worker(query: str, patents: Dict, records_path: str):
+def worker(query: str, patents: Dict, records_path: str, reader: easyocr.Reader):
     # 初始化浏览器并设置启用允许弹出式窗口(TODO: 目前只想到了pyautogui)
     b = web.get_browser('Chrome', options = ['--no-sandbox'], use_undetected=True)
     b.maximize_window()
@@ -257,15 +257,14 @@ def worker(query: str, patents: Dict, records_path: str):
             web.click_browser(b, '//*[@id="app"]/div[1]/section/div/div/div[3]/div/div[1]/div[2]/div[2]/div[4]/div/div/span[3]/div/button[3]/i', 'xpath')
             web.random_sleep(5, 3)
         
-
-if __name__ == '__main__': 
+def main(sys_args: List[str] = None):
     # process args   
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-q", "--query", type=str, help="query")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
     args_paser.add_argument("-m", "--model_path", default=None, type=str, help="EasyOCR model directory")
     args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
-    args = args_paser.parse_args()
+    args = args_paser.parse_args(sys_args)
     # command line path process
     args.query = args.query.replace('"', '').replace('\'', '')
     args.out = args.out.replace('"', '').replace('\'', '')
@@ -289,5 +288,8 @@ if __name__ == '__main__':
     reader = easyocr.Reader(['en'], model_storage_directory=args.model_path, download_enabled=True)
     
     # start worker
-    worker(args.query, patents, records_path)
+    worker(args.query, patents, records_path, reader)
     
+
+if __name__ == '__main__': 
+    main()

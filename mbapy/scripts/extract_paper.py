@@ -1,10 +1,11 @@
 '''
 Date: 2023-08-03 19:54:12
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-04 19:54:16
+LastEditTime: 2024-01-06 21:35:10
 Description: 
 '''
 import argparse
+import glob
 import os
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
@@ -16,16 +17,17 @@ from mbapy.base import *
 from mbapy.file import *
 from mbapy.paper import *
 
-if __name__ == '__main__':
+
+def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-i", "--input", type=str, help="paper(pdf) file directory")
     args_paser.add_argument("-o", "--output", type=str, default='_mbapy_extract_paper.json', help="output file name")
     args_paser.add_argument("-b", "--backend", type=str, default='pdfminer', help="paper(pdf) file directory")
     args_paser.add_argument("-l", "--log", action = 'store_true', help="FLAGS, enable log")
-    args = args_paser.parse_args()
+    args = args_paser.parse_args(sys_args)
     
     args.input = args.input.replace('"', '').replace('\'', '')
-    pdf_paths = glob(os.path.join(args.input, '*.pdf'))
+    pdf_paths = glob.glob(os.path.join(args.input, '*.pdf'))
     
     put_log(f'get args: input: {args.input}')
     put_log(f'get args: output: {args.output}')
@@ -61,3 +63,6 @@ if __name__ == '__main__':
             break
     save_json(os.path.join(args.input, args.output), data)
     put_log(f'sum has bookmarks:{sum_has_bookmarks}')
+
+if __name__ == '__main__':
+    main()

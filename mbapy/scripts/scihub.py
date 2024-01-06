@@ -9,7 +9,7 @@ import os
 import random
 import sys
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import requests
 import tqdm
@@ -63,7 +63,7 @@ def download_center_paper_session(dir:str, info: Dict[str, str], records:Record,
         info.update(result)
         records.center_paper[result['doi']] = info
 
-def handle_exception(exc_type, exc_value, exc_traceback, records):
+def handle_exception(exc_type, exc_value, exc_traceback, records, records_path):
     print("Exception occurred!, try saving records.")
     print("Exception Type:", str(exc_type))
     print("Exception Value:", str(exc_value))
@@ -74,7 +74,8 @@ def handle_exception(exc_type, exc_value, exc_traceback, records):
         print("Failed to save records, simply exit.")
         exit(1)
 
-if __name__ == "__main__":
+
+def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
     args_paser.add_argument("-i", "--ris", type=str, help="ris file path")
     args_paser.add_argument("-o", "--out", type=str, help="out files directory")
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     records = Record()
     if base.check_parameters_path(records_path):
         records.from_json(records_path)
-    sys.excepthook = lambda et, ev, tb: handle_exception(et, ev, tb, records)
+    sys.excepthook = lambda et, ev, tb: handle_exception(et, ev, tb, records, records_path)
     
     web.launch_sub_thread()
     base.put_log(f'get args: ris: {args.ris}')
@@ -122,3 +123,6 @@ if __name__ == "__main__":
             break
     
     records.to_json(records_path)
+
+if __name__ == "__main__":
+    main()
