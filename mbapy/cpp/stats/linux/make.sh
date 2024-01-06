@@ -27,5 +27,5 @@ make
 echo "built to build dir"
 
 # copy built file
-mv $WDIR/build/libsci.so $STORAGE/libsci.so
-echo libsci.so moved to storage dir
+mv $WDIR/build/libstats.so $STORAGE/libstats.so
+echo libstats.so moved to storage dir

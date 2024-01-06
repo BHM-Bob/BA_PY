@@ -27,5 +27,5 @@ make
 echo "built to build dir"
 
 # copy built file
-mv $WDIR/build/libsci.so $STORAGE/libsci.so
-echo libsci.so moved to storage dir
+mv $WDIR/build/mbapy-cli $STORAGE/mbapy-cli
+echo mbapy-cli moved to storage dir
