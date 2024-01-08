@@ -67,7 +67,7 @@ setup(
     author = __author__,
     author_email = __author_email__,
     
-    packages = find_packages(exclude=["test"]),
+    packages = find_packages(exclude=["test", "test."]),
     
     include_package_data = True, # define in MANIFEST.in file
     
@@ -92,4 +92,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.6.0.tar.gz
+# twine upload dist/mbapy-0.6.1.tar.gz
