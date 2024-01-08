@@ -611,8 +611,10 @@ _str2func = {
 # if __name__ == '__main__':
 #     # dev code
 #     from mbapy.game import BaseInfo
-#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = None,
+#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
 #                                    max_repeat = 1, weight = '', mass = False))
+#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
+#                                    max_repeat = 1, weight = '', mass = True))
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
