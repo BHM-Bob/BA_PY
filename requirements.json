@@ -15,15 +15,22 @@
         "urllib3",
         "statsmodels",
         "scikit_posthocs",
+        "pdfminer",
         "rispy",
         "lxml",
         "crossref_commons"
+    ],
+    "bio":
+    [
+        "pdfplumber",
+        "pyteomics"
     ],
     "full":
     [
         "cn2an",
         "yaml",
         "PyPDF2",
+        "pdfplumber",
         "Markdown",
         "imageio",
         "wget",

@@ -83,7 +83,10 @@ setup(
     platforms = "any",
     
     install_requires=requirements['std'],
-    extras_require={'full': requirements['std'] + requirements['full']},
+    extras_require={
+        'bio': requirements['std'] + requirements['bio'],
+        'full': requirements['std'] + requirements['full'],
+        },
 )
 
 # pip install .
