@@ -25,15 +25,30 @@ Now, mbapy only support pypi install:
 pip install mbapy
 ```
 
-If you find the latest release version has some problems, you can try install the up-to-date version on github:
+mbapy is a multi-funtional package, and it does not require every third-party packages to make every sub-module work. However, it provides some requriements option to install more specified requirements to make some sub-modules work.
+:
+1. bio: some packages for biology(sci).
+    install as `pip install mbapy[bio]`
+2. full: full requirements to make almost every sub-module in mbapy work(except dl_torch).
+     install as `pip install mbapy[full]`
+
+If you find the latest release version has some problems, you can try install the up-to-date version on github or gitee:
 ```
 pip install git+https://github.com/BHM-Bob/BA_PY.git
+```
+```
+pip install git+https://gitee.com/BHM-Bob/BA_PY.git
 ```
 
 #### docs
 The documentation for mbapy can be found on [read the docs](https://ba-py.readthedocs.io/en/latest/), and it is the one that I will regularly update.
 The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob/BA_PY/wiki). However, please note that this wiki on GitHub has not been updated since 2023-07. 
-*Given my limited time, I heavily rely on chatGPT to generate the documentation*.
+
+#### web sites
+- open source at:
+    1. [github： https://github.com/BHM-Bob/BA_PY](https://github.com/BHM-Bob/BA_PY)
+    2. [gitee： https://gitee.com/BHM-Bob/BA_PY](https://gitee.com/BHM-Bob/BA_PY)
+- docs at: [read the docs: https://ba-py.rtfd.io](https://ba-py.readthedocs.io/en/latest/)
 
 # contain  
 ## mbapy python package  
@@ -82,6 +97,8 @@ The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob
 *model : deeplearning model constructed with basic blocks*  
 ##### utils
 *deeplearning training utils*  
+##### optim
+*learning rate scheduler*
 
 #### paper
 *sci-paper utils, contains paper searching, downloading and parsing*  
@@ -90,7 +107,11 @@ The API document for mbapy is available on its [wiki](https://github.com/BHM-Bob
 ##### paper_download
 *download papers via scihub*  
 ##### paper_parse
-*parse paper from a pdf file into a dict of each sections*  
+*parse paper from a pdf file into a dict of each sections* 
+
+#### scripts
+*some useful scripts for command user*
+launch by `python -m mbapy.scripts.XXX` or `mbapy-cli XXX`.
 
 ## examples
 #### file
