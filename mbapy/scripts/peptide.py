@@ -362,7 +362,16 @@ class Peptide:
             Peptide: A new Peptide object that is an exact copy of the original.
         """
         cp = Peptide(None)
-        cp.AAs = [aa.copy() for aa in self.AAs]
+        cp.AAs = []
+        for aa in self.AAs:
+            if isinstance(aa, AnimoAcid):
+                cp.AAs.append(aa.copy())
+            elif isinstance(aa, list) and len(aa) == 0:
+                cp.AAs.append([])
+            elif isinstance(aa, list) and any([isinstance(aa_i, AnimoAcid) for aa_i in aa]):
+                cp.AAs.append([aa_i.copy() for aa_i in aa])
+            else:
+                raise ValueError(f'unkown type {type(aa)}')
         return cp
     
 
@@ -524,7 +533,7 @@ class MutationOpts:
         # change mutate branch 's pos 's sum_repeat to tree.opts.repeat_AA + 1
         tree.mutate.pos[2] = tree.opts.AA_repeat + 1
         # trun off the repeat AA opts in mutate branches
-        tree.mutate.opts.AA_repeat = 0
+        tree.mutate.opts = MutationOpts(AA_repeat=0)
         # decrease the repeat AA opts in remain branches
         tree.remain.opts.AA_repeat -= 1
         return tree
@@ -540,9 +549,9 @@ class MutationOpts:
         pos, repeat_pos, sum_repeat = tree.pos
         null_pg = 'H' if NCR in ['N', 'R'] else 'OH'
         # delete X-terminal protect group
-        if sum_repeat == 1 and getattr(tree.seq.AAs[pos], f'{NCR}_protect') != null_pg:
+        if sum_repeat == 1 and getattr(tree.mutate.seq.AAs[pos], f'{NCR}_protect') != null_pg:
             setattr(tree.mutate.seq.AAs[pos], f'{NCR}_protect', null_pg)
-        elif sum_repeat > 1 and getattr(tree.seq.AAs[pos][repeat_pos], f'{NCR}_protect') != null_pg:
+        elif sum_repeat > 1 and getattr(tree.mutate.seq.AAs[pos][repeat_pos], f'{NCR}_protect') != null_pg:
             setattr(tree.mutate.seq.AAs[pos][repeat_pos], f'{NCR}_protect', null_pg)
         # trun off the opts in two branches
         setattr(tree.mutate.opts, f'{NCR}_protect_deletion', False)
