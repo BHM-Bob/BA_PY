@@ -1,16 +1,15 @@
 /*
  * @Date: 2023-08-22 23:30:32
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2023-08-24 10:39:14
+ * @LastEditTime: 2024-01-09 23:03:10
  * @Description: 
  */
 /*
 
 */
-#include <iostream>
-#include <vector>
+#include <cstdlib>
 #include <new>
-#include <tuple>
+#include <vector>
 
 extern "C" {
 
@@ -58,4 +57,13 @@ unsigned long long* remove_simi(float* arr, unsigned long long* len, float sh)
 void freePtr(void* ptr)
 {
     free(ptr);
+}
+
+
+int main(void)
+{
+    float arr[3] = {0., 2., 3.};
+    unsigned long long len = 3;
+    remove_simi(arr, &len, 0.1);
+    return 0;
 }

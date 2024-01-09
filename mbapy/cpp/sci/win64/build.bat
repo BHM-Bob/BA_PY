@@ -23,4 +23,4 @@ echo built to build dir
 
 :: Copy built file
 move "%WDIR%\build\libsci.dll" "%STORAGE%\libsci.dll"
-echo libsci.dll moved to storage dir
+echo libsci.dll moved to %STORAGE%
