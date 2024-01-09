@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-09 14:54:24
+LastEditTime: 2024-01-09 23:20:43
 Description: 
 '''
 import ctypes
@@ -557,12 +557,13 @@ def get_dll_path_for_sys(module_name:str, **kwargs):
 
 class CDLL:
     @autoparse
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, winmode: int = 0) -> None:
         """load a DLL file from path"""
         if not os.path.isfile(path):
             put_err(f'{path:s} is not exist')
         else:
-            self.dll = ctypes.cdll.LoadLibrary(path)
+            # self.dll = ctypes.cdll.LoadLibrary(path)
+            self.dll = ctypes.CDLL(path, winmode = winmode)
         # transfer ctype obj to c pointer
         self.ptr = ctypes.pointer # pointer generator
         self.ref = ctypes.byref # reference generator
