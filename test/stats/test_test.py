@@ -5,12 +5,12 @@ LastEditTime: 2023-06-30 18:50:28
 FilePath: \BA_PY\test\stats\test_test.py
 Description: 
 '''
-import pandas as pd
+import unittest
+
 import numpy as np
+import pandas as pd
 import scipy
 import statsmodels.api as sm
-
-import unittest
 
 import mbapy.stats as ms
 
