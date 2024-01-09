@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-12-17 10:06:55
+LastEditTime: 2024-01-09 14:54:24
 Description: 
 '''
 import ctypes
@@ -549,7 +549,7 @@ def get_storage_path(sub_path:str):
 
 def get_dll_path_for_sys(module_name:str, **kwargs):
     if platform.system().lower() == 'windows':
-        return get_storage_path(f'{module_name}.dll')
+        return get_storage_path(f'lib{module_name}.dll')
     elif platform.system().lower() == 'linux':
         return get_storage_path(f'lib{module_name}.so')
     else:
