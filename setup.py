@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-09 16:58:06
+LastEditTime: 2024-01-09 21:09:26
 Description: 
 '''
 """
@@ -98,6 +98,7 @@ setup(
     
     install_requires=requirements['std'],
     extras_require={
+        'none': [],
         'bio': requirements['std'] + requirements['bio'],
         'game': requirements['std'] + requirements['game'],
         'full': requirements['std'] + requirements['full'],

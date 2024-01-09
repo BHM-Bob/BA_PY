@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
 .Python
 build/
@@ -142,9 +139,6 @@ data/nn_models
 
 # tmp data
 data_tmp
-
-# storage dir
-mbapy/storage
 
 # .VSCodeCounter
 .VSCodeCounter
