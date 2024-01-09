@@ -2,6 +2,7 @@
 from copy import deepcopy
 from typing import Dict, List
 
+
 class AnimoAcid:
     aa_mwd = { # amino acid molecular weight dict
         "Ala": 89.09,

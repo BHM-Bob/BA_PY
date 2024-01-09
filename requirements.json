@@ -22,8 +22,14 @@
     ],
     "bio":
     [
+        "wget",
         "pdfplumber",
         "pyteomics"
+    ],
+    "game":
+    [
+        "pygame",
+        "opencv-python"
     ],
     "full":
     [
