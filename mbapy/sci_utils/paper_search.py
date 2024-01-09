@@ -1,6 +1,5 @@
-import os
 import random
-import re
+import time
 from typing import Dict, List
 
 import crossref_commons.retrieval
