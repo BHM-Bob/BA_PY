@@ -3,6 +3,7 @@ import os
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
@@ -11,6 +12,7 @@ os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 from mbapy import base, file
 from mbapy.bio.peptide import AnimoAcid, Peptide
+
 
 def calcu_substitution_value(args):
     """
@@ -409,14 +411,53 @@ def calcu_mw_of_mutations(args):
     # handle f-print
     if f is not None:
         f.close()
+        
+def transfer_letters(args):
+    # show args
+    print(f'get arg: seqeunce: {args.seq}')
+    print(f'get arg: source repr width: {args.src}')
+    print(f'get arg: target repr width: {args.trg}')
+    print(f'get arg: disable protect groups: {args.dpg}')
+    print(f'get arg: disable dash line: {args.ddash}')
+    print(f'get arg: input: {args.input}')
+    print(f'get arg: out: {args.out}')
+    # get input
+    if args.input is not None:
+        from mbapy.base import put_err
+        from mbapy.file import opts_file
+        path = Path(args.input.replace('"', '').replace("'", ''))
+        peps = []
+        for line in opts_file(path, way='lines'):
+            try:
+                peps.append(Peptide(line, args.src))
+            except:
+                put_err(f'error when parsing: {line}, skip')
+    else:
+        peps = [Peptide(args.seq, args.src)]
+    # make output
+    reprs = [pep.repr(args.trg, not args.dpg, not args.ddash) for pep in peps]
+    if args.out is not None:
+        from mbapy.file import opts_file
+        path = Path(args.output.replace('"', '').replace("'", ''))
+        opts_file(path, 'w', data = '\n'.join(reprs))
+    [print(r) for r in reprs]
+    return reprs
 
 
 _str2func = {
     'sb': calcu_substitution_value,
     'subval': calcu_substitution_value,
+    
     'mw': calcu_mw,
+    'molecularweight': calcu_mw,
+    'molecular-weight': calcu_mw,
+    
     'mmw': calcu_mw_of_mutations,
     'mutationweight': calcu_mw_of_mutations,
+    'mutation-weight': calcu_mw_of_mutations,
+    
+    'letters': transfer_letters,
+    'transfer-letters': transfer_letters,
 }
 
 
@@ -440,15 +481,15 @@ def main(sys_args: List[str] = None):
     sub_val_args.add_argument('-c', '--coff', default = 16.4, type = float,
                               help='coff, default is 16.4')
     
-    molecularnweight = subparsers.add_parser('molecularnweight', aliases = ['mw'], description='calcu MW of peptide.')
-    molecularnweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
-                                  help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-    molecularnweight.add_argument('-w', '--weight', type = str, default = '',
-                                  help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
-    molecularnweight.add_argument('-m', '--mass', action='store_true', default=False,
-                                  help='calcu Exact Mass instead of Molecular Weight.')
+    molecularweight = subparsers.add_parser('molecularweight', aliases = ['molecular-weight', 'mw'], description='calcu MW of peptide.')
+    molecularweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
+                                 help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
+    molecularweight.add_argument('-w', '--weight', type = str, default = '',
+                                 help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+    molecularweight.add_argument('-m', '--mass', action='store_true', default=False,
+                                 help='calcu Exact Mass instead of Molecular Weight.')
     
-    mutationweight = subparsers.add_parser('mutationweight', aliases = ['mmw'], description='calcu MW of each peptide mutations syn by SPPS.')
+    mutationweight = subparsers.add_parser('mutationweight', aliases = ['mutation-weight', 'mmw'], description='calcu MW of each peptide mutations syn by SPPS.')
     mutationweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
                                 help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
     mutationweight.add_argument('-w', '--weight', type = str, default = '',
@@ -459,6 +500,22 @@ def main(sys_args: List[str] = None):
                                 help='save results to output file/dir. Defaults None, do not save.')
     mutationweight.add_argument('-m', '--mass', action='store_true', default=False,
                                 help='calcu Exact Mass instead of Molecular Weight.')
+    
+    letters = subparsers.add_parser('letters', aliases = ['transfer-letters'], description='transfer AnimoAcid repr letters width.')
+    letters.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, default='',
+                                help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or ABC(Trt)DE')
+    letters.add_argument('--src', '--source-width', type = int, choices=[1, 3], default = 3,
+                                help='source repr width of AnimoAcid, only accept 1 and 3.')
+    letters.add_argument('--trg', '--target-width', type = int, choices=[1, 3], default = 1,
+                                help='traget repr width of AnimoAcid, only accept 1 and 3.')
+    letters.add_argument('--dpg', '--disable-pg', action='store_true', default = False,
+                                help='whether to include protect groups in target repr.')
+    letters.add_argument('--ddash', '--disable-dash', action='store_true', default = False,
+                                help='whether to include dash line in target repr.')
+    letters.add_argument('-i', '--input', type = str, default = None,
+                                help='input file where peptide seq exists in each line. Defaults None, do not save.')
+    letters.add_argument('-o', '--out', type = str, default = None,
+                                help='save results to output file/dir. Defaults None, do not save.')
     
     args = args_paser.parse_args(sys_args)
     
