@@ -26,6 +26,28 @@ class AnimoAcid:
         "Tyr": 181.19,
         "Val": 117.15
     }
+    aa_3to1 = {
+        'Ala': 'A',
+        'Arg': 'R',
+        'Asn': 'N',
+        'Asp': 'D',
+        'Cys': 'C',
+        'Gln': 'Q',
+        'Glu': 'E',
+        'Gly': 'G',
+        'His': 'H',
+        'Ile': 'I',
+        'Leu': 'L',
+        'Lys': 'K',
+        'Met': 'M',
+        'Phe': 'F',
+        'Pro': 'P',
+        'Ser': 'S',
+        'Thr': 'T',
+        'Trp': 'W',
+        'Tyr': 'Y',
+        'Val': 'V',
+    }
     pg_mwd = { # protect group molecular weight dict
         'H': 0, # do not calcu mw
         'OH': 0, # do not calcu mw
@@ -98,7 +120,8 @@ class AnimoAcid:
             else:
                 self.R_protect = 'H'
                 
-    def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False):
+    def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False,
+                      repr_w: int = 3, include_pg: bool = True):
         """
         Generate a PEP representation of the amino acid sequence.
 
@@ -109,10 +132,14 @@ class AnimoAcid:
         Returns:
             str: The PEP representation of the amino acid sequence.
         """
-        parts = []
-        parts += ([f'{self.N_protect}-'] if (self.N_protect != 'H' or is_N_terminal) else [])
-        parts += ([self.animo_acid] if self.R_protect == 'H' else [f'{self.animo_acid}({self.R_protect})'])
-        parts += ([f'-{self.C_protect}'] if (self.C_protect != 'OH' or is_C_terminal) else [])
+        assert repr_w in [1, 3], "repr_w must be 1 or 3"
+        aa = self.animo_acid if repr_w == 3 else self.aa_3to1[self.animo_acid]
+        if include_pg:
+            parts = [f'{self.N_protect}-'] if (self.N_protect != 'H' or is_N_terminal) else []
+            parts += ([aa] if self.R_protect == 'H' else [f'{aa}({self.R_protect})'])
+            parts += ([f'-{self.C_protect}'] if (self.C_protect != 'OH' or is_C_terminal) else [])
+        else:
+            parts = [aa]
         return ''.join(parts)
     
     def __repr__(self) -> str:
@@ -268,11 +295,19 @@ class Peptide:
         else:
             return seq
         
+    def repr(self, repr_w: int = 3, include_pg: bool = True,
+             include_dash: bool = True):
+        assert repr_w in [1, 3], "repr_w must be 1 or 3"
+        seq = self.flatten(inplace=False)
+        dash = "-" if include_dash else ""
+        return dash.join([aa.make_pep_repr(is_N_terminal=(i==0),
+                                           is_C_terminal=(i==len(seq)-1),
+                                           repr_w = repr_w,
+                                           include_pg = include_pg) \
+                                               for i, aa in enumerate(seq)])
+        
     def __repr__(self) -> str:
-        seq = self.flatten()
-        return '-'.join([aa.make_pep_repr(is_N_terminal=(i==0),
-                                          is_C_terminal=(i==len(seq)-1)) \
-                                              for i, aa in enumerate(seq)])
+        return self.repr(3, True, True)
     
     def get_molecular_formula_dict(self):
         """
@@ -370,3 +405,15 @@ __all__ = [
     'AnimoAcid',
     'Peptide',
 ]
+
+if __name__ == "__main__":
+    # dev code
+    pep = Peptide('Fmoc-Cys(Trt)-Glu(OtBu)')
+    print(pep.repr(3, True, True))
+    print(pep.repr(3, False, True))
+    print(pep.repr(3, True, False))
+    print(pep.repr(3, False, False))
+    print(pep.repr(1, True, True))
+    print(pep.repr(1, False, True))
+    print(pep.repr(1, True, False))
+    print(pep.repr(1, False, False))
