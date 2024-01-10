@@ -127,11 +127,11 @@ class AnimoAcid:
               
     @staticmethod  
     def check_is_aa(aa: str):
-        if aa[0] in AnimoAcid.aa_1to3:
-            if len(aa) == 1 or aa[1] == '(':
-                return 1
-            return 0
-        return 3 if aa[:3] in AnimoAcid.aa_3to1 else 0
+        if aa[0] in AnimoAcid.aa_1to3 and (len(aa) == 1 or aa[1] == '('):
+            return 1
+        elif aa[:3] in AnimoAcid.aa_3to1:
+            return 3
+        return 0
                 
     def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False,
                       repr_w: int = 3, include_pg: bool = True):
@@ -330,6 +330,9 @@ class Peptide:
         
     def repr(self, repr_w: int = 3, include_pg: bool = True,
              include_dash: bool = True):
+        """
+        NOTE: if do not include dash and include pg, the N and C ternimal pg will STILL get a dash.
+        """
         assert repr_w in [1, 3], "repr_w must be 1 or 3"
         seq = self.flatten(inplace=False)
         dash = "-" if include_dash else ""
