@@ -1,4 +1,4 @@
-
+import re
 from copy import deepcopy
 from typing import Dict, List
 
@@ -48,6 +48,7 @@ class AnimoAcid:
         'Tyr': 'Y',
         'Val': 'V',
     }
+    aa_1to3 = {v:k for k,v in aa_3to1.items()}
     pg_mwd = { # protect group molecular weight dict
         'H': 0, # do not calcu mw
         'OH': 0, # do not calcu mw
@@ -100,12 +101,12 @@ class AnimoAcid:
         if repr is not None:
             parts = repr.split('-')
             if len(parts) == 1:
-                assert parts[0][:3] in self.aa_mwd.keys(), f'{repr} is not a valid animo acid, it has noly one part and should in {self.aa_mwd.keys()}'
+                assert self.check_is_aa(parts[0][:3]), f'{repr} is not a valid animo acid, it has noly one part and should in {self.aa_mwd.keys()}'
                 parts = ['H'] + parts + ['OH']
             elif len(parts) == 2:
-                if parts[0][:3] in self.aa_mwd.keys():
+                if self.check_is_aa(parts[0][:3]):
                     parts = ['H'] + parts
-                elif parts[1][:3] in self.aa_mwd.keys():
+                elif self.check_is_aa(parts[1][:3]):
                     parts = parts + ['OH']
                 else:
                     raise ValueError(f'{repr} is not a valid animo acid, it has two parts and none is in {self.aa_mwd.keys()} with it\'s previous 3 chars')
@@ -114,11 +115,23 @@ class AnimoAcid:
             self.N_protect = parts[0]
             self.animo_acid = parts[1]
             self.C_protect = parts[2]
-            if len(parts[1]) > 3:
-                self.animo_acid = parts[1][0:3]
-                self.R_protect = parts[1][4:-1]
+            if '(' in parts[1]:
+                if self.check_is_aa(parts[1]) == 1:
+                    self.animo_acid = self.aa_1to3[parts[1][0]]
+                    self.R_protect = parts[1][2:-1]
+                else:
+                    self.animo_acid = parts[1][0:3]
+                    self.R_protect = parts[1][4:-1]
             else:
                 self.R_protect = 'H'
+              
+    @staticmethod  
+    def check_is_aa(aa: str):
+        if aa[0] in AnimoAcid.aa_1to3:
+            if len(aa) == 1 or aa[1] == '(':
+                return 1
+            return 0
+        return 3 if aa[:3] in AnimoAcid.aa_3to1 else 0
                 
     def make_pep_repr(self, is_N_terminal: bool = False, is_C_terminal: bool = False,
                       repr_w: int = 3, include_pg: bool = True):
@@ -266,16 +279,36 @@ class Peptide:
         - calcu_mass(self, molecular_formula: str = None, molecular_formula_dict: Dict[str, int] = None): Calculates the mass of the Peptide object by calling the calcu_mass method of the first AnimoAcid object in the sequence.
         - copy(self): Creates a copy of the Peptide object by creating a new Peptide object and copying the list of AnimoAcid objects.
     """
-    def __init__(self, repr: str) -> None:
+    def __init__(self, repr: str, aa_repr_w: int = 3) -> None:
+        assert aa_repr_w in [1, 3], "repr_w must be 1 or 3"
         if repr is not None:
-            parts = repr.split('-')
-            if parts[0] in AnimoAcid.pg_mwd.keys():
-                parts[1] = '-'.join(parts[0:2])
-                del parts[0]
-            if parts[-1] in AnimoAcid.pg_mwd.keys():
-                parts[-2] = '-'.join(parts[-2:])
-                del parts[-1]
-                
+            if aa_repr_w == 3:
+                # 3 letters repr
+                parts = repr.split('-')
+                if parts[0] in AnimoAcid.pg_mwd.keys():
+                    parts[1] = parts[0] + '-' + parts[1]
+                    del parts[0]
+                if parts[-1] in AnimoAcid.pg_mwd.keys():
+                    parts[-2] = parts[-2] + '-' + parts[-1]
+                    del parts[-1]
+            else:
+                # 1 letter repr
+                pattern = f"[{'|'.join(AnimoAcid.aa_3to1.values())}]" + r'(?:\([A-Za-z]+\))?'
+                N_pg, C_pg = "", ""
+                if '-' in repr:
+                    parts = repr.split('-')
+                    # has pg in N terminal
+                    if not AnimoAcid.check_is_aa(parts[0]):
+                        N_pg = parts[0] + '-'
+                        repr = repr.replace(N_pg,'')
+                    # has pg in C terminal
+                    if not AnimoAcid.check_is_aa(parts[-1]):
+                        C_pg = parts[-1] + '-'
+                        repr = repr.replace(C_pg,'')
+                parts = re.findall(pattern, repr)
+                parts[0] = N_pg + parts[0]
+                parts[-1] = parts[-1] + C_pg
+            # generate AAs
             self.AAs = [AnimoAcid(part) for part in parts]
         
     def flatten(self, inplace: bool = False):
@@ -406,9 +439,10 @@ __all__ = [
     'Peptide',
 ]
 
+
 if __name__ == "__main__":
     # dev code
-    pep = Peptide('Fmoc-Cys(Trt)-Glu(OtBu)')
+    pep = Peptide('Fmoc-C(Trt)-G(OtBu)', 1)
     print(pep.repr(3, True, True))
     print(pep.repr(3, False, True))
     print(pep.repr(3, True, False))
