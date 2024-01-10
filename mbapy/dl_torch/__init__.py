@@ -8,7 +8,6 @@ Description:
 
 from mbapy.dl_torch import bb as bb
 from mbapy.dl_torch import data as data
-from mbapy.dl_torch import m as m
 from mbapy.dl_torch import loss as loss
+from mbapy.dl_torch import m as m
 from mbapy.dl_torch import utils as utils
-
