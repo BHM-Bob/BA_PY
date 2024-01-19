@@ -23,7 +23,7 @@ def plot_mass_load_file(path: Path):
     lines = path.read_text().splitlines()
     df = pd.DataFrame([line.split('\t') for line in lines[1:]],
                         columns = lines[0].split('\t'))
-    if df.shape[1] == 2 and df.columns[0] == 'time':
+    if df.shape[1] == 2 and df.columns[0] == 'Time':
         return df.astype(float)
     elif df.shape[1] == 10:
         return df.astype({'Mass/Charge':float, 'Height':float, 'Charge':int,
@@ -36,7 +36,7 @@ def plot_mass_plot_basepeak(name:str, base_peak: pd.DataFrame, args):
     plt.xticks(size = 20)
     plt.yticks(size = 20)
     plt.yscale('log')
-    ax.set_title('TIC (TOF MS)', fontsize=25)
+    ax.set_title(f'{name} (TIC of TOF MS)', fontsize=25)
     ax.set_xlabel('Time (min)', fontsize=25)
     ax.set_ylabel('Intensity (cps)', fontsize=25)
     save_show(os.path.join(args.output, f'{name}.png'), dpi = 300)
@@ -64,7 +64,7 @@ def plot_mass_plot_peaklist(name:str, peak_list: pd.DataFrame, args):
     axis_lim = (1-args.expand, 1+args.expand)
     plt.xlim(peak_list['mass_data'].min() * axis_lim[0], peak_list['mass_data'].max() * axis_lim[1])
     plt.ylim(peak_list['Height'].min() * axis_lim[0], peak_list['Height'].max() * axis_lim[1])
-    ax.set_title('Peak List (TOF MS)', fontsize=25)
+    ax.set_title(f'{name} (Peak List of TOF MS)', fontsize=25)
     ax.set_xlabel(f'Mass{"" if args.mass else "/charge"}', fontsize=25)
     ax.set_ylabel('Intensity (cps)', fontsize=25)
     plt.legend(fontsize=15)
@@ -102,18 +102,22 @@ def plot_mass(args):
             df['Mass (charge)'] = df['Mass (charge)'].str.extract(r'(\d+\.\d+)', expand=False).astype(float)
             df['Mass/charge (charge)'] = df['Mass/charge (charge)'].str.extract(r'(\d+\.\d+)', expand=False).astype(float)
             df['mass_data'] = df['Mass (charge)'] if args.mass else df['Mass/charge (charge)']
-            drop_idx = df[df['Height'] < args.min].index
+            drop_idx = df[df['Height'] < args.min_height].index
             if not drop_idx.empty:
-                print(f'drop data with min-height: {args.min} and only these data remained:\n', df[df['Height'] >= args.min])
+                print(f'drop data with min-height: {args.min_height} and only these data remained:\n',
+                      df[df['Height'] >= args.min_height])
                 df.drop(drop_idx, axis = 0, inplace = True)
     # plot each df
     for n,df in dfs.items():
+        name = Path(n).resolve().stem
         if df.shape[1] == 2:
             # plot base peak
-            plot_mass_plot_basepeak(n, df, args)
+            print(f'ploting base peak: {name}')
+            plot_mass_plot_basepeak(name, df, args)
         elif df.shape[0] > 0: # avoid drop all data but still draw
             # plot peak list
-            plot_mass_plot_peaklist(n, df, args)
+            print(f'ploting peak list: {name}')
+            plot_mass_plot_peaklist(name, df, args)
 
 _str2func = {
     'plot-mass': plot_mass,
