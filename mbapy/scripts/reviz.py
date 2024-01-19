@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-11 11:23:49
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-11 15:31:13
+LastEditTime: 2024-01-12 16:11:47
 FilePath: \BA_PY\mbapy\scripts\reviz.py
 Description: 
 '''
@@ -14,6 +14,11 @@ os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 from mbapy.dl_torch.utils import launch_visdom, re_viz_from_json_record
 
+if __name__ == '__main__':
+    from mbapy.scripts._script_utils_ import clean_path
+else:
+    from ._script_utils_ import clean_path
+    
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
@@ -22,8 +27,8 @@ def main(sys_args: List[str] = None):
     
     args = args_paser.parse_args(sys_args)
     
-    print(f'get arg: input: {args.input}')    
-    args.input = args.input.replace('"', '').replace("'", '')
+    args.input = clean_path(args.input)
+    print(f'get arg: input: {args.input}')
     
     if not os.path.exists(args.input):
         print(f'input file not exists: {args.input}, skip')
@@ -39,7 +44,7 @@ def main(sys_args: List[str] = None):
                 args.input = path
                 break
     
-    viz_env = Path(args.input).absolute().parent.name
+    viz_env = Path(args.input.parent.name)
     print(f'starting vizdom service(Env={viz_env})')
     launch_visdom(viz_env)
     print(f'reviz with file {args.input}')    

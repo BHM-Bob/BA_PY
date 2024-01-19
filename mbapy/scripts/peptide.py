@@ -13,6 +13,11 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 from mbapy import base, file
 from mbapy.bio.peptide import AnimoAcid, Peptide
 
+if __name__ == '__main__':
+    from mbapy.scripts._script_utils_ import clean_path
+else:
+    from ._script_utils_ import clean_path
+
 
 def calcu_substitution_value(args):
     """
@@ -365,7 +370,7 @@ def calcu_mw_of_mutations(args):
             f.write(content+'\n')
         print(content)
     if args.out is not None:
-        args.out = args.out.replace('"', '').replace('\'', '')
+        args.out = clean_path(args.out)
         if os.path.isdir(args.out):
             file_name = file.get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
             args.out = os.path.join(args.out, file_name)
@@ -425,7 +430,7 @@ def transfer_letters(args):
     if args.input is not None:
         from mbapy.base import put_err
         from mbapy.file import opts_file
-        path = Path(args.input.replace('"', '').replace("'", ''))
+        path = clean_path(args.input)
         peps = []
         for line in opts_file(path, way='lines'):
             try:
@@ -438,7 +443,7 @@ def transfer_letters(args):
     reprs = [pep.repr(args.trg, not args.dpg, not args.ddash) for pep in peps]
     if args.out is not None:
         from mbapy.file import opts_file
-        path = Path(args.output.replace('"', '').replace("'", ''))
+        path = clean_path(args.output)
         opts_file(path, 'w', data = '\n'.join(reprs))
     [print(r) for r in reprs]
     return reprs
