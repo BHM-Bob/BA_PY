@@ -12,8 +12,7 @@ if __name__ == '__main__':
     # dev mode
     import mbapy.web as web
     from mbapy.base import *
-    from mbapy.file import (convert_pdf_to_txt, get_valid_file_path, opts_file,
-                            read_text)
+    from mbapy.file import convert_pdf_to_txt, get_valid_file_path, opts_file
 else:
     # release mode
     from .. import web
