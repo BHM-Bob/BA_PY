@@ -2,12 +2,15 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-18 16:21:57
+LastEditTime: 2024-01-20 20:12:16
 Description: 
 '''
 import collections
 import os
+import pickle
+import platform
 import shutil
+from pathlib import Path
 from typing import Dict, List, Union
 
 try:
@@ -112,46 +115,98 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
         path = path.replace(invalid_chr, valid_chrs)
     return path
 
-def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len = 250):
-    return replace_invalid_path_chr(path, valid_chrs)[:valid_len]
+def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
+                        return_Path: bool = False):
+    """
+    Get a valid file path.
 
-def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None, **kwargs):
+    Args:
+        path (str): The path to process.
+        valid_chrs (str, optional): Valid characters for the path. Default is '_'.
+        valid_len (int, optional): The maximum valid length of the path. Default is 250.
+        return_Path (bool, optional): Whether to return a Path object or not. Default is False.
+
+    Returns:
+        Union[str, Path]: The validated file path.
+
+    """
+    path = replace_invalid_path_chr(path, valid_chrs)
+    if platform.system().lower() == 'windows' and len(path) > valid_len:
+        suffix = Path(path).suffix
+        valid_len = valid_len - len(suffix)
+        path = path[:valid_len] + suffix
+    return path if not return_Path else Path(path)
+
+def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
+              way:str = 'str', data = None, kwgs: Dict = {}, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
     Parameters:
-        path (str): The path to the file.
-        mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.
-        encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
-        way (str, optional): The way in which the data should be read or written. Defaults to 'lines'.
-        data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
+        - path (str): The path to the file.
+        - mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.
+            - 'r': Read mode.
+            - 'w': Write mode.
+            - 'a': Append mode. Only applicable with 'str' and 'lines' way.
+        - encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
+        - way (str, optional): The way in which the data should be read or written. Defaults to 'str'.
+            - 'str': Read/write the data as a string.
+            - 'lines': Read/write the data as a list of lines.
+            - 'json': Read/write the data as a JSON object.
+            - 'yml'/'yaml': Read/write the data as a YAML file.
+            - 'pkl': Read/write the data as a Python object (using pickle).
+            - 'csv': Read/write the data as a CSV file.
+            - 'excel' or 'xlsx' or 'xls': Read/write the data as an Excel file.
+        - data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
+        - kwgs (dict): Additional keyword arguments to be passed to the third-party read/write function.
+        - kwargs (dict): Additional arguments to be passed to the open() function.
 
     Returns:
         list or str or dict or None: The data read from the file, or None if the file was opened in write mode and no data was provided.
+        
+    Errors:
+        - return None if the path is not a valid file path for read.
+        - return None if the mode or way is not valid.
     """
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
     with open(path, mode, **kwargs) as f:
-        if 'r' in mode:
+        if 'r' in mode and os.path.isfile(path):
             if way == 'lines':
                 return f.readlines()
             elif way == 'str':
                 return f.read()
             elif way == 'json':
-                return json.loads(f.read())
-        elif 'w' in mode and data is not None:
+                return json.loads(f.read(), **kwgs)
+            elif way in ['yml', 'yaml']:
+                import yaml
+                return yaml.load(f, **kwgs)
+            elif way == 'pkl':
+                return pickle.load(f, **kwgs)
+            elif way == 'csv':
+                return pd.read_csv(f, **kwgs)
+            elif way in ['excel', 'xlsx', 'xls']:
+                return pd.read_excel(f, **kwgs)
+        elif ('w' in mode or 'a' in mode) and data is not None\
+                and way in ['lines','str']: 
             if way == 'lines':
                 return f.writelines(data)
             elif way == 'str':
                 return f.write(data)
-            elif way == 'json':
-                return f.write(json.dumps(data))
-
-def read_bits(path:str):
-    return opts_file(path, 'rb')
-
-def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
-    return opts_file(path, 'r', decode, way)
+        elif 'w' in mode and data is not None:
+            if way == 'json':
+                return f.write(json.dumps(data, **kwgs))
+            elif way == 'pkl':
+                return pickle.dump(data, f, **kwgs)
+            elif way in ['yml', 'yaml']:
+                import yaml
+                return yaml.dump(data, f, **kwgs)
+            elif way == 'csv':
+                return data.to_csv(f, **kwgs)
+            elif way in ['excel', 'xlsx', 'xls']:
+                return data.to_excel(f, **kwgs)
+        else:
+            return put_err(f"Invalid mode or way for file {path}. mode={mode}, way={way}.")
 
 def detect_byte_coding(bits:bytes):
     """
@@ -233,8 +288,8 @@ def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True, ensure_
     """
     if forceUpdate or not os.path.isfile(path):
         json_str = json.dumps(obj, indent=1, ensure_ascii=ensure_ascii)
-        with open(path, 'w' ,encoding=encoding, errors='ignore') as json_file:
-            json_file.write(json_str)
+        with open(path, 'w', encoding=encoding, errors='ignore') as f:
+            f.write(json_str)
             
 def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
     """
@@ -250,8 +305,8 @@ def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
         invalidPathReturn (any): The value passed as `invalidPathReturn` if the path is invalid.
     """
     if os.path.isfile(path):
-        with open(path, 'r' ,encoding=encoding, errors='ignore') as json_file:
-            json_str = json_file.read()
+        with open(path, 'r' ,encoding=encoding, errors='ignore') as f:
+            json_str = f.read()
         return json.loads(json_str)
     return invalidPathReturn
 
@@ -273,8 +328,8 @@ def save_yaml(path:str, obj, indent = 2, encoding:str = 'utf-8',
     """
     import yaml
     if force_update or not os.path.isfile(path):
-        with open(path, 'w' ,encoding=encoding, errors='ignore') as fh:
-            fh.write(yaml.dump(obj, indent=indent, allow_unicode=allow_unicode))
+        with open(path, 'w' ,encoding=encoding, errors='ignore') as f:
+            f.write(yaml.dump(obj, indent=indent, allow_unicode=allow_unicode))
             
 def read_yaml(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
     """
