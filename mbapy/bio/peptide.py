@@ -91,7 +91,7 @@ class AnimoAcid:
     }
     all_mwd = deepcopy(aa_mwd)
     all_mwd.update(pg_mwd)
-    def __init__(self, repr: str) -> None:
+    def __init__(self, repr: str, aa_repr_w: int = 3) -> None:
         """
         Initializes an instance of the class with the given representation string.
 
@@ -104,9 +104,9 @@ class AnimoAcid:
                 assert self.check_is_aa(parts[0][:3]), f'{repr} is not a valid animo acid, it has noly one part and should in {self.aa_mwd.keys()}'
                 parts = ['H'] + parts + ['OH']
             elif len(parts) == 2:
-                if self.check_is_aa(parts[0][:3]):
+                if self.check_is_aa(parts[0][:3]) == aa_repr_w:
                     parts = ['H'] + parts
-                elif self.check_is_aa(parts[1][:3]):
+                elif self.check_is_aa(parts[1][:3]) == aa_repr_w:
                     parts = parts + ['OH']
                 else:
                     raise ValueError(f'{repr} is not a valid animo acid, it has two parts and none is in {self.aa_mwd.keys()} with it\'s previous 3 chars')
@@ -115,10 +115,10 @@ class AnimoAcid:
             self.N_protect = parts[0]
             self.animo_acid = parts[1]
             self.C_protect = parts[2]
-            if '(' in parts[1]:
+            if '(' in parts[1] or len(parts[1]) == 1:
                 if self.check_is_aa(parts[1]) == 1:
                     self.animo_acid = self.aa_1to3[parts[1][0]]
-                    self.R_protect = parts[1][2:-1]
+                    self.R_protect = parts[1][2:-1] if parts[1][2:-1] else 'H'
                 else:
                     self.animo_acid = parts[1][0:3]
                     self.R_protect = parts[1][4:-1]
@@ -309,7 +309,7 @@ class Peptide:
                 parts[0] = N_pg + parts[0]
                 parts[-1] = parts[-1] + C_pg
             # generate AAs
-            self.AAs = [AnimoAcid(part) for part in parts]
+            self.AAs = [AnimoAcid(part, aa_repr_w) for part in parts]
         
     def flatten(self, inplace: bool = False):
         """
@@ -445,7 +445,7 @@ __all__ = [
 
 if __name__ == "__main__":
     # dev code
-    pep = Peptide('Fmoc-C(Trt)-G(OtBu)', 1)
+    pep = Peptide('H-Cys(Trt)-G(OtBu)', 3)
     print(pep.repr(3, True, True))
     print(pep.repr(3, False, True))
     print(pep.repr(3, True, False))
