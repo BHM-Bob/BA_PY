@@ -1,3 +1,10 @@
+'''
+Date: 2024-01-08 21:31:52
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-01-24 12:11:56
+FilePath: \BA_PY\mbapy\scripts\_main_.py
+Description: 
+'''
 import importlib
 import os
 import sys
@@ -71,6 +78,22 @@ scripts_info = {
             'detailed': 
                 """
                 mass spectrum tools, such as plot mass spectrum from text file data.
+                """,
+        },
+    'cluster':
+        {
+            'brief': 'cluster tools',
+            'detailed': 
+                """
+                cluster tools.
+                """,
+        },
+    'video':
+        {
+            'brief': 'video tools',
+            'detailed': 
+                """
+                video tools.
                 """,
         },
 }

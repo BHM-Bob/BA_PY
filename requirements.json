@@ -42,6 +42,7 @@
         "wget",
         "pyteomics",
         "opencv-python",
+        "moviepy",
         "pygame",
         "easyocr"
     ]
