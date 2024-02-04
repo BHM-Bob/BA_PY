@@ -96,6 +96,14 @@ scripts_info = {
                 video tools.
                 """,
         },
+    'avif':
+        {
+            'brief': 'transfer img to avif or heic format',
+            'detailed': 
+                """
+                transfer img to avif or heic format.
+                """,
+        },
 }
 
 
