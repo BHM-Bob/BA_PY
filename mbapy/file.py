@@ -53,13 +53,15 @@ else:
     except:# if cv2 or torch is not installed, skip
         pass
     
-def get_paths_with_extension(folder_path: str, file_extensions: List[str]) -> List[str]:
+def get_paths_with_extension(folder_path: str, file_extensions: List[str],
+                             recursive: bool = True) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
     Args:
-        folder_path (str): The path of the folder to search for files.
-        file_extensions (List[str]): A list of file extensions to filter the search by.
+        - folder_path (str): The path of the folder to search for files.
+        - file_extensions (List[str]): A list of file extensions to filter the search by.
+        - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
@@ -69,7 +71,23 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str]) -> Li
         for file in files:
             if any(file.endswith(extension) for extension in file_extensions):
                 file_paths.append(os.path.join(root, file))
+        if recursive:
+            for dir in dirs:
+                file_paths.extend(get_paths_with_extension(os.path.join(root, dir), file_extensions, recursive))
     return file_paths
+
+def format_file_size(size_bits: int, return_str: bool = True):
+    n = 0
+    units = {0: '', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB', 5: 'PB', 6: 'EB', 7: 'ZB', 8: 'YB'}
+    
+    while size_bits > 1024:
+        size_bits /= 1024
+        n += 1
+        
+    if return_str:
+        return f"{round(size_bits, 2)} {units[n]}"
+    else:
+        return size_bits, units[n]
 
 def extract_files_from_dir(root: str, file_extensions: List[str] = None,
                            extract_sub_dir: bool = True, join_str:str = ' '):
