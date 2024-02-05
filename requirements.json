@@ -39,6 +39,7 @@
         "pdfplumber",
         "Markdown",
         "imageio",
+        "pillow_heif",
         "wget",
         "pyteomics",
         "opencv-python",
