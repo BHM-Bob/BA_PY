@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-08-22 23:19:45
+LastEditTime: 2024-02-05 15:11:09
 Description: convert jpeg to avif
 '''
 import argparse
@@ -35,7 +35,7 @@ def transfer_img(args, paths: List[str], file_size: Dict[str, int]):
             sub_path = sub_path[len(os.path.sep):]
         output_path = os.path.join(args.output, sub_path)
         before_size += os.path.getsize(path)
-        if path.endswith(args.to):
+        if path.endswith(args.to) and path != output_path:
             shutil.copy(path, output_path)
         else:
             try:
@@ -47,6 +47,8 @@ def transfer_img(args, paths: List[str], file_size: Dict[str, int]):
                     im.save(output_path, optimize=True, quality=args.quality)
             except:
                 shutil.copy(path, output_path)
+            if args.remove_origin:
+                os.remove(path)
         after_size += os.path.getsize(output_path)
     # update file size and return
     file_size['before'] += before_size
