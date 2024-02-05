@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-24 12:11:56
+LastEditTime: 2024-02-05 15:36:01
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -102,6 +102,14 @@ scripts_info = {
             'detailed': 
                 """
                 transfer img to avif or heic format.
+                """,
+        },
+    'rm':
+        {
+            'brief': 'delete files with specific suffix or sub-string in name',
+            'detailed': 
+                """
+                delete files with specific suffix or sub-string in name.
                 """,
         },
 }
