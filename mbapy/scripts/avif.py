@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-05 15:11:09
+LastEditTime: 2024-02-06 15:40:52
 Description: convert jpeg to avif
 '''
 import argparse
@@ -40,7 +40,7 @@ def transfer_img(args, paths: List[str], file_size: Dict[str, int]):
         else:
             try:
                 output_path = output_path[:1-len(Path(path).suffix)] + args.to
-                output_dir = Path(output_path).parent
+                output_dir = os.path.dirname(output_path)
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
                 with Image.open(path) as im:

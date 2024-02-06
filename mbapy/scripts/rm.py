@@ -1,10 +1,4 @@
-'''
-Date: 2024-02-05 15:12:32
-LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-05 15:44:01
-FilePath: \BA_PY\mbapy\scripts\rm.py
-Description: 
-'''
+
 import argparse
 import os
 from typing import Dict, List
@@ -21,7 +15,7 @@ else:
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser(description = 'delete files with specific suffix or sub-string in name')
-    args_paser.add_argument('-t', '--type', type = str, default='jpg,JPG',
+    args_paser.add_argument('-t', '--type', type = str, default='',
                             help='format of files to remove, splited by ",". Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
