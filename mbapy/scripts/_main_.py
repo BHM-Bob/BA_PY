@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-05 15:36:01
+LastEditTime: 2024-02-06 15:09:10
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -110,6 +110,14 @@ scripts_info = {
             'detailed': 
                 """
                 delete files with specific suffix or sub-string in name.
+                """,
+        },
+    'mv':
+        {
+            'brief': 'move files with specific suffix or sub-string in name',
+            'detailed': 
+                """
+                move files with specific suffix or sub-string in name.
                 """,
         },
 }
