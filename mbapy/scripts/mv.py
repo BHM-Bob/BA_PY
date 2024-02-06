@@ -42,7 +42,7 @@ def main(sys_args: List[str] = None):
     # get input paths
     paths = get_paths_with_extension(args.input, args.type,
                                      args.recursive, args.name)
-    print(f'files to remove: {len(paths)}')
+    print(f'files to move: {len(paths)}')
     
     # move
     for path in tqdm(paths):

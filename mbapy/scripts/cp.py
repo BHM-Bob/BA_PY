@@ -1,3 +1,9 @@
+'''
+Date: 2024-02-06 15:41:40
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-02-06 18:53:19
+Description: 
+'''
 
 import argparse
 import os
@@ -37,12 +43,12 @@ def main(sys_args: List[str] = None):
     
     # short cut if only a single file to move
     if os.path.isfile(args.input) and not os.path.isdir(args.output):
-        return shutil.move(args.input, args.output)
+        return shutil.copy(args.input, args.output)
     
     # get input paths
     paths = get_paths_with_extension(args.input, args.type,
                                      args.recursive, args.name)
-    print(f'files to remove: {len(paths)}')
+    print(f'files to copy: {len(paths)}')
     
     # copy
     for path in tqdm(paths):
