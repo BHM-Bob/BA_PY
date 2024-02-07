@@ -18,42 +18,36 @@ else:
 @dataclass
 class BasePage:
     xpath: str = '' # xpath expression to extract data
-    result = None # general result of the page, could be any type
-    result_links: List[str] = field(default_factory = lambda: []) # links of parsed result
+    result: List[Any] = field(default_factory = lambda: []) # general result of the page, could be any type
     result_page_html: List[str] = field(default_factory = lambda: []) # web-page html of parsed result
     result_page_xpath: List[etree._Element] = field(default_factory = lambda: []) # web-page xpath object of parsed result
     father_page: 'BasePage' = None # father page of this page
     next_pages: Dict[str, 'BasePage'] = field(default_factory = lambda: {}) # next pages of this page
     before_func: Callable[['BasePage'], bool] = None # before function to execute before parsing, check if need to parse this page
     after_func: Callable[['BasePage'], bool] = None # after function to execute after parsing, do something after parsing this page
-    def parse(self, html: str = None, xpath_obj: etree._Element = None) -> None:
-        if html is not None and isinstance(html, str):
-            xpath_obj = etree.HTML(html)
-        if xpath_obj is not None and isinstance(xpath_obj, etree._Element):
-            self.results = xpath_obj.xpath(self.xpath)
-            return self.results
-        else:
-            # do not waring, return None
-            return None
     def add_next_page(self, name:str, page: 'BasePage') -> None:
         if isinstance(name, str):
             self.next_pages[name] = page
             return True
         else:
             return put_err('name should be str, skip and return False', False)
-    def _process_parsed_data(self):
+    def parse(self, results: List[Union[str, etree._Element]] = None) -> None:
+        """
+        parse data from results, override by subclass.
+        In BasePage.perform, it will call this function to parse data and store in self.result..
+        """
+    def _process_parsed_data(self, *args, **kwargs):
         """
         process parsed data, could be override by subclass
         """
-        pass
-    def perform(self, html: str = None, xpath_obj: etree._Element = None):
-        self.result =  self.parse(html, xpath_obj)
-        self._process_parsed_data()
+    def perform(self, *args, results: List[Union[str, etree._Element]] = None, **kwargs):
+        self.result =  self.parse(results)
+        self._process_parsed_data(*args, **kwargs)
         return self.result
     
 class PagePage(BasePage):
     """
-    Only get and store one web page.
+    Only START and store a new web page.
     """
     def __init__(self, url: str,
                  web_get_fn: Callable[[Any], str] = get_url_page_s,
@@ -63,16 +57,23 @@ class PagePage(BasePage):
         self.web_get_fn = web_get_fn
         self.args = args
         self.kwargs = kwargs
-    def _process_parsed_data(self, url: str = None):
-        url = self.url if not isinstance(url, str) else url
-        self.result = self.web_get_fn(url, *self.args, **self.kwargs)
-        self.result_page_html.append(self.web_get_fn(self.url, *self.args, **self.kwargs))
-        self.result_page_xpath.append(etree.HTML(self.result_page_html[0]))
+    def parse(self, results: List[Union[str, etree._Element]] = None):
+        """
+        get new web-page(s) from self.url, results(as links) or self.father_page.result_page_xpath(as links)
+        """
+        if self.url == '':
+            if results is None:
+                results = self.father_page.result
+        else:
+            results = [self.url]
+        self.result = [self.web_get_fn(r, *self.args, **self.kwargs) for r in results]
+        self.result_page_html = [r for r in self.result if isinstance(r, str)]
+        self.result_page_xpath = [etree.HTML(r) for r in self.result_page_html if isinstance(r, str)]
         return self
     
 class UrlIdxPagesPage(PagePage):
     """
-    special page to parse pages, store web pages for further parsing.
+    special page to START and parse pages, store web pages for further parsing.
     get page url from given base url, make each page by given function.
     """
     def __init__(self, base_url: str, url_fn: Callable[[str, int], str],
@@ -81,7 +82,9 @@ class UrlIdxPagesPage(PagePage):
         super().__init__('', web_get_fn=web_get_fn, *args, **kwargs)
         self.base_url = base_url
         self.url_fn = url_fn
-    def _process_parsed_data(self):
+    def parse(self, results: List[Union[str, etree._Element]]):
+        raise NotImplementedError()
+    def _process_parsed_data(self, *args, **kwargs):
         is_valid, results = True, []
         while is_valid:
             super()._process_parsed_data(self.url_fn(self.url, len(self.result_links)))
@@ -94,51 +97,39 @@ class UrlIdxPagesPage(PagePage):
     
 class ItemsPage(BasePage):
     """
-    Only store data of one page.
-    """
-    def __init__(self, xpath: str) -> None:
-        super().__init__(xpath=xpath)
-    
-class LinksPage(ItemsPage):
-    """
-    Special page to parse links, links stand for web pages.
+    Only parse and store data of THE FATHER PAGE.
     """
     def __init__(self, xpath: str,
-                 single_link_str_fn: Callable[[str], str] = lambda x: x,
-                 web_get_fn: Callable[[Any], str] = get_url_page_s,
+                 single_item_fn: Callable[[str], Any] = lambda x: x,
                  *args, **kwargs) -> None:
         super().__init__(xpath=xpath)
-        self.single_link_str_fn = single_link_str_fn
-        self.web_get_fn = web_get_fn
+        self.single_item_fn = single_item_fn
         self.args = args
         self.kwargs = kwargs
-    def _process_parsed_data(self):
-        if isinstance(self.result, list):
-            for link in self.result:
-                if isinstance(link, str):
-                    link = self.single_link_str_fn(link)
-                    self.result_links.append(self.single_link_str_fn(link))
-                    self.result_page_html.append(self.web_get_fn(
-                        self.result_links[-1], *self.args, **self.kwargs))
-                    self.result_page_xpath.append(
-                        etree.HTML(self.result_page_html[-1]))
+    def parse(self, results: List[Union[str, etree._Element]] = None):
+        """
+        parse data from results, override by subclass.
+        """
+        if results is None:
+            results = self.father_page.result_page_xpath
+        if len(results) == 0:
+            results = self.father_page.result_page_html # TODO: check if this is correct
+        # detect available result and transfer to xpath object
+        for r in results:
+            if isinstance(r, str): # html
+                r = etree.HTML(r)
+            if isinstance(r, etree._Element): # xpath object
+                self.result_page_xpath.append(r)
+                self.result_page_html.append(etree.tostring(r, encoding='unicode')) # TODO: check if this is correct
+                self.result.append(r.xpath(self.xpath))
+        return self.result
+    def _process_parsed_data(self, *args, **kwargs):
+        results = []
+        for xpath in self.result:
+            results.append(self.single_item_fn(
+                xpath, *self.args, **self.kwargs))
+        self.result = results
         return self
-    
-class TextsPage(BasePage):
-    """
-    Only store text data of one page.
-    """
-    def __init__(self) -> None:
-        super().__init__()
-        pass
-    
-class ImagesPage(BasePage):
-    """
-    Only store image data of one page.
-    """
-    def __init__(self) -> None:
-        super().__init__()
-        pass
     
 @dataclass
 class Actions:
@@ -190,34 +181,40 @@ class Actions:
             self.pages[name] = page
         else:
             father.add_next_page(name, page)
+            page.father_page = father
+        return self
     def del_page(self, name: str) -> None:
         raise NotImplementedError()
-    def perform(self, html: str = None, xpath_obj: etree._Element = None):
-        def _perform(page: Dict[str, BasePage], results: Dict,
-                     html: str = None, xpath_obj: etree._Element = None):
+    def perform(self, *args, **kwargs):
+        def _perform(page: Dict[str, BasePage], results: Dict, *args, **kwargs):
             for n, p in page.items():
                 # check before_func
                 if p.before_func is None or p.before_func(self):
+                    # perform this page to make it's own result
+                    result = p.perform(*args, **kwargs)
                     # perform each next_page recursively
                     if p.next_pages is not None and len(p.next_pages) > 0:
                         results[n] = {}
                         results[n] = _perform(p.next_pages, results[n],
-                                              html, xpath_obj)
+                                              *args, **kwargs)
                     else: # or perform itself if no next_page
-                        results[n] = p.perform(html, xpath_obj)
+                        results[n] = result
                 # execute after_func if exists                  
                 if p.after_func is not None:
                     p.after_func(self)
             return results
         self.results = {}
-        self.results = _perform(self.pages, self.results, html, xpath_obj)
+        self.results = _perform(self.pages, self.results, *args, **kwargs)
         return self.results
-                
     
     
 if __name__ == '__main__':
     # dev code
+    ip_xpath = '//*[@id="list"]/div[2]/table/tbody/tr[3]/td[1]'
+    port = '//*[@id="list"]/div[2]/table/tbody/tr[1]/td[2]'
+    text_fn = lambda x: x[0].text
     action = Actions()
     action.add_page(page=PagePage(url='https://www.kuaidaili.com/free/inha/'), name='main')
-    action.add_page(page=LinksPage(xpath = ''), name='links', father='main')
+    action.add_page(page=ItemsPage(xpath = ip_xpath, single_item_fn = text_fn), name='ip', father='main')
+    action.add_page(page=ItemsPage(xpath = port, single_item_fn = text_fn), name='port', father='main')
     results: Dict = action.perform()
