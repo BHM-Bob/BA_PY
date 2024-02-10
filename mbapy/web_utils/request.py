@@ -30,6 +30,8 @@ else:
     
 
 def random_sleep(max_t: int = 10, min_t: int = 1):
+    if isinstance(max_t, int) or isinstance(min_t, int):
+        return time.sleep(random.uniform(float(min_t), float(max_t)))
     time.sleep(random.randint(min_t, max_t))
 
 def get_requests_retry_session(

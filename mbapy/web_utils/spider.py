@@ -1,3 +1,4 @@
+import itertools
 import time
 import urllib.parse
 import urllib.request
@@ -5,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple, Union, Callable
 
 from lxml import etree
+from tqdm import tqdm
 
 if __name__ == '__main__':
     from mbapy.base import (Configs, check_parameters_len,
@@ -139,11 +141,11 @@ class PagePage(BasePage):
         else:
             results = self.url
         # get web-page(s) and parse
-        for page_idx, page in enumerate(results): # a page store one kind item, a list of urls
+        for page in tqdm(results, leave=False, desc=f'{self.name} get Page'): # a page store one kind item, a list of urls
             self.result.append([])
             self.result_page_html.append([])
             self.result_page_xpath.append([])
-            for url_idx, url in enumerate(page):
+            for url in tqdm(page, leave=False, desc=f'{self.name} get Item'):
                 task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, *self.args, **self.kwargs)
                 self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
                 self.result_page_html[-1].append(self.result[-1][-1])
@@ -200,11 +202,11 @@ class ItemsPage(BasePage):
         if results is None:
             results = self.father_page.result
         # detect available result and transfer to xpath object
-        for page in results: # page is a result container of one kind item
+        for page in tqdm(results, leave=False, desc=f'{self.name} parse Page'): # page is a result container of one kind item
             self.result.append([])
             self.result_page_xpath.append([])
             # exactly, page ONLY contains one kind item, so it should be a list of a result or results
-            for r in page:
+            for r in tqdm(page, leave=False, desc=f'{self.name} parse Item'):
                 if isinstance(r, AsyncResult): # async result
                     r = r.get() # get result from async task pool
                     if r == TaskStatus.NOT_SUCCEEDED:
@@ -217,7 +219,7 @@ class ItemsPage(BasePage):
         return self.result
     def _process_parsed_data(self, *args, **kwargs):
         results = []
-        for xpath in self.result:
+        for xpath in tqdm(self.result, leave=False, desc=f'{self.name} process Item'):
             results.append(self.single_page_items_fn(
                 xpath, *self.args, **self.kwargs))
         self.result = results
@@ -252,8 +254,8 @@ class Actions:
         # all failed, return None
         return ret
     def add_page(self, page: BasePage, father: str = '', name: str = '',
-                 before_func: Callable[['Actions'], bool] = None,
-                 after_func: Callable[['Actions'], bool] = None) -> 'Actions':
+                 before_func: Callable[['Actions', 'BasePage'], bool] = None,
+                 after_func: Callable[['Actions', 'BasePage'], bool] = None) -> 'Actions':
         # check parameters
         if not isinstance(name, str) or not isinstance(father, str):
             return put_err('name and father should be str, skip and return self', self)
@@ -284,11 +286,12 @@ class Actions:
         def _perform(page: Dict[str, BasePage], results: Dict, *args, **kwargs):
             for n, p in page.items():
                 # check before_func
-                if p.before_func is None or p.before_func(self):
+                if p.before_func is None or p.before_func(self, p):
                     # perform this page to make it's own result
                     result = p.perform(*args, **kwargs)
-                    # perform this page to make it's own result
-                    result = p.perform(*args, **kwargs)
+                    # execute after_func if exists                  
+                    if p.after_func is not None:
+                        p.after_func(self, p)
                     # perform each next_page recursively
                     if p.next_pages is not None and len(p.next_pages) > 0:
                         results[n] = {}
@@ -296,10 +299,6 @@ class Actions:
                                               *args, **kwargs)
                     else: # or perform itself if no next_page
                         results[n] = result
-                        results[n] = result
-                # execute after_func if exists                  
-                if p.after_func is not None:
-                    p.after_func(self)
             return results
         self._async_task_pool.run()
         self.results = {}
