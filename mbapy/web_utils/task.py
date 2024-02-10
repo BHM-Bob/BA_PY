@@ -1,10 +1,13 @@
 import _thread
+import asyncio
 import os
 import re
 import time
+import threading
 from collections import namedtuple
+from enum import Enum
 from queue import Queue
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from mbapy.base import put_err, put_log
 
@@ -93,8 +96,10 @@ def launch_sub_thread(statuesQue = statuesQue,
     """
     Launches a sub-thread to run a separate task concurrently with the main thread.
     
-    NOTE:
+    Note:
         - statuesQue has two keys for mbapy inner usage: __is_quit__ and __inputs__.
+        - key2action iwill add a ket 'e' first, and then add other key-to-action.
+            The 'e' key will trigle the 'exit' signal to _wait_for_quit func.
         - NOLY IF get no match without reg, then try to match with reg.
     
     Parameters:
@@ -208,6 +213,56 @@ class ThreadsPool:
             while not que.empty():
                 retList.append(que.get())
         return retList
+    
+class TaskStatus(Enum):
+    NOT_FOUND = 1
+    NOT_FINISHED = 2
+    NOT_SUCCEEDED = 3
+
+class CoroutinePool:
+    """
+    co-routine pool, use asyncio to run co-routines in a separate thread.
+    """
+    def __init__(self):
+        self.loop = None
+        self.thread = None
+        self.tasks = {}
+        self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
+        self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
+        self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
+
+    def _run_loop(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+
+    def add_task(self, name: str, coro_func, *args, **kwargs):
+        if name == '' or name is None:
+            name = f'{coro_func.__name__}-{time.time():.2f}'
+        future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self.loop)
+        self.tasks[name] = future
+        return name
+
+    def query_task(self, name):
+        if name in self.tasks:
+            future = self.tasks[name]
+            if future.done():
+                try:
+                    result = future.result()
+                    del self.tasks[name]
+                    return result
+                except Exception as e:
+                    del self.tasks[name]
+                    return self.TASK_NOT_SUCCEEDED
+            else:
+                return self.TASK_NOT_FINISHED
+        else:
+            return self.TASK_NOT_FOUND
+
+    def run(self):
+        self.loop = asyncio.new_event_loop()      
+        self.thread = threading.Thread(target=self._run_loop, daemon=True)
+        self.thread.start()
+        return self
 
 
 __all__ = [
@@ -220,20 +275,29 @@ __all__ = [
     'show_prog_info',
     'Timer',
     'ThreadsPool',
+    'TaskStatus',
+    'CoroutinePool'
 ]
 
+
 if __name__ == '__main__':
-    class test_class:
-        def test_func(self, a, b, c):
-            print(a+b+c)
-    tc = test_class()
-    launch_sub_thread(statuesQue, [
-        ('1', Key2Action('running', tc.test_func, [1, 1], {'c': 1})),
-        ('1', Key2Action('running', tc.test_func, [1, 2], {'c': 1})),
-        ('2', Key2Action('running', tc.test_func, [2, 2], {'c': 2})),
-        ('3', Key2Action('running', tc.test_func, [3, 3], {'c': 3})),
-    ])
-    while True:
-        if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
-            break
-        time.sleep(1)
+    # dev code
+    async def example_coroutine(name, seconds):
+        print(f"Coroutine {name} started")
+        await asyncio.sleep(seconds)
+        print(f"Coroutine {name} finished after {seconds} seconds")
+        return f"Coroutine {name} result"
+
+    pool = CoroutinePool().run()
+    pool.add_task("task1", example_coroutine, "task1", 3)
+    pool.add_task("task2", example_coroutine, "task2", 5)
+
+    print(pool.query_task("task1"))  # Output: TaskStatus.NOT_FINISHED
+    print(pool.query_task("task2"))  # Output: TaskStatus.NOT_FINISHED
+
+    # wait for tasks to finish
+    import time
+    time.sleep(6)
+
+    print(pool.query_task("task1"))  # Output: Coroutine task1 finished after 3 seconds
+    print(pool.query_task("task2"))  # Output: Coroutine task2 finished after 5 seconds
