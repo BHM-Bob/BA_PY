@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-06 15:40:52
+LastEditTime: 2024-02-07 18:31:14
 Description: convert jpeg to avif
 '''
 import argparse
@@ -22,6 +22,10 @@ if __name__ == '__main__':
     from mbapy.scripts._script_utils_ import clean_path, show_args
 else:
     from ._script_utils_ import clean_path, show_args
+
+# disable waring: 
+# Limit to around a quarter gigabyte for a 24-bit (3 bpp) image
+Image.MAX_IMAGE_PIXELS = None
 
 register_avif_opener()
 register_heif_opener()

@@ -70,9 +70,13 @@ class BasePage:
     """page container, store each web-page and its parsed data."""
     name: str = '' # name of this page, could be empty
     xpath: str = '' # xpath expression to extract data
+<<<<<<< HEAD
     _async_task_pool: CoroutinePool = None # async task pool to execute async tasks
     # result generally is a list of result, top-level list is for each web-page, and it ONLY store one kind item.
     result: List[Any] = field(default_factory = lambda: [])
+=======
+    result: List[Any] = field(default_factory = lambda: []) # general result of the page, could be any type
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
     result_page_html: List[str] = field(default_factory = lambda: []) # web-page html of parsed result
     result_page_xpath: List[etree._Element] = field(default_factory = lambda: []) # web-page xpath object of parsed result
     father_page: 'BasePage' = None # father page of this page
@@ -85,7 +89,11 @@ class BasePage:
             return True
         else:
             return put_err('name should be str, skip and return False', False)
+<<<<<<< HEAD
     def parse(self, results: List[List[Union[str, etree._Element]]] = None) -> None:
+=======
+    def parse(self, results: List[Union[str, etree._Element]] = None) -> None:
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
         """
         parse data from results, override by subclass.
         In BasePage.perform, it will call this function to parse data and store in self.result..
@@ -94,14 +102,22 @@ class BasePage:
         """
         process parsed data, could be override by subclass
         """
+<<<<<<< HEAD
     def perform(self, *args, results: List[List[Union[str, etree._Element]]] = None, **kwargs):
+=======
+    def perform(self, *args, results: List[Union[str, etree._Element]] = None, **kwargs):
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
         self.result =  self.parse(results)
         self._process_parsed_data(*args, **kwargs)
         return self.result
     
 class PagePage(BasePage):
     """
+<<<<<<< HEAD
     Only START and store a new web page or a list of web pages.
+=======
+    Only START and store a new web page.
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
     """
     def __init__(self, url: List[Union[str, List[str]]] = None,
                  web_get_fn: Callable[[Any], str] = get_web_html_async,
@@ -124,6 +140,7 @@ class PagePage(BasePage):
         self.max_each_delay = kwargs.get('max_each_delay', 1)
         self.args = args
         self.kwargs = kwargs
+<<<<<<< HEAD
     def parse(self, results: List[List[Union[str, etree._Element]]] = None):
         """
         get new web-page(s) from self.url, results(as links) or self.father_page.result_page_xpath(as links)
@@ -150,6 +167,21 @@ class PagePage(BasePage):
                 # NOTE: do not append xpath object because html is async.
                 random_sleep(self.max_each_delay, self.each_delay)
         return self.result
+=======
+    def parse(self, results: List[Union[str, etree._Element]] = None):
+        """
+        get new web-page(s) from self.url, results(as links) or self.father_page.result_page_xpath(as links)
+        """
+        if self.url == '':
+            if results is None:
+                results = self.father_page.result
+        else:
+            results = [self.url]
+        self.result = [self.web_get_fn(r, *self.args, **self.kwargs) for r in results]
+        self.result_page_html = [r for r in self.result if isinstance(r, str)]
+        self.result_page_xpath = [etree.HTML(r) for r in self.result_page_html if isinstance(r, str)]
+        return self
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
     
 class UrlIdxPagesPage(PagePage):
     """
@@ -167,8 +199,15 @@ class UrlIdxPagesPage(PagePage):
         super().__init__([], web_get_fn=web_get_fn, *args, **kwargs)
         self.base_url = base_url
         self.url_fn = url_fn
+<<<<<<< HEAD
     def parse(self, results: List[List[Union[str, etree._Element]]]):
         is_valid, idx = True, 0
+=======
+    def parse(self, results: List[Union[str, etree._Element]]):
+        raise NotImplementedError()
+    def _process_parsed_data(self, *args, **kwargs):
+        is_valid, results = True, []
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
         while is_valid:
             url = self.url_fn(self.base_url, idx)
             idx += 1
@@ -187,6 +226,7 @@ class ItemsPage(BasePage):
     Only parse and store data of THE FATHER PAGE.
     """
     def __init__(self, xpath: str,
+<<<<<<< HEAD
                  single_page_items_fn: Callable[[str], Any] = lambda x: x,
                  *args, **kwargs) -> None:
         super().__init__(xpath=xpath)
@@ -194,10 +234,20 @@ class ItemsPage(BasePage):
         self.args = args
         self.kwargs = kwargs
     def parse(self, results: List[List[Union[str, etree._Element]]] = None):
+=======
+                 single_item_fn: Callable[[str], Any] = lambda x: x,
+                 *args, **kwargs) -> None:
+        super().__init__(xpath=xpath)
+        self.single_item_fn = single_item_fn
+        self.args = args
+        self.kwargs = kwargs
+    def parse(self, results: List[Union[str, etree._Element]] = None):
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
         """
         parse data from results, override by subclass.
         """
         if results is None:
+<<<<<<< HEAD
             results = self.father_page.result
         # detect available result and transfer to xpath object
         for page in results: # page is a result container of one kind item
@@ -214,11 +264,28 @@ class ItemsPage(BasePage):
                 if isinstance(r, etree._Element): # xpath object
                     self.result_page_xpath[-1].append(r) # Only store xpath object, not html
                     self.result[-1].extend(r.xpath(self.xpath))
+=======
+            results = self.father_page.result_page_xpath
+        if len(results) == 0:
+            results = self.father_page.result_page_html # TODO: check if this is correct
+        # detect available result and transfer to xpath object
+        for r in results:
+            if isinstance(r, str): # html
+                r = etree.HTML(r)
+            if isinstance(r, etree._Element): # xpath object
+                self.result_page_xpath.append(r)
+                self.result_page_html.append(etree.tostring(r, encoding='unicode')) # TODO: check if this is correct
+                self.result.append(r.xpath(self.xpath))
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
         return self.result
     def _process_parsed_data(self, *args, **kwargs):
         results = []
         for xpath in self.result:
+<<<<<<< HEAD
             results.append(self.single_page_items_fn(
+=======
+            results.append(self.single_item_fn(
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca
                 xpath, *self.args, **self.kwargs))
         self.result = results
         return self
@@ -302,5 +369,20 @@ class Actions:
         self.results = {}
         self.results = _perform(self.pages, self.results, *args, **kwargs)
         return self.results
+<<<<<<< HEAD
 
     
+=======
+    
+    
+if __name__ == '__main__':
+    # dev code
+    ip_xpath = '//*[@id="list"]/div[2]/table/tbody/tr[3]/td[1]'
+    port = '//*[@id="list"]/div[2]/table/tbody/tr[1]/td[2]'
+    text_fn = lambda x: x[0].text
+    action = Actions()
+    action.add_page(page=PagePage(url='https://www.kuaidaili.com/free/inha/'), name='main')
+    action.add_page(page=ItemsPage(xpath = ip_xpath, single_item_fn = text_fn), name='ip', father='main')
+    action.add_page(page=ItemsPage(xpath = port, single_item_fn = text_fn), name='port', father='main')
+    results: Dict = action.perform()
+>>>>>>> 369a7b6ddf5d6b443658b0b43e86df20c2596cca

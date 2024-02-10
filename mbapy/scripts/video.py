@@ -1,3 +1,9 @@
+'''
+Date: 2024-02-05 12:03:34
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-02-08 13:31:15
+Description: 
+'''
 import argparse
 import os
 import sys
@@ -40,7 +46,40 @@ def edit_video(args):
                                   codec='libx264', audio_codec='aac')
 
 def extract_video(args):
-    pass
+    # process args
+    args.input = clean_path(args.input)
+    args.output = clean_path(args.output)
+    if os.path.isdir(args.input):
+        args.input = mf.get_paths_with_extension(args.input,
+                                                 ['mp4', 'avi', 'mov', 'mkv',
+                                                  'mpg', 'mpeg', 'wmv', 'flv',
+                                                  'rmvb'])
+    else:
+        args.input = [args.input]
+    # show args
+    show_args(args, ['content', 'input', 'output','recursive'])
+    # process each input
+    for idx, path in enumerate(args.input):
+        print(f'processing {idx+1}/{len(args.input)}: {path}')
+        if args.content == 'audio':
+            raise NotImplementedError('audio extraction is not implemented yet.')
+        elif args.content == 'frames':
+            # extract frames
+            if args.mode == 'index':
+                start, end, step = map(int, args.frame_index.split(':'))
+                frames =mf.extract_frames_by_index(path, list(range(start, end, step)))
+            elif args.mode == 'all':
+                img_size = tuple(map(int, args.frame_size.split(',')))
+                frames = mf.extract_frame_to_img(path, '', True, False, None,
+                                                 read_frame_interval=args.frame_interval,
+                                                 img_size=img_size)
+            elif args.mode == 'unique':
+                frames = mf.extract_unique_frames(
+                    path, args.threshold, args.frame_interval, args.scale,
+                    args.gray, args.backend, args.model_dir)
+            else:
+                raise ValueError(f'unknown mode: {args.mode}')
+            # save frames
     
 
 _str2func = {
@@ -68,8 +107,6 @@ def main(sys_args: List[str] = None):
     edit_args.add_argument('-o', '--output', type=str, default='.',
                            help='output file path or dir path, default is %(default)s.')
     
-    sub_args = subparsers.add_parser('extract', description='sub clip a video file.')
-    
     extract_args = subparsers.add_parser('extract', description='extract frames or audio from a video file.')
     extract_args.add_argument('content', choices=['audio', 'frames'], type=str, default='audio',
                               help='content to extract, default is %(default)s.')
@@ -77,6 +114,27 @@ def main(sys_args: List[str] = None):
                               help='input file path or dir path, default is %(default)s.')
     extract_args.add_argument('-o', '--output', type=str, default='.',
                               help='output dir path, default is %(default)s.')
+    extract_args.add_argument('-r', '--recursive', action='store_true', default=False,
+                              help='FLAG, recursive search. Default is %(default)s.')
+    extract_args.add_argument('-m', '--mode', type=str, choices=['index', 'all', 'unique'], default='unique',
+                              help='extract mode, default is %(default)s.')
+    extract_args.add_argument('-idx', '--frame-index', type=str, default='',
+                              help='Frmae index to extract, format: start:end:step", Default is %(default)s.')
+    extract_args.add_argument('-interval', '--frame-interval', type=int, default=0,
+                              help='Frmae interval to extract, Default is %(default)s.')
+    extract_args.add_argument('-size', '--frame-size', type=str, default='-1,-1',
+                              help='image size to save, format: width,height, Default is %(default)s.')
+    extract_args.add_argument('-th', '--threshold', type=float, default=0.9,
+                              help='threshold for image similarity, Default is %(default)s.')
+    extract_args.add_argument('-scale', '--scale', type=float, default=1.0,
+                              help='scale factor for image size, Default is %(default)s.')
+    extract_args.add_argument('-gray', '--gray', action='store_true', default=False,
+                              help='FLAG, compare gray image, Default is %(default)s')
+    extract_args.add_argument('-backend', '--backend', type=str, default='skimage',
+                              help='backend for compare image, Default is %(default)s.')
+    extract_args.add_argument('-mdir', '--model-dir', type=str, default='',
+                              help='model dir path, Default is %(default)s.')
+    
     
     args = args_paser.parse_args(sys_args)
     

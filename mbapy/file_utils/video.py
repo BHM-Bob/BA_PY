@@ -57,7 +57,7 @@ def extract_frames_by_index(video_path:str, frame_indices:List[int]):
     sum_frame = get_cv2_video_attr(cap, 'FRAME_COUNT')
 
     frames = []
-    for frame_index in frame_indices:
+    for frame_index in tqdm(frame_indices):
         if 0 <= frame_index < sum_frame:
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
             ret, frame = cap.read()
