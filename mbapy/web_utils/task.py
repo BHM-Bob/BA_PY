@@ -218,6 +218,7 @@ class TaskStatus(Enum):
     NOT_FOUND = 1
     NOT_FINISHED = 2
     NOT_SUCCEEDED = 3
+    NOT_RETURNED = 4
 
 class CoroutinePool:
     """
