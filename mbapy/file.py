@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-06 15:02:47
+LastEditTime: 2024-02-10 23:23:10
 Description: 
 '''
 import collections
@@ -133,9 +133,14 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
         str: The path string with all invalid characters replaced by the valid character.
     """
     invalid_chrs = ':*?"<>|\n\t'
+    win_prefix = ''
+    # AVOID WINDOWS PATH PREFIX: such as 'C:\'
+    if platform.system().lower() == 'windows' and os.path.basename(path) != path:
+        if len(path) >= 2 and path[1] == ':':
+            win_prefix, path = path[:2], path[2:]
     for invalid_chr in invalid_chrs:
         path = path.replace(invalid_chr, valid_chrs)
-    return path
+    return win_prefix + path
 
 def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
                         return_Path: bool = False):
