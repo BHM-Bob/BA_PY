@@ -91,7 +91,7 @@ class _Config_Web(_ConfigBase):
         else:
             print(f'\nmbapy::_Config_Web: unkown os name: {platform.system().lower()}, use windows default chromedriver path\n')
             self.chrome_driver_path = os.path.expanduser("~/AppData/Local/Google/Chrome/Application/chromedriver.exe")
-        self.quest_head = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        self.request_header = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
     
 class _Config(_ConfigBase):
     def __init__(self) -> None:
@@ -581,7 +581,7 @@ class CDLL:
         self.VOID = ctypes.c_void_p # void* type
     def convert_c_lst(self, lst:list, c_type = ctypes.c_int):
         return (c_type * len(lst))(*lst)
-    def convert_py_lst(self, c_lst:ctypes.POINTER(ctypes.c_int), size: int):
+    def convert_py_lst(self, c_lst, size: int):
         return [c_lst[i][0] for i in range(size)]
     def get_func(self, func_name:str, func_args:list = None, func_ret = None):
         """
