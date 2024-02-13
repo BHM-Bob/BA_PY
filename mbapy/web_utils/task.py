@@ -253,7 +253,7 @@ class CoroutinePool:
                     return result
                 except Exception as e:
                     del self.tasks[name]
-                    return self.TASK_NOT_SUCCEEDED
+                    return self.TASK_NOT_SUCCEEDED, e
             else:
                 return self.TASK_NOT_FINISHED
         else:
@@ -264,6 +264,9 @@ class CoroutinePool:
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
         return self
+    
+    def close(self):
+        self.loop.close()
 
 
 __all__ = [
