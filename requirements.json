@@ -1,6 +1,7 @@
 {
     "std": 
     [
+        "aiohttp",
         "beautifulsoup4",
         "chardet",
         "matplotlib",
