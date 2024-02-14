@@ -17,12 +17,14 @@ from tqdm import tqdm
 if __name__ == '__main__':
     from mbapy.base import Configs, put_err
     from mbapy.file import get_valid_file_path
-    from mbapy.web_utils.request import get_url_page_s, random_sleep
+    from mbapy.game import BaseInfo
+    from mbapy.web_utils.request import random_sleep
     from mbapy.web_utils.task import CoroutinePool, TaskStatus
 else:
     from ..base import Configs, put_err
     from ..file import get_valid_file_path
-    from .request import get_url_page_s, random_sleep
+    from ..game import BaseInfo
+    from .request import random_sleep
     from .task import CoroutinePool, TaskStatus
     
     
@@ -113,24 +115,29 @@ def Compose(lst: List[Callable]):
     return inner
     
     
-@dataclass
-class BasePage:
-    """page container, store each web-page and its parsed data."""
-    name: str = '' # name of this page, could be empty
-    xpath: Union[str, List[str]] = '' # xpath expression to extract data, if it is a list, will treat as alternative xpath expressions.
-    findall_fn: Callable = None # alternative function to extract data via bs4.find_all, if it is not None, will use it instead of xpath.
-    _async_task_pool: CoroutinePool = None # async task pool to execute async tasks
-    _headers: Dict[str, str] = field(default_factory = lambda: {}) # headers for web-page request
-    # result generally is a list of result, top-level list is for each web-page, and it ONLY store one kind item.
-    result: List[Any] = field(default_factory = lambda: [])
-    result_page_html: List[str] = field(default_factory = lambda: []) # web-page html of parsed result
-    result_page_xpath: List[etree._Element] = field(default_factory = lambda: []) # web-page xpath object of parsed result
-    result_page_bs4: List[BeautifulSoup] = field(default_factory = lambda: []) # web-page bs4 object of parsed result
-    father_page: 'BasePage' = None # father page of this page
-    next_pages: Dict[str, 'BasePage'] = field(default_factory = lambda: {}) # next pages of this page
-    before_func: Callable[['BasePage'], bool] = None # before function to execute before parsing, check if need to parse this page
-    after_func: Callable[['BasePage'], bool] = None # after function to execute after parsing, do something after parsing this page
-    
+class BasePage(BaseInfo):
+    def __init__(self, name: str = '', xpath: Union[str, List[str]] = '',
+                 findall_fn: Callable = None, ignore_records: bool = False,
+                 *args, **kwargs):
+        """page container, store each web-page and its parsed data."""
+        super().__init__(*args, **kwargs)
+        self.name: str = name # name of this page, could be empty
+        self.xpath: Union[str, List[str]] = xpath # xpath expression to extract data, if it is a list, will treat as alternative xpath expressions.
+        self.findall_fn: Callable = findall_fn # alternative function to extract data via bs4.find_all, if it is not None, will use it instead of xpath.
+        self._async_task_pool: CoroutinePool = None # async task pool to execute async tasks
+        self._headers: Dict[str, str] = {} # headers for web-page request
+        # result generally is a list of result, top-level list is for each web-page, and it ONLY store one kind item.
+        self.result: List[Any] = [] # parsed result
+        self.result_page_html: List[str] = [] # web-page html of parsed result
+        self.result_page_xpath: List[etree._Element] = [] # web-page xpath object of parsed result
+        self.result_page_bs4: List[BeautifulSoup] = [] # web-page bs4 object of parsed result
+        self.father_page: 'BasePage' = None # father page of this page
+        self.next_pages: Dict[str, 'BasePage'] = {} # next pages of this page
+        self.before_func: Callable[['BasePage'], bool] = None # before function to execute before parsing, check if need to parse this page
+        self.after_func: Callable[['BasePage'], bool] = None # after function to execute after parsing, do something after parsing this page.
+        self.ignore_records: bool = ignore_records # if ignore_records is True, will not record this url to avoid duplicate request.
+        self._records: Dict[str, Any] = {} # records, record by subclass
+        
     def add_next_page(self, name:str, page: 'BasePage') -> None:
         if isinstance(name, str):
             self.next_pages[name] = page
@@ -159,22 +166,22 @@ class PagePage(BasePage):
     """
     Only START and store a new web page or a list of web pages.
     """
-    def __init__(self, url: List[Union[str, List[str]]] = None,
-                 web_get_fn: Callable[[Any], str] = None,
-                 *args, **kwargs) -> None:
+    def __init__(self, url: List[Union[str, List[str]]] = None, ignore_records: bool = False,
+                 web_get_fn: Callable[[Any], str] = None, *args, **kwargs) -> None:
         """
         Parameters:
-            - url: List[str | List[str]], url to get web page, could be empty if get from father_page.result
+            - url: List[str | List[str]], url to get web page, could be empty if get from father_page.result.
+            - ignore_records: bool, if ignore_records is True, will not record this url to avoid duplicate request.
             - web_get_fn: Callable[[Any], str], function to get web page, default is None(get_web_html_async).
                 Note: the function should accept url as first argument and return web page html.
             - args: any, args for web_get_fn
             - kwargs: any, kwargs for web_get_fn
                 - each_delay: float, delay seconds between each request, default is 1.
         
-        NOTE:
-            - item of url() could be str of list of str.
+        Note:
+            - item of url could be str of list of str.
         """
-        super().__init__()
+        super().__init__(ignore_records=ignore_records)
         self.url = url
         self.each_delay = kwargs.get('each_delay', 0.5)
         self.max_each_delay = kwargs.get('max_each_delay', 1)
@@ -183,7 +190,7 @@ class PagePage(BasePage):
         self.kwargs = kwargs
         
     def _process_url(self, results: List[List[Union[str, etree._Element]]] = None):
-        # NOTE:result always be list(page) for list(items)
+        # Note: result always be list(page) for list(items)
         # get url from results or father_page.result_page_xpath
         if self.url is None:
             if results is None:
@@ -210,11 +217,13 @@ class PagePage(BasePage):
             self.result_page_html.append([])
             self.result_page_xpath.append([])
             for url in tqdm(page, leave=False, desc=f'{self.name} get Item'):
-                task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, *self.args, **self.kwargs)
-                self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
-                self.result_page_html[-1].append(self.result[-1][-1])
-                # NOTE: do not append xpath object because html is async.
-                random_sleep(self.max_each_delay, self.each_delay)
+                if url not in self._records or self.ignore_records:
+                    task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, *self.args, **self.kwargs)
+                    self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
+                    self.result_page_html[-1].append(self.result[-1][-1])
+                    # NOTE: do not append xpath object because html is async.
+                    random_sleep(self.max_each_delay, self.each_delay)
+                    self._records[url] = True # record this url to avoid duplicate request.
         return self.result
     
     
@@ -229,9 +238,10 @@ class UrlIdxPagesPage(PagePage):
             so the result also be list(page) for list(items) for links(result).
     """
     def __init__(self, base_url: str, url_fn: Callable[[str, int], str],
+                 ignore_records: bool = False,
                  web_get_fn: Callable[[Any], str] = None,
                  *args, **kwargs) -> None:
-        super().__init__([], web_get_fn=web_get_fn, *args, **kwargs)
+        super().__init__([], ignore_records=ignore_records, web_get_fn=web_get_fn, *args, **kwargs)
         self.base_url = base_url
         self.url_fn = url_fn
         
@@ -257,12 +267,14 @@ class DownloadPage(PagePage):
     Only download file from given url, store file path.
     """
     def __init__(self, url: List[Union[str, List[str]]] = None, folder: str = None,
-                 wait_all: bool = True,
+                 wait_all: bool = True, skip_downloaded: bool = True,
+                 ignore_records: bool = False,
                  web_get_fn: Callable[[Any], str] = None,
                  *args, **kwargs) -> None:
-        super().__init__(url, web_get_fn, *args, **kwargs)
+        super().__init__(url, ignore_records=ignore_records, web_get_fn=web_get_fn, *args, **kwargs)
         self.folder = folder
         self.wait_all = wait_all
+        self.skip_downloaded = skip_downloaded
         self.page_folder_name: List[str] = None # folder name of each page, could be empty
         self.item_file_name: List[List[str]] = None # file name of each item, could be empty
         
@@ -295,6 +307,9 @@ class DownloadPage(PagePage):
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 # create fetch task
                 file_path = get_valid_file_path(file_path)
+                if os.path.exists(file_path) and self.skip_downloaded:
+                    continue # skip if skip_downloaded is True and file exists.
+                # create download task
                 task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, file_path, *self.args, **self.kwargs)
                 self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
                 random_sleep(self.max_each_delay, self.each_delay)
@@ -390,9 +405,10 @@ class ItemsPage(BasePage):
     
 # TODO: add records
 # TODO: make a way to create a session
-class Actions:
+class Actions(BaseInfo):
     def __init__(self, pages = {},
                  headers: str = {'User-Agent': Configs.web.request_header}) -> None:
+        super().__init__()
         self.pages: Dict[str, BasePage] = pages
         self.results: Dict = None
         self._headers: str = headers
