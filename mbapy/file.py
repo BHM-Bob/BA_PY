@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-10 23:23:10
+LastEditTime: 2024-02-13 23:48:24
 Description: 
 '''
 import collections
@@ -94,16 +94,19 @@ def format_file_size(size_bits: int, return_str: bool = True):
         return size_bits, units[n]
 
 def extract_files_from_dir(root: str, file_extensions: List[str] = None,
-                           extract_sub_dir: bool = True, join_str:str = ' '):
+                           extract_sub_dir: bool = True, join_str:str = ' ',
+                           preffix: str = '', file_result: List[str] = []):
     """
     Move all files in subdirectories to the root directory and add the subdirectory name as a prefix to the file name.
 
     Args:
-        root (str): The root directory path.
-        file_extensions (list[str]): specific file types string (without '.'), if None, means all types.
-        extract_sub_dir (bool, optional): Whether to recursively extract files from subdirectories.
+        - root (str): The root directory path.
+        - file_extensions (list[str]): specific file types string (without '.'), if None, means all types.
+        - extract_sub_dir (bool, optional): Whether to recursively extract files from subdirectories.
             If set to False, only files in the immediate subdirectories will be extracted. Defaults to True.
-        join_str (str): string for link prefix and the file name.
+        - join_str (str): string for link prefix and the file name.
+        - preffix (str): the prefix for the file name.
+        - file_result (list): the list to store the extracted file paths.
 
     Returns:
         None
@@ -111,15 +114,20 @@ def extract_files_from_dir(root: str, file_extensions: List[str] = None,
     for dirpath, dirnames, filenames in os.walk(root):
         if not extract_sub_dir or dirpath == root:
             continue
+        else:
+            for dirname in dirnames:
+                preffix += (dirname + join_str)
+                file_result.extend(extract_files_from_dir(
+                    os.path.join(root, dirname), file_extensions,
+                    extract_sub_dir, join_str, preffix))
         for filename in filenames:
-            if file_extensions is None or any(filename.endswith(extension) for extension in file_extensions):
-                if extract_sub_dir:
-                    new_filename = dirpath.split(root)[1][1:] + join_str + filename
-                else:
-                    new_filename = filename
+            if not file_extensions or any(filename.endswith(extension) for extension in file_extensions):
+                new_filename = preffix + join_str + filename
                 src_path = os.path.join(dirpath, filename)
                 dest_path = os.path.join(root, new_filename)
                 shutil.move(src_path, dest_path)
+            file_result.append(dest_path)
+    return file_result
 
 def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     """
