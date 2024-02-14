@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-01 22:21:21
+LastEditTime: 2024-02-14 11:41:09
 Description: 
 '''
 
@@ -13,6 +13,7 @@ import os
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "True"
 import pygame as pg
 
 if __name__ == '__main__':
@@ -84,7 +85,7 @@ def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
     Generate a numpy array from a pygame surface.
 
     Args:
-        surface (pg.SurfaceType): The pygame surface to convert.
+        surface (PgSurfaceType): The pygame surface to convert.
         copy (bool, optional): Whether to create a copy of the surface or not. Defaults to True.
 
     Returns:
@@ -127,6 +128,7 @@ class BaseInfo:
     @mb.autoparse
     def __init__(self, *args, **kwargs) -> None:
         self.__psd_type__ = type(self).__name__
+        
     def update(self):
         """
         有些不能序列化保存的info需要以另一些info来生成, 所以在调用from_dict,
@@ -136,10 +138,13 @@ class BaseInfo:
             - from_dict内部调用update并不会以update返回值赋值给obj
         """
         return self
+    
     def add_attr(self, key, value):
         setattr(self, key, value)
+        
     def del_attr(self, key):
         delattr(self, key)
+        
     def to_dict(self, force_update: bool = True, to_json: bool = True, use_gzip: bool = True):
         """
         Converts the object to a dictionary representation,
@@ -279,6 +284,7 @@ class BaseInfo:
                     _dict_[k] = _check_case_transfer(v, to_json, use_gzip)
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
+    
     def from_dict(self, dict_: dict, global_vars:Dict = None):
         """
         Deserialize the object from a dictionary representation.
@@ -346,6 +352,7 @@ class BaseInfo:
             self.__dict__[k] = v
         self.update()
         return self
+    
     def to_json(self, path: str):
         """
         Convert the object to a JSON string and save it to a file.
@@ -358,13 +365,13 @@ class BaseInfo:
             dict: A dictionary representation of the object or an empty dictionary if something goes wrong.
         """
         try:
-            if not mb.check_parameters_path(os.path.dirname(path)):
-                os.makedirs(os.path.dirname(path))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             _dict_ = self.to_dict(True, True)
             mf.save_json(path, _dict_)
             return _dict_
         except:
             return self.__dict__
+        
     def from_json(self, path: str, global_vars:Dict = None):
         """
         Parses a JSON file located at the specified `path` and updates the current object with the data from the JSON file.
@@ -381,6 +388,7 @@ class BaseInfo:
         self.from_dict(mf.read_json(path, invalidPathReturn={}),
                        global_vars = global_vars)
         return self
+    
     
 class ColorSur:
     def __init__(self, size: Size, sum_dots: int = 4, max_delta_x = 5, max_delta_y = 5) -> None:
