@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-09 23:20:43
+LastEditTime: 2024-02-15 20:18:18
 Description: 
 '''
 import ctypes
@@ -297,7 +297,10 @@ def Timer():
 
 def autoparse(init):
     """
-    Automatically assign property for __ini__() func
+    Automatically assign property for __ini__() func.
+    
+    Note:
+         - If has *args and **kwargs, ONLY support 'args' and 'kwargs' as the SPECIAL parameter name.
     
     Example:
     --------
