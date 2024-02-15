@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-14 11:41:09
+LastEditTime: 2024-02-15 21:04:09
 Description: 
 '''
 
@@ -102,6 +102,14 @@ def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
         arr = np.concatenate([arr, alpha[:, :, None]], axis=-1)
     return arr
         
+def init_class_from_none(cls: Callable) -> object:
+    try:
+        parnames = list(cls.__init__.__code__.co_varnames)
+        non_self_params = parnames[1:cls.__init__.__code__.co_argcount]
+        kwgs = dict(zip(non_self_params, [None] * len(non_self_params)))
+        return cls(**kwgs)
+    except:
+        return None
 
 class BaseInfo:
     """
@@ -128,6 +136,7 @@ class BaseInfo:
     @mb.autoparse
     def __init__(self, *args, **kwargs) -> None:
         self.__psd_type__ = type(self).__name__
+        self.__psd_id__ = id(self) # 通过id来避免在to_dict时出现循环解析
         
     def update(self):
         """
@@ -145,7 +154,8 @@ class BaseInfo:
     def del_attr(self, key):
         delattr(self, key)
         
-    def to_dict(self, force_update: bool = True, to_json: bool = True, use_gzip: bool = True):
+    def to_dict(self, force_update: bool = True, to_json: bool = True,
+                use_gzip: bool = True, id_pool: Dict[int, str] = {}):
         """
         Converts the object to a dictionary representation,
         if obj contains class which is subclass of BaseInfo, it will be converted by to_dict.
@@ -229,7 +239,7 @@ class BaseInfo:
                 return v
             # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
             elif issubclass(type(v), BaseInfo):
-                return v.to_dict(force_update, to_json, use_gzip)
+                return v.to_dict(force_update, to_json, use_gzip, id_pool)
             # v是numpy.ndarray, 调用_transfer_np_ndarray方法转换
             elif isinstance(v, np.ndarray):
                 return _transfer_np_ndarray(v, to_json, use_gzip)
@@ -271,7 +281,12 @@ class BaseInfo:
                         _v.append(v_i)
                 return _v
             return None
-            
+        # check id_pool
+        if self.__psd_id__ not in id_pool:
+            id_pool[self.__psd_id__] = self.__psd_type__
+        else:
+            return {'__psd_id_link__': [self.__psd_id__, self.__psd_type__]}
+        # recursively convert all attributes to dictionary
         if self.__dict__ or force_update:
             _dict_ = {}
             for k, v in vars(self).items():
@@ -285,13 +300,16 @@ class BaseInfo:
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
     
-    def from_dict(self, dict_: dict, global_vars:Dict = None):
+    def from_dict(self, dict_: dict, global_vars:Dict = None,
+                  obj_pool:Dict[int, object] = {}, first_run: bool = True):
         """
         Deserialize the object from a dictionary representation.
 
         Parameters:
             - dict_ (dict): The dictionary representation of the object.
-            - global_vars (dict): The globals() to init __psd_type__, if None, use inspect.currentframe automatically
+            - global_vars (dict): The globals() to init __psd_type__, if None, use inspect.currentframe automatically.
+            - obj_pool (dict): The object pool to store the objects which have been deserialized.
+            - first_run (bool): If True, it means this is the first run of from_dict, and the object pool is empty.
 
         Returns:
             self: The deserialized object.
@@ -299,11 +317,21 @@ class BaseInfo:
         def _check_case_transfer(v):
             # 继承自BaseInfo类的反序列化
             if isinstance(v, Dict) and '__psd_type__' in v:
-                new_obj: BaseInfo = eval(f'{v["__psd_type__"]}()', global_vars)
-                new_obj = new_obj.from_dict(v, global_vars)
+                obj_type = eval(f'{v["__psd_type__"]}', global_vars)
+                new_obj: BaseInfo = init_class_from_none(obj_type)
+                if new_obj is None:
+                    new_obj: BaseInfo = obj_type()
+                new_obj = new_obj.from_dict(v, global_vars, obj_pool, False)
                 new_obj.update()
                 setattr(self, k, new_obj)
                 v = new_obj
+                obj_pool[v.__psd_id__] = v
+            # 继承自BaseInfo类的反序列化(通过id_link)
+            elif isinstance(v, Dict) and '__psd_id_link__' in v:
+                if v['__psd_id_link__'][0] in obj_pool:
+                    v = obj_pool[v['__psd_id_link__'][0]]
+                else:
+                    v = None
             # numpy.ndarray反序列化
             elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
                 v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
@@ -338,7 +366,7 @@ class BaseInfo:
                         _dict_[k_i] = _check_case_transfer(v_i)
                 v = _dict_
             return v
-            
+        # get global_vars
         if inspect.currentframe().f_back.f_code.co_name == 'from_json':
             from_json_frame = inspect.currentframe().f_back
             outer_caller_frame = from_json_frame.f_back
@@ -346,11 +374,18 @@ class BaseInfo:
             outer_caller_frame = inspect.currentframe().f_back
         global_vars = mb.get_default_for_None(global_vars,
                                               outer_caller_frame.f_globals)
+        # add this BaseInfo obj's id to obj_pool
+        obj_pool[dict_['__psd_id__']] = self
+        # recursively convert all attributes from dictionary
         for k, v in dict_.items():
             if v is not None:
                 v = _check_case_transfer(v)
             self.__dict__[k] = v
         self.update()
+        # recorver each object's id in obj_pool
+        if first_run:
+            for obj in obj_pool.values():
+                obj.__psd_id__ = id(obj)
         return self
     
     def to_json(self, path: str):
@@ -456,8 +491,12 @@ if __name__ == '__main__':
     class TestBI(BaseInfo):
         def __init__(self, x: int, y: int):
             super().__init__()
-            self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
+            # self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
+            self.p: 'TestBI' = None
     i = TestBI(1, 2)
+    j = TestBI(3, 4)
+    i.p = j
+    j.p = i
     d = i.to_dict(True, True, True)
     i2 = TestBI(-1, -2).from_dict(d)
     
