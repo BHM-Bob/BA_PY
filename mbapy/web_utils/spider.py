@@ -17,13 +17,13 @@ from tqdm import tqdm
 if __name__ == '__main__':
     from mbapy.base import Configs, put_err
     from mbapy.file import get_valid_file_path
-    from mbapy.game import BaseInfo
+    from mbapy.game import BaseInfo # NOTE
     from mbapy.web_utils.request import random_sleep
     from mbapy.web_utils.task import CoroutinePool, TaskStatus
 else:
     from ..base import Configs, put_err
     from ..file import get_valid_file_path
-    from ..game import BaseInfo
+    from ..game import BaseInfo # NOTE
     from .request import random_sleep
     from .task import CoroutinePool, TaskStatus
     
@@ -236,9 +236,10 @@ class UrlIdxPagesPage(PagePage):
         - url_fn should return '' if no more url to get.
         - This class also represents a page container, 
             so the result also be list(page) for list(items) for links(result).
+        - ignore_records is True by default. Because the url is idx type.
     """
     def __init__(self, base_url: str, url_fn: Callable[[str, int], str],
-                 ignore_records: bool = False,
+                 ignore_records: bool = True,
                  web_get_fn: Callable[[Any], str] = None,
                  *args, **kwargs) -> None:
         super().__init__([], ignore_records=ignore_records, web_get_fn=web_get_fn, *args, **kwargs)
@@ -305,13 +306,18 @@ class DownloadPage(PagePage):
                 else:
                     file_path = os.path.join(page_folder, self.item_file_name[page_idx][url_idx])
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                # create fetch task
                 file_path = get_valid_file_path(file_path)
+                # skip if skip_downloaded is True and file exists.
                 if os.path.exists(file_path) and self.skip_downloaded:
-                    continue # skip if skip_downloaded is True and file exists.
+                    self._records[url] = False
+                    continue
+                # qurey if this url is already in records
+                if url in self._records and self.ignore_records:
+                    continue
                 # create download task
                 task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, file_path, *self.args, **self.kwargs)
                 self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
+                self._records[url] = False # record this url to avoid duplicate request.
                 random_sleep(self.max_each_delay, self.each_delay)
         # wait all tasks finished
         if self.wait_all:
@@ -335,12 +341,13 @@ class ItemsPage(BasePage):
     Only parse and store data of THE FATHER PAGE.
     """
     def __init__(self, xpath: Union[str, List[str]], findall_fn: Callable = None,
-                 alternative_bs4: bool = False,
+                 alternative_bs4: bool = False, distribute_items: bool = False,
                  single_page_items_fn: Callable[[str], Any] = lambda x: x,
                  *args, **kwargs) -> None:
         super().__init__(xpath=xpath, findall_fn=findall_fn)
         self.single_page_items_fn = single_page_items_fn
         self.alternative_bs4 = alternative_bs4
+        self.distribute_items = distribute_items
         self.args = args
         self.kwargs = kwargs
         if self.findall_fn is None and self.alternative_bs4:
@@ -399,6 +406,9 @@ class ItemsPage(BasePage):
         for xpath in tqdm(self.result, leave=False, desc=f'{self.name} process Item'):
             results.append(self.single_page_items_fn(
                 xpath, *self.args, **self.kwargs))
+        if self.distribute_items:
+            results = list(itertools.chain.from_iterable(results))
+            results = [[i] for i in results]
         self.result = results
         return self
     
