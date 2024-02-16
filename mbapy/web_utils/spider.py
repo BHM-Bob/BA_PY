@@ -136,6 +136,7 @@ class BasePage(BaseInfo):
         self.before_func: Callable[['BasePage'], bool] = None # before function to execute before parsing, check if need to parse this page
         self.after_func: Callable[['BasePage'], bool] = None # after function to execute after parsing, do something after parsing this page.
         self.ignore_records: bool = ignore_records # if ignore_records is True, will not record this url to avoid duplicate request.
+        self.use_thread_listen: bool = False # if use_thread_listen is True, will use thread to listen to result, otherwise use asyncio.
         self._records: Dict[str, Any] = {} # records, record by subclass
         
     def add_next_page(self, name:str, page: 'BasePage') -> None:
@@ -218,7 +219,7 @@ class PagePage(BasePage):
             self.result_page_xpath.append([])
             for url in tqdm(page, leave=False, desc=f'{self.name} get Item'):
                 # listen to keybord input to stop
-                if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
+                if self.use_thread_listen and statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
                     return self.result
                 # qurey url and get web page
                 if url not in self._records or self.ignore_records:
@@ -305,7 +306,7 @@ class DownloadPage(PagePage):
             for url_idx, url in zip(range(len(page)),
                                     tqdm(page, leave=False, desc=f'{self.name} fetch Item')):
                 # listen to keybord input to stop
-                if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
+                if self.use_thread_listen and statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
                     return self.result
                 # get file name
                 if self.item_file_name is None:
@@ -392,7 +393,7 @@ class ItemsPage(BasePage):
             # exactly, page ONLY contains one kind item, so it should be a list of a result or results
             for r in tqdm(page, leave=False, desc=f'{self.name} parse Item'):
                 # listen to keybord input to stop
-                if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
+                if self.use_thread_listen and statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
                     return self.result
                 # parse
                 if isinstance(r, AsyncResult): # async result
@@ -452,7 +453,7 @@ class Actions(BaseInfo):
     """
     def __init__(self, pages = {},
                  headers: str = {'User-Agent': Configs.web.request_header},
-                 use_thread_control: bool = True,
+                 use_thread_listen: bool = True,
                  k2a: List[Tuple[str, Key2Action]] = [
                      ('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))]) -> None:
         """
@@ -466,7 +467,7 @@ class Actions(BaseInfo):
         super().__init__()
         self.pages: Dict[str, BasePage] = pages
         self.results: Dict = None
-        self.use_thread_control = use_thread_control
+        self.use_thread_listen = use_thread_listen
         self.k2a = k2a
         self._headers: str = headers
         self._async_task_pool: CoroutinePool = CoroutinePool() # call run in perform() to start async task pool
@@ -529,6 +530,7 @@ class Actions(BaseInfo):
         page.name = name
         page._async_task_pool = self._async_task_pool
         page._headers = self._headers
+        page.use_thread_listen = self.use_thread_listen
         if father is None or father == '':
             self.pages[name] = page
         else:
@@ -570,7 +572,7 @@ class Actions(BaseInfo):
                         results[n] = result
             return results
         # prepare listner
-        if self.use_thread_control:
+        if self.use_thread_listen:
             launch_sub_thread(key2action=self.k2a)
         # prepare async task pool
         self._async_task_pool.run()
