@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-15 21:04:09
+LastEditTime: 2024-02-16 22:10:56
 Description: 
 '''
 
@@ -9,6 +9,7 @@ import base64
 import collections
 import gzip
 import inspect
+import pickle
 import os
 from typing import Callable, Dict, List, Tuple
 
@@ -44,6 +45,7 @@ def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True) -> str:
         data = gzip.compress(data)
     return base64.b64encode(data).decode('utf-8')
 
+
 def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
     """
     Convert a base64 encoded string to bytes.
@@ -59,6 +61,7 @@ def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
     if use_gzip:
         data = gzip.decompress(data)
     return data
+
 
 def make_surface_from_array(array: np.ndarray):
     """
@@ -79,6 +82,7 @@ def make_surface_from_array(array: np.ndarray):
     surface_alpha = np.array(surface.get_view('A'), copy=False)
     surface_alpha[:,:] = array[:,:,3]
     return surface
+
 
 def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
     """
@@ -101,15 +105,7 @@ def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
         alpha = pg.surfarray.pixels_alpha(surface)
         arr = np.concatenate([arr, alpha[:, :, None]], axis=-1)
     return arr
-        
-def init_class_from_none(cls: Callable) -> object:
-    try:
-        parnames = list(cls.__init__.__code__.co_varnames)
-        non_self_params = parnames[1:cls.__init__.__code__.co_argcount]
-        kwgs = dict(zip(non_self_params, [None] * len(non_self_params)))
-        return cls(**kwgs)
-    except:
-        return None
+
 
 class BaseInfo:
     """
@@ -170,7 +166,19 @@ class BaseInfo:
             
         Notes:
             - __psd_type__ will be added to the dictionary to indicate the type of the object, and will work when reconverting.
+            - If CAN NOT transfer, mark it as __psd_type__NON_TRANSFERABLE__, when reconverting, 
+                it will be ignored and remains to default value after __init__().
         """
+        def _check_all_default_value(obj):
+            """
+            检查obj.__init__的参数是否都有默认值
+            TODO: 最大目标是实现不强制要求所有参数都有默认值, 但目前还不知道怎么实现
+            """
+            sig = inspect.signature(obj.__init__)
+            for k, v in sig.parameters.items():
+                if v.default == inspect.Parameter.empty:
+                    return False
+            return True
         def _transfer_np_ndarray(v: np.ndarray, to_json: bool, use_gzip: bool):
             """将numpy.ndarray转为PSD dict格式(array转为list, 或压缩过的bytes再转为base64)"""
             if to_json:
@@ -223,6 +231,18 @@ class BaseInfo:
                 }
             else:
                 return v
+        def _transfer_pickle(v: bytes, to_json: bool, use_gzip: bool):
+            """
+            将其它不能转换的类型用pickle序列化(压缩过的bytes再转为base64)
+            TODO: 最大目标是实现不强制要求所有参数都有默认值, 但目前还不知道怎么实现
+            """
+            if to_json:
+                data = transfer_bytes_to_base64(pickle.dumps(v), use_gzip)
+                return {
+                    '__psd_type__PICKLE__': data.decode('utf-8')
+                }
+            else:
+                return v
         def _check_case_transfer(v, to_json, use_gzip):
             """
             检查v的各种受支持的类型并做转换
@@ -233,6 +253,7 @@ class BaseInfo:
             - pygame.SurfaceType: 转为bytes后(压缩)再转为base64;
             - pygame.Rect: 转为psd格式的dict;
             - Mapping或Sequence: 递归调用_check_transfer;
+            - 其它不能转换的类型, 且不是None: 记为__psd_type__NON_TRANSFERABLE__;
             """
             # 如果不需要转为json或者v可json, 直接纳入
             if mf.is_jsonable(v):
@@ -280,12 +301,16 @@ class BaseInfo:
                     if v_i is not None:
                         _v.append(v_i)
                 return _v
+            # 其它不能转换的类型, 且不是None
+            elif v is not None:
+                return {'__psd_type__NON_TRANSFERABLE__': type(v).__name__}
+            # 是None, 则返回None
             return None
         # check id_pool
         if self.__psd_id__ not in id_pool:
             id_pool[self.__psd_id__] = self.__psd_type__
         else:
-            return {'__psd_id_link__': [self.__psd_id__, self.__psd_type__]}
+            return {'__psd_type__ID_LINK__': [self.__psd_id__, self.__psd_type__]}
         # recursively convert all attributes to dictionary
         if self.__dict__ or force_update:
             _dict_ = {}
@@ -318,18 +343,20 @@ class BaseInfo:
             # 继承自BaseInfo类的反序列化
             if isinstance(v, Dict) and '__psd_type__' in v:
                 obj_type = eval(f'{v["__psd_type__"]}', global_vars)
-                new_obj: BaseInfo = init_class_from_none(obj_type)
-                if new_obj is None:
+                try:
                     new_obj: BaseInfo = obj_type()
+                except:
+                    # accept situations when __init__ has not default value
+                    new_obj: BaseInfo = obj_type.__new__(obj_type)
                 new_obj = new_obj.from_dict(v, global_vars, obj_pool, False)
                 new_obj.update()
-                setattr(self, k, new_obj)
+                # setattr(self, k, new_obj) # probablly junk code
                 v = new_obj
                 obj_pool[v.__psd_id__] = v
             # 继承自BaseInfo类的反序列化(通过id_link)
-            elif isinstance(v, Dict) and '__psd_id_link__' in v:
-                if v['__psd_id_link__'][0] in obj_pool:
-                    v = obj_pool[v['__psd_id_link__'][0]]
+            elif isinstance(v, Dict) and '__psd_type__ID_LINK__' in v:
+                if v['__psd_type__ID_LINK__'][0] in obj_pool:
+                    v = obj_pool[v['__psd_type__ID_LINK__'][0]]
                 else:
                     v = None
             # numpy.ndarray反序列化
@@ -349,6 +376,9 @@ class BaseInfo:
             # pygame.Color反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_COLOR__' in v:
                 v = pg.Color(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
+            # non_transferable类型
+            elif isinstance(v, Dict) and '__psd_type__NON_TRANSFERABLE__' in v:
+                pass # 直接返回字典{'__psd_type__NON_TRANSFERABLE__': type(v).__name__}
             # 一般list反序列化
             elif isinstance(v, List):
                 v = [_check_case_transfer(v_i) for v_i in v]
@@ -380,7 +410,8 @@ class BaseInfo:
         for k, v in dict_.items():
             if v is not None:
                 v = _check_case_transfer(v)
-            self.__dict__[k] = v
+            if not (isinstance(v, Dict) and '__psd_type__NON_TRANSFERABLE__' in v):
+                self.__dict__[k] = v
         self.update()
         # recorver each object's id in obj_pool
         if first_run:
@@ -491,8 +522,9 @@ if __name__ == '__main__':
     class TestBI(BaseInfo):
         def __init__(self, x: int, y: int):
             super().__init__()
-            # self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
+            self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
             self.p: 'TestBI' = None
+            self.pg = pg.Vector2(3.14159265357989)
     i = TestBI(1, 2)
     j = TestBI(3, 4)
     i.p = j
