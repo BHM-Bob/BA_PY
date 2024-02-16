@@ -17,15 +17,15 @@ from tqdm import tqdm
 if __name__ == '__main__':
     from mbapy.base import Configs, put_err
     from mbapy.file import get_valid_file_path
-    from mbapy.game import BaseInfo # NOTE
+    from mbapy.game import BaseInfo # NOTE, for record
     from mbapy.web_utils.request import random_sleep
-    from mbapy.web_utils.task import CoroutinePool, TaskStatus
+    from mbapy.web_utils.task import CoroutinePool, TaskStatus, Key2Action, launch_sub_thread, statues_que_opts, statuesQue
 else:
     from ..base import Configs, put_err
     from ..file import get_valid_file_path
-    from ..game import BaseInfo # NOTE
+    from ..game import BaseInfo # NOTE, for record
     from .request import random_sleep
-    from .task import CoroutinePool, TaskStatus
+    from .task import CoroutinePool, TaskStatus, Key2Action, launch_sub_thread, statues_que_opts, statuesQue
     
     
 def install_headers(agent: str = None):
@@ -217,6 +217,10 @@ class PagePage(BasePage):
             self.result_page_html.append([])
             self.result_page_xpath.append([])
             for url in tqdm(page, leave=False, desc=f'{self.name} get Item'):
+                # listen to keybord input to stop
+                if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
+                    return self.result
+                # qurey url and get web page
                 if url not in self._records or self.ignore_records:
                     task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, *self.args, **self.kwargs)
                     self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
@@ -300,6 +304,9 @@ class DownloadPage(PagePage):
                 page_folder = os.path.join(self.folder, self.page_folder_name[page_idx])
             for url_idx, url in zip(range(len(page)),
                                     tqdm(page, leave=False, desc=f'{self.name} fetch Item')):
+                # listen to keybord input to stop
+                if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
+                    return self.result
                 # get file name
                 if self.item_file_name is None:
                     file_path = os.path.join(page_folder, os.path.basename(url))
@@ -384,6 +391,10 @@ class ItemsPage(BasePage):
             self.result_page_bs4.append([])
             # exactly, page ONLY contains one kind item, so it should be a list of a result or results
             for r in tqdm(page, leave=False, desc=f'{self.name} parse Item'):
+                # listen to keybord input to stop
+                if statues_que_opts(statuesQue, '__is_quit__', 'getValue'):
+                    return self.result
+                # parse
                 if isinstance(r, AsyncResult): # async result
                     r = r.get() # get result from async task pool
                     if isinstance(r, tuple) and r[0] == TaskStatus.NOT_SUCCEEDED:
@@ -412,15 +423,51 @@ class ItemsPage(BasePage):
         self.result = results
         return self
     
-    
-# TODO: add records
+
 # TODO: make a way to create a session
 class Actions(BaseInfo):
+    """
+    Actions is a class to manage pages and perform actions.
+    
+    Attributes:
+        - pages: a dict of pages, key is page name, value is page object.
+        - results: a dict of all results, key is page name, value is page's result.
+        - use_thread_control: if True, use a single thread to listening keybord input and control to save.
+        - k2a: a list of tuple, key is key to listen, value is action to perform.
+            - default key2action: 'e': exit single thread and set statuesQue's __is_quit__ to True.
+        - _headers: a dict of headers to send request.
+        - _async_task_pool: a CoroutinePool to perform async tasks.
+        
+    Methods:
+        - get_page(name: str, father_pages: Dict[str, BasePage] = None, father_page: BasePage = None) -> BasePage:
+            get a page by name from father_pages or father_page.next_pages.
+        - add_page(page: BasePage, father: str = '', name: str = '', before_func: Callable[['Actions', 'BasePage'], bool] = None, after_func: Callable[['Actions', 'BasePage'], bool] = None) -> 'Actions':
+            add a page to pages, and set before_func and after_func.
+        - del_page(name: str) -> None:
+            delete a page from pages. Note: NOT IMPLEMENTED YET.
+        - perform(*args, **kwargs) -> Dict:
+            perform all pages to get results.
+        - close() -> None:
+            close async task pool.
+    """
     def __init__(self, pages = {},
-                 headers: str = {'User-Agent': Configs.web.request_header}) -> None:
+                 headers: str = {'User-Agent': Configs.web.request_header},
+                 use_thread_control: bool = True,
+                 k2a: List[Tuple[str, Key2Action]] = [
+                     ('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))]) -> None:
+        """
+        Parameters:
+            - pages: a dict of pages, key is page name, value is page object.
+            - headers: a dict of headers to send request.
+            - use_thread_control: if True, use a single thread to listening keybord input and control to save.
+            - k2a: a list of tuple, key is key to listen, value is action to perform.
+                - default key2action: 'e': exit single thread and set statuesQue's __is_quit__ to True.
+        """
         super().__init__()
         self.pages: Dict[str, BasePage] = pages
         self.results: Dict = None
+        self.use_thread_control = use_thread_control
+        self.k2a = k2a
         self._headers: str = headers
         self._async_task_pool: CoroutinePool = CoroutinePool() # call run in perform() to start async task pool
     
@@ -452,6 +499,17 @@ class Actions(BaseInfo):
     def add_page(self, page: BasePage, father: str = '', name: str = '',
                  before_func: Callable[['Actions', 'BasePage'], bool] = None,
                  after_func: Callable[['Actions', 'BasePage'], bool] = None) -> 'Actions':
+        """
+        Parameters:
+            - page: a page object to add.
+            - father: a father page name to add this page.
+            - name: name of this page.
+            - before_func: a function to execute before perform this page.
+            - after_func: a function to execute after perform this page.
+            
+        Returns:
+            - self.
+        """
         # check parameters
         if not isinstance(name, str) or not isinstance(father, str):
             return put_err('name and father should be str, skip and return self', self)
@@ -482,6 +540,19 @@ class Actions(BaseInfo):
         raise NotImplementedError()
     
     def perform(self, *args, **kwargs):
+        """
+        Parameters:
+            - args, kwargs: parameters to pass to each page's perform method.
+            
+        Returns:
+            - results: a dict of all results, key is page name, value is page's result.
+            
+        Notes:
+            - This method will start a single thread to listen keybord input and control to save.
+            - This method will start a async task pool to perform async tasks.
+            - perform method one by one, and execute before_func and after_func if exists.
+            - if a page has next_pages, it will perform each next_page recursively.
+        """
         def _perform(page: Dict[str, BasePage], results: Dict, *args, **kwargs):
             for n, p in page.items():
                 # check before_func
@@ -498,6 +569,9 @@ class Actions(BaseInfo):
                     else: # or perform itself if no next_page
                         results[n] = result
             return results
+        # prepare listner
+        if self.use_thread_control:
+            launch_sub_thread(key2action=self.k2a)
         # prepare async task pool
         self._async_task_pool.run()
         self.results = {}
@@ -505,5 +579,6 @@ class Actions(BaseInfo):
         return self.results
     
     def close(self):
+        """close async task pool"""
         self._async_task_pool.close()
 

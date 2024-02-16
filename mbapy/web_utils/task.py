@@ -92,7 +92,7 @@ def get_input(promot:str = '', end = '\n'):
     return ret
     
 def launch_sub_thread(statuesQue = statuesQue,
-                      key2action: List[Tuple[str, Key2Action]] = {}):
+                      key2action: List[Tuple[str, Key2Action]] = []):
     """
     Launches a sub-thread to run a separate task concurrently with the main thread.
     
@@ -122,6 +122,7 @@ def launch_sub_thread(statuesQue = statuesQue,
         {
             "__is_quit__": False,
             "__inputs__": None,
+            "__signal__": None,
         }
     )
     k2a = {
