@@ -243,7 +243,7 @@ class UrlIdxPagesPage(PagePage):
             so the result also be list(page) for list(items) for links(result).
         - ignore_records is True by default. Because the url is idx type.
     """
-    def __init__(self, base_url: str, url_fn: Callable[[str, int], str],
+    def __init__(self, base_url: str = '', url_fn: Callable[[str, int], str] = None,
                  ignore_records: bool = True,
                  web_get_fn: Callable[[Any], str] = None,
                  *args, **kwargs) -> None:
@@ -348,7 +348,7 @@ class ItemsPage(BasePage):
     """
     Only parse and store data of THE FATHER PAGE.
     """
-    def __init__(self, xpath: Union[str, List[str]], findall_fn: Callable = None,
+    def __init__(self, xpath: Union[str, List[str]] = '', findall_fn: Callable = None,
                  alternative_bs4: bool = False, distribute_items: bool = False,
                  single_page_items_fn: Callable[[str], Any] = lambda x: x,
                  *args, **kwargs) -> None:
@@ -455,7 +455,8 @@ class Actions(BaseInfo):
                  headers: str = {'User-Agent': Configs.web.request_header},
                  use_thread_listen: bool = True,
                  k2a: List[Tuple[str, Key2Action]] = [
-                     ('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))]) -> None:
+                     ('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))],
+                 from_json_path: str = None) -> None:
         """
         Parameters:
             - pages: a dict of pages, key is page name, value is page object.
@@ -469,8 +470,12 @@ class Actions(BaseInfo):
         self.results: Dict = None
         self.use_thread_listen = use_thread_listen
         self.k2a = k2a
+        self.json_path = from_json_path
         self._headers: str = headers
         self._async_task_pool: CoroutinePool = CoroutinePool() # call run in perform() to start async task pool
+        # recover from json file if exists
+        if self.json_path is not None and os.path.exists(self.json_path):
+            self.from_json(self.json_path)
     
     @staticmethod
     def get_page(name: str, father_pages: Dict[str, BasePage] = None,
