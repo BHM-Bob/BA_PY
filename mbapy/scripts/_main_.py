@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-14 21:39:54
+LastEditTime: 2024-02-20 09:56:15
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -134,6 +134,14 @@ scripts_info = {
             'detailed': 
                 """
                 duitang.
+                """,
+        },
+    'extract-dir':
+        {
+            'brief': 'extract-dir',
+            'detailed': 
+                """
+                extract-dir.
                 """,
         },
 }
