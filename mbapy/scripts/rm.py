@@ -1,3 +1,9 @@
+'''
+Date: 2024-02-05 15:12:32
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-02-20 10:01:09
+Description: 
+'''
 
 import argparse
 import os
@@ -32,11 +38,17 @@ def main(sys_args: List[str] = None):
     paths = get_paths_with_extension(args.input, args.type,
                                      args.recursive, args.name)
     print(f'files to remove: {len(paths)}')
+    # manual confirm
+    inputs = input('Are you sure to delete these files? (y/n) ')
+    if inputs.lower() != 'y':
+        print('cancel delete files')
+        return []
+    # delete files
     for path in tqdm(paths):
         try:
             os.remove(path)
-        except:
-            put_err(f'can not delete {path}, skip')
+        except Exception as e:
+            put_err(f'Error: {e}. Can not delete {path}, skip')
     return paths
     
     
