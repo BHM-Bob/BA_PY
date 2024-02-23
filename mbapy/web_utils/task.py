@@ -266,6 +266,12 @@ class CoroutinePool:
         self.thread.start()
         return self
     
+    def check_empty(self):
+        for task in self.tasks.values():
+            if not task.done():
+                return False
+        return True
+    
     def close(self):
         self.loop.close()
 
