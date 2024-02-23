@@ -1,24 +1,29 @@
 '''
 Date: 2024-02-05 12:03:34
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-08 13:31:15
+LastEditTime: 2024-02-23 22:56:01
 Description: 
 '''
 import argparse
 import os
-import sys
 from pathlib import Path
 from typing import Dict, List
 
 from tqdm import tqdm
+from moviepy.editor import *
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
-from mbapy import base as mb, file as mf
 
 if __name__ == '__main__':
+    from mbapy.base import put_err
+    from mbapy.file import get_paths_with_extension
+    from mbapy.file_utils.video import *
     from mbapy.scripts._script_utils_ import clean_path, show_args
 else:
+    from ..base import put_err
+    from ..file import get_paths_with_extension
+    from ..file_utils.video import *
     from ._script_utils_ import clean_path, show_args
     
     
@@ -28,10 +33,10 @@ def edit_video(args):
     args.input = clean_path(args.input)
     args.out = clean_path(args.out)
     if os.path.isdir(args.input):
-        args.input = mf.get_paths_with_extension(args.input,
-                                                 ['mp4', 'avi', 'mov', 'mkv',
-                                                  'mpg', 'mpeg', 'wmv', 'flv',
-                                                  'rmvb'])
+        args.input = get_paths_with_extension(args.input,
+                                              ['mp4', 'avi', 'mov', 'mkv',
+                                               'mpg', 'mpeg', 'wmv', 'flv',
+                                               'rmvb'])
     else:
         args.input = [args.input]
     # show args
@@ -48,33 +53,47 @@ def edit_video(args):
 def extract_video(args):
     # process args
     args.input = clean_path(args.input)
-    args.output = clean_path(args.output)
     if os.path.isdir(args.input):
-        args.input = mf.get_paths_with_extension(args.input,
-                                                 ['mp4', 'avi', 'mov', 'mkv',
-                                                  'mpg', 'mpeg', 'wmv', 'flv',
-                                                  'rmvb'])
+        args.input = get_paths_with_extension(args.input,
+                                              ['mp4', 'avi', 'mov', 'mkv',
+                                               'mpg', 'mpeg', 'wmv', 'flv',
+                                               'rmvb'], recursive=args.recursive)
     else:
         args.input = [args.input]
     # show args
-    show_args(args, ['content', 'input', 'output','recursive'])
+    show_args(args, ['content', 'input', 'recursive', 'mode', 'frame_index',
+                     'frame_interval', 'frame_size', 'threshold','scale',
+                     'gray', 'backend','model_dir', 'audio_nbytes',
+                     'audio_bitrate'])
     # process each input
     for idx, path in enumerate(args.input):
         print(f'processing {idx+1}/{len(args.input)}: {path}')
+        file_name = os.path.basename(path)
+        file_type = file_name.split('.')[-1]
+        file_dir = os.path.dirname(path)
         if args.content == 'audio':
-            raise NotImplementedError('audio extraction is not implemented yet.')
+            suffix = f'audio-{args.audio_nbytes*8}bit-{args.audio_bitrate}'
+            dist_name = f'{file_name.replace("."+file_type, "")}_{suffix}.wav'
+            dist_path = os.path.join(file_dir, dist_name)
+            audio = VideoFileClip(path).audio
+            if audio is None:
+                continue
+            audio.write_audiofile(dist_path, nbytes=args.audio_nbytes,
+                                  bitrate=args.audio_bitrate,
+                                  codec=f'pcm_s{8*args.audio_nbytes}le',
+                                  verbose=True)
         elif args.content == 'frames':
             # extract frames
             if args.mode == 'index':
                 start, end, step = map(int, args.frame_index.split(':'))
-                frames =mf.extract_frames_by_index(path, list(range(start, end, step)))
+                frames =extract_frames_by_index(path, list(range(start, end, step)))
             elif args.mode == 'all':
                 img_size = tuple(map(int, args.frame_size.split(',')))
-                frames = mf.extract_frame_to_img(path, '', True, False, None,
-                                                 read_frame_interval=args.frame_interval,
-                                                 img_size=img_size)
+                frames = extract_frame_to_img(path, '', True, False, None,
+                                              read_frame_interval=args.frame_interval,
+                                              img_size=img_size)
             elif args.mode == 'unique':
-                frames = mf.extract_unique_frames(
+                frames = extract_unique_frames(
                     path, args.threshold, args.frame_interval, args.scale,
                     args.gray, args.backend, args.model_dir)
             else:
@@ -91,7 +110,7 @@ _str2func = {
 
 # if __name__ == '__main__':
 #     # dev code
-#     from mbapy.game import BaseInfo
+#     from moviepy.editor import *
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
@@ -112,8 +131,6 @@ def main(sys_args: List[str] = None):
                               help='content to extract, default is %(default)s.')
     extract_args.add_argument('-i', '--input', type=str, default='.',
                               help='input file path or dir path, default is %(default)s.')
-    extract_args.add_argument('-o', '--output', type=str, default='.',
-                              help='output dir path, default is %(default)s.')
     extract_args.add_argument('-r', '--recursive', action='store_true', default=False,
                               help='FLAG, recursive search. Default is %(default)s.')
     extract_args.add_argument('-m', '--mode', type=str, choices=['index', 'all', 'unique'], default='unique',
@@ -134,6 +151,10 @@ def main(sys_args: List[str] = None):
                               help='backend for compare image, Default is %(default)s.')
     extract_args.add_argument('-mdir', '--model-dir', type=str, default='',
                               help='model dir path, Default is %(default)s.')
+    extract_args.add_argument('--audio-nbytes', type=int, default=4, choices=[2, 4],
+                              help='nbytes for audio, set to 2 for 16-bit sound, 4 for 32-bit sound, Default is %(default)s.')
+    extract_args.add_argument('--audio-bitrate', type=str, default='3000k',
+                              help='bitrate for audio, Default is %(default)s.')
     
     
     args = args_paser.parse_args(sys_args)
@@ -142,7 +163,7 @@ def main(sys_args: List[str] = None):
         print(f'excuting command: {args.sub_command}')
         _str2func[args.sub_command](args)
     else:
-        mb.put_err(f'no such sub commmand: {args.sub_command}')
+        put_err(f'no such sub commmand: {args.sub_command}')
 
 if __name__ == "__main__":
     main()
