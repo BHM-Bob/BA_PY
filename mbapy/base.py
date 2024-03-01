@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-15 20:18:18
+LastEditTime: 2024-03-01 10:09:58
 Description: 
 '''
 import ctypes
@@ -463,13 +463,26 @@ class MyArgs():
     def __init__(self, args:dict) -> None:
         self.__args = dict()
         self.get_args(args)
+        
     def update_args(self, args:dict, force_update = True):
         for arg_name in list(args.keys()):
             if (arg_name not in self.__args) or force_update:
                 setattr(self, arg_name, args[arg_name])
         return self
+    
+    def get_args(self, args:dict, force_update = True, del_kwargs = True):
+        for arg_name, arg_value in args.items():
+            if (arg_name not in self.__args) or force_update:
+                setattr(self, arg_name, arg_value)
+        if del_kwargs:
+            for arg_name in self.__args:
+                if arg_name in args:
+                    del args[arg_name]
+        return self
+    
     def add_arg(self, arg_name:str, arg_value, force_update = True):
         setattr(self, arg_name, arg_value)
+        
     def toDict(self):
         dic = {}
         for attr in vars(self):
