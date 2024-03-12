@@ -412,7 +412,7 @@ def calcu_mw_of_mutations(args):
         _print(f'\n{weigth_type}: {mw:10.5f}', f)
         for j, pep in enumerate(mw2pep[mw]):
             mf = f'({pep.get_molecular_formula()})' if args.mass else ''
-            _print(f'    pep-{i:>4}-{j:<4}({idx:8d}){mf}: {pep}', f)
+            _print(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', f)
             idx += 1
     # handle f-print
     if f is not None:
