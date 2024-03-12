@@ -67,7 +67,7 @@ class AnimoAcid:
         "Cys": {'C': 3, 'H': 7, 'O':2, 'N':1, 'S':1, 'P':0},
         "Gln": {'C': 5, 'H':10, 'O':3, 'N':2, 'S':0, 'P':0},
         "Glu": {'C': 5, 'H': 9, 'O':4, 'N':1, 'S':0, 'P':0},
-        "Gly": {'C': 2, 'H': 5, 'O':2, 'N':0, 'S':0, 'P':0},
+        "Gly": {'C': 2, 'H': 5, 'O':2, 'N':1, 'S':0, 'P':0},
         "His": {'C': 6, 'H': 9, 'O':2, 'N':3, 'S':0, 'P':0},
         "Ile": {'C': 6, 'H':13, 'O':2, 'N':1, 'S':0, 'P':0},
         "Leu": {'C': 6, 'H':13, 'O':2, 'N':1, 'S':0, 'P':0},
@@ -85,7 +85,7 @@ class AnimoAcid:
         'Acm' :{'C': 3, 'H': 6, 'O':1, 'N':1, 'S':0, 'P':0}, # deleted (H)
         'Boc' :{'C': 5, 'H': 9, 'O':2, 'N':0, 'S':0, 'P':0}, # deleted (H)
         'Fmoc':{'C':15, 'H':11, 'O':2, 'N':0, 'S':0, 'P':0}, # deleted (H)
-        'OtBu':{'C': 4, 'H': 9, 'O':0, 'N':0, 'S':0, 'P':0}, # deleted (H)
+        'OtBu':{'C': 4, 'H': 9, 'O':0, 'N':0, 'S':0, 'P':0}, # has ZERO Oxygen atom because lose H2O when condensed with AAs, deleted (H)
         'tBu' :{'C': 4, 'H': 9, 'O':0, 'N':0, 'S':0, 'P':0}, # deleted (H)
         'Trt' :{'C':19, 'H':15, 'O':0, 'N':0, 'S':0, 'P':0}, # deleted (H)
     }
@@ -192,16 +192,15 @@ class AnimoAcid:
         """
         mfd = {k:v for k,v in self.mfd[self.animo_acid].items()} # deepcopy may slow
         if self.N_protect != 'H':
-            mfd['H'] -= 1 # because N-terminal residue has no H but AA has H, so we need to minus one H for AA
+            mfd['H'] -= 1 # normally lose one H atom, so we need to minus one H for AA
             for k,v in self.mfd[self.N_protect].items():
                 mfd[k] += v
         if self.C_protect != 'OH':
-            mfd['H'] -= 1 # because C-terminal residue has no OH but AA has OH, so we need to minus one H for AA
-            mfd['O'] -= 1 # because C-terminal residue has no OH but AA has OH, so we need to minus one H for AA
+            mfd['H'] -= 1 # normally lose one H atom, so we need to minus one H for AA
             for k,v in self.mfd[self.C_protect].items():
                 mfd[k] += v
         if self.R_protect != 'H':
-            mfd['H'] -= 1 # because C-terminal residue has no OH but AA has OH, so we need to minus one H for AA
+            mfd['H'] -= 1 # normally lose one H atom, so we need to minus one H for AA
             for k,v in self.mfd[self.R_protect].items():
                 mfd[k] += v
         return mfd
@@ -444,6 +443,8 @@ __all__ = [
 
 
 if __name__ == "__main__":
+    # dev code
+    pep = Peptide('Leu-OtBu', 3)
     # dev code
     pep = Peptide('H-Cys(Trt)-G(OtBu)', 3)
     print(pep.repr(3, True, True))
