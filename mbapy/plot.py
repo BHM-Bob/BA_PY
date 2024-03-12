@@ -51,7 +51,7 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
     ret = None
     if mode == 'hls':
         ret = rgbs2hexs(sns.color_palette('hls', n))
-    if n <= 5 and mode == 'green':
+    elif n <= 5 and mode == 'green':
         ret = ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87'][0:n]
     elif n <= 9:
         ret = rgbs2hexs(plt.get_cmap('Set1').colors)
