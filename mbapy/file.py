@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-13 23:48:24
+LastEditTime: 2024-03-09 19:28:33
 Description: 
 '''
 import collections
@@ -50,8 +50,19 @@ else:
 
                 from .file_utils.image import *
                 from .file_utils.video import *
+        __all__extend__ = [
+            'imread',
+            'imwrite',
+            '_load_nn_model',
+            '_get_transform',
+            'calculate_frame_features', 
+            'get_cv2_video_attr',
+            'extract_frames_by_index',
+            'extract_frame_to_img',
+            'extract_unique_frames',
+        ]
     except:# if cv2 or torch is not installed, skip
-        pass
+        __all__extend__ = []
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '') -> List[str]:
@@ -510,6 +521,29 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
         return extract_text(path)
     else:
         raise NotImplementedError
+    
+    
+__all__ = [
+    'get_paths_with_extention',
+    'format_file_size',
+    'extract_files_from_dir',
+    'replace_invalid_path_chr',
+    'get_valid_file_path',
+    'opts_file',
+    'detect_byte_coding',
+    'get_byte_coding',
+    'decode_bits_to_str',
+    'is_jsonable',
+    'save_json',
+    'read_json',
+    'save_yaml',
+    'read_yaml',
+    'save_excel',
+    'read_excel',
+    'write_sheets',
+    'update_excel',
+    'convert_pdf_to_txt'
+] + __all__extend__
     
 
 if __name__ == '__main__':
