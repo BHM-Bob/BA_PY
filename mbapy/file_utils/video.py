@@ -140,19 +140,21 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
 @parameter_checker(check_parameters_path, raise_err=False)
 def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
                           scale_factor=1.0, compare_gray = True,
-                          backend = 'skimage', model_dir = None):
+                          backend = 'skimage', model_dir = None,
+                          torch_device = 'cuda'):
     """
     Extracts unique frames from a video based on structural similarity index (SSIM).
 
     Parameters:
-        video_path (str): The path to the video file.
-        threshold (float): The threshold value for SSIM. Frames with SSIM values above this threshold will be considered unique.
-        read_frame_interval (int, optional): The interval at which frames should be read from the video. Defaults to 0 (every frame).
-        scale_factor (float, optional): The factor by which the frame should be scaled. Defaults to 1.0 (no scaling).
-        compare_gray (bool, optional): Whether to compare frames in grayscale. Defaults to True.
-        backend (str, optional): The backend library to use for SSIM calculation. Defaults to 'skimage'.
+        - video_path (str): The path to the video file.
+        - threshold (float): The threshold value for SSIM. Frames with SSIM values above this threshold will be considered unique.
+        - read_frame_interval (int, optional): The interval at which frames should be read from the video. Defaults to 0 (every frame).
+        - scale_factor (float, optional): The factor by which the frame should be scaled. Defaults to 1.0 (no scaling).
+        - compare_gray (bool, optional): Whether to compare frames in grayscale. Defaults to True.
+        - backend (str, optional): The backend library to use for SSIM calculation. Defaults to 'skimage'.
             can be 'numpy', 'pytorch' or 'skimage'.
-        model_dir (str, optional): The directory containing the neural network models. Defaults to './data/nn_models/'.
+        - model_dir (str, optional): The directory containing the neural network models. Defaults to './data/nn_models/'.
+        - torch_device (str, optional): The device to use for pytorch backend. Defaults to 'cuda'.
 
     Returns:
         Tuple[List[int], List[ndarray]]: A tuple containing two lists - the indices of the unique frames and the unique frames themselves.
@@ -192,8 +194,8 @@ def extract_unique_frames(video_path, threshold, read_frame_interval = 0,
     if backend == 'torch-res50':
         from mbapy.file_utils.image import (_get_transform, _load_nn_model,
                                             calculate_frame_features)
-        model = _load_nn_model(model_dir).cuda()
-        trans = _get_transform((width, heigth), (width, heigth), device='cuda')
+        model = _load_nn_model(model_dir).to(torch_device)
+        trans = _get_transform((width, heigth), (width, heigth), device=torch_device)
         _calculate_ssim = torch.nn.functional.cosine_similarity
     for frame_idx in range(get_cv2_video_attr(video, 'FRAME_COUNT')):
         # update frame_idx and progress bar
@@ -239,6 +241,7 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
+    extract_unique_frames('./data_tmp/video.mp4', 0.8, read_frame_interval=10, scale_factor=0.7)
     extract_frame_to_img('./data_tmp/video.mp4', dir = './data_tmp/video_full')
     # extract unique frames
     import time
