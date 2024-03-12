@@ -183,7 +183,7 @@ def main():
         elif sys.argv[1] in ['-i', '--info']:
             print_scripts_info()
         elif sys.argv[1] in ['-h', '--help']:
-            help = """
+            help_info = """
             usage-1: mbapy-cli [-h] [-l | -i]
             options:
             -h, --help  show this help message and exit
@@ -196,7 +196,7 @@ def main():
             args  args for sub-scripts
             -h, --help  show this help message and exit
             """
-            print(help)
+            print(help_info)
         elif sys.argv[1] in scripts_info:
             # exec scripts only with arg '-h'
             exec_scripts()
@@ -207,7 +207,9 @@ def main():
         else:
             print(f'unkown scripts: {sys.argv[1]} and args: ', end='')
             [print(f' {arg}', end='') for arg in sys.argv[1:]]
-            print('')
+            
+    # print a '\n' in the end
+    print('')
             
 
 if __name__ == '__main__':
