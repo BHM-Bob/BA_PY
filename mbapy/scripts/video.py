@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-05 12:03:34
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-23 22:56:01
+LastEditTime: 2024-03-14 16:21:45
 Description: 
 '''
 import argparse
@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from tqdm import tqdm
+from PIL import Image
 from moviepy.editor import *
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
@@ -18,12 +19,12 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 if __name__ == '__main__':
     from mbapy.base import put_err
     from mbapy.file import get_paths_with_extension
-    from mbapy.file_utils.video import *
+    from mbapy.file_utils.video import extract_frames_by_index, extract_frame_to_img, extract_unique_frames
     from mbapy.scripts._script_utils_ import clean_path, show_args
 else:
     from ..base import put_err
     from ..file import get_paths_with_extension
-    from ..file_utils.video import *
+    from ..file_utils.video import extract_frames_by_index, extract_frame_to_img, extract_unique_frames
     from ._script_utils_ import clean_path, show_args
     
     
@@ -83,10 +84,11 @@ def extract_video(args):
                                   codec=f'pcm_s{8*args.audio_nbytes}le',
                                   verbose=True)
         elif args.content == 'frames':
+            path = str(path)
             # extract frames
             if args.mode == 'index':
                 start, end, step = map(int, args.frame_index.split(':'))
-                frames =extract_frames_by_index(path, list(range(start, end, step)))
+                frames = extract_frames_by_index(path, list(range(start, end, step)))
             elif args.mode == 'all':
                 img_size = tuple(map(int, args.frame_size.split(',')))
                 frames = extract_frame_to_img(path, '', True, False, None,
@@ -99,6 +101,11 @@ def extract_video(args):
             else:
                 raise ValueError(f'unknown mode: {args.mode}')
             # save frames
+            for frame in frames:
+                frame_name = f'{file_name.replace("."+file_type, "")}_{frame[0]}.jpg'
+                frame_path = os.path.join(file_dir, frame_name)
+                img = Image.fromarray(frame)
+                img.save(frame_path)
     
 
 _str2func = {
@@ -107,10 +114,6 @@ _str2func = {
     'extract':extract_video,
 }
 
-
-# if __name__ == '__main__':
-#     # dev code
-#     from moviepy.editor import *
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
@@ -149,6 +152,8 @@ def main(sys_args: List[str] = None):
                               help='FLAG, compare gray image, Default is %(default)s')
     extract_args.add_argument('-backend', '--backend', type=str, default='skimage',
                               help='backend for compare image, Default is %(default)s.')
+    extract_args.add_argument('-tdevice', '--torch-device', type=str, default='cuda',
+                              help='torch device for compare image, Default is %(default)s.')
     extract_args.add_argument('-mdir', '--model-dir', type=str, default='',
                               help='model dir path, Default is %(default)s.')
     extract_args.add_argument('--audio-nbytes', type=int, default=4, choices=[2, 4],
@@ -165,5 +170,11 @@ def main(sys_args: List[str] = None):
     else:
         put_err(f'no such sub commmand: {args.sub_command}')
 
+
 if __name__ == "__main__":
+    # dev code
+    # comment the following line when release
+    # main(['extract', 'frames', '-i', './data_tmp/video.mp4'])
+    
+    # RELEASE CODE
     main()
