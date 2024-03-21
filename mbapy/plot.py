@@ -114,20 +114,22 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     Stack bar plot with hue style
 
     Args:
-        factors (List[str]): A list of factors. [low_lever_factor, medium_lever_factor, ...] or just one.
-        tags (List[str]): A list of tags. [stack_low_y, stack_medium_y, ...] or just one.
-        df (pd.DataFrame): A pandas DataFrame. From pro_bar_data or sort_df_factors.
-        **kwargs: Additional keyword arguments.
-            width = 0.4\n
-            bar_space = 0.2\n
-            xrotations = [0]*len(factors)\n
-            colors = plt.rcParams['axes.prop_cycle'].by_key()['color']\n
-            hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],\n
-            labels:None,\n
-            font_size:None, \n
-            offset = [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]\n
-            err = None\n
-            err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k'}
+        - factors (List[str]): A list of factors. [low_lever_factor, medium_lever_factor, ...] or just one.
+        - tags (List[str]): A list of tags. [stack_low_y, stack_medium_y, ...] or just one.
+        - df (pd.DataFrame): A pandas DataFrame. From pro_bar_data or sort_df_factors.
+        - kwargs: Additional keyword arguments.
+            - width = 0.4
+            - bar_space = 0.2
+            - xrotations = [0]*len(factors)
+            - colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+            - hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+            - font_size:None,
+            - labels:None,
+            - offset = [None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors)-1)]
+            - edgecolor:'white',
+            - linewidth: 0,
+            - err = None
+            - err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}
 
     Returns:
         np.array: An array of positions.
@@ -136,16 +138,19 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     
     if len(tags) == 0:
+        # TODO: 可能存在'Unbond: 0'等其他情况
         tags = list(df.columns)[len(factors):]
     args = get_wanted_args({'width':0.4, 'bar_space':0.2, 'xrotations':[0]*len(factors),
                             'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
                             'hatchs':['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
                             'font_size':None,
                             'labels':None,
-                            'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
+                            'offset':[None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
                             'edgecolor':'white',
+                            'linewidth': 0,
+                            'log': False,
                             'err':None,
-                            'err_kwargs':{'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k'}},
+                            'err_kwargs':{'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}},
                             kwargs)
     args.xrotations.append(0)
     xlabels, pos = pro_hue_pos(factors, df, args.width, args.bar_space)
@@ -157,20 +162,22 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         else:
             label = yName
         ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=label,
-                edgecolor=args.edgecolor, color=args.colors[yIdx])
+                edgecolor=args.edgecolor, color=args.colors[yIdx], log = args.log)
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0])
     if args.font_size is not None:
         plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
+    if isinstance(args.offset[0], int) or isinstance(args.offset[0], float):
+        plt.setp(ax1.axis["bottom"].major_ticklabels, pad=args.offset[0])
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
         axs.append(ax1.twiny())
         axs[-1].set_xticks(sub_pos, [l.name for l in xlabels[idx+1]])
         new_axisline = axs[-1].get_grid_helper().new_fixed_axis
-        axs[-1].axis["bottom"] = new_axisline(loc="bottom", axes=axs[-1], offset=(0, -args.offset[idx]))
+        axs[-1].axis["bottom"] = new_axisline(loc="bottom", axes=axs[-1], offset=(0, -args.offset[idx+1]))
         plt.setp(axs[-1].axis["bottom"].major_ticklabels, rotation=args.xrotations[idx+1])
         if args.font_size is not None:
             plt.setp(axs[-1].axis["bottom"].major_ticklabels, fontsize=args.font_size[idx+1])
