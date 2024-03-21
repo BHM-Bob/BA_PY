@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-10 16:42:29
+LastEditTime: 2024-03-20 19:36:03
 Description: pd.dataFrame utils
 '''
 import itertools
@@ -26,7 +26,6 @@ def get_value(df:pd.DataFrame, column:str, mask:np.array)->list:
     return df.loc[mask, column].tolist()
 
 
-# TODO : not use itertools.product
 def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
     cacu mean and SE for each combinations of facotors\n
@@ -40,8 +39,8 @@ def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         min_sample_N:int : min N threshold(>=)
     """
     # kwargs
-    min_sample_N = 1 if 'min_sample_N' not in kwargs else kwargs['min_sample_N']
-    assert min_sample_N > 0, 'min_sample_N <= 0'
+    min_sample_N = kwargs.get('min_sample_N', 1)
+    assert min_sample_N > 0, 'min_sample_N <= 0 !'
     # pro
     if len(tags) == 0:
         tags = list(df.columns)[len(factors):]
@@ -68,13 +67,29 @@ def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
 
 def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:List[str], **kwargs):
     """
-    wrapper\n
-    @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf)\n
-    def plot_func(values, **kwargs):
-        return produced vars in list format whose length equal to len(suffix)
+    Params:
+        - factors: list of factors to group by
+        - tags: list of tags to calculate mean and SE for
+        - df: input DataFrame
+        - suffixs: list of suffixes for each tag, used to distinguish different tags with same name
+        - kwargs:
+            - min_sample_N: int, min N threshold(>=)
+            
+    Return:
+        - pd.DataFrame, with each row representing a combination of factors and tags, and columns as follows:
+            - factors: the values of factors
+            - tags: the values of tags, with suffixes
+            - values: the values of tags, calculated by core_func
+            
+    Example
+    >>> @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf)\n
+    >>> def plot_func(values, **kwargs):
+    >>>     return produced vars in list format whose length equal to len(suffix)
     """
     def ret_wrapper(core_func):
         def core_wrapper(**kwargs):
+            min_sample_N = kwargs.get('min_sample_N', 1)
+            assert min_sample_N > 0, 'min_sample_N <= 0 !'
             nonlocal tags
             if len(tags) == 0:
                 tags = list(df.columns)[len(factors):]
@@ -87,7 +102,7 @@ def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:L
                 factorMask = np.array(df[factors[0]] == factorCombi[0])
                 for i in range(1, len(factors)):
                     factorMask &= np.array(df[factors[i]] == factorCombi[i])
-                if(factorMask.sum() > 0):
+                if factorMask.sum() > min_sample_N:
                     line = []
                     for idx, tag in enumerate(tags):
                         values = np.array(df.loc[factorMask, [tag]])

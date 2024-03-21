@@ -25,7 +25,7 @@ def plot_mass_load_file(path: Path):
     df = pd.DataFrame([line.split('\t') for line in lines[1:]],
                         columns = lines[0].split('\t'))
     if df.shape[1] == 2 and df.columns[0] == 'Time' and df.columns[1] == 'Intensity':
-        # setattr(df, '_content_type', 'base peak') # TODO: this does not work
+        # setattr(df, '_content_type', 'base peak') # NOTE: this does not work
         df._attrs['content_type'] = 'base peak'
         return df.astype(float)
     elif df.shape[1] == 2 and df.columns[0] == 'Time' and df.columns[1] == 'Absorbance':
