@@ -1,6 +1,6 @@
 from functools import wraps
 from itertools import combinations
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -70,15 +70,17 @@ class AxisLable():
     def add_space(self, space:int = 1):
         self.hold_space += space
 
-def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float, bar_space:float):
+def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float,
+                hue_space:float, bar_space:float):
     """
     Generate the position and labels for a grouped bar plot with multiple factors.
 
     Args:
-        factors (List[str]): A list of strings representing the factors to group the bars by.
-        df (pd.DataFrame): A pandas DataFrame containing the data for the bar plot.
-        width (float): The width of each individual bar.
-        bar_space (float): The space between each group of bars.
+        - factors (List[str]): A list of strings representing the factors to group the bars by.
+        - df (pd.DataFrame): A pandas DataFrame containing the data for the bar plot.
+        - width (float): The width of each individual bar.
+        - hue_space (float): The space between each group of bars.
+        - bar_space (float): The space between each bar in a group.
 
     Returns:
         Tuple[List[List[AxisLable]], List[List[float]]]: A tuple containing two lists. The first list contains the labels for each factor and each bar. The second list contains the x-positions for each bar.
@@ -96,11 +98,11 @@ def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float, bar_space:float
     for axis_idx in range(len(xlabels)):
         pos.append([])
         if axis_idx == 0:
-            st_pos = bar_space
+            st_pos = hue_space
             for h_fc_idx in range(len(xlabels[axis_idx+1])):
                 sum_this_hue_bar = xlabels[axis_idx+1][h_fc_idx].hold_space
-                pos[axis_idx] += [st_pos+width*(i+0.5) for i in range(sum_this_hue_bar)]
-                st_pos += (sum_this_hue_bar*width+bar_space)
+                pos[axis_idx] += [st_pos+width*(i+0.5)+bar_space*i for i in range(sum_this_hue_bar)]
+                st_pos += (sum_this_hue_bar*width+(sum_this_hue_bar-1)*bar_space+hue_space)
         else:
             st_pos = 0
             for fc_idx in range(len(xlabels[axis_idx])):
@@ -126,7 +128,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
             - font_size:None,
             - labels:None,
             - offset = [None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors)-1)]
-            - edgecolor:'white',
+            - edgecolor:['white'] * len(tags),
             - linewidth: 0,
             - err = None
             - err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}
@@ -140,20 +142,21 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     if len(tags) == 0:
         # TODO: 可能存在'Unbond: 0'等其他情况
         tags = list(df.columns)[len(factors):]
-    args = get_wanted_args({'width':0.4, 'bar_space':0.2, 'xrotations':[0]*len(factors),
+    args = get_wanted_args({'width':0.4, 'hue_space':0.2, 'bar_space':0.05,
+                            'xrotations':[0]*len(factors),
                             'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
                             'hatchs':['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
                             'font_size':None,
                             'labels':None,
                             'offset':[None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
-                            'edgecolor':'white',
+                            'edgecolor':['white'] * len(tags),
                             'linewidth': 0,
                             'log': False,
                             'err':None,
                             'err_kwargs':{'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}},
                             kwargs)
     args.xrotations.append(0)
-    xlabels, pos = pro_hue_pos(factors, df, args.width, args.bar_space)
+    xlabels, pos = pro_hue_pos(factors, df, args.width, args.hue_space, args.bar_space)
     bottom = kwargs['bottom'] if 'bottom' in kwargs else np.zeros(len(pos[0]))
     
     for yIdx, yName in enumerate(tags):
@@ -162,7 +165,8 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         else:
             label = yName
         ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=label,
-                edgecolor=args.edgecolor, color=args.colors[yIdx], log = args.log)
+                edgecolor=args.edgecolor[yIdx], linewidth = args.linewidth,
+                color=args.colors[yIdx], log = args.log)
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
@@ -234,6 +238,37 @@ def plot_positional_hue(factors:List[str], tags:List[str], df:pd.DataFrame, **kw
             return np.array(pos[0]), ax1
         return core_wrapper
     return ret_wrapper
+
+def calcu_swarm_pos(x: float, y: np.ndarray, width: float, d: Optional[float] = None):
+    """
+   This function calculates the x-coordinates for the data points in a swarm plot.
+   The x-coordinates are calculated based on the given x-coordinate, y-coordinates,
+   and width of the swarm. If d is not None, it will be used as the distance between
+   the data points. Otherwise, it will be calculated based on the number of data points.
+   
+    Parameters:
+        - x: the x-coordinate of the center of the swarm.
+        - y: the y-coordinates of the data points.
+        - width: the width of the swarm.
+        - d: the distance between the data points. If None, it will be calculated based on the number of data points.
+        
+    Returns:
+        - A numpy array of x-coordinates for the data points.
+    """
+    def _calcu_arithmetic(x, n, w, d):
+        if isinstance(d, float) or isinstance(d, int):
+            a0 = x - (n-1)*d/2
+            return np.linspace(a0, a0+d*(n-1), n)
+        if n == 1:
+            return x
+        else:
+            a0, d = x-w/2, w/(n-1)
+            return np.linspace(a0, a0+d*(n-1), n)
+    ret = np.zeros(len(y))
+    for y_u in np.unique(y):
+        y_idx = np.where(y == y_u)[0]
+        ret[y_idx] = _calcu_arithmetic(x, len(y_idx), width, d)
+    return ret
 
 def qqplot(tags:List[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols = 1, **kwargs):
     """
@@ -321,7 +356,9 @@ def plot_turkey(means, std_errs, tukey_results, min_star = 1):
     return plt.gca()
 
 if __name__ == '__main__':
-    """dev code"""
+    # dev code
+    pos = calcu_swarm_pos(0.5, np.array([1, 2, 2, 1, 1, 1, 0, 0, 4]), 0.5)
+    # dev code
     df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
     df['Animal Type'] = df['Animal Type'].astype('str')
     model = mst.multicomp_turkeyHSD({'Animal Type':[]}, 'Duration', df)
