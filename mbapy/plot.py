@@ -1,6 +1,6 @@
 from functools import wraps
 from itertools import combinations
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Callable, Dict, List, Tuple, Union, Optional
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -319,6 +319,26 @@ def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
     plt.tight_layout()
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
     plt.show()
+    
+def plot_stats_star(x1: float, x2: float, h: float, endpoint: float, p_value: float,
+                    ax = plt, p2star: Callable[[float], str] = p_value_to_stars):
+    """
+    Params
+        - x1: The x-coordinate of the left endpoint.
+        - x2: The x-coordinate of the right endpoint.
+        - h: The y-coordinate of the horizontal line.
+        - endpoint: The height of the endpoint.
+        - p_value: The p-value of the difference.
+        - ax: The `Axes` instance to plot on. Default is `plt`.
+        - p2star: A function that converts a p-value to a string of stars. Default is `p_value_to_stars`.
+
+    Returns:
+        None
+    """
+    ax.plot([x1, x2], [h, h], color='black')
+    ax.plot([x1, x1], [h, h-endpoint], color='black')
+    ax.plot([x2, x2], [h, h-endpoint], color='black')
+    ax.text((x1+x2)/2, h, p2star(p_value), ha='center')    
     
 def plot_turkey(means, std_errs, tukey_results, min_star = 1):
     """
