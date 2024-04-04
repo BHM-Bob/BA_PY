@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-10 16:44:48
+LastEditTime: 2024-04-03 17:43:43
 Description: 
 '''
 from itertools import combinations
@@ -40,9 +40,9 @@ def _get_x1_x2(x1 = None, x2 = None,
     if factors is not None and tag is not None and df is not None:
         sub_df = msd.get_df_data(factors, [tag], df)
         fac_name = list(factors.keys())[0]
-        x1 = sub_df.loc[sub_df[fac_name] == factors[fac_name][0], [tag]].values
+        x1 = sub_df.loc[sub_df[fac_name] == factors[fac_name][0], [tag]].values.reshape(-1)
         if len(factors[fac_name]) == 2:
-            x2 = sub_df.loc[sub_df[fac_name] == factors[fac_name][1], [tag]].values
+            x2 = sub_df.loc[sub_df[fac_name] == factors[fac_name][1], [tag]].values.reshape(-1)
         elif len(factors[fac_name]) > 2:
             raise ValueError('Only support 1 or 2 value of factors')
     return x1, x2
@@ -70,7 +70,7 @@ def ttest_ind(x1 = None, x2 = None,
                  factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     独立样本t检验(双样本T检验):检验两组独立样本均值是否相等\n
-    要求正太分布，正太检验结果由scipy.stats.levene计算并返回\n
+    要求正态分布，正态检验结果由scipy.stats.levene计算并返回\n
     levene 检验P值 > 0.05，接受原假设，认为两组方差相等\n
     如不相等， scipy.stats.ttest_ind() 函数中的参数 equal_var 会设置成 False
     """
@@ -94,6 +94,14 @@ def mannwhitneyu(x1 = None, x2 = None,
     """
     x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     return scipy.stats.mannwhitneyu(x1, x2, **kwargs)
+
+def wilcoxon(x1 = None, x2 = None,
+             factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    Wilcoxon signed-rank test, 样本不符合正态分布但配对时使用。
+    """
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
+    return scipy.stats.ranksums(x1, x2, **kwargs)
 
 def shapiro(x1 = None,
             factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
