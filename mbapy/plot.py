@@ -67,8 +67,18 @@ class AxisLable():
     def __init__(self, name:str, hold_space:int = 1) -> None:
         self.name = name
         self.hold_space = hold_space
+        self.father = None
+        self.child = set()
+        self._hash = id(self) # 固定hash值
+    def __eq__(self, other: 'AxisLable') -> bool:
+        return id(self) == id(other)
+    def __hash__(self) -> int:
+        return self._hash
     def add_space(self, space:int = 1):
         self.hold_space += space
+    def add_father(self, father: 'AxisLable'):
+        self.father = father
+        self.father.child.add(self)
 
 def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float,
                 hue_space:float, bar_space:float):
@@ -85,15 +95,26 @@ def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float,
     Returns:
         Tuple[List[List[AxisLable]], List[List[float]]]: A tuple containing two lists. The first list contains the labels for each factor and each bar. The second list contains the x-positions for each bar.
 
+    Notes:
+        - `df` must be processed by `pro_bar_data` or `sort_df_factors`.
+        - The LAST factor will be the TOP level x-axis.
     """
-    xlabels, fc_old, pos = [ [] for _ in range(len(factors))], '', []
-    for f_i, f in enumerate(factors):
-        for fc_i, fc in enumerate(df[f]):
-            if fc != fc_old:
-                xlabels[f_i].append(AxisLable(fc))
-                fc_old = fc
+    xlabels, fj_old, pos = [ [] for _ in range(len(factors))], None, []
+    xlabels_mat = df[factors].T.values.tolist()
+    # build relationships between each level sub-factors. build xlabels and allocte space for each level.
+    for i, fi in enumerate(factors[::-1]): # 从最高级开始
+        for j, fj in enumerate(df[fi]):
+            # 不同sub-factor 或 相同sub-factor但上级sub-factor不同
+            if (fi+fj) != fj_old or (i > 0 and xlabels_mat[i-1][j] != xlabels_mat[i-1][j-1]):
+                xlabels_mat[i][j] = AxisLable(fj)
+                xlabels[i].append(AxisLable(fj))
+                fj_old = fi+fj # 以防两个级别的factors中出现相同的sub-factors
+                if i > 0:
+                    xlabels_mat[i][j].add_father(xlabels_mat[i-1][j])
             else:
-                xlabels[f_i][-1].add_space()
+                xlabels_mat[i][j] = xlabels_mat[i][j-1]
+                xlabels[i][-1].add_space()
+    xlabels = xlabels[::-1] # 倒序，使最高级在最后
     xlabels.append([AxisLable(factors[-1], df.shape[0])])#master level has an extra total axis as x_title
     for axis_idx in range(len(xlabels)):
         pos.append([])
@@ -118,7 +139,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     Args:
         - factors (List[str]): A list of factors. [low_lever_factor, medium_lever_factor, ...] or just one.
         - tags (List[str]): A list of tags. [stack_low_y, stack_medium_y, ...] or just one.
-        - df (pd.DataFrame): A pandas DataFrame. From pro_bar_data or sort_df_factors.
+        - df (pd.DataFrame): A pandas DataFrame. From `pro_bar_data` or `sort_df_factors`.
         - kwargs: Additional keyword arguments.
             - width = 0.4
             - bar_space = 0.2
@@ -130,7 +151,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
             - offset = [None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors)-1)]
             - edgecolor:['white'] * len(tags),
             - linewidth: 0,
-            - err = None
+            - err = None, will multiply 1.96 to yerr.
             - err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}
 
     Returns:
@@ -377,6 +398,12 @@ def plot_turkey(means, std_errs, tukey_results, min_star = 1):
 
 if __name__ == '__main__':
     # dev code
+    df = pd.DataFrame({
+        'f1': ['a', 'b', 'b'],
+        'f2': ['M', 'M', 'N'],
+        'tag': [0.1, 0.2, 0.3]
+    })
+    pro_hue_pos(['f1', 'f2'], df, 0.4, 0.2, 0.1)
     pos = calcu_swarm_pos(0.5, np.array([1, 2, 2, 1, 1, 1, 0, 0, 4]), 0.5)
     # dev code
     df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
