@@ -105,10 +105,10 @@ def pro_hue_pos(factors:List[str], df:pd.DataFrame, width:float,
     for i, fi in enumerate(factors[::-1]): # 从最高级开始
         for j, fj in enumerate(df[fi]):
             # 不同sub-factor 或 相同sub-factor但上级sub-factor不同
-            if (fi+fj) != fj_old or (i > 0 and xlabels_mat[i-1][j] != xlabels_mat[i-1][j-1]):
+            if (str(fi)+str(fj)) != fj_old or (i > 0 and xlabels_mat[i-1][j] != xlabels_mat[i-1][j-1]):
                 xlabels_mat[i][j] = AxisLable(fj)
                 xlabels[i].append(AxisLable(fj))
-                fj_old = fi+fj # 以防两个级别的factors中出现相同的sub-factors
+                fj_old = str(fi)+str(fj) # 以防两个级别的factors中出现相同的sub-factors
                 if i > 0:
                     xlabels_mat[i][j].add_father(xlabels_mat[i-1][j])
             else:
@@ -148,7 +148,8 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
             - hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
             - font_size:None,
             - labels:None,
-            - offset = [None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors)-1)]
+            - offset = [None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors)-1)], x-axis offset
+            - xticks_pad: [5 for _ in range(len(factors)+1)], x-axis label pad from x-axis
             - edgecolor:['white'] * len(tags),
             - linewidth: 0,
             - err = None, will multiply 1.96 to yerr.
@@ -157,6 +158,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     Returns:
         np.array: An array of positions.
         ax1: An axis object.
+        y-axis tick labels' fontsize will be set same as first level's x-axis tick labels' fontsize.
     """
     ax1 = host_subplot(111, axes_class=axisartist.Axes)
     
@@ -170,6 +172,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
                             'font_size':None,
                             'labels':None,
                             'offset':[None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
+                            'xticks_pad':[5 for _ in range(len(factors)+1)],
                             'edgecolor':['white'] * len(tags),
                             'linewidth': 0,
                             'log': False,
@@ -191,11 +194,10 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
-    plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0])
+    plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0], pad = args.xticks_pad[0])
     if args.font_size is not None:
         plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
-    if isinstance(args.offset[0], int) or isinstance(args.offset[0], float):
-        plt.setp(ax1.axis["bottom"].major_ticklabels, pad=args.offset[0])
+        plt.setp(ax1.axis["left"].major_ticklabels, fontsize=args.font_size[0])
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
@@ -203,7 +205,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         axs[-1].set_xticks(sub_pos, [l.name for l in xlabels[idx+1]])
         new_axisline = axs[-1].get_grid_helper().new_fixed_axis
         axs[-1].axis["bottom"] = new_axisline(loc="bottom", axes=axs[-1], offset=(0, -args.offset[idx+1]))
-        plt.setp(axs[-1].axis["bottom"].major_ticklabels, rotation=args.xrotations[idx+1])
+        plt.setp(axs[-1].axis["bottom"].major_ticklabels, rotation=args.xrotations[idx+1], pad = args.xticks_pad[idx+1])
         if args.font_size is not None:
             plt.setp(axs[-1].axis["bottom"].major_ticklabels, fontsize=args.font_size[idx+1])
         axs[-1].axis["top"].major_ticks.set_ticksize(0)
