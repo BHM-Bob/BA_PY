@@ -1,5 +1,5 @@
 from functools import wraps
-from itertools import combinations
+from itertools import chain, combinations
 from typing import Callable, Dict, List, Tuple, Union, Optional
 
 import matplotlib.patches as patches
@@ -141,8 +141,12 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         - tags (List[str]): A list of tags. [stack_low_y, stack_medium_y, ...] or just one.
         - df (pd.DataFrame): A pandas DataFrame. From `pro_bar_data` or `sort_df_factors`.
         - kwargs: Additional keyword arguments.
+            - fig = None
+            - jitter = Flase, IF True, pass the original df, the func will call `pro_bar_data` internally.
+            - jitter_kwargs = {'size': 10, 'alpha': 0.5, 'color': None}
             - width = 0.4
-            - bar_space = 0.2
+            - bar_space = 0.05
+            - hue_space = 0.2
             - xrotations = [0]*len(factors)
             - colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
             - hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
@@ -152,20 +156,26 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
             - xticks_pad: [5 for _ in range(len(factors)+1)], x-axis label pad from x-axis
             - edgecolor:['white'] * len(tags),
             - linewidth: 0,
-            - err = None, will multiply 1.96 to yerr.
+            - err: (str|np.array), if str, will use df[err] as yerr. if np.array, will use it directly. will multiply 1.96 to yerr.
             - err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}
 
     Returns:
-        np.array: An array of positions.
-        ax1: An axis object.
-        y-axis tick labels' fontsize will be set same as first level's x-axis tick labels' fontsize.
+        - np.array: An array of positions.
+        - ax1: An axis object.
+        - df: If `jitter` is True, return the processed df.
+        
+    Notes:
+        - the `FIRST factor` will be the `LOWEST level x-axis`.
+        - y-axis tick labels' fontsize will be set same as first level's x-axis tick labels' fontsize.
     """
-    ax1 = host_subplot(111, axes_class=axisartist.Axes)
-    
+    # process args
     if len(tags) == 0:
         # TODO: 可能存在'Unbond: 0'等其他情况
         tags = list(df.columns)[len(factors):]
-    args = get_wanted_args({'width':0.4, 'hue_space':0.2, 'bar_space':0.05,
+    args = get_wanted_args({'fig': None,
+                            'jitter':False,
+                            'jitter_kwargs': {'size': 10, 'alpha': 0.5, 'color': None},
+                            'width':0.4, 'hue_space':0.2, 'bar_space':0.05,
                             'xrotations':[0]*len(factors),
                             'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
                             'hatchs':['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
@@ -180,17 +190,38 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
                             'err_kwargs':{'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}},
                             kwargs)
     args.xrotations.append(0)
+    # make first level axis
+    ax1 = host_subplot(111, axes_class=axisartist.Axes, figure=args.fig)
+    # plot jitter using seaborn
+    if args.jitter:
+        jittor_color = args.jitter_kwargs['color']
+        del args.jitter_kwargs['color']
+        @pro_bar_data_R(factors[::-1], tags, df, ['', '_SE', '_N', '_V'])
+        def pro_bar_jitter_data(v):
+            if v.shape[0] > 1:
+                se = v.std(ddof = 1)/np.sqrt(v.shape[0])
+            else:
+                se = np.NaN
+            return [v.mean(), se, v.shape[0], v]
+        df = pro_bar_jitter_data()
+    # make xlabels and positions
     xlabels, pos = pro_hue_pos(factors, df, args.width, args.hue_space, args.bar_space)
+    # plot bar
     bottom = kwargs['bottom'] if 'bottom' in kwargs else np.zeros(len(pos[0]))
-    
     for yIdx, yName in enumerate(tags):
-        if args.labels is not None:
-            label = args.labels[yIdx]
-        else:
-            label = yName
+        # label
+        label = args.labels[yIdx] if (args.labels and args.labels[yIdx] is not None) else yName
+        # add jitter
+        if args.jitter:
+            for i, (n, y) in enumerate(zip(df[yName+'_N'], df[yName+'_V'])):
+                x = [pos[0][i]] * n
+                color = jittor_color[yIdx][i] if jittor_color is not None else 'black'
+                sns.stripplot(x=x, y=y.reshape(-1), ax=ax1, jitter=True, native_scale=True,
+                              color=color, zorder = 1, legend = False, **args.jitter_kwargs)
+        # plot bar
         ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=label,
                 edgecolor=args.edgecolor[yIdx], linewidth = args.linewidth,
-                color=args.colors[yIdx], log = args.log)
+                color=args.colors[yIdx], log = args.log, zorder = 0)
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
@@ -213,10 +244,15 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         axs[-1].axis["right"].major_ticks.set_ticksize(0)
         
     # err bar, put here because errorbar will change ax obj and occur errs
-    if args.err is not None:        
-        ax1.errorbar(pos[0], bottom, yerr=1.96 * args.err, **args.err_kwargs)
+    if args.err is not None:
+        if isinstance(args.err, str):
+            args.err = df[args.err]
+        ax1.errorbar(pos[0], bottom, yerr=1.96 * args.err, zorder = 2, **args.err_kwargs)
     
-    return np.array(pos[0]), ax1
+    if args.jitter:
+        return np.array(pos[0]), ax1, df
+    else:
+        return np.array(pos[0]), ax1
 
 def plot_positional_hue(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     """
@@ -400,23 +436,17 @@ def plot_turkey(means, std_errs, tukey_results, min_star = 1):
 
 if __name__ == '__main__':
     # dev code
-    df = pd.DataFrame({
-        'f1': ['a', 'b', 'b'],
-        'f2': ['M', 'M', 'N'],
-        'tag': [0.1, 0.2, 0.3]
-    })
-    pro_hue_pos(['f1', 'f2'], df, 0.4, 0.2, 0.1)
-    pos = calcu_swarm_pos(0.5, np.array([1, 2, 2, 1, 1, 1, 0, 0, 4]), 0.5)
-    # dev code
     df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
     df['Animal Type'] = df['Animal Type'].astype('str')
     model = mst.multicomp_turkeyHSD({'Animal Type':[]}, 'Duration', df)
     result = mst.turkey_to_table(model)
     print(result)
-    sub_df = get_df_data({'Animal Type':[]}, ['Duration'], df)
-    sub_df = pro_bar_data(['Animal Type'], ['Duration'], sub_df)
+    # sub_df = get_df_data({'Animal Type':[]}, ['Duration'], df)
+    sub_df = pro_bar_data(['Animal Type'], ['Duration'], df)
     # test err
-    plot_bar(['Animal Type'], ['Duration'], sub_df, err = sub_df['Duration_SE'])
+    cols = get_palette(n = 4, mode = 'hls')
+    plot_bar(['Animal Type'], ['Duration'], df, err = sub_df['Duration_SE'], jitter = True,
+             edgecolor = [cols], linewidth = 5, colors = ['white'], jitter_kwargs = {'size': 10, 'alpha': 1, 'color': [cols]})
     plt.show()
     plot_turkey(sub_df['Duration'], sub_df['Duration_SE'], model)
     plt.show()
