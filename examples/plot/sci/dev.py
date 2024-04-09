@@ -1,8 +1,8 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-04 12:33:19
-LastEditors: BHM-Bob
-LastEditTime: 2023-03-25 23:18:14
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-04-09 14:01:51
 Description: 
 '''
 import sys
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import plot
+import mbapy.plot as plot
 
 plt.rcParams['axes.titlesize'] = 20
 plt.rcParams['axes.labelsize'] = 20
