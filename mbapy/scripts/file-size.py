@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-15 21:01:33
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-15 22:33:41
+LastEditTime: 2024-04-15 23:02:22
 Description: 
 '''
 
@@ -37,12 +37,14 @@ def main(sys_args: List[str] = None):
                             help='FLAG, recursive search. Default is %(default)s.')
     args_paser.add_argument('--enable-case', action='store_true', default=False,
                             help='FLAG, ignore case when counting. Default is %(default)s.')
+    args_paser.add_argument('--sort-by-name', action='store_true', default=False,
+                            help='FLAG, sort result by file name, if not set, sort by size. Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     
     # process args
     args.type = args.type.split(',') if args.type else args.type
     args.input = clean_path(args.input)
-    show_args(args, ['input', 'type', 'name', 'recursive', 'enable_case'])
+    show_args(args, ['input', 'type', 'name', 'recursive', 'enable_case', 'sort_by_name'])
     
     # get input paths
     if os.path.isfile(args.input):
@@ -52,7 +54,7 @@ def main(sys_args: List[str] = None):
                                         args.recursive, args.name)
     
     # copy
-    type_size = {}  # type: Dict[str, List[int, int]]
+    type_size, type_info = {}, []
     for path in tqdm(paths, leave=False):
         try:
             file_type = os.path.splitext(path)[-1][1:]
@@ -66,12 +68,20 @@ def main(sys_args: List[str] = None):
         except:
             put_err(f'can not get size of {path}, skip')
     
-    # output result
+    # sort result
     total_file, total_size = len(paths), sum([i[-1] for i in type_size.values()])
     for file_type, info in type_size.items():
         count, size = info
-        print(f'{file_type:10s}: {format_file_size(size):10s} ({size:10d} bytes) ({size/total_size:2.2%} of total size) ({count:10d} files) ({count/total_file:2.2%} of total files)')
-    print(f'\ntotal files: {total_file}\ntotal size: {format_file_size(total_size)} ({size} bytes)')
+        type_info.append((file_type, size, count))
+    if args.sort_by_name:
+        type_info.sort(key=lambda x: x[0])
+    else:
+        type_info.sort(key=lambda x: x[1], reverse=True)
+        
+    # print result
+    for file_type, size, count in type_info:
+        print(f'{file_type:10s}: {format_file_size(size):15s} ({size:10d} bytes) ({size/total_size:6.2%} of total size) ({count:10d} files) ({count/total_file:6.2%} of total files)')
+    print(f'\ntotal types: {len(type_size)}\ntotal files: {total_file}\ntotal size: {format_file_size(total_size)} ({size} bytes)')
         
     return paths, type_size
     
