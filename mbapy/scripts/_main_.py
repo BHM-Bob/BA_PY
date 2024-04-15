@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-20 09:56:15
+LastEditTime: 2024-04-15 21:19:43
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -144,6 +144,14 @@ scripts_info = {
                 extract-dir.
                 """,
         },
+    'file-size':
+        {
+            'brief': 'count files with specific suffix or sub-string in name',
+            'detailed': 
+                """
+                count files with specific suffix or sub-string in name.
+                """,
+        },
 }
 
 
@@ -205,8 +213,9 @@ def main():
             # exec scripts
             exec_scripts()
         else:
-            print(f'unkown scripts: {sys.argv[1]} and args: ', end='')
+            print(f'mbapy-cli: unkown scripts: {sys.argv[1]} and args: ', end='')
             [print(f' {arg}', end='') for arg in sys.argv[1:]]
+            print('\n, skip')
             
     # print a '\n' in the end
     print('')
