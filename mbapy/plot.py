@@ -223,7 +223,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
                 edgecolor=args.edgecolor[yIdx], linewidth = args.linewidth,
                 color=args.colors[yIdx], log = args.log, zorder = 0)
         bottom += df[yName]
-    ax1.set_xlim(0, pos[0][-1]+args.bar_space+args.width/2)
+    ax1.set_xlim(0, pos[0][-1]+args.hue_space+args.width/2)
     ax1.set_xticks(pos[0], [l.name for l in xlabels[0]])
     plt.setp(ax1.axis["bottom"].major_ticklabels, rotation=args.xrotations[0], pad = args.xticks_pad[0])
     if args.font_size is not None:
