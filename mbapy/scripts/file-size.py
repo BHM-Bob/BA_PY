@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-15 21:01:33
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-15 21:59:37
+LastEditTime: 2024-04-15 22:33:41
 Description: 
 '''
 
@@ -75,10 +75,8 @@ def main(sys_args: List[str] = None):
         
     return paths, type_size
     
-    
 
-# dev code
-main(['-i', r'Z:\USERS\BHM\papers', '-r'])
+# # dev code
 
 if __name__ == "__main__":
     main()
