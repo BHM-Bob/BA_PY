@@ -98,7 +98,7 @@ def launch_sub_thread(statuesQue = statuesQue,
     
     Note:
         - statuesQue has two keys for mbapy inner usage: __is_quit__ and __inputs__.
-        - key2action iwill add a ket 'e' first, and then add other key-to-action.
+        - key2action will add a key 'e' first, and then add other key-to-action.
             The 'e' key will trigle the 'exit' signal to _wait_for_quit func.
         - NOLY IF get no match without reg, then try to match with reg.
     
@@ -293,22 +293,8 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
-    async def example_coroutine(name, seconds):
-        print(f"Coroutine {name} started")
-        await asyncio.sleep(seconds)
-        print(f"Coroutine {name} finished after {seconds} seconds")
-        return f"Coroutine {name} result"
-
-    pool = CoroutinePool().run()
-    pool.add_task("task1", example_coroutine, "task1", 3)
-    pool.add_task("task2", example_coroutine, "task2", 5)
-
-    print(pool.query_task("task1"))  # Output: TaskStatus.NOT_FINISHED
-    print(pool.query_task("task2"))  # Output: TaskStatus.NOT_FINISHED
-
-    # wait for tasks to finish
-    import time
-    time.sleep(6)
-
-    print(pool.query_task("task1"))  # Output: Coroutine task1 finished after 3 seconds
-    print(pool.query_task("task2"))  # Output: Coroutine task2 finished after 5 seconds
+    k2a = [('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))]
+    launch_sub_thread(key2action=k2a)
+    while not statues_que_opts(statuesQue, "__is_quit__", "getValue"):
+        time.sleep(1)
+    print('exit')
