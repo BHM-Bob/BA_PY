@@ -14,12 +14,12 @@ from mbapy import base, file
 from mbapy.bio.peptide import AnimoAcid, Peptide
 
 if __name__ == '__main__':
-    from mbapy.scripts._script_utils_ import clean_path
+    from mbapy.scripts._script_utils_ import clean_path, show_args
 else:
-    from ._script_utils_ import clean_path
+    from ._script_utils_ import clean_path, show_args
 
 
-def calcu_substitution_value(args):
+def calcu_substitution_value(args: argparse.Namespace):
     """
     Calculates the substitution value and plots a scatter plot with a linear 
     regression model. The function first processes the input arguments to 
@@ -67,7 +67,7 @@ def calcu_substitution_value(args):
     plt.show()
 
 
-def calcu_mw(args, _print = print):
+def calcu_mw(args: argparse.Namespace, _print = print):
     """
     Calculates the molecular weight (MW) of a peptide based on its amino acid sequence and a dictionary of weights for each amino acid.
 
@@ -109,7 +109,7 @@ class MutationOpts:
         return MutationOpts(self.AA_deletion, self.AA_repeat, self.N_protect_deletion,
                             self.C_protect_deletion, self.R_protect_deletion)
     
-    def check_empty(self, _pos: List[int], seq: Peptide):
+    def check_empty(self, _pos: List[int], seq: Peptide, args: argparse.Namespace):
         """
         return list of signals which is able to opt, if empty, the lis is also empty.
         """
@@ -118,7 +118,7 @@ class MutationOpts:
         if pos >= len(seq.AAs):
             return []
         if sum_repeat == 1:
-            if self.AA_deletion:
+            if self.AA_deletion and not args.disable_aa_deletion:
                 able.append('AA_deletion')
             if self.AA_repeat > 0:
                 able.append('AA_repeat')
@@ -202,7 +202,7 @@ class MutationOpts:
         setattr(tree.remain.opts, f'{NCR}_protect_deletion', False)
         return tree
                 
-    def perform_one(self, tree: 'MutationTree', max_repeat: int):
+    def perform_one(self, tree: 'MutationTree', args: argparse.Namespace):
         """
         Perform ONE mutation opt left in tree.opts, return this tree. Also check if it is a repeated AA.
         If it is a repeated AA depend on tree.pos[2], skip AA deletion and AA repeat.
@@ -217,13 +217,13 @@ class MutationOpts:
                 - DO NOT CHECK IF MEETS END in both this dot and two branches.
                 - return the tree.
         """
-        able = tree.opts.check_empty(tree.pos, tree.seq)
+        able = tree.opts.check_empty(tree.pos, tree.seq, args)
         if able:
             # generate two branch
             tree.generate_two_branch()
             # perform mutation
             if 'AA_deletion' in able:
-                tree = self.delete_AA(tree, max_repeat)
+                tree = self.delete_AA(tree, args.max_repeat)
             elif 'AA_repeat' in able:
                 tree = self.repeat_AA(tree)
             elif 'N_protect_deletion' in able:
@@ -313,29 +313,29 @@ class MutationTree:
             return True
         return False
         
-def mutate_peptide(tree: MutationTree, max_repeat: int):
+def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
     """
     Parameters:
         - mutations: Tree object, store all mutations and there relationship.
         - max_repeat: int
     """
     # perofrm ONE mutation
-    tree = tree.opts.perform_one(tree, max_repeat)
+    tree = tree.opts.perform_one(tree, args)
     # if NO mutaion can be done, 
     if tree.mutate is None and tree.remain is None:
         # try move current AA in this tree to next AA
-        if tree.move_to_next(max_repeat):
+        if tree.move_to_next(args.max_repeat):
             # move success, go on
-            mutate_peptide(tree, max_repeat)
+            mutate_peptide(tree, args)
         else:
             # it is the end, return tree
             return tree
     else: # go on with two branches
-        mutate_peptide(tree.mutate, max_repeat)
-        mutate_peptide(tree.remain, max_repeat)
+        mutate_peptide(tree.mutate, args)
+        mutate_peptide(tree.remain, args)
     return tree
 
-def calcu_mw_of_mutations(args):
+def calcu_mw_of_mutations(args: argparse.Namespace):
     """
     Calculates the molecular weight of mutations based on the given arguments.
 
@@ -378,18 +378,15 @@ def calcu_mw_of_mutations(args):
     else:
         f = None
     # show args
-    _print(f'get arg: seqeunce: {args.seq}', f)
-    _print(f'get arg: weight: {args.weight}', f)
-    _print(f'get arg: max-repeat: {args.max_repeat}', f)
-    _print(f'get arg: out: {args.out}', f)
-    _print(f'get arg: mass: {args.mass}', f)
+    show_args(args, ['seq', 'weight','max_repeat', 'disable_aa_deletion', 'out','mass'],
+              printf = lambda x : _print(x, f))
     # show mother peptide info
     peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
     # calcu mutations
     all_mutations = MutationTree(peptide=peptide, seq=peptide.copy(),
                                  opts=MutationOpts(AA_repeat=args.max_repeat),
                                  pos=[0, 0, 1])
-    all_mutations = mutate_peptide(all_mutations, args.max_repeat)
+    all_mutations = mutate_peptide(all_mutations, args)
     all_mutations = all_mutations.extract_mutations()
     mw2pep, peps = {}, {}
     for pep in all_mutations:
@@ -502,6 +499,8 @@ def main(sys_args: List[str] = None):
                                 help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
     mutationweight.add_argument('--max-repeat', type = int, default = 1,
                                 help='max times for repeat a AA in sequence')
+    mutationweight.add_argument('--disable-aa-deletion', action='store_true', default=False,
+                                help='disable AA deletion in mutations.')
     mutationweight.add_argument('-o', '--out', type = str, default = None,
                                 help='save results to output file/dir. Defaults None, do not save.')
     mutationweight.add_argument('-m', '--mass', action='store_true', default=False,

@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-03-09 19:28:33
+LastEditTime: 2024-04-15 22:21:56
 Description: 
 '''
 import collections
@@ -36,6 +36,7 @@ if __name__ == '__main__':
                 from mbapy.file_utils.video import *
     except:
         pass
+    __all__extend__ = []
 else:
     # release mode
     from .base import (check_parameters_path, format_secs,
@@ -80,15 +81,13 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         List[str]: A list of file paths that match the specified file extensions.
     """
     file_paths = []
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            if any(file.endswith(extension) for extension in file_extensions) or (not file_extensions):
-                if (not name_substr) or (name_substr and name_substr in file.split(os.path.sep)[-1]):
-                    file_paths.append(os.path.join(root, file))
-        if recursive:
-            for dir in dirs:
-                file_paths.extend(get_paths_with_extension(os.path.join(root, dir),
-                                                           file_extensions, recursive, name_substr))
+    for name in os.listdir(folder_path): # do not use os.walk() to avoid FXXK files updates
+        path = os.path.join(folder_path, name)
+        if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
+            if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
+                file_paths.append(path)
+        if recursive and os.path.isdir(path):
+            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr))
     return file_paths
 
 def format_file_size(size_bits: int, return_str: bool = True):

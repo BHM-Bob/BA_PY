@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-03-20 19:36:03
+LastEditTime: 2024-04-09 14:03:21
 Description: pd.dataFrame utils
 '''
 import itertools
@@ -82,9 +82,10 @@ def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:L
             - values: the values of tags, calculated by core_func
             
     Example
-    >>> @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf)\n
-    >>> def plot_func(values, **kwargs):
+    >>> @pro_bar_data_R(['solution', 'type'], ['root', 'leaf'], ndf, suffix = ['_mean', '_SE'], min_sample_N=10)\n
+    >>> def pro_func(values):
     >>>     return produced vars in list format whose length equal to len(suffix)
+    >>> df = pro_func()
     """
     def ret_wrapper(core_func):
         def core_wrapper(**kwargs):

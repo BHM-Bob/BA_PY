@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-10 16:44:48
+LastEditTime: 2024-04-05 16:12:09
 Description: 
 '''
 from itertools import combinations
@@ -40,9 +40,9 @@ def _get_x1_x2(x1 = None, x2 = None,
     if factors is not None and tag is not None and df is not None:
         sub_df = msd.get_df_data(factors, [tag], df)
         fac_name = list(factors.keys())[0]
-        x1 = sub_df.loc[sub_df[fac_name] == factors[fac_name][0], [tag]].values
+        x1 = sub_df.loc[sub_df[fac_name] == factors[fac_name][0], [tag]].values.reshape(-1)
         if len(factors[fac_name]) == 2:
-            x2 = sub_df.loc[sub_df[fac_name] == factors[fac_name][1], [tag]].values
+            x2 = sub_df.loc[sub_df[fac_name] == factors[fac_name][1], [tag]].values.reshape(-1)
         elif len(factors[fac_name]) > 2:
             raise ValueError('Only support 1 or 2 value of factors')
     return x1, x2
@@ -70,7 +70,7 @@ def ttest_ind(x1 = None, x2 = None,
                  factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
     独立样本t检验(双样本T检验):检验两组独立样本均值是否相等\n
-    要求正太分布，正太检验结果由scipy.stats.levene计算并返回\n
+    要求正态分布，正态检验结果由scipy.stats.levene计算并返回\n
     levene 检验P值 > 0.05，接受原假设，认为两组方差相等\n
     如不相等， scipy.stats.ttest_ind() 函数中的参数 equal_var 会设置成 False
     """
@@ -95,10 +95,18 @@ def mannwhitneyu(x1 = None, x2 = None,
     x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
     return scipy.stats.mannwhitneyu(x1, x2, **kwargs)
 
+def wilcoxon(x1 = None, x2 = None,
+             factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
+    """
+    Wilcoxon signed-rank test, 样本不符合正态分布但配对时使用。
+    """
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
+    return scipy.stats.ranksums(x1, x2, **kwargs)
+
 def shapiro(x1 = None,
             factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None, **kwargs):
     """
-    shapiro正态检验:\n
+    夏皮洛-威尔克检验（Shapiro—Wilk test），一般又称W检验。W检验是一种类似于利用秩进行相关性检验的方法。同样需要注意的是，W检验与K-S检验一样，原假设是“样本数据来自的分布与正态分布无显著差异”，因此一般来说，检验结果P>0.05才是我们的目标。
     p > 0.05 为正态分布
     """
     x1, _ = _get_x1_x2(x1, None, factors, tag, df)
@@ -115,6 +123,77 @@ def pearsonr(x1 = None, x2 = None,
     """
     x1, x2 = _get_x1_x2_R(x1, x2, factors, tags, df)
     return scipy.stats.pearsonr(x1, x2, **kwargs)
+
+def auto_ind_test(x1 = None, x2 = None,
+                  factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None,
+                  float_round:int = 5, **kwargs):
+    """
+    Params:
+        - x1, x2: samples to compare
+        - factors, tag, df: mbapy-style data input
+        - float_round: round the result to float_round decimal places
+        - **kwargs: other parameters for the test function
+        
+    Returns:
+        - result: the result of the test function
+        
+    Notes:
+    自动选择最合适的检验方法\n
+    - 符合正态分布
+        - 配对：scipy.stats.ttest_rel
+        - 不配对：
+            - 等方差：scipy.stats.ttest_ind(equal_var=True)
+            - 不确定等方差：scipy.stats.ttest_ind(equal_var=False)
+    - 不符合正态分布
+        - 配对：scipy.stats.wilcoxon
+        - 不配对：scipy.stats.mannwhitneyu
+    
+    Items:
+        - skew: 偏度，0代表正态，大于0代表右偏，小于0代表左偏
+        - kurtosis: 峰度，峰度包括正态分布（峰度值=3），厚尾（峰度值>3），瘦尾（峰度值<3）
+        - normality: 正态性检验结果
+        - equal_var: 方差是否相等，直接检验X1和X2
+    """
+    x1, x2 = _get_x1_x2(x1, x2, factors, tag, df)
+    _fmt_result = lambda result: f'{result[0]:.{float_round}f}, p={result[1]:.{float_round}f}, {result[1] < 0.05}' # < 0.05 为显著差异
+    _fmt_result_gt = lambda result: f'{result[0]:.{float_round}f}, p={result[1]:.{float_round}f}, {result[1] > 0.05}' # < 0.05 为显著差异
+    print('-'*22, 'mbapy.stats.auto_ind_test', '-'*23)
+    if factors is not None and tag is not None and df is not None:
+        fac_name = df[list(factors.keys())[0]].unique()
+        print(f'X1: {fac_name[0]}, X2: {fac_name[1]}')
+    # show x1 and x2 statistics info (each)
+    shapiro_results = []
+    print('-'*19, 'X1 and X2 Statistics Info (each)', '-'*19)
+    for i, x in enumerate([x1, x2]):
+        print(f'X{i+1}: N={len(x)}, mean={np.mean(x):.{float_round}f}, std={np.std(x):.{float_round}f}, SE={scipy.stats.sem(x):.{float_round}f}')
+        print(f'skew={scipy.stats.skew(x):.{float_round}f}, kurtosis={scipy.stats.kurtosis(x):.{float_round}f}')
+        shapiro_results.append(shapiro(x))
+        print(f'normality(shapiro)={_fmt_result_gt(shapiro_results[-1])}')
+        print('-'*70)
+    # show x1 and x2 statistics info (together)
+    print('-'*17, 'X1 and X2 Statistics Info (together)', '-'*17)
+    equal_vars = scipy.stats.levene(x1, x2)
+    print(f'equal_var(levene)={_fmt_result_gt(equal_vars)}')
+    print('-'*70)
+    # perform test
+    if shapiro_results[0][1] > 0.05 and shapiro_results[1][1] > 0.05:
+        if len(x1) != len(x2):
+            is_equal_vals = equal_vars[1] > 0.05
+            result = scipy.stats.ttest_ind(x1, x2, equal_var=is_equal_vals, **kwargs)
+            print(f'perform ttest_ind(equal_var={is_equal_vals}): {_fmt_result(result)}')
+        else:
+            result = scipy.stats.ttest_rel(x1, x2, **kwargs)
+            print(f'perform ttest_rel: {_fmt_result(result)}')
+    else:
+        if len(x1) == len(x2):
+            result = scipy.stats.wilcoxon(x1, x2, **kwargs)
+            print(f'perform wilcoxon: {_fmt_result(result)}')
+        else:
+            result = scipy.stats.mannwhitneyu(x1, x2, **kwargs)
+            print(f'perform mannwhitneyu: {_fmt_result(result)}')
+    print('-'*70)
+    return result
+
 
 def _get_observe(observed = None,
                  factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None):
