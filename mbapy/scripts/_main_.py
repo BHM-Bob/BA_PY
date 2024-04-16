@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-15 21:19:43
+LastEditTime: 2024-04-16 10:54:58
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -150,6 +150,14 @@ scripts_info = {
             'detailed': 
                 """
                 count files with specific suffix or sub-string in name.
+                """,
+        },
+    'hplc':
+        {
+            'brief': 'HPLC tools',
+            'detailed': 
+                """
+                HPLC tools, such as ploting HPLC from data file.
                 """,
         },
 }
