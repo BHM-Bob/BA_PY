@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-04 19:05:15
+LastEditTime: 2024-04-21 21:07:12
 Description: 
 '''
 """
@@ -108,4 +108,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.7.1.tar.gz
+# twine upload dist/mbapy-0.7.2.tar.gz

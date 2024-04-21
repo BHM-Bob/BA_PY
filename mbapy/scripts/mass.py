@@ -103,11 +103,12 @@ def plot_mass_plot_peaklist(name:str, df: pd.DataFrame, args):
     
 def plot_mass_plot_masscharge(name: str, df: pd.DataFrame, args):
     # find peaks
-    print('searching peaks...')
     peaks_cache_path = os.path.join(args.output, f'{name} peaks.cache.npy')
     if args.use_peaks_cache and os.path.exists(peaks_cache_path):
         peaks = np.load(peaks_cache_path)
+        print(f'loaded peaks from cache: {peaks_cache_path}')
     else:
+        print('searching peaks...')
         peaks = scipy.signal.find_peaks_cwt(df['Intensity'], args.min_peak_width)
         np.save(peaks_cache_path, peaks)
     # filter peaks
@@ -272,6 +273,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main(['plot-mass', '-d', r'data_tmp/scripts/mass'])
+    # main(['plot-mass', '-d', r'data_tmp/scripts/mass'])
     
     main()
