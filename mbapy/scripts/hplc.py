@@ -96,8 +96,8 @@ def plot_hplc(args):
             info_df, data_df = [d[0] for d in dfs], [d[1] for d in dfs]
             plot_hplc_plot_waters('merge', info_df, data_df, args)
     else:
-        for n, df in dfs.items():
-            file_name = Path(n).resolve().stem
+        for path, df in dfs.items():
+            path = Path(path).resolve()
             # plot each df
             if args.system == 'waters':
                 info_df, data_df = df
@@ -105,10 +105,10 @@ def plot_hplc(args):
                 sample_name, sample_time, sample_channle = info_df['"样品名称"'][0], info_df['"采集日期"'][0], info_df['"通道"'][0]
                 csv_name = f'{sample_name} - {sample_time} - {sample_channle}'.replace('"', '')
                 csv_name = get_valid_file_path(csv_name.replace('/', '-'), valid_len=500).replace(':', '-')
-                info_df.to_csv(os.path.join(args.output, get_valid_file_path(csv_name + ' - info.csv')))
-                data_df.to_csv(os.path.join(args.output, get_valid_file_path(csv_name + ' - data.csv')))
+                info_df.to_csv(str(path.parent / get_valid_file_path(csv_name + ' - info.csv')))
+                data_df.to_csv(str(path.parent / get_valid_file_path(csv_name + ' - data.csv')))
                 # plot
-                print(f'plot {file_name}: {csv_name}')
+                print(f'plot {path.stem}: {csv_name}')
                 print(info_df.T)
                 plot_hplc_plot_waters(csv_name, info_df, data_df, args)
 
