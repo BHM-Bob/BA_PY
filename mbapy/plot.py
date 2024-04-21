@@ -247,7 +247,13 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     if args.err is not None:
         if isinstance(args.err, str):
             args.err = df[args.err]
-        ax1.errorbar(pos[0], bottom, yerr=1.96 * args.err, zorder = 2, **args.err_kwargs)
+        if 'ecolor' in args.err_kwargs and isinstance(args.err_kwargs['ecolor'], list):
+            err_cols = args.err_kwargs['ecolor']
+            del args.err_kwargs['ecolor']
+            for pos_i, y, err_i, col_i in zip(pos[0], bottom, args.err, err_cols):
+                ax1.errorbar(pos_i, y, yerr=1.96 * err_i, zorder = 2, ecolor = col_i, **args.err_kwargs)
+        else:
+            ax1.errorbar(pos[0], bottom, yerr=1.96 * args.err, zorder = 2, **args.err_kwargs)
     
     if args.jitter:
         return np.array(pos[0]), ax1, df
