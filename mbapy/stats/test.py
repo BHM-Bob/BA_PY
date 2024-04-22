@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-05 16:12:09
+LastEditTime: 2024-04-05 18:19:53
 Description: 
 '''
 from itertools import combinations
@@ -160,6 +160,7 @@ def auto_ind_test(x1 = None, x2 = None,
     print('-'*22, 'mbapy.stats.auto_ind_test', '-'*23)
     if factors is not None and tag is not None and df is not None:
         fac_name = df[list(factors.keys())[0]].unique()
+        print(f'Factor: {list(factors.keys())[0]}')
         print(f'X1: {fac_name[0]}, X2: {fac_name[1]}')
     # show x1 and x2 statistics info (each)
     shapiro_results = []

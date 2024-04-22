@@ -2,7 +2,7 @@
 
 Welcome to the BA_PY docs!
 
-# BA_PY
+# BA_PY: Optimize Your Workflow with Python!
 [![Downloads](https://static.pepy.tech/badge/mbapy)](https://pepy.tech/project/mbapy) ![PyPI - Downloads](https://img.shields.io/pypi/dm/mbapy) ![GitHub all releases](https://img.shields.io/github/downloads/BHM-Bob/BA_PY/total?label=GitHub%20all%20releases%20downloads)
 
 ![GitHub repo size](https://img.shields.io/github/repo-size/BHM-Bob/BA_PY) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/BHM-Bob/BA_PY) [![GitHub Commit Activity](https://img.shields.io/github/commit-activity/m/BHM-Bob/BA_PY)](https://github.com/BHM-Bob/BA_PY/pulse)
@@ -11,27 +11,44 @@ Welcome to the BA_PY docs!
 
 ![Read the Docs](https://img.shields.io/readthedocs/ba-py) ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY) [![built with Codeium](https://codeium.com/badges/main)](https://codeium.com)
 
+![platform - WINDOWS](https://camo.githubusercontent.com/c292429e232884db22e86c2ea2ea7695bc49dc4ae13344003a95879eeb7425d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f57696e646f77732d3030373844363f7374796c653d666f722d7468652d6261646765266c6f676f3d77696e646f7773266c6f676f436f6c6f723d7768697465) ![platform - LINUX](https://camo.githubusercontent.com/7eefb2ba052806d8a9ce69863c2eeb3b03cd5935ead7bd2e9245ae2e705a1adf/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c696e75782d4643433632343f7374796c653d666f722d7468652d6261646765266c6f676f3d6c696e7578266c6f676f436f6c6f723d626c61636b)
+
 mbapy is a Python package that includes a collection of useful Python scripts as sub-modules, and it's goal is *Basic for All in Python*.  
-mbapy primarily focus on areas such as sci-plot, stats, web-crawler, sci-paper utilities, and deep learning with pytorch.  
+mbapy primarily focus on data works, including data-retrieval, data-management, data-visualization, data-analysis and data-computation. It is built for both python-users and command-line-users.
 
 ## get start
 
-### install 
+#### install 
 Now, mbapy only support pypi install:  
 ```
 pip install mbapy
 ```
 
-If you find the latest release version has some problems, you can try install the up-to-date version on github:
+mbapy is a multi-funtional package, and it does not require every third-party packages to make every sub-module work. However, it provides some requriements option to install more specified requirements to make some sub-modules work:  
+1. bio: some packages for biology(sci).  
+    install as `pip install mbapy[bio]`  
+2. game: some packages for game(pygame).  
+    install as `pip install mbapy[game]`  
+3. full: full requirements to make almost every sub-module in mbapy work(except dl_torch).  
+     install as `pip install mbapy[full]`  
+
+If you find the latest release version has some problems, you can try install the up-to-date version on github or gitee:  
 ```
 pip install git+https://github.com/BHM-Bob/BA_PY.git
+```
+```
+pip install git+https://gitee.com/BHM-Bob/BA_PY.git
 ```
 
 # Contains
 ## [base](base.md)
 Some global utils in this package, most of them are also for users.  
 ## web
-Some web-crawlers utils, mainly contains [request](web_utils/request.md) for requesting html, [parse](web_utils/parse.md) for parsing html and [task](web_utils/task.md) for managing task.  
+Some web-crawlers utils, mainly contains:
+1. [request](web_utils/request.md) for requesting html
+2. [parse](web_utils/parse.md) for parsing html
+3. [task](web_utils/task.md) for managing task.  
+4. [spider](web_utils/spider.md) for constructing and running a simple web spider.  
 ## [file](file.md)
 Smoe file tools, mainly contains json, excel, [video](file_utils/video.md) and [image](file_utils/image.md) utils.  
 ## [plot](plot.md)
@@ -39,6 +56,8 @@ Some plot tools, mainly contains pandas.dataFrame tools for plot and some plot u
 ## [stats](stats.md)
 Some stats functions, most of them are just import form scipy and warps for scipy to make data transformation same as mabpy style.  
 Incude [df](stats_utils/df.md) for data frame utils, [reg](stats_utils/reg.md) for regression utils and [test](stats_utils/test.md) for stats test utils.  
+## bio
+1. [peptide](bio/peptide.md) for peptide utils.  
 ## dl_torch
 Some pytorch utils and some models.  
 1. [utils](dl_torch/utils.md) for deep learning training pepline construction utils.  

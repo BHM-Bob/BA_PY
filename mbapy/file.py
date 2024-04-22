@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-15 22:21:56
+LastEditTime: 2024-04-21 18:54:51
 Description: 
 '''
 import collections
@@ -75,7 +75,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         - file_extensions (List[str]): A list of file extensions to filter the search by.
             If it is empty, accept all extensions.
         - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
-        - name_substr (str, optional): Sub-string in file-name. Defualts to '', means not specific.
+        - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
