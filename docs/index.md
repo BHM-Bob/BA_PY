@@ -1,3 +1,9 @@
+<!--
+ * @Date: 2023-07-29 09:56:37
+ * @LastEditors: BHM-Bob 2262029386@qq.com
+ * @LastEditTime: 2024-04-22 20:25:08
+ * @Description: 
+-->
 <!-- mkdocs serve -->
 
 Welcome to the BA_PY docs!
@@ -74,7 +80,19 @@ Some scientific paper utils, including parsing RIS, downloading pdf by title or 
 3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.
 ## [scripts](scripts.md)
 Some helpful command line scripts.  
-1. [cnipa](scripts.md#cnipa)  
-2. [extract_paper](scripts.md#extract_paper)  
-3. [scihub_selenium](scripts.md#scihub_selenium)  
-4. [scihub](scripts.md#scihub)  
+1. [avif](scripts/avif.md)  
+2. [cnipa](scripts/cnipa.md)  
+3. [cp](scripts/cp.md)  
+4. [duitang](scripts/duitang.md)  
+5. [extract_paper](script/extract_paper.md)  
+6. [extract-dir](scripts/extract_dir.md)  
+7. [file-size](scripts/file_size.md)  
+8. [hplc](scripts/hplc.md)  
+9. [mass](scripts/mass.md)  
+10. [mv](scripts/mv.md)  
+11. [peptide](scripts/peptide.md)  
+12. [reviz](scripts/reviz.md)  
+13. [rm](scripts/rm.md)  
+14. [scihub_selenium](scripts/scihub_selenium.md)  
+15. [scihub](scripts.md#scihub)  
+16. [video](scripts/video.md)  
