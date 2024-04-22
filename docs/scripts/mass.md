@@ -1,3 +1,6 @@
+
+*`Kimi` generated*.
+
 ## plot-mass
 ### Brief Description
 The `plot-mass` command is designed to process and visualize mass spectrometry data from text files. It reads text files, interprets the content based on the header information, and creates various plots such as base peak, absorbance, peak list, and mass-charge plots. The command allows for customization of the plots through command-line arguments, including setting the directory for input and output, recursive search, plot colors, and labels for specific mass values.
