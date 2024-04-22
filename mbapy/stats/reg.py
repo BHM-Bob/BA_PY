@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-02 11:46:14
+LastEditTime: 2024-04-22 22:17:22
 Description: 
 '''
 from typing import Dict, List
@@ -26,12 +26,12 @@ def linear_reg(x:str, y:str, df:pd.DataFrame):
     Perform linear regression on the given DataFrame.
 
     Parameters:
-        x (str): The column name for the independent variable.
-        y (str): The column name for the dependent variable.
-        df (pd.DataFrame): The DataFrame containing the data.
+        - x (str): The column name for the independent variable.
+        - y (str): The column name for the dependent variable.
+        - df (pd.DataFrame): The DataFrame containing the data.
 
     Returns:
-        dict: A dictionary containing the regression model, slope, intercept, and R-squared value.
+        - dict: A dictionary containing the regression model, slope, intercept, and R-squared value.
             - 'regressor' (LinearRegression): The fitted regression model.
             - 'a' (float): The slope of the regression line.
             - 'b' (float): The intercept of the regression line.
@@ -41,13 +41,15 @@ def linear_reg(x:str, y:str, df:pd.DataFrame):
     y = np.array(df[y]).reshape(-1, 1)
     regressor = LinearRegression()
     regressor = regressor.fit(x, y)
-    equation_a, equation_b = regressor.coef_.item(), regressor.intercept_.item()
-    equation_r2 = regressor.score(x, y)
+    a, b = regressor.coef_.item(), regressor.intercept_.item()
+    r2 = regressor.score(x, y)
     return {
         'regressor':regressor,
-        'a':equation_a,
-        'b':equation_b,
-        'r2':equation_r2,
+        'a':a,
+        'b':b,
+        'r2':r2,
+        'equation': f'y = {a:.2f}x {'+' if b>=0 else '-'} {abs(b):.2f}',
+        'r2_equation': f'R^2 = {r2:.2f}'
     }
     
 def quadratic_reg(x_str: str, y_str: str, df: pd.DataFrame):
@@ -96,6 +98,8 @@ def quadratic_reg(x_str: str, y_str: str, df: pd.DataFrame):
         'b': b,
         'c': c,
         'r2': r2,
+        'equation': f'y = {a:.2f}x^2 {'+' if b>=0 else '-'} {abs(b):.2f}x {'+' if c>=0 else '-'} {abs(c):.2f}',
+        'r2_equation': f'R^2 = {r2:.2f}'
     }
 
 
