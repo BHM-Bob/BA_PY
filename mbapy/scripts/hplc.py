@@ -49,7 +49,7 @@ def plot_hplc_plot_waters(file_name:str, info_df: pd.DataFrame, data_df: pd.Data
     ax.set_xlabel('Time (min)', fontsize=25)
     ax.set_ylabel(f'Absorbance ({au_units})', fontsize=25)
     ax.set_xlim(xlim[0], xlim[1])
-    plt.legend(fontsize=15, loc = args.legend_pos, bbox_to_anchor = (args.legend_pos_bbox1, args.legend_pos_bbox2))
+    plt.legend(fontsize=15, loc = args.legend_pos, bbox_to_anchor = (args.legend_pos_bbox1, args.legend_pos_bbox2), draggable = True)
     save_show(os.path.join(args.output, f'{file_name} absorbance.png'), dpi = 600)
     
 def plot_hplc(args):           

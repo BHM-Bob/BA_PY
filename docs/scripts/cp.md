@@ -1,10 +1,12 @@
 <!--
  * @Date: 2024-04-22 11:29:49
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-04-22 11:30:13
+ * @LastEditTime: 2024-04-22 20:18:16
  * @Description: 
 -->
-## Command: File Move Utility
+*`Kimi` generated*.
+
+## Command: cp
 
 ### Overview
 The script provided is a Python utility designed to move files with specific suffixes or substrings in their names from a source directory to a destination directory. It uses the `argparse` library to parse command-line arguments and provides a user-friendly interface for file manipulation tasks.

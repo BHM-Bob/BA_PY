@@ -1,4 +1,12 @@
-## Command: Convert JPEG to AVIF
+<!--
+ * @Date: 2024-04-22 11:12:08
+ * @LastEditors: BHM-Bob 2262029386@qq.com
+ * @LastEditTime: 2024-04-22 20:17:36
+ * @Description: 
+-->
+*`Kimi` generated*.
+
+## Command: avif
 
 ### Introduction
 This Python script is designed to convert image files from JPEG format to AVIF format. It utilizes the `argparse` library to accept command-line arguments and the `PIL` (Python Imaging Library) with `pillow_heif` for handling AVIF images.

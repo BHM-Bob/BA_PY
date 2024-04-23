@@ -4,6 +4,8 @@
  * @LastEditTime: 2024-04-22 11:34:09
  * @Description: 
 -->
+*`Kimi` generated*.
+
 ## Command: `extract-dir`
 ### Introduction
 The `extract-dir` script is designed to move files with specific suffixes or substrings in their names to the root directory. This utility is particularly useful for organizing files in a hierarchical structure or consolidating files for easier access.

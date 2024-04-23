@@ -1,3 +1,9 @@
+<!--
+ * @Date: 2023-07-29 09:56:37
+ * @LastEditors: BHM-Bob 2262029386@qq.com
+ * @LastEditTime: 2024-04-22 20:25:08
+ * @Description: 
+-->
 <!-- mkdocs serve -->
 
 Welcome to the BA_PY docs!
@@ -45,8 +51,8 @@ pip install git+https://gitee.com/BHM-Bob/BA_PY.git
 Some global utils in this package, most of them are also for users.  
 ## web
 Some web-crawlers utils, mainly contains:
-1. [request](web_utils/request.md) for requesting html
-2. [parse](web_utils/parse.md) for parsing html
+1. [request](web_utils/request.md) for requesting html.  
+2. [parse](web_utils/parse.md) for parsing html.  
 3. [task](web_utils/task.md) for managing task.  
 4. [spider](web_utils/spider.md) for constructing and running a simple web spider.  
 ## [file](file.md)
@@ -55,7 +61,9 @@ Smoe file tools, mainly contains json, excel, [video](file_utils/video.md) and [
 Some plot tools, mainly contains pandas.dataFrame tools for plot and some plot utils.  
 ## [stats](stats.md)
 Some stats functions, most of them are just import form scipy and warps for scipy to make data transformation same as mabpy style.  
-Incude [df](stats_utils/df.md) for data frame utils, [reg](stats_utils/reg.md) for regression utils and [test](stats_utils/test.md) for stats test utils.  
+1. [df](stats_utils/df.md) for data frame utils.  
+2. [reg](stats_utils/reg.md) for regression utils.  
+3. [test](stats_utils/test.md) for stats test utils.  
 ## bio
 1. [peptide](bio/peptide.md) for peptide utils.  
 ## dl_torch
@@ -72,7 +80,19 @@ Some scientific paper utils, including parsing RIS, downloading pdf by title or 
 3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.
 ## [scripts](scripts.md)
 Some helpful command line scripts.  
-1. [cnipa](scripts.md#cnipa)  
-2. [extract_paper](scripts.md#extract_paper)  
-3. [scihub_selenium](scripts.md#scihub_selenium)  
-4. [scihub](scripts.md#scihub)  
+1. [avif](scripts/avif.md)  
+2. [cnipa](scripts/cnipa.md)  
+3. [cp](scripts/cp.md)  
+4. [duitang](scripts/duitang.md)  
+5. [extract_paper](script/extract_paper.md)  
+6. [extract-dir](scripts/extract_dir.md)  
+7. [file-size](scripts/file_size.md)  
+8. [hplc](scripts/hplc.md)  
+9. [mass](scripts/mass.md)  
+10. [mv](scripts/mv.md)  
+11. [peptide](scripts/peptide.md)  
+12. [reviz](scripts/reviz.md)  
+13. [rm](scripts/rm.md)  
+14. [scihub_selenium](scripts/scihub_selenium.md)  
+15. [scihub](scripts.md#scihub)  
+16. [video](scripts/video.md)  

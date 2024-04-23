@@ -4,6 +4,8 @@
  * @LastEditTime: 2024-04-22 11:36:39
  * @Description: 
 -->
+*`Kimi` generated*.
+
 ## Command: `file-size`
 
 ### Overview

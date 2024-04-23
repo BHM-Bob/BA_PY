@@ -1,4 +1,4 @@
-
+# mbapy.bio.peptide
 This documentation provides a comprehensive overview of the `AnimoAcid` and `Peptide` classes, including their attributes, methods, parameters, return values, and usage examples.
 `Kimi` generated.
 
