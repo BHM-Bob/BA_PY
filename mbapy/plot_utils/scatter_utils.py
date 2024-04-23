@@ -14,14 +14,12 @@ from matplotlib.legend_handler import HandlerPathCollection, HandlerLine2D
 if __name__ == '__main__':
     # dev mode
     import mbapy.base as mb
-    import mbapy.plot as mp
     import mbapy.stats.reg as msr
     import mbapy.stats.df as msd
     import mbapy.stats.test as mst
 else:
     # release mode
     from .. import base as mb
-    from .. import plot as mp
     from ..stats import reg as msr
     from ..stats import df as msd
     from ..stats import test as mst
