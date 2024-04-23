@@ -98,7 +98,7 @@ def plot_mass_plot_peaklist(name:str, df: pd.DataFrame, args):
     ax.set_title(f'{name} (Peak List of TOF MS)', fontsize=25)
     ax.set_xlabel(f'Mass{"" if args.mass else "/charge"}', fontsize=25)
     ax.set_ylabel('Intensity (cps)', fontsize=25)
-    plt.legend(fontsize=15, loc = args.legend_pos, bbox_to_anchor = (args.legend_pos_bbox1, args.legend_pos_bbox2))
+    plt.legend(fontsize=15, loc = args.legend_pos, bbox_to_anchor = (args.legend_pos_bbox1, args.legend_pos_bbox2), draggable = True)
     save_show(os.path.join(args.output, f'{name} peak list.png'), dpi = 600)
     
 def plot_mass_plot_masscharge(name: str, df: pd.DataFrame, args):
@@ -145,7 +145,7 @@ def plot_mass_plot_masscharge(name: str, df: pd.DataFrame, args):
     ax.set_title(f'{name} (Mass/Charge of TOF MS)', fontsize=25)
     ax.set_xlabel(f'Mass/Charge', fontsize=25)
     ax.set_ylabel('Intensity (cps)', fontsize=25)
-    plt.legend(fontsize=15, loc = args.legend_pos, bbox_to_anchor = (args.legend_pos_bbox1, args.legend_pos_bbox2))
+    plt.legend(fontsize=15, loc = args.legend_pos, bbox_to_anchor = (args.legend_pos_bbox1, args.legend_pos_bbox2), draggable = True)
     save_show(os.path.join(args.output, f'{name} Mass-Charge.png'), dpi = 600)
     
 def plot_mass(args):           
