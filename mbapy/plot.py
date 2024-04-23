@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # Assembly of functions
     from mbapy.plot_utils.bar_utils import AxisLable, pro_bar_data, plot_bar, plot_positional_hue
     from mbapy.plot_utils.line_utils import *
-    from mbapy.plot_utils.scatter_utils import *
+    from mbapy.plot_utils.scatter_utils import plot_reg, plot_scatter, add_scatter_legend
 else:
     # release mode
     from .stats import test as mst
@@ -28,7 +28,7 @@ else:
     # Assembly of functions
     from .plot_utils.bar_utils import AxisLable, pro_bar_data, plot_bar, plot_positional_hue
     from .plot_utils.line_utils import *
-    from .plot_utils.scatter_utils import *
+    from .plot_utils.scatter_utils import plot_reg, plot_scatter, add_scatter_legend
 
 # plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文
 plt.rcParams["font.family"] = 'Times New Roman'
