@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-22 22:17:22
+LastEditTime: 2024-04-23 10:28:57
 Description: 
 '''
 from typing import Dict, List
@@ -48,7 +48,7 @@ def linear_reg(x:str, y:str, df:pd.DataFrame):
         'a':a,
         'b':b,
         'r2':r2,
-        'equation': f'y = {a:.2f}x {'+' if b>=0 else '-'} {abs(b):.2f}',
+        'equation': f"y = {a:.2f}x {'+' if b>=0 else '-'} {abs(b):.2f}",
         'r2_equation': f'R^2 = {r2:.2f}'
     }
     
@@ -98,7 +98,7 @@ def quadratic_reg(x_str: str, y_str: str, df: pd.DataFrame):
         'b': b,
         'c': c,
         'r2': r2,
-        'equation': f'y = {a:.2f}x^2 {'+' if b>=0 else '-'} {abs(b):.2f}x {'+' if c>=0 else '-'} {abs(c):.2f}',
+        'equation': f"y = {a:.2f}x^2 {'+' if b>=0 else '-'} {abs(b):.2f}x {'+' if c>=0 else '-'} {abs(c):.2f}",
         'r2_equation': f'R^2 = {r2:.2f}'
     }
 
