@@ -9,7 +9,11 @@ from enum import Enum
 from queue import Queue
 from typing import Any, Callable, Dict, List, Tuple, Union
 
-from mbapy.base import put_err, put_log
+if __name__ == '__main__':
+    # dev mode
+    from mbapy.base import put_err, put_log, parameter_checker
+else:
+    from ..base import put_err, put_log, parameter_checker
 
 statuesQue = Queue()
 Key2Action = namedtuple('Key2Action', ['statue', 'func', 'args', 'kwgs',
@@ -216,35 +220,77 @@ class ThreadsPool:
         return retList
     
 class TaskStatus(Enum):
+    SUCCEED = 0
     NOT_FOUND = 1
     NOT_FINISHED = 2
     NOT_SUCCEEDED = 3
     NOT_RETURNED = 4
 
-class CoroutinePool:
+class TaskPool:
     """
-    co-routine pool, use asyncio to run co-routines in a separate thread.
+    task pool, use asyncio to run co-routines in a separate thread OR just run normal tasks in a separate thread.
+    
+    Attributes:
+        - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
+        - loop (asyncio.loop): asyncio event loop.
+        - thread (threading.Thread): threading thread.
+        - tasks (Dict[str, asyncio.Future]): task name to future.
+        - TASK_NOT_FOUND (TaskStatus): signal FLAG, task not found.
+        - TASK_NOT_FINISHED (TaskStatus): signal FLAG, task not finished.
+        - TASK_NOT_SUCCEEDED (TaskStatus): signal FLAG, task not succeeded.
+        
+    Methods:
     """
-    def __init__(self):
-        self.loop = None
-        self.thread = None
+    def __init__(self, mode: str = 'async'):
+        """
+        Parameters:
+            - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
+                - If it's IO heavy and has suitable coroutine function, use 'async'
+                - If it's IO heavy and only has normal function, and wants run ONE task at ONCE, use 'thread'. Use Queue to cache tasks and run ONE task at ONCE.
+        """
+        assert mode in ['async', 'thread'], f'Unsupported mode {mode}'
+        self.MODE = mode
+        self._async_loop: asyncio.AbstractEventLoop = None
+        self._thread_task_queue: Queue = Queue()
+        self._thread_result_queue: Queue = Queue()
+        self._thread_quit_event: threading.Event = threading.Event()
+        self.thread: threading.Thread = None
         self.tasks = {}
         self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
         self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
 
-    def _run_loop(self):
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
+    def _run_async_loop(self):
+        asyncio.set_event_loop(self._async_loop)
+        self._async_loop.run_forever()
+        
+    def _run_thread_loop(self):
+        while not self._thread_quit_event.is_set():
+            if not self._thread_task_queue.empty():
+                task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
+                try:
+                    result = task_func(*task_args, **task_kwargs)
+                    self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
+                except Exception as e:
+                    self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+            time.sleep(0.1)
 
+    def _add_task_async(self, name: str, coro_func, *args, **kwargs):
+        future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
+        self.tasks[name] = future
+        return name
+    
+    def _add_task_thread(self, name: str, func, *args, **kwargs):
+        self._thread_task_queue.put((name, func, args, kwargs))
+        self.tasks[name] = TaskStatus.NOT_RETURNED
+        return name
+    
     def add_task(self, name: str, coro_func, *args, **kwargs):
         if name == '' or name is None:
             name = f'{coro_func.__name__}-{time.time():.2f}'
-        future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self.loop)
-        self.tasks[name] = future
-        return name
+        return getattr(self, f'_add_task_{self.MODE}')(name, coro_func, *args, **kwargs)
 
-    def query_task(self, name):
+    def _query_async_task(self, name, block: bool = True, timeout: int = 3):
         if name in self.tasks:
             future = self.tasks[name]
             if future.done():
@@ -259,21 +305,53 @@ class CoroutinePool:
                 return self.TASK_NOT_FINISHED
         else:
             return self.TASK_NOT_FOUND
+        
+    def _query_thread_task(self, name, block: bool = True, timeout: int = 3):
+        # short-cut for not found
+        if name not in self.tasks:
+            return self.TASK_NOT_FOUND
+        # retrive finished results
+        while not self._thread_result_queue.empty():
+            try:
+                _name, result, statue = self._thread_result_queue.get(block, timeout)
+                self.tasks[_name] = (_name, result, statue)
+            except:
+                pass
+        # check if not return, succeed, or not succeed
+        if self.tasks[name] == TaskStatus.NOT_RETURNED:
+            return self.TASK_NOT_FINISHED
+        else:
+            _name, result, statue = self.tasks[name]
+            del self.tasks[name]
+            if statue == TaskStatus.NOT_SUCCEEDED:
+                put_err(f'Task {name} failed with {result}, return {result}')
+            return result
+        
+    def query_task(self, name: str, block: bool = False):
+        return getattr(self, f'_query_{self.MODE}_task')(name, block)
 
     def run(self):
-        self.loop = asyncio.new_event_loop()      
-        self.thread = threading.Thread(target=self._run_loop, daemon=True)
+        if self.MODE == 'async':
+            self._async_loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
         self.thread.start()
         return self
     
     def check_empty(self):
-        for task in self.tasks.values():
-            if not task.done():
-                return False
-        return True
+        if self.MODE == 'async':
+            for task in self.tasks.values():
+                if not task.done():
+                    return False
+            return True
+        elif self.MODE == 'thread':
+            return self._thread_task_queue.empty()
     
     def close(self):
-        self.loop.close()
+        if self.MODE == 'async':
+            self._async_loop.close()
+        elif self.MODE == 'thread':
+            self._thread_quit_event.set()
+            self.thread.join()
 
 
 __all__ = [
@@ -287,28 +365,29 @@ __all__ = [
     'Timer',
     'ThreadsPool',
     'TaskStatus',
-    'CoroutinePool'
+    'TaskPool'
 ]
 
 
 if __name__ == '__main__':
     # dev code
-    async def example_coroutine(name, seconds):
-        print(f"Coroutine {name} started")
-        await asyncio.sleep(seconds)
-        print(f"Coroutine {name} finished after {seconds} seconds")
-        return f"Coroutine {name} result"
+    def example_function(name, seconds):
+        print(f"{name} started")
+        time.sleep(seconds)
+        print(f"{name} finished after {seconds} seconds")
+        return f'{name} result'
+    
+    pool = TaskPool('thread').run()
+    pool.add_task("task1", example_function, "task1", 2)
+    pool.add_task("task2", example_function, "task2", 4)
 
-    pool = CoroutinePool().run()
-    pool.add_task("task1", example_coroutine, "task1", 3)
-    pool.add_task("task2", example_coroutine, "task2", 5)
-
-    print(pool.query_task("task1"))  # Output: TaskStatus.NOT_FINISHED
-    print(pool.query_task("task2"))  # Output: TaskStatus.NOT_FINISHED
+    print('task1, ', pool.query_task("task1"))  # Output: TaskStatus.NOT_FINISHED
+    print('task2, ', pool.query_task("task2"))  # Output: TaskStatus.NOT_FINISHED
 
     # wait for tasks to finish
-    import time
-    time.sleep(6)
+    time.sleep(10)
 
-    print(pool.query_task("task1"))  # Output: Coroutine task1 finished after 3 seconds
-    print(pool.query_task("task2"))  # Output: Coroutine task2 finished after 5 seconds
+    print('task1, ', pool.query_task("task1"))  # Output: task1 finished after 3 seconds
+    print('task2, ', pool.query_task("task2"))  # Output: task2 finished after 5 seconds
+    
+    pool.close()
