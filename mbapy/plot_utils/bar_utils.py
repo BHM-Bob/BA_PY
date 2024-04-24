@@ -117,7 +117,12 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
             - edgecolor:['white'] * len(tags),
             - linewidth: 0,
             - err: (str|np.array), if str, will use df[err] as yerr. if np.array, will use it directly. will multiply 1.96 to yerr.
-            - err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}
+            - err_kwargs = 
+                - 'capsize':5, # error bar cap size
+                - 'capthick':2, # error bar cap thickness
+                - 'elinewidth':2, # error bar line width
+                - 'fmt':' k', # error bar format. 'k' means black.
+                - 'ecolor':'black', # error bar color. support list of hex color.
 
     Returns:
         - np.array: An array of positions.
@@ -284,11 +289,12 @@ if __name__ == '__main__':
     from mbapy.plot import get_palette
     df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
     cols = get_palette(n = 4, mode = 'hls')
-    plot_bar(['Animal Type'], ['Duration'], df, err = 'Duration_SE',
+    plot_bar(['Animal Type'], ['Duration'], df,
+             err = 'Duration_SE', err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':cols},
              figsize = (8, 6),
              edgecolor = [cols], linewidth = 5, colors = ['white'],
              font_size = [10, 20],
-             jitter = True, jitter_kwargs = {'size': 10, 'alpha': 1, 'color': [cols]})
+             jitter = True, jitter_kwargs = {'size': 10, 'alpha': 0.6, 'color': [cols]})
     plt.show()
 
     
