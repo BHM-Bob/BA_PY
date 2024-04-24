@@ -15,17 +15,17 @@ from tqdm import tqdm
 
 
 if __name__ == '__main__':
-    from mbapy.base import Configs, put_err
+    from mbapy.base import Configs, put_err, get_default_for_None
     from mbapy.file import get_valid_file_path
     from mbapy.game import BaseInfo # NOTE, for record
-    from mbapy.web_utils.request import random_sleep
-    from mbapy.web_utils.task import CoroutinePool, TaskStatus, Key2Action, launch_sub_thread, statues_que_opts, statuesQue
+    from mbapy.web_utils.request import random_sleep, Browser, get_url_page_se
+    from mbapy.web_utils.task import TaskPool, TaskStatus, Key2Action, launch_sub_thread, statues_que_opts, statuesQue
 else:
-    from ..base import Configs, put_err
+    from ..base import Configs, put_err, get_default_for_None
     from ..file import get_valid_file_path
     from ..game import BaseInfo # NOTE, for record
-    from .request import random_sleep
-    from .task import CoroutinePool, TaskStatus, Key2Action, launch_sub_thread, statues_que_opts, statuesQue
+    from .request import random_sleep, Browser, get_url_page_se
+    from .task import TaskPool, TaskStatus, Key2Action, launch_sub_thread, statues_que_opts, statuesQue
     
     
 def install_headers(agent: str = None):
@@ -46,7 +46,6 @@ async def get_web_html_async(url: str, headers: Dict[str, str] = None, encoding:
     except Exception as e:
         return (TaskStatus.NOT_SUCCEED, f'Error occurred: {e}')
 
-
 async def retrieve_file_async(url: str, file_path: str, headers: Dict[str, str] = None):
     """async version of download_file"""
     timeout = aiohttp.ClientTimeout(total=30, connect=9999)
@@ -65,7 +64,7 @@ async def retrieve_file_async(url: str, file_path: str, headers: Dict[str, str] 
 
 @dataclass
 class AsyncResult:
-    async_pool: CoroutinePool
+    task_pool: TaskPool
     name: str
     result: Any = TaskStatus.NOT_RETURNED
     def get(self):
@@ -74,9 +73,9 @@ class AsyncResult:
         if self.result is not TaskStatus.NOT_RETURNED:
             return self.result
         # wait for result
-        self.result = self.async_pool.query_task(self.name)
+        self.result = self.task_pool.query_task(self.name)
         while self.result == TaskStatus.NOT_FINISHED:
-            self.result = self.async_pool.query_task(self.name)
+            self.result = self.task_pool.query_task(self.name)
             time.sleep(0.1)
         # will also return TaskStatus.NOT_SUCCEED
         return self.result
@@ -124,7 +123,7 @@ class BasePage(BaseInfo):
         self.name: str = name # name of this page, could be empty
         self.xpath: Union[str, List[str]] = xpath # xpath expression to extract data, if it is a list, will treat as alternative xpath expressions.
         self.findall_fn: Callable = findall_fn # alternative function to extract data via bs4.find_all, if it is not None, will use it instead of xpath.
-        self._async_task_pool: CoroutinePool = None # async task pool to execute async tasks
+        self._task_pool: TaskPool = None # async task pool to execute async tasks
         self._headers: Dict[str, str] = {} # headers for web-page request
         # result generally is a list of result, top-level list is for each web-page, and it ONLY store one kind item.
         self.result: List[Any] = [] # parsed result
@@ -168,7 +167,8 @@ class PagePage(BasePage):
     Only START and store a new web page or a list of web pages.
     """
     def __init__(self, url: List[Union[str, List[str]]] = None, ignore_records: bool = False,
-                 web_get_fn: Callable[[Any], str] = None, *args, **kwargs) -> None:
+                 web_get_fn: Callable[[Any], str] = None, *args,
+                 each_delay: float = 0.5, max_each_delay: float = 1, **kwargs) -> None:
         """
         Parameters:
             - url: List[str | List[str]], url to get web page, could be empty if get from father_page.result.
@@ -184,9 +184,9 @@ class PagePage(BasePage):
         """
         super().__init__(ignore_records=ignore_records)
         self.url = url
-        self.each_delay = kwargs.get('each_delay', 0.5)
-        self.max_each_delay = kwargs.get('max_each_delay', 1)
-        self.web_get_fn = web_get_fn
+        self.each_delay = each_delay
+        self.max_each_delay = max_each_delay
+        self.web_get_fn = web_get_fn # set in self.parse, default is get_web_html_async
         self.args = args
         self.kwargs = kwargs
         
@@ -196,6 +196,8 @@ class PagePage(BasePage):
         if self.url is None:
             if results is None:
                 results = self.father_page.result
+        elif isinstance(self.url, str):
+            results = [[self.url]] # => list of list of urls
         elif isinstance(self.url, list) and len(self.url) > 0 and isinstance(self.url[0], str):
             results = [self.url] # => list of list of urls
         else:
@@ -223,8 +225,8 @@ class PagePage(BasePage):
                     return self.result
                 # qurey url and get web page
                 if url not in self._records or self.ignore_records:
-                    task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, *self.args, **self.kwargs)
-                    self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
+                    task_name = self._task_pool.add_task(None, self.web_get_fn, url, *self.args, **self.kwargs)
+                    self.result[-1].append(AsyncResult(self._task_pool, task_name))
                     self.result_page_html[-1].append(self.result[-1][-1])
                     # NOTE: do not append xpath object because html is async.
                     random_sleep(self.max_each_delay, self.each_delay)
@@ -243,10 +245,16 @@ class UrlIdxPagesPage(PagePage):
             so the result also be list(page) for list(items) for links(result).
         - ignore_records is True by default. Because the url is idx type.
     """
-    def __init__(self, base_url: str = '', url_fn: Callable[[str, int], str] = None,
+    def __init__(self, base_url: str, url_fn: Callable[[str, int], str],
                  ignore_records: bool = True,
                  web_get_fn: Callable[[Any], str] = None,
                  *args, **kwargs) -> None:
+        """
+        Parameters:
+            - base_url: str, base url to get page url.
+            - url_fn: Callable[[str, int], str], function to get page url, default is None.
+                Note: the function should accept base_url and idx as arguments and return page url.
+        """
         super().__init__([], ignore_records=ignore_records, web_get_fn=web_get_fn, *args, **kwargs)
         self.base_url = base_url
         self.url_fn = url_fn
@@ -323,8 +331,8 @@ class DownloadPage(PagePage):
                 if url in self._records and self.ignore_records:
                     continue
                 # create download task
-                task_name = self._async_task_pool.add_task(None, self.web_get_fn, url, file_path, *self.args, **self.kwargs)
-                self.result[-1].append(AsyncResult(self._async_task_pool, task_name))
+                task_name = self._task_pool.add_task(None, self.web_get_fn, url, file_path, *self.args, **self.kwargs)
+                self.result[-1].append(AsyncResult(self._task_pool, task_name))
                 self._records[url] = False # record this url to avoid duplicate request.
                 random_sleep(self.max_each_delay, self.each_delay)
         # wait all tasks finished
@@ -336,7 +344,7 @@ class DownloadPage(PagePage):
                     not_finished = 0
                     for page in self.result:
                         for i in page:
-                            if self._async_task_pool.query_task(i.name) == TaskStatus.NOT_FINISHED:
+                            if self._task_pool.query_task(i.name) == TaskStatus.NOT_FINISHED:
                                 not_finished += 1
                     pbar.update(last_not_finished - not_finished)
                     last_not_finished = not_finished
@@ -365,9 +373,9 @@ class ItemsPage(BasePage):
         if isinstance(xpath_r, etree._Element):
             self.result_page_xpath[-1].append(xpath_r) # Only store xpath object, not html
             if isinstance(self.xpath, str):
-                xpath_r = xpath_r.xpath(self.xpath)
-                if xpath_r:
-                    self.result[-1].extend(xpath_r)
+                xpath_result = xpath_r.xpath(self.xpath)
+                if xpath_result:
+                    self.result[-1].extend(xpath_result)
                     return True
             elif isinstance(self.xpath, list) and len(self.xpath) >= 1:
                 xpath_result, xpath_idx = xpath_r.xpath(self.xpath[0]), 1
@@ -377,6 +385,7 @@ class ItemsPage(BasePage):
                 if xpath_result:
                     self.result[-1].extend(xpath_result)
                     return True
+            put_err(f'{self.name} ItemsPage parse_xpath failed, xpath_r: {xpath_r}, xpath: {self.xpath}')
         return False
         
     def parse(self, results: List[List[Union[str, etree._Element]]] = None):
@@ -453,9 +462,10 @@ class Actions(BaseInfo):
     """
     def __init__(self, pages = {},
                  headers: str = {'User-Agent': Configs.web.request_header},
+                 browser: Browser = None,
+                 task_pool_mode: str = 'async',
                  use_thread_listen: bool = True,
-                 k2a: List[Tuple[str, Key2Action]] = [
-                     ('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))],
+                 k2a: List[Tuple[str, Key2Action]] = None,
                  from_json_path: str = None) -> None:
         """
         Parameters:
@@ -468,11 +478,12 @@ class Actions(BaseInfo):
         super().__init__()
         self.pages: Dict[str, BasePage] = pages
         self.results: Dict = None
+        self.browser = browser
         self.use_thread_listen = use_thread_listen
-        self.k2a = k2a
+        self.k2a = get_default_for_None(k2a, [('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))])
         self.json_path = from_json_path
         self._headers: str = headers
-        self._async_task_pool: CoroutinePool = CoroutinePool() # call run in perform() to start async task pool
+        self._task_pool: TaskPool = TaskPool(task_pool_mode) # call run in perform() to start async task pool
         # recover from json file if exists
         if self.json_path is not None and os.path.exists(self.json_path):
             self.from_json(self.json_path)
@@ -533,7 +544,7 @@ class Actions(BaseInfo):
         page.after_func = after_func
         # add page to pages
         page.name = name
-        page._async_task_pool = self._async_task_pool
+        page._task_pool = self._task_pool
         page._headers = self._headers
         page.use_thread_listen = self.use_thread_listen
         if father is None or father == '':
@@ -580,12 +591,30 @@ class Actions(BaseInfo):
         if self.use_thread_listen:
             launch_sub_thread(key2action=self.k2a)
         # prepare async task pool
-        self._async_task_pool.run()
+        self._task_pool.run()
         self.results = {}
         self.results = _perform(self.pages, self.results, *args, **kwargs)
         return self.results
     
     def close(self):
         """close async task pool"""
-        self._async_task_pool.close()
+        self._task_pool.close()
 
+
+if __name__ == '__main__':
+    b = Browser()
+    main_page = UrlIdxPagesPage(base_url='https://www.kuaidaili.com/free/inha/',
+                                url_fn=lambda url, i: f'{url}{i+1}' if i < 10 else '',
+                                web_get_fn=lambda url: b.get(url))
+    ip_items = ItemsPage("//*[@id='table__free-proxy']/div[1]/table[1]/tbody[1]//td[1]/text()")
+    port_items = ItemsPage("//*[@id='table__free-proxy']/div[1]/table[1]/tbody[1]//td[2]/text()")
+    timeout_items = ItemsPage("//*[@id='table__free-proxy']/div[1]/table[1]/tbody[1]//td[6]/text()")
+    verify_items = ItemsPage("//*[@id='table__free-proxy']/div[1]/table[1]/tbody[1]//td[7]/text()")
+    action = Actions(browser = b, task_pool_mode='thread')
+    action.add_page(main_page, '', 'main-page')
+    action.add_page(ip_items, 'main-page', 'ip')
+    action.add_page(port_items, 'main-page', 'port')
+    action.add_page(timeout_items, 'main-page', 'timeout')
+    action.add_page(verify_items, 'main-page', 'verify')
+    action.perform()
+    print(action.results)
