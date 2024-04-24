@@ -537,7 +537,8 @@ class Browser:
     def get(self, url: str,
             sleep_before: Union[None, int, float, Tuple[int, int]] = None,
             sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5)):
-        return self.browser.get(url)
+        self.browser.get(url)
+        return self.browser.page_source
     
     def find_elements(self, element: str, by: str = 'xpath'):
         by = self._get_by(by)
