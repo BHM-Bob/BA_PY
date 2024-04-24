@@ -13,12 +13,12 @@ from mpl_toolkits.axes_grid1 import host_subplot
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import get_wanted_args
+    from mbapy.base import get_wanted_args, get_default_for_None
     from mbapy.stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
                                 sort_df_factors)
 else:
     # release mode
-    from ..base import get_wanted_args
+    from ..base import get_wanted_args, get_default_for_None
     from ..stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
                            sort_df_factors)
 
@@ -100,7 +100,7 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         - tags (List[str]): A list of tags. [stack_low_y, stack_medium_y, ...] or just one.
         - df (pd.DataFrame): A pandas DataFrame. From `pro_bar_data` or `sort_df_factors`.
         - kwargs: Additional keyword arguments.
-            - fig = None
+            - figsize = (8, 6)
             - jitter = Flase, IF True, pass the original df, the func will call `pro_bar_data` internally.
             - jitter_kwargs = {'size': 10, 'alpha': 0.5, 'color': None}
             - width = 0.4
@@ -108,15 +108,21 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
             - hue_space = 0.2
             - xrotations = [0]*len(factors)
             - colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-            - hatchs:['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+            - hatchs:None, could be [['-', '+', 'x', '\\'], ['*', 'o', 'O', '.']],
             - font_size:None,
             - labels:None,
+            - ylabel: None, default is the first tag, fontsize will be set same as TOP level's x-axis' fontsize.
             - offset = [None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors)-1)], x-axis offset
             - xticks_pad: [5 for _ in range(len(factors)+1)], x-axis label pad from x-axis
             - edgecolor:['white'] * len(tags),
             - linewidth: 0,
             - err: (str|np.array), if str, will use df[err] as yerr. if np.array, will use it directly. will multiply 1.96 to yerr.
-            - err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':'black'}
+            - err_kwargs = 
+                - 'capsize':5, # error bar cap size
+                - 'capthick':2, # error bar cap thickness
+                - 'elinewidth':2, # error bar line width
+                - 'fmt':' k', # error bar format. 'k' means black.
+                - 'ecolor':'black', # error bar color. support list of hex color.
 
     Returns:
         - np.array: An array of positions.
@@ -131,15 +137,17 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     if len(tags) == 0:
         # TODO: 可能存在'Unbond: 0'等其他情况
         tags = list(df.columns)[len(factors):]
-    args = get_wanted_args({'fig': None,
+    args = get_wanted_args({'figsize': (8, 6),
+                            'dpi': 100,
                             'jitter':False,
                             'jitter_kwargs': {'size': 10, 'alpha': 0.5, 'color': None},
                             'width':0.4, 'hue_space':0.2, 'bar_space':0.05,
                             'xrotations':[0]*len(factors),
                             'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
-                            'hatchs':['-', '+', 'x', '\\', '*', 'o', 'O', '.'],
+                            'hatchs': None,
                             'font_size':None,
                             'labels':None,
+                            'ylabel': None,
                             'offset':[None] + [(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))],
                             'xticks_pad':[5 for _ in range(len(factors)+1)],
                             'edgecolor':['white'] * len(tags),
@@ -150,7 +158,9 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
                             kwargs)
     args.xrotations.append(0)
     # make first level axis
-    ax1 = host_subplot(111, axes_class=axisartist.Axes, figure=args.fig)
+    ax1 = host_subplot(111, axes_class=axisartist.Axes)
+    ax1.figure.set_size_inches(args.figsize)
+    ax1.figure.set_dpi(args.dpi)
     # plot jitter using seaborn
     if args.jitter:
         jittor_color = args.jitter_kwargs['color']
@@ -178,8 +188,9 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
                 sns.stripplot(x=x, y=y.reshape(-1), ax=ax1, jitter=True, native_scale=True,
                               color=color, zorder = 1, legend = False, **args.jitter_kwargs)
         # plot bar
+        hatch = args.hatchs[yIdx] if (args.hatchs and args.hatchs[yIdx] is not None) else None
         ax1.bar(pos[0], df[yName], width = args.width, bottom = bottom, label=label,
-                edgecolor=args.edgecolor[yIdx], linewidth = args.linewidth,
+                edgecolor=args.edgecolor[yIdx], linewidth = args.linewidth, hatch = hatch,
                 color=args.colors[yIdx], log = args.log, zorder = 0)
         bottom += df[yName]
     ax1.set_xlim(0, pos[0][-1]+args.hue_space+args.width/2)
@@ -188,6 +199,8 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     if args.font_size is not None:
         plt.setp(ax1.axis["bottom"].major_ticklabels, fontsize=args.font_size[0])
         plt.setp(ax1.axis["left"].major_ticklabels, fontsize=args.font_size[0])
+        ax1.axis['left'].set_label(get_default_for_None(args.ylabel, tags[0]))
+        ax1.axis['left'].label.set_fontsize(args.font_size[-1])
     
     axs = []
     for idx, sub_pos in enumerate(pos[1:]):
@@ -201,7 +214,6 @@ def plot_bar(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
         axs[-1].axis["top"].major_ticks.set_ticksize(0)
         # TODO : do not work
         axs[-1].axis["right"].major_ticks.set_ticksize(0)
-        
     # err bar, put here because errorbar will change ax obj and occur errs
     if args.err is not None:
         if isinstance(args.err, str):
@@ -270,3 +282,19 @@ __all__ = [
     'plot_bar'
     'plot_positional_hue',
     ]
+
+
+if __name__ == '__main__':
+    # dev code
+    from mbapy.plot import get_palette
+    df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
+    cols = get_palette(n = 4, mode = 'hls')
+    plot_bar(['Animal Type'], ['Duration'], df,
+             err = 'Duration_SE', err_kwargs = {'capsize':5, 'capthick':2, 'elinewidth':2, 'fmt':' k', 'ecolor':cols},
+             figsize = (8, 6),
+             edgecolor = [cols], linewidth = 5, colors = ['white'],
+             font_size = [10, 20],
+             jitter = True, jitter_kwargs = {'size': 10, 'alpha': 0.6, 'color': [cols]})
+    plt.show()
+
+    

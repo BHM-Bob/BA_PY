@@ -17,13 +17,13 @@ if __name__ == '__main__':
     from mbapy.base import put_err, Configs, get_fmt_time
     from mbapy.file import read_json, save_json
     from mbapy.scripts._script_utils_ import clean_path, show_args
-    from mbapy.web import Browser, CoroutinePool, get_url_page_s, random_sleep
+    from mbapy.web import Browser, TaskPool, get_url_page_s, random_sleep
     from mbapy.web_utils.spider import retrieve_file_async
 else:
     from ..base import put_err, Configs, get_fmt_time
     from ..file import read_json, save_json
     from ._script_utils_ import clean_path, show_args
-    from ..web import Browser, CoroutinePool, get_url_page_s, random_sleep
+    from ..web import Browser, TaskPool, get_url_page_s, random_sleep
     from ..web_utils.spider import retrieve_file_async
     
 
@@ -59,7 +59,7 @@ def main(sys_args: List[str] = None):
                 use_undetected=args.undetected_chromedriver)
     
     # setup coroutine pool
-    pool = CoroutinePool().run()
+    pool = TaskPool().run()
     
     # get base page and search
     base_url = 'https://www.duitang.com/'

@@ -1,222 +1,166 @@
 # mbapy.plot
+This Python module provides a collection of functions and classes for data visualization and statistical analysis. It includes utilities for plotting bar charts, scatter plots, regression lines, and swarm plots, as well as functions for converting color representations, calculating positions for swarm plots, generating QQ-plots, and applying Tukey's test for multiple comparisons.  
 
-This module provides functions for creating various types of plots, including bar plots, QQ-plots, and Turkey plots.  
+*kimi generated*
 
-### rgb2hex -> str
+# Functions
+
+## rgb2hex(r, g, b) -> str
+### Function Overview
 Converts RGB values to a hexadecimal color code.
 
-#### Params
-- r (int): The red component of the color.
-- g (int): The green component of the color.
-- b (int): The blue component of the color.
+### Parameters
+- **r (int)**: Red component of the color (0-255).
+- **g (int)**: Green component of the color (0-255).
+- **b (int)**: Blue component of the color (0-255).
 
-#### Returns
-- str: The hexadecimal color code.
+### Returns
+- **str**: Hexadecimal color code prefixed with '#'.
 
-#### Notes
-This function takes the red, green, and blue components of a color and returns the corresponding hexadecimal color code.
-
-#### Example
+### Examples
 ```python
->>> rgb2hex(255, 0, 0)
-'#FF0000'
+print(rgb2hex(255, 165, 0))  # Output: '#FFA500'
 ```
 
-### hex2rgb -> List[int]
+## hex2rgb(hex: str) -> List[int]
+### Function Overview
 Converts a hexadecimal color code to RGB values.
 
-#### Params
-- hex (str): The hexadecimal color code.
+### Parameters
+- **hex (str)**: Hexadecimal color code as a string.
 
-#### Returns
-- List[int]: A list containing the red, green, and blue components of the color.
+### Returns
+- **List[int]**: List containing the red, green, and blue components of the color.
 
-#### Notes
-This function takes a hexadecimal color code and returns a list containing the red, green, and blue components of the color.
-
-#### Example
+### Examples
 ```python
->>> hex2rgb('#FF0000')
-[255, 0, 0]
+print(hex2rgb('#FFA500'))  # Output: [255, 165, 0]
 ```
 
-### rgbs2hexs -> List[str]
+## rgbs2hexs(rgbs: List[Tuple[float]]) -> List[str]
+### Function Overview
 Converts a list of RGB tuples to a list of hexadecimal color codes.
 
-#### Params
-- rgbs (List[Tuple[float]]): A list of RGB tuples, each containing three floats between 0 and 1 representing the red, green, and blue components of the color.
+### Parameters
+- **rgbs (List[Tuple[float]])**: List of RGB tuples where each tuple contains three floats between 0 and 1.
 
-#### Returns
-- List[str]: A list of hexadecimal color codes as strings.
+### Returns
+- **List[str]**: List of hexadecimal color codes as strings.
 
-#### Notes
-This function takes a list of RGB tuples and converts each tuple to a corresponding hexadecimal color code.
-
-#### Example
+### Examples
 ```python
->>> rgbs2hexs([(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)])
-['#FF0000', '#00FF00']
+print(rgbs2hexs([(255, 0, 0), (0, 255, 0)]))  # Output: ['#FF0000', '#00FF00']
 ```
 
-### get_palette -> List[str]
-Get a sequence of hex colors.
+## get_palette(n: int = 10, mode: Union[None, str] = None, return_n: bool = True) -> List[str]
+### Function Overview
+Generates a sequence of hexadecimal color codes based on the specified number and mode.
 
-#### Params
-- n (int): How many colors are required.
-- mode (Union[None, str]): The kind of colors. Possible values are 'hls', 'green', 'pair', or None.
-- return_n (bool): Whether to return exactly n colors.
+### Parameters
+- **n (int)**: Number of colors required.
+- **mode (Union[None, str])**: Kind of colors to generate ('hls', 'green', 'pair', or None).
+- **return_n (bool)**: If True, returns only the first `n` colors from the generated palette.
 
-#### Returns
-- List[str]: A list of hexadecimal color codes.
+### Returns
+- **List[str]**: List of hexadecimal color codes.
 
-#### Notes
-This function returns a sequence of hexadecimal color codes based on the specified mode and number of colors.
-
-#### Example
+### Examples
 ```python
->>> get_palette(5, 'hls')
-['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF']
+print(get_palette(n=5, mode='green'))  # Output: ['#80ab1c', '#405535', '#99b69b', '#92e4ce', '#72cb87']
 ```
 
-### AxisLable
-Represents an axis label.
+## calcu_swarm_pos(x: float, y: np.ndarray, width: float, d: Optional[float] = None) -> np.ndarray
+### Function Overview
+Calculates the x-coordinates for data points in a swarm plot.
 
-#### Attrs
-- name (str): The name of the axis label.
-- hold_space (int): The amount of space to hold.
+### Parameters
+- **x (float)**: The x-coordinate of the center of the swarm.
+- **y (np.ndarray)**: The y-coordinates of the data points.
+- **width (float)**: The width of the swarm.
+- **d (Optional[float])**: The distance between the data points. If None, it will be calculated.
 
-#### Methods
-- add_space(space:int): Adds space to the axis label.
+### Returns
+- **np.ndarray**: An array of x-coordinates for the data points.
 
-#### Notes
-This class represents an axis label and provides a method to add space to the label.
-
-#### Example
+### Examples
 ```python
->>> label = AxisLable('x-axis', 1)
->>> label.add_space(2)
+# Assuming y contains the y-coordinates of data points
+# and we want to calculate the corresponding x-coordinates for a swarm plot
+x_positions = calcu_swarm_pos(0, y, 10)
 ```
 
-### pro_hue_pos
-Generate the position and labels for a grouped bar plot with multiple factors.
+## qqplot(tags: List[str], df: pd.DataFrame, figsize: Tuple[int, int] = (12, 6), nrows: int = 1, ncols: int = 1, **kwargs)
+### Function Overview
+Generates a QQ-plot for each column in the given DataFrame.
 
-#### Params
-- factors (List[str]): A list of strings representing the factors to group the bars by.
-- df (pd.DataFrame): A pandas DataFrame containing the data for the bar plot.
-- width (float): The width of each individual bar.
-- bar_space (float): The space between each group of bars.
+### Parameters
+- **tags (List[str])**: List of column names to generate QQ-plots for.
+- **df (pd.DataFrame)**: DataFrame containing the data.
+- **sizeof (Tuple[int, int])**: Size of the figure.
+- **nrows (int)**: Number of rows in the figure grid.
+- **ncols (int)**: Number of columns in the figure grid.
+- **kwargs**: Additional keyword arguments for customization.
 
-#### Returns
-- Tuple[List[List[AxisLable]], List[List[float]]]: A tuple containing two lists. The first list contains the labels for each factor and each bar. The second list contains the x-positions for each bar.
+### Returns
+- **List[matplotlib.axes._subplots.Axes]**: List of Axes objects for the QQ-plots.
 
-#### Notes
-This function generates the position and labels for a grouped bar plot with multiple factors.
-
-#### Example
+### Examples
 ```python
->>> labels, positions = pro_hue_pos(['factor1', 'factor2'], df, 0.4, 0.2)
+qqplot(['column1', 'column2'], data_frame, figsize=(8, 4))
 ```
 
-### plot_bar
-Stack bar plot with hue style.
+## save_show(path: str, dpi: int = 300, bbox_inches: Union[str, Bbox] = 'tight')
+### Function Overview
+Saves the current matplotlib figure to a file and displays it.
 
-#### Params
-- factors (List[str]): A list of factors.
-- tags (List[str]): A list of tags.
-- df (pd.DataFrame): A pandas DataFrame.
-- **kwargs: Additional keyword arguments.
+### Parameters
+- **path (str)**: Path where the figure will be saved.
+- **dpi (int)**: Resolution of the saved figure in dots per inch.
+- **bbox_inches (Union[str, Bbox])**: Portion of the figure to save.
 
-#### Returns
-- np.array: An array of positions.
-- ax1: An axis object.
+### Returns
+- **None**
 
-#### Notes
-This function plots a stacked bar plot with hue style based on the given factors, tags, and DataFrame.
-
-#### Example
+### Examples
 ```python
->>> positions, ax = plot_bar(['factor1', 'factor2'], ['tag1', 'tag2'], df, width=0.4, bar_space=0.2)
+save_show('path/to/save/figure.png', dpi=300)
 ```
 
-### plot_positional_hue
-Wrapper function to support additional arguments for plotting positional hue.
+## plot_stats_star(x1: float, x2: float, h: float, endpoint: float, p_value: float, ax: matplotlib.axes._subplots.Axes = plt, p2star: Callable[[float], str] = p_value_to_stars)
+### Function Overview
+Plots a horizontal line with endpoints and a significance star on a given Axes.
 
-#### Params
-- factors (List[str]): A list of factors.
-- tags (List[str]): A list of tags.
-- df (pd.DataFrame): A pandas DataFrame.
-- **kwargs: Additional keyword arguments.
+### Parameters
+- **x1 (float)**: X-coordinate of the left endpoint.
+- **x2 (float)**: X-coordinate of the right endpoint.
+- **h (float)**: Y-coordinate of the horizontal line.
+- **endpoint (float)**: Height of the endpoint.
+- **p_value (float)**: P-value of the difference.
+- **ax (matplotlib.axes._subplots.Axes)**: Axes instance to plot on.
+- **p2star (Callable[[float], str])**: Function to convert p-value to stars.
 
-#### Returns
-- function: A function for plotting positional hue.
+### Returns
+- **None**
 
-#### Notes
-This function is a wrapper that supports additional arguments for plotting positional hue.
-
-#### Example
+### Examples
 ```python
-@plot_positional_hue(['factor1', 'factor2'], ['tag1', 'tag2'], df)
-def plot_func(ax, x, y, label, label_idx, margs, **kwargs):
-    # do something
+plot_stats_star(1, 2, 0.5, 0.1, 0.05)
 ```
 
-### qqplot
-Generate a QQ-plot for each column in the given DataFrame.
+## plot_turkey(means: List[float], std_errs: List[float], tukey_results: Any, min_star: int = 1)
+### Function Overview
+Plots a bar chart with means and standard errors, marking significant differences based on Tukey's test results.
 
-#### Params
-- tags (List[str]): A list of column names to generate QQ-plots for.
-- df (pd.DataFrame): The DataFrame containing the data.
-- figsize (tuple, optional): The size of the figure. Defaults to (12, 6).
-- nrows (int, optional): The number of rows in the figure grid. Defaults to 1.
-- ncols (int, optional): The number of columns in the figure grid. Defaults to 1.
-- **kwargs: Additional keyword arguments including xlim, ylim, title, tick_size, and label_size.
+### Parameters
+- **means (List[float])**: List of mean values for each group.
+- **std_errs (List[float])**: List of standard errors for each group.
+- **tukey_results (Any)**: Tukey's test results object.
+- **min_star (int)**: Minimum number of stars to display.
 
-#### Returns
-- None
+### Returns
+- **matplotlib.axes._subplots.Axes**: The current Axes instance.
 
-#### Notes
-This function generates a QQ-plot for each column in the given DataFrame and displays the plots in a grid.
-
-#### Example
+### Examples
 ```python
->>> qqplot(['column1', 'column2'], df, figsize=(12, 6), nrows=2, ncols=1)
-```
-
-### save_show
-Saves the current matplotlib figure to a file at the specified path and displays the figure.
-
-#### Params
-- path (str): The path where the figure will be saved.
-- dpi (int, optional): The resolution of the saved figure in dots per inch. Default is 300.
-- bbox_inches (str or Bbox, optional): The portion of the figure to save. Default is 'tight'.
-
-#### Returns
-- None
-
-#### Notes
-This function saves the current matplotlib figure to a file at the specified path and displays the figure.
-
-#### Example
-```python
->>> save_show('plot.png', dpi=300, bbox_inches='tight')
-```
-
-### plot_turkey
-Plot a bar chart showing the means of different groups along with the standard errors.
-
-#### Params
-- means: A list of mean values for each group.
-- std_errs: A list of standard errors for each group.
-- tukey_results: The Tukey's test results object.
-- min_star: The minimum number of stars to indicate significance.
-
-#### Returns
-- Axes: The current `Axes` instance.
-
-#### Notes
-This function plots a bar chart showing the means of different groups along with the standard errors. It also marks the groups with significant differences based on the Tukey's test results.
-
-#### Example
-```python
->>> plot_turkey([10, 20, 30], [1, 2, 3], tukey_results, min_star=2)
+plot_turkey([0.5, 1.2, 0.8], [0.1, 0.2, 0.15], tukey_test_results)
 ```

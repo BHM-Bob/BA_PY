@@ -212,6 +212,29 @@ def plot_turkey(means, std_errs, tukey_results, min_star = 1):
     plt.xticks(x, tukey_results.groupsunique)
     return plt.gca()
 
+
+__all__ = [
+    'AxisLable',
+    'pro_bar_data',
+    'plot_bar',
+    'plot_positional_hue',
+    
+    'plot_reg',
+    'plot_scatter',
+    'add_scatter_legend',
+    
+    'rgb2hex',
+    'hex2rgb',
+    'rgbs2hexs',
+    'get_palette',
+    'calcu_swarm_pos',
+    'qqplot',
+    'save_show',
+    'plot_stats_star',
+    'plot_turkey'
+]
+
+
 if __name__ == '__main__':
     # dev code
     df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
