@@ -473,7 +473,8 @@ class Actions(BaseInfo):
             - headers: a dict of headers to send request.
             - use_thread_control: if True, use a single thread to listening keybord input and control to save.
             - k2a: a list of tuple, key is key to listen, value is action to perform.
-                - default key2action: 'e': exit single thread and set statuesQue's __is_quit__ to True.
+                - default key2action 1: 'e': exit single thread and set statuesQue's __is_quit__ to True.
+                - default key2action 2: 'save': set statuesQue's __signal__ to 'save'.
         """
         super().__init__()
         self.pages: Dict[str, BasePage] = pages
