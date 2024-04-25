@@ -1,3 +1,9 @@
+'''
+Date: 2024-04-24 11:11:58
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-04-25 21:15:36
+Description: 
+'''
 import asyncio
 import time
 import unittest
@@ -48,6 +54,32 @@ class TaskPoolThreadTest(unittest.TestCase):
 
         self.assertEqual(pool.query_task("task1"), 'task1 result')  # Output: task1 finished after 3 seconds
         self.assertEqual(pool.query_task("task2"), 'task2 result')  # Output: task2 finished after 5 seconds
+        
+        
+class TaskPoolThreadsTest(unittest.TestCase):
+    def test_n_worker_4(self):
+        
+        def example_function(name, seconds):
+            print(f"{name} started")
+            time.sleep(seconds)
+            print(f"{name} finished after {seconds} seconds")
+            return f'{name} result'
+        
+        n_woker = 4
+        pool = TaskPool('threads', n_woker).run()
+        for i in range(n_woker):
+            pool.add_task(f"task{i+1}", example_function, f"task{i+1}", 3)
+
+        for i in range(n_woker):
+            self.assertEqual(pool.query_task(f"task{i+1}"), TaskStatus.NOT_FINISHED)
+
+        # wait for tasks to finish
+        time.sleep(8)
+        
+        for i in range(n_woker):
+            self.assertEqual(pool.query_task(f"task{i+1}"), f'task{i+1} result')
+        
+        pool.close()
 
 
 if __name__ == '__main__':

@@ -241,15 +241,19 @@ class TaskPool:
         
     Methods:
     """
-    def __init__(self, mode: str = 'async'):
+    @parameter_checker(mode = lambda mode: mode in ['async', 'thread', 'threads'])
+    def __init__(self, mode: str = 'async', n_worker: int = None):
         """
         Parameters:
             - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
                 - If it's IO heavy and has suitable coroutine function, use 'async'
                 - If it's IO heavy and only has normal function, and wants run ONE task at ONCE, use 'thread'. Use Queue to cache tasks and run ONE task at ONCE.
+                - If it's IO heavy and only has normal function, and wants run MULTI tasks at ONCE, use 'threads'. Use Queue to cache tasks and run MULTI tasks at ONCE.
         """
-        assert mode in ['async', 'thread'], f'Unsupported mode {mode}'
+        if mode in ['async', 'thread'] and n_worker is not None:
+            put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
+        self.N_WORKER = n_worker
         self._async_loop: asyncio.AbstractEventLoop = None
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
@@ -285,9 +289,14 @@ class TaskPool:
         self.tasks[name] = TaskStatus.NOT_RETURNED
         return name
     
+    def _add_task_threads(self, name: str, func, *args, **kwargs):
+        return self._add_task_thread(name, func, *args, **kwargs)
+    
     def add_task(self, name: str, coro_func, *args, **kwargs):
         if name == '' or name is None:
             name = f'{coro_func.__name__}-{time.time():.2f}'
+        if name in self.tasks:
+            put_err(f'Task {name} already exists, replace it with the new one')
         return getattr(self, f'_add_task_{self.MODE}')(name, coro_func, *args, **kwargs)
 
     def _query_async_task(self, name, block: bool = True, timeout: int = 3):
@@ -327,14 +336,23 @@ class TaskPool:
                 put_err(f'Task {name} failed with {result}, return {result}')
             return result
         
+    def _query_threads_task(self, name, block: bool = True, timeout: int = 3):
+        return self._query_thread_task(name, block, timeout)
+        
     def query_task(self, name: str, block: bool = False):
         return getattr(self, f'_query_{self.MODE}_task')(name, block)
 
     def run(self):
         if self.MODE == 'async':
             self._async_loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
-        self.thread.start()
+        if self.MODE == 'threads':
+            self.thread = []
+            for _ in range(self.N_WORKER):
+                self.thread.append(threading.Thread(target=self._run_thread_loop, daemon=True))
+                self.thread[-1].start()
+        else:
+            self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
+            self.thread.start()
         return self
     
     def check_empty(self):
@@ -343,15 +361,19 @@ class TaskPool:
                 if not task.done():
                     return False
             return True
-        elif self.MODE == 'thread':
+        elif self.MODE in ['thread', 'threads']:
             return self._thread_task_queue.empty()
     
     def close(self):
         if self.MODE == 'async':
             self._async_loop.close()
+            self.thread.join()
         elif self.MODE == 'thread':
             self._thread_quit_event.set()
             self.thread.join()
+        elif self.MODE == 'threads':
+            self._thread_quit_event.set()
+            [t.join() for t in self.thread]
 
 
 __all__ = [
@@ -371,23 +393,12 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
-    def example_function(name, seconds):
-        print(f"{name} started")
-        time.sleep(seconds)
-        print(f"{name} finished after {seconds} seconds")
-        return f'{name} result'
-    
-    pool = TaskPool('thread').run()
-    pool.add_task("task1", example_function, "task1", 2)
-    pool.add_task("task2", example_function, "task2", 4)
+    async def example_coroutine(name, seconds):
+        print(f"Coroutine {name} started")
+        await asyncio.sleep(seconds)
+        print(f"Coroutine {name} finished after {seconds} seconds")
+        return f"Coroutine {name} result"
 
-    print('task1, ', pool.query_task("task1"))  # Output: TaskStatus.NOT_FINISHED
-    print('task2, ', pool.query_task("task2"))  # Output: TaskStatus.NOT_FINISHED
-
-    # wait for tasks to finish
-    time.sleep(10)
-
-    print('task1, ', pool.query_task("task1"))  # Output: task1 finished after 3 seconds
-    print('task2, ', pool.query_task("task2"))  # Output: task2 finished after 5 seconds
-    
-    pool.close()
+    pool = TaskPool().run()
+    pool.add_task("task1", example_coroutine, "task1", 2)
+    pool.add_task("task2", example_coroutine, "task2", 4)
