@@ -145,10 +145,15 @@ class BasePage(BaseInfo):
         else:
             return put_err('name should be str, skip and return False', False)
         
-    def parse(self, results: List[List[Union[str, etree._Element]]] = None) -> None:
+    def parse(self, *args, results: List[List[Union[str, etree._Element]]] = None,
+              clear_history: bool = True, **kwargs) -> None:
         """
         parse data from results, override by subclass.
-        In BasePage.perform, it will call this function to parse data and store in self.result..
+        In BasePage.perform, it will call this function to parse data and store in self.result.
+        
+        Parameters:
+            - results: List[List[Union[str, etree._Element]]], results from previous pages, could be None.
+            - clear_history[SHOULD IMPLEMENT BY SUBCLASS]: bool, if clear_history is True, will clear history results before parsing, default is True.
         """
         
     def _process_parsed_data(self, *args, **kwargs):
@@ -156,7 +161,8 @@ class BasePage(BaseInfo):
         process parsed data, could be override by subclass
         """
         
-    def perform(self, *args, results: List[List[Union[str, etree._Element]]] = None, **kwargs):
+    def perform(self, *args, results: List[List[Union[str, etree._Element]]] = None,
+                clear_history: bool = True, **kwargs) -> List[Any]:
         self.result =  self.parse(results)
         self._process_parsed_data(*args, **kwargs)
         return self.result
@@ -204,7 +210,8 @@ class PagePage(BasePage):
             results = self.url
         return results
     
-    def parse(self, results: List[List[Union[str, etree._Element]]] = None):
+    def parse(self, results: List[List[Union[str, etree._Element]]] = None,
+              clear_history: bool = True, **kwargs):
         """
         get new web-page(s) from self.url, results(as links) or self.father_page.result_page_xpath(as links)
         Note: a page store one kind item, the content of this item could be url or list of urls.
@@ -259,7 +266,8 @@ class UrlIdxPagesPage(PagePage):
         self.base_url = base_url
         self.url_fn = url_fn
         
-    def parse(self, results: List[List[Union[str, etree._Element]]]):
+    def parse(self, results: List[List[Union[str, etree._Element]]],
+              clear_history: bool = True, **kwargs):
         is_valid, idx = True, 0
         while is_valid:
             url = self.url_fn(self.base_url, idx)
@@ -292,7 +300,8 @@ class DownloadPage(PagePage):
         self.page_folder_name: List[str] = None # folder name of each page, could be empty
         self.item_file_name: List[List[str]] = None # file name of each item, could be empty
         
-    def parse(self, results: List[List[Union[str, etree._Element]]] = None):
+    def parse(self, results: List[List[Union[str, etree._Element]]] = None,
+              clear_history: bool = True, **kwargs):
         """
         download file from self.url, results(as links) or self.father_page.result_page_xpath(as links)
         Note: a page store one kind item, the content of this item could be url or list of urls.
@@ -388,7 +397,8 @@ class ItemsPage(BasePage):
             put_err(f'{self.name} ItemsPage parse_xpath failed, xpath_r: {xpath_r}, xpath: {self.xpath}')
         return False
         
-    def parse(self, results: List[List[Union[str, etree._Element]]] = None):
+    def parse(self, results: List[List[Union[str, etree._Element]]] = None,
+              clear_history: bool = True, **kwargs):
         """
         parse data from results, override by subclass.
         """
@@ -558,9 +568,10 @@ class Actions(BaseInfo):
     def del_page(self, name: str) -> None:
         raise NotImplementedError()
     
-    def perform(self, *args, **kwargs):
+    def perform(self, *args, clear_history: bool = True, **kwargs):
         """
         Parameters:
+            - clear_history: if True, clear all history before perform.
             - args, kwargs: parameters to pass to each page's perform method.
             
         Returns:
@@ -577,7 +588,7 @@ class Actions(BaseInfo):
                 # check before_func
                 if p.before_func is None or p.before_func(self, p):
                     # perform this page to make it's own result
-                    result = p.perform(*args, **kwargs)
+                    result = p.perform(*args, clear_history=clear_history, **kwargs)
                     # execute after_func if exists
                     if p.after_func is not None:
                         p.after_func(self, p)

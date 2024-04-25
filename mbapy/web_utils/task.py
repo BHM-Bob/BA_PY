@@ -102,7 +102,7 @@ def launch_sub_thread(statuesQue = statuesQue,
     
     Note:
         - statuesQue has two keys for mbapy inner usage: __is_quit__ and __inputs__.
-        - key2action iwill add a ket 'e' first, and then add other key-to-action.
+        - key2action will add a key 'e' first, and then add other key-to-action.
             The 'e' key will trigle the 'exit' signal to _wait_for_quit func.
         - NOLY IF get no match without reg, then try to match with reg.
     
