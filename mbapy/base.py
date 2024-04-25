@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-03-01 10:09:58
+LastEditTime: 2024-04-25 22:58:26
 Description: 
 '''
 import ctypes
@@ -356,6 +356,10 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
 
     Returns:
         A decorated function that performs argument validity checks before executing the original function.
+        
+    Notes:
+        - If all checkers get passed, the original function is executed.
+        - If any checker fails, the function returns None or raises a ValueError, depending on the value of `raise_err`.
 
     Example usage:
     >>> @check_arguments(path = check_parameters_path, head = check_parameters_len)
@@ -366,32 +370,39 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # info string
             info_string = f"Parameter checker for {func.__code__.co_name} : Invalid value for argument "
+            def check_arg(checker, arg_name: str, arg_value):
+                if not checker(arg_value):
+                    if raise_err:
+                        raise ValueError(info_string+arg_name)
+                    else:
+                        return put_err(info_string+arg_name, False)
+                return True
+            # args_name will exclude *args and **kwargs with name of args and kwargs
+            args_name = list(func.__code__.co_varnames)[:func.__code__.co_argcount+
+                                                 func.__code__.co_kwonlyargcount]
             # check positional arguments
-            for i, arg_check in enumerate(arg_checkers):
+            for i, arg_checker in enumerate(arg_checkers):
                 if i < len(args):
-                    arg = args[i]
-                    if not arg_check(arg):
-                        arg_name = func.__code__.co_varnames[i]
-                        if raise_err:
-                            raise ValueError(info_string+arg_name)
-                        else:
-                            # directly return a none value, skip the err pop
-                            return put_err(info_string+arg_name, None)
+                    if not check_arg(arg_checker, args_name[i], args[i]):
+                        return None
             # check keyword arguments
             for arg_name, kwarg_checker in kwarg_checkers.items():
-                # pass the rigth arg name
-                if arg_name in func.__code__.co_varnames:
+                # if passed the rigth arg name
+                if arg_name in args_name:
                     # get the index of the argument
-                    idx = func.__code__.co_varnames.index(arg_name)
-                    # get the argument through the index if passed positionally
-                    arg = args[idx] if idx < len(args) else kwargs[arg_name]
-                    if not kwarg_checker(arg):
-                        if raise_err:
-                            raise ValueError(info_string+arg_name)
-                        else:
-                            return put_err(info_string+arg_name, None)
+                    idx = args_name.index(arg_name)
+                    # get arg value
+                    if idx < len(args):
+                        arg_value = args[idx]
+                    elif arg_name in kwargs:
+                        arg_value = kwargs[arg_name]
+                    elif func.__defaults__ and idx-len(args) < len(func.__defaults__):
+                        arg_value = func.__defaults__[idx-len(args)]
+                    else:
+                        raise TypeError(f'{func.__code__.co_name}() minssing required argument')
+                    if not check_arg(kwarg_checker, arg_name, arg_value):
+                        return None
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -681,5 +692,11 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
-    # set_default_kwargs
-    d = set_default_kwargs({'a':1}, discard_extra=True, eps = 0.5, min_samples = 3)
+    class Test:
+        @parameter_checker(b = lambda b: b in ['b', 'B'], raise_err=False)
+        def __init__(self, a, b: str = 'b', *args, **kwargs) -> None:
+            print(a, b)
+            
+    Test('A')
+    Test('A', 'A', e = 'E')
+    Test('A', 'B', 10)
