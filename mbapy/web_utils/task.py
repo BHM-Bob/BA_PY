@@ -4,6 +4,7 @@ import os
 import re
 import time
 import threading
+import multiprocessing
 from collections import namedtuple
 from enum import Enum
 from queue import Queue
@@ -241,14 +242,19 @@ class TaskPool:
         
     Methods:
     """
-    @parameter_checker(mode = lambda mode: mode in ['async', 'thread', 'threads'])
-    def __init__(self, mode: str = 'async', n_worker: int = None):
+    @parameter_checker(mode = lambda mode: mode in ['async', 'thread',
+                                                    'threads', 'process'])
+    def __init__(self, mode: str = 'async', n_worker: int = None,
+                 sleep_while_empty: float = 0.1):
         """
         Parameters:
             - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
                 - If it's IO heavy and has suitable coroutine function, use 'async'
                 - If it's IO heavy and only has normal function, and wants run ONE task at ONCE, use 'thread'. Use Queue to cache tasks and run ONE task at ONCE.
                 - If it's IO heavy and only has normal function, and wants run MULTI tasks at ONCE, use 'threads'. Use Queue to cache tasks and run MULTI tasks at ONCE.
+                - If it's CPU heavy and wants run MULTI tasks at ONCE, use 'process'. Use multiprocessing.Pool to run MULTI tasks at ONCE.
+            - n_worker (int, default=None): number of worker threads or processes.
+            - sleep_while_empty (float, default=0.1): sleep time in a loop while task queue is empty.
         """
         if mode in ['async', 'thread'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
@@ -278,6 +284,25 @@ class TaskPool:
                 except Exception as e:
                     self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
             time.sleep(0.1)
+            
+    def _run_process_loop(self):
+        pool, tasks_cache = multiprocessing.Pool(self.N_WORKER), {}
+        while not self._thread_quit_event.is_set():
+            # put async result into cache
+            if not self._thread_task_queue.empty():
+                task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
+                tasks_cache[task_name] = pool.apply_async(task_func, task_args, task_kwargs)
+            # get finished tasks from cache
+            for task_name, task_result in list(tasks_cache.items()):
+                if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
+                    try:
+                        self._thread_result_queue.put((task_name, task_result.get(),
+                                                       TaskStatus.SUCCEED))
+                        del tasks_cache[task_name]
+                    except Exception as e:
+                        self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+            time.sleep(0.1)
+        pool.close()
 
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
@@ -289,15 +314,15 @@ class TaskPool:
         self.tasks[name] = TaskStatus.NOT_RETURNED
         return name
     
-    def _add_task_threads(self, name: str, func, *args, **kwargs):
-        return self._add_task_thread(name, func, *args, **kwargs)
-    
     def add_task(self, name: str, coro_func, *args, **kwargs):
+        # check name
         if name == '' or name is None:
-            name = f'{coro_func.__name__}-{time.time():.2f}'
+            name = f'{coro_func.__name__}-{time.time():.6f}'
         if name in self.tasks:
             put_err(f'Task {name} already exists, replace it with the new one')
-        return getattr(self, f'_add_task_{self.MODE}')(name, coro_func, *args, **kwargs)
+        # map mode to function
+        mode = 'async' if self.MODE == 'async' else 'thread'
+        return getattr(self, f'_add_task_{mode}')(name, coro_func, *args, **kwargs)
 
     def _query_async_task(self, name, block: bool = True, timeout: int = 3):
         if name in self.tasks:
@@ -336,13 +361,13 @@ class TaskPool:
                 put_err(f'Task {name} failed with {result}, return {result}')
             return result
         
-    def _query_threads_task(self, name, block: bool = True, timeout: int = 3):
-        return self._query_thread_task(name, block, timeout)
-        
     def query_task(self, name: str, block: bool = False):
-        return getattr(self, f'_query_{self.MODE}_task')(name, block)
+        # map mode to function
+        mode = 'async' if self.MODE == 'async' else 'thread'
+        return getattr(self, f'_query_{mode}_task')(name, block)
 
     def run(self):
+        """launch the thread and event loop"""
         if self.MODE == 'async':
             self._async_loop = asyncio.new_event_loop()
         if self.MODE == 'threads':
@@ -350,29 +375,32 @@ class TaskPool:
             for _ in range(self.N_WORKER):
                 self.thread.append(threading.Thread(target=self._run_thread_loop, daemon=True))
                 self.thread[-1].start()
-        else:
+        else: # async, thread and process only need one thread
             self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
             self.thread.start()
         return self
     
     def check_empty(self):
+        """check tasks (undo and done) is empty"""
         if self.MODE == 'async':
             for task in self.tasks.values():
                 if not task.done():
                     return False
             return True
-        elif self.MODE in ['thread', 'threads']:
+        elif self.MODE in ['thread', 'threads', 'process']:
             return self._thread_task_queue.empty()
     
     def close(self):
+        """close the thread and event loop, join the thread"""
+        # close async pool
         if self.MODE == 'async':
+            self._async_loop.call_soon_threadsafe(self._async_loop.stop)
             self._async_loop.close()
-            self.thread.join()
-        elif self.MODE == 'thread':
-            self._thread_quit_event.set()
+        # close thread and join it
+        self._thread_quit_event.set()
+        if self.MODE in ['async', 'thread', 'process']:
             self.thread.join()
         elif self.MODE == 'threads':
-            self._thread_quit_event.set()
             [t.join() for t in self.thread]
 
 
