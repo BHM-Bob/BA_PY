@@ -298,9 +298,9 @@ class TaskPool:
                     try:
                         self._thread_result_queue.put((task_name, task_result.get(),
                                                        TaskStatus.SUCCEED))
-                        del tasks_cache[task_name]
                     except Exception as e:
                         self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+                    del tasks_cache[task_name]
             time.sleep(0.1)
         pool.close()
 
