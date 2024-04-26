@@ -1,7 +1,7 @@
 <!--
  * @Date: 2024-04-22 19:58:07
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-04-22 20:07:14
+ * @LastEditTime: 2024-04-26 21:57:25
  * @Description: 
 -->
 *`Kimi` generated*.
@@ -9,7 +9,7 @@
 ## Command: mv
 
 ### Introduction
-The `move-files` command is a utility script that allows for the movement of files with specific suffixes or substrings in their names from a source directory to a destination directory. It provides options for recursive searching and filtering files by type and name.
+The `mv` command is a utility script that allows for the movement of files with specific suffixes or substrings in their names from a source directory to a destination directory. It provides options for recursive searching and filtering files by type and name.
 
 ### Parameters
 
