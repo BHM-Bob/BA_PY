@@ -1,0 +1,92 @@
+{
+    "cnipa":
+        {
+            "brief": "get patents info from CNIPA.",
+            "detailed": "This Python script is designed to automate the process of searching for and downloading patent information from the China National Intellectual Property Administration (CNIPA) website using a web browser. It utilizes the `argparse` library to accept command line arguments and the `easyocr` library for captcha recognition. The script also includes functionality to handle browser interactions and JSON file operations for storing the results. Example: mbapy-cli cnipa -q \"peptide\" -o \"E:\\peptide patents\" -log"
+        },
+    "scihub":
+        {
+            "brief": "download papers and it's refs(optional) from scihub.",
+            "detailed":  "This script is designed to download academic papers from SCI-HUB using a RIS file that contains the references. It can also download the references of the main papers if the `--ref` flag is set. The script provides functionality to save the download progress and resume later if needed. Example: mbapy-cli scihub -i \"E:\\peptide.ris\" -o \"E:\\peptide papers\" -log "
+        },
+    "scihub_selenium":
+        {
+            "brief": "download papers and it's refs(optional) from scihub using selenium.",
+            "detailed":  "This script is a command-line utility for downloading academic papers from SCI-HUB based on a provided RIS file containing references. It supports downloading the main papers as well as their references, and it can handle interruptions by saving the current session.. Example: mbapy-cli scihub_selenium -i \"E:\\peptide.ris\" -o \"E:\\peptide papers\" -log -gui "
+        },
+    "extract_paper":
+        {
+            "brief": "extract papers content to a json file.",
+            "detailed":  "This Python script is designed to extract text content from PDF documents and format it into a structured JSON file. It uses various libraries such as `argparse`, `glob`, `os`, and `tqdm` for argument parsing, file path expansion, environment variable setup, and progress indication, respectively. The script also utilizes the `mbapy` library for PDF processing and JSON serialization.. Example: mbapy-cli extract_paper -i \"E:\\peptide papers\" -log "
+        },
+    "peptide":
+        {
+            "brief": "tools for peptide.",
+            "detailed": " sub command 1: subval:     : calcu SPPS substitution value for a release test of resin.\nsub command 2: mw:     : calcu MW and Exact Mass for a peptide.\nsub command 3: mmw:     : calcu MW of each peptide mutations syn by SPPS. sub command\n4: letters:     : transfer peptide repr width with 1 and 3 letters. "
+        },
+    "reviz":
+        {
+            "brief": "re-vizdom for mbapy.dl_torch.utils.viz_line",
+            "detailed":  "The `reviz` command is designed to launch a Visdom service and re-visualize data from a JSON record file. It is particularly useful for revisiting and re-analyzing previously saved visualization data in a Visdom environment."
+        },
+    "mass":
+        {
+            "brief": "mass spectrum tools",
+            "detailed":  "The `plot-mass` command is designed to process and visualize mass spectrometry data from text files. It reads text files, interprets the content based on the header information, and creates various plots such as base peak, absorbance, peak list, and mass-charge plots. The command allows for customization of the plots through command-line arguments, including setting the directory for input and output, recursive search, plot colors, and labels for specific mass values."
+        },
+    "cluster":
+        {
+            "brief": "cluster tools",
+            "detailed":  " cluster tools. "
+        },
+    "video":
+        {
+            "brief": "video tools",
+            "detailed":  " video tools. \n1. The `edit` command is a simple video editor that allows users to adjust the audio volume and video speed of common video files. It also provides the option to remove the audio track entirely.\n2/ The `extract` command is used to extract frames or audio from video files. It supports extracting frames based on index, all frames, or unique frames based on image similarity."
+        },
+    "avif":
+        {
+            "brief": "transfer img to avif or heic format",
+            "detailed":  "This Python script is designed to convert image files from JPEG format to AVIF format. It utilizes the `argparse` library to accept command-line arguments and the `PIL` (Python Imaging Library) with `pillow_heif` for handling AVIF images."
+        },
+    "rm":
+        {
+            "brief": "delete files with specific suffix or sub-string in name",
+            "detailed":  "This utility command is designed to delete files with specific suffixes or substrings in their names. It provides options to specify file types, substrings in file names, the input directory, and whether to perform a recursive search within the directory."
+        },
+    "mv":
+        {
+            "brief": "move files with specific suffix or sub-string in name",
+            "detailed":  "The `mv` command is a utility script that allows for the movement of files with specific suffixes or substrings in their names from a source directory to a destination directory. It provides options for recursive searching and filtering files by type and name."
+        },
+    "cp":
+        {
+            "brief": "copy files with specific suffix or sub-string in name",
+            "detailed":  "The script provided is a Python utility designed to move files with specific suffixes or substrings in their names from a source directory to a destination directory. It uses the `argparse` library to parse command-line arguments and provides a user-friendly interface for file manipulation tasks."
+        },
+    "splash_img":
+        {
+            "brief": "splash images",
+            "detailed":  " splash images. "
+        },
+    "duitang":
+        {
+            "brief": "duitang",
+            "detailed":  "This Python script is designed to download images from the Duitang website based on a user-provided search query. It uses the `argparse` library to parse command line arguments, `BeautifulSoup` for parsing HTML content, `selenium` for browser automation, and `tqdm` for progress display."
+        },
+    "extract-dir":
+        {
+            "brief": "extract-dir",
+            "detailed":  "The `extract-dir` script is designed to move files with specific suffixes or substrings in their names to the root directory. This utility is particularly useful for organizing files in a hierarchical structure or consolidating files for easier access."
+        },
+    "file-size":
+        {
+            "brief": "count files with specific suffix or sub-string in name",
+            "detailed":  "This Python script utilizes the `argparse` library to parse command-line arguments and perform file counting operations based on specific criteria. It can count files with a given suffix or a substring in the name within a specified directory, and provides detailed statistics about the file types and sizes."
+        },
+    "hplc":
+        {
+            "brief": "HPLC tools",
+            "detailed":  "The `plot-hplc` command is a Python script designed to process and visualize high-performance liquid chromatography (HPLC) data. It is capable of reading data files, typically in the ARW format exported by Waters systems, and generating plots of the absorbance over time."
+        }
+}

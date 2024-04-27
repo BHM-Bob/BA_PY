@@ -2,12 +2,15 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-18 16:21:57
+LastEditTime: 2024-04-21 18:54:51
 Description: 
 '''
 import collections
 import os
+import pickle
+import platform
 import shutil
+from pathlib import Path
 from typing import Dict, List, Union
 
 try:
@@ -33,6 +36,7 @@ if __name__ == '__main__':
                 from mbapy.file_utils.video import *
     except:
         pass
+    __all__extend__ = []
 else:
     # release mode
     from .base import (check_parameters_path, format_secs,
@@ -47,38 +51,72 @@ else:
 
                 from .file_utils.image import *
                 from .file_utils.video import *
+        __all__extend__ = [
+            'imread',
+            'imwrite',
+            '_load_nn_model',
+            '_get_transform',
+            'calculate_frame_features', 
+            'get_cv2_video_attr',
+            'extract_frames_by_index',
+            'extract_frame_to_img',
+            'extract_unique_frames',
+        ]
     except:# if cv2 or torch is not installed, skip
-        pass
+        __all__extend__ = []
     
-def get_paths_with_extension(folder_path: str, file_extensions: List[str]) -> List[str]:
+def get_paths_with_extension(folder_path: str, file_extensions: List[str],
+                             recursive: bool = True, name_substr: str = '') -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
     Args:
-        folder_path (str): The path of the folder to search for files.
-        file_extensions (List[str]): A list of file extensions to filter the search by.
+        - folder_path (str): The path of the folder to search for files.
+        - file_extensions (List[str]): A list of file extensions to filter the search by.
+            If it is empty, accept all extensions.
+        - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
+        - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
     file_paths = []
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            if any(file.endswith(extension) for extension in file_extensions):
-                file_paths.append(os.path.join(root, file))
+    for name in os.listdir(folder_path): # do not use os.walk() to avoid FXXK files updates
+        path = os.path.join(folder_path, name)
+        if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
+            if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
+                file_paths.append(path)
+        if recursive and os.path.isdir(path):
+            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr))
     return file_paths
 
+def format_file_size(size_bits: int, return_str: bool = True):
+    n = 0
+    units = {0: '', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB', 5: 'PB', 6: 'EB', 7: 'ZB', 8: 'YB'}
+    
+    while size_bits > 1024:
+        size_bits /= 1024
+        n += 1
+        
+    if return_str:
+        return f"{round(size_bits, 2)} {units[n]}"
+    else:
+        return size_bits, units[n]
+
 def extract_files_from_dir(root: str, file_extensions: List[str] = None,
-                           extract_sub_dir: bool = True, join_str:str = ' '):
+                           extract_sub_dir: bool = True, join_str:str = ' ',
+                           preffix: str = '', file_result: List[str] = []):
     """
     Move all files in subdirectories to the root directory and add the subdirectory name as a prefix to the file name.
 
     Args:
-        root (str): The root directory path.
-        file_extensions (list[str]): specific file types string (without '.'), if None, means all types.
-        extract_sub_dir (bool, optional): Whether to recursively extract files from subdirectories.
+        - root (str): The root directory path.
+        - file_extensions (list[str]): specific file types string (without '.'), if None, means all types.
+        - extract_sub_dir (bool, optional): Whether to recursively extract files from subdirectories.
             If set to False, only files in the immediate subdirectories will be extracted. Defaults to True.
-        join_str (str): string for link prefix and the file name.
+        - join_str (str): string for link prefix and the file name.
+        - preffix (str): the prefix for the file name.
+        - file_result (list): the list to store the extracted file paths.
 
     Returns:
         None
@@ -86,15 +124,20 @@ def extract_files_from_dir(root: str, file_extensions: List[str] = None,
     for dirpath, dirnames, filenames in os.walk(root):
         if not extract_sub_dir or dirpath == root:
             continue
+        else:
+            for dirname in dirnames:
+                preffix += (dirname + join_str)
+                file_result.extend(extract_files_from_dir(
+                    os.path.join(root, dirname), file_extensions,
+                    extract_sub_dir, join_str, preffix))
         for filename in filenames:
-            if file_extensions is None or any(filename.endswith(extension) for extension in file_extensions):
-                if extract_sub_dir:
-                    new_filename = dirpath.split(root)[1][1:] + join_str + filename
-                else:
-                    new_filename = filename
+            if not file_extensions or any(filename.endswith(extension) for extension in file_extensions):
+                new_filename = preffix + join_str + filename
                 src_path = os.path.join(dirpath, filename)
                 dest_path = os.path.join(root, new_filename)
                 shutil.move(src_path, dest_path)
+            file_result.append(dest_path)
+    return file_result
 
 def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
     """
@@ -108,50 +151,107 @@ def replace_invalid_path_chr(path:str, valid_chrs:str = '_'):
         str: The path string with all invalid characters replaced by the valid character.
     """
     invalid_chrs = ':*?"<>|\n\t'
+    win_prefix = ''
+    # AVOID WINDOWS PATH PREFIX: such as 'C:\'
+    if platform.system().lower() == 'windows' and os.path.basename(path) != path:
+        if len(path) >= 2 and path[1] == ':':
+            win_prefix, path = path[:2], path[2:]
     for invalid_chr in invalid_chrs:
         path = path.replace(invalid_chr, valid_chrs)
-    return path
+    return win_prefix + path
 
-def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len = 250):
-    return replace_invalid_path_chr(path, valid_chrs)[:valid_len]
+def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
+                        return_Path: bool = False):
+    """
+    Get a valid file path.
 
-def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8', way:str = 'str', data = None, **kwargs):
+    Args:
+        path (str): The path to process.
+        valid_chrs (str, optional): Valid characters for the path. Default is '_'.
+        valid_len (int, optional): The maximum valid length of the path. Default is 250.
+        return_Path (bool, optional): Whether to return a Path object or not. Default is False.
+
+    Returns:
+        Union[str, Path]: The validated file path.
+
+    """
+    path = replace_invalid_path_chr(path, valid_chrs)
+    if platform.system().lower() == 'windows' and len(path) > valid_len:
+        suffix = Path(path).suffix
+        valid_len = valid_len - len(suffix)
+        path = path[:valid_len] + suffix
+    return path if not return_Path else Path(path)
+
+def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
+              way:str = 'str', data = None, kwgs: Dict = {}, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
     Parameters:
-        path (str): The path to the file.
-        mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.
-        encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
-        way (str, optional): The way in which the data should be read or written. Defaults to 'lines'.
-        data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
+        - path (str): The path to the file.
+        - mode (str, optional): The mode in which the file should be opened. Defaults to 'r'.
+            - 'r': Read mode.
+            - 'w': Write mode.
+            - 'a': Append mode. Only applicable with 'str' and 'lines' way.
+        - encoding (str, optional): The encoding of the file. Defaults to 'utf-8'.
+        - way (str, optional): The way in which the data should be read or written. Defaults to 'str'.
+            - 'str': Read/write the data as a string.
+            - 'lines': Read/write the data as a list of lines.
+            - 'json': Read/write the data as a JSON object.
+            - 'yml'/'yaml': Read/write the data as a YAML file.
+            - 'pkl': Read/write the data as a Python object (using pickle).
+            - 'csv': Read/write the data as a CSV file.
+            - 'excel' or 'xlsx' or 'xls': Read/write the data as an Excel file.
+        - data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
+        - kwgs (dict): Additional keyword arguments to be passed to the third-party read/write function.
+        - kwargs (dict): Additional arguments to be passed to the open() function.
 
     Returns:
         list or str or dict or None: The data read from the file, or None if the file was opened in write mode and no data was provided.
+        
+    Errors:
+        - return None if the path is not a valid file path for read.
+        - return None if the mode or way is not valid.
     """
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
     with open(path, mode, **kwargs) as f:
-        if 'r' in mode:
+        if 'r' in mode and os.path.isfile(path):
             if way == 'lines':
                 return f.readlines()
             elif way == 'str':
                 return f.read()
             elif way == 'json':
-                return json.loads(f.read())
-        elif 'w' in mode and data is not None:
+                return json.loads(f.read(), **kwgs)
+            elif way in ['yml', 'yaml']:
+                import yaml
+                return yaml.load(f, **kwgs)
+            elif way == 'pkl':
+                return pickle.load(f, **kwgs)
+            elif way == 'csv':
+                return pd.read_csv(f, **kwgs)
+            elif way in ['excel', 'xlsx', 'xls']:
+                return pd.read_excel(f, **kwgs)
+        elif ('w' in mode or 'a' in mode) and data is not None\
+                and way in ['lines','str']: 
             if way == 'lines':
                 return f.writelines(data)
             elif way == 'str':
                 return f.write(data)
-            elif way == 'json':
-                return f.write(json.dumps(data))
-
-def read_bits(path:str):
-    return opts_file(path, 'rb')
-
-def read_text(path:str, decode:str = 'utf-8', way:str = 'lines'):
-    return opts_file(path, 'r', decode, way)
+        elif 'w' in mode and data is not None:
+            if way == 'json':
+                return f.write(json.dumps(data, **kwgs))
+            elif way == 'pkl':
+                return pickle.dump(data, f, **kwgs)
+            elif way in ['yml', 'yaml']:
+                import yaml
+                return yaml.dump(data, f, **kwgs)
+            elif way == 'csv':
+                return data.to_csv(f, **kwgs)
+            elif way in ['excel', 'xlsx', 'xls']:
+                return data.to_excel(f, **kwgs)
+        else:
+            return put_err(f"Invalid mode or way for file {path}. mode={mode}, way={way}.")
 
 def detect_byte_coding(bits:bytes):
     """
@@ -233,8 +333,8 @@ def save_json(path:str, obj, encoding:str = 'utf-8', forceUpdate = True, ensure_
     """
     if forceUpdate or not os.path.isfile(path):
         json_str = json.dumps(obj, indent=1, ensure_ascii=ensure_ascii)
-        with open(path, 'w' ,encoding=encoding, errors='ignore') as json_file:
-            json_file.write(json_str)
+        with open(path, 'w', encoding=encoding, errors='ignore') as f:
+            f.write(json_str)
             
 def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
     """
@@ -250,8 +350,8 @@ def read_json(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
         invalidPathReturn (any): The value passed as `invalidPathReturn` if the path is invalid.
     """
     if os.path.isfile(path):
-        with open(path, 'r' ,encoding=encoding, errors='ignore') as json_file:
-            json_str = json_file.read()
+        with open(path, 'r' ,encoding=encoding, errors='ignore') as f:
+            json_str = f.read()
         return json.loads(json_str)
     return invalidPathReturn
 
@@ -273,8 +373,8 @@ def save_yaml(path:str, obj, indent = 2, encoding:str = 'utf-8',
     """
     import yaml
     if force_update or not os.path.isfile(path):
-        with open(path, 'w' ,encoding=encoding, errors='ignore') as fh:
-            fh.write(yaml.dump(obj, indent=indent, allow_unicode=allow_unicode))
+        with open(path, 'w' ,encoding=encoding, errors='ignore') as f:
+            f.write(yaml.dump(obj, indent=indent, allow_unicode=allow_unicode))
             
 def read_yaml(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
     """
@@ -420,6 +520,29 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
         return extract_text(path)
     else:
         raise NotImplementedError
+    
+    
+__all__ = [
+    'get_paths_with_extention',
+    'format_file_size',
+    'extract_files_from_dir',
+    'replace_invalid_path_chr',
+    'get_valid_file_path',
+    'opts_file',
+    'detect_byte_coding',
+    'get_byte_coding',
+    'decode_bits_to_str',
+    'is_jsonable',
+    'save_json',
+    'read_json',
+    'save_yaml',
+    'read_yaml',
+    'save_excel',
+    'read_excel',
+    'write_sheets',
+    'update_excel',
+    'convert_pdf_to_txt'
+] + __all__extend__
     
 
 if __name__ == '__main__':

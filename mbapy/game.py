@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-01 22:21:21
+LastEditTime: 2024-02-16 22:10:56
 Description: 
 '''
 
@@ -9,10 +9,12 @@ import base64
 import collections
 import gzip
 import inspect
+import pickle
 import os
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "True"
 import pygame as pg
 
 if __name__ == '__main__':
@@ -43,6 +45,7 @@ def transfer_bytes_to_base64(data: bytes, use_gzip: bool = True) -> str:
         data = gzip.compress(data)
     return base64.b64encode(data).decode('utf-8')
 
+
 def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
     """
     Convert a base64 encoded string to bytes.
@@ -58,6 +61,7 @@ def transfer_base64_to_bytes(data: str, use_gzip: bool = True) -> bytes:
     if use_gzip:
         data = gzip.decompress(data)
     return data
+
 
 def make_surface_from_array(array: np.ndarray):
     """
@@ -79,12 +83,13 @@ def make_surface_from_array(array: np.ndarray):
     surface_alpha[:,:] = array[:,:,3]
     return surface
 
+
 def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
     """
     Generate a numpy array from a pygame surface.
 
     Args:
-        surface (pg.SurfaceType): The pygame surface to convert.
+        surface (PgSurfaceType): The pygame surface to convert.
         copy (bool, optional): Whether to create a copy of the surface or not. Defaults to True.
 
     Returns:
@@ -100,7 +105,7 @@ def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
         alpha = pg.surfarray.pixels_alpha(surface)
         arr = np.concatenate([arr, alpha[:, :, None]], axis=-1)
     return arr
-        
+
 
 class BaseInfo:
     """
@@ -127,6 +132,8 @@ class BaseInfo:
     @mb.autoparse
     def __init__(self, *args, **kwargs) -> None:
         self.__psd_type__ = type(self).__name__
+        self.__psd_id__ = id(self) # 通过id来避免在to_dict时出现循环解析
+        
     def update(self):
         """
         有些不能序列化保存的info需要以另一些info来生成, 所以在调用from_dict,
@@ -136,11 +143,15 @@ class BaseInfo:
             - from_dict内部调用update并不会以update返回值赋值给obj
         """
         return self
+    
     def add_attr(self, key, value):
         setattr(self, key, value)
+        
     def del_attr(self, key):
         delattr(self, key)
-    def to_dict(self, force_update: bool = True, to_json: bool = True, use_gzip: bool = True):
+        
+    def to_dict(self, force_update: bool = True, to_json: bool = True,
+                use_gzip: bool = True, id_pool: Dict[int, str] = {}):
         """
         Converts the object to a dictionary representation,
         if obj contains class which is subclass of BaseInfo, it will be converted by to_dict.
@@ -155,7 +166,19 @@ class BaseInfo:
             
         Notes:
             - __psd_type__ will be added to the dictionary to indicate the type of the object, and will work when reconverting.
+            - If CAN NOT transfer, mark it as __psd_type__NON_TRANSFERABLE__, when reconverting, 
+                it will be ignored and remains to default value after __init__().
         """
+        def _check_all_default_value(obj):
+            """
+            检查obj.__init__的参数是否都有默认值
+            TODO: 最大目标是实现不强制要求所有参数都有默认值, 但目前还不知道怎么实现
+            """
+            sig = inspect.signature(obj.__init__)
+            for k, v in sig.parameters.items():
+                if v.default == inspect.Parameter.empty:
+                    return False
+            return True
         def _transfer_np_ndarray(v: np.ndarray, to_json: bool, use_gzip: bool):
             """将numpy.ndarray转为PSD dict格式(array转为list, 或压缩过的bytes再转为base64)"""
             if to_json:
@@ -208,6 +231,18 @@ class BaseInfo:
                 }
             else:
                 return v
+        def _transfer_pickle(v: bytes, to_json: bool, use_gzip: bool):
+            """
+            将其它不能转换的类型用pickle序列化(压缩过的bytes再转为base64)
+            TODO: 最大目标是实现不强制要求所有参数都有默认值, 但目前还不知道怎么实现
+            """
+            if to_json:
+                data = transfer_bytes_to_base64(pickle.dumps(v), use_gzip)
+                return {
+                    '__psd_type__PICKLE__': data.decode('utf-8')
+                }
+            else:
+                return v
         def _check_case_transfer(v, to_json, use_gzip):
             """
             检查v的各种受支持的类型并做转换
@@ -218,13 +253,14 @@ class BaseInfo:
             - pygame.SurfaceType: 转为bytes后(压缩)再转为base64;
             - pygame.Rect: 转为psd格式的dict;
             - Mapping或Sequence: 递归调用_check_transfer;
+            - 其它不能转换的类型, 且不是None: 记为__psd_type__NON_TRANSFERABLE__;
             """
             # 如果不需要转为json或者v可json, 直接纳入
             if mf.is_jsonable(v):
                 return v
             # v是BaseInfo类或继承自BaseInfo的类, 直接用to_dict方法转换
             elif issubclass(type(v), BaseInfo):
-                return v.to_dict(force_update, to_json, use_gzip)
+                return v.to_dict(force_update, to_json, use_gzip, id_pool)
             # v是numpy.ndarray, 调用_transfer_np_ndarray方法转换
             elif isinstance(v, np.ndarray):
                 return _transfer_np_ndarray(v, to_json, use_gzip)
@@ -265,8 +301,17 @@ class BaseInfo:
                     if v_i is not None:
                         _v.append(v_i)
                 return _v
+            # 其它不能转换的类型, 且不是None
+            elif v is not None:
+                return {'__psd_type__NON_TRANSFERABLE__': type(v).__name__}
+            # 是None, 则返回None
             return None
-            
+        # check id_pool
+        if self.__psd_id__ not in id_pool:
+            id_pool[self.__psd_id__] = self.__psd_type__
+        else:
+            return {'__psd_type__ID_LINK__': [self.__psd_id__, self.__psd_type__]}
+        # recursively convert all attributes to dictionary
         if self.__dict__ or force_update:
             _dict_ = {}
             for k, v in vars(self).items():
@@ -279,13 +324,17 @@ class BaseInfo:
                     _dict_[k] = _check_case_transfer(v, to_json, use_gzip)
         _dict_['__psd_type__'] = type(self).__name__
         return _dict_
-    def from_dict(self, dict_: dict, global_vars:Dict = None):
+    
+    def from_dict(self, dict_: dict, global_vars:Dict = None,
+                  obj_pool:Dict[int, object] = {}, first_run: bool = True):
         """
         Deserialize the object from a dictionary representation.
 
         Parameters:
             - dict_ (dict): The dictionary representation of the object.
-            - global_vars (dict): The globals() to init __psd_type__, if None, use inspect.currentframe automatically
+            - global_vars (dict): The globals() to init __psd_type__, if None, use inspect.currentframe automatically.
+            - obj_pool (dict): The object pool to store the objects which have been deserialized.
+            - first_run (bool): If True, it means this is the first run of from_dict, and the object pool is empty.
 
         Returns:
             self: The deserialized object.
@@ -293,11 +342,23 @@ class BaseInfo:
         def _check_case_transfer(v):
             # 继承自BaseInfo类的反序列化
             if isinstance(v, Dict) and '__psd_type__' in v:
-                new_obj: BaseInfo = eval(f'{v["__psd_type__"]}()', global_vars)
-                new_obj = new_obj.from_dict(v, global_vars)
+                obj_type = eval(f'{v["__psd_type__"]}', global_vars)
+                try:
+                    new_obj: BaseInfo = obj_type()
+                except:
+                    # accept situations when __init__ has not default value
+                    new_obj: BaseInfo = obj_type.__new__(obj_type)
+                new_obj = new_obj.from_dict(v, global_vars, obj_pool, False)
                 new_obj.update()
-                setattr(self, k, new_obj)
+                # setattr(self, k, new_obj) # probablly junk code
                 v = new_obj
+                obj_pool[v.__psd_id__] = v
+            # 继承自BaseInfo类的反序列化(通过id_link)
+            elif isinstance(v, Dict) and '__psd_type__ID_LINK__' in v:
+                if v['__psd_type__ID_LINK__'][0] in obj_pool:
+                    v = obj_pool[v['__psd_type__ID_LINK__'][0]]
+                else:
+                    v = None
             # numpy.ndarray反序列化
             elif isinstance(v, Dict) and '__psd_type__NP_NDARRAY__' in v:
                 v['data'] = transfer_base64_to_bytes(v['data'], v['use_gzip'])
@@ -315,6 +376,9 @@ class BaseInfo:
             # pygame.Color反序列化
             elif isinstance(v, Dict) and '__psd_type__PG_COLOR__' in v:
                 v = pg.Color(v['data'][0], v['data'][1], v['data'][2], v['data'][3])
+            # non_transferable类型
+            elif isinstance(v, Dict) and '__psd_type__NON_TRANSFERABLE__' in v:
+                pass # 直接返回字典{'__psd_type__NON_TRANSFERABLE__': type(v).__name__}
             # 一般list反序列化
             elif isinstance(v, List):
                 v = [_check_case_transfer(v_i) for v_i in v]
@@ -332,7 +396,7 @@ class BaseInfo:
                         _dict_[k_i] = _check_case_transfer(v_i)
                 v = _dict_
             return v
-            
+        # get global_vars
         if inspect.currentframe().f_back.f_code.co_name == 'from_json':
             from_json_frame = inspect.currentframe().f_back
             outer_caller_frame = from_json_frame.f_back
@@ -340,12 +404,21 @@ class BaseInfo:
             outer_caller_frame = inspect.currentframe().f_back
         global_vars = mb.get_default_for_None(global_vars,
                                               outer_caller_frame.f_globals)
+        # add this BaseInfo obj's id to obj_pool
+        obj_pool[dict_['__psd_id__']] = self
+        # recursively convert all attributes from dictionary
         for k, v in dict_.items():
             if v is not None:
                 v = _check_case_transfer(v)
-            self.__dict__[k] = v
+            if not (isinstance(v, Dict) and '__psd_type__NON_TRANSFERABLE__' in v):
+                self.__dict__[k] = v
         self.update()
+        # recorver each object's id in obj_pool
+        if first_run:
+            for obj in obj_pool.values():
+                obj.__psd_id__ = id(obj)
         return self
+    
     def to_json(self, path: str):
         """
         Convert the object to a JSON string and save it to a file.
@@ -358,13 +431,13 @@ class BaseInfo:
             dict: A dictionary representation of the object or an empty dictionary if something goes wrong.
         """
         try:
-            if not mb.check_parameters_path(os.path.dirname(path)):
-                os.makedirs(os.path.dirname(path))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             _dict_ = self.to_dict(True, True)
             mf.save_json(path, _dict_)
             return _dict_
         except:
             return self.__dict__
+        
     def from_json(self, path: str, global_vars:Dict = None):
         """
         Parses a JSON file located at the specified `path` and updates the current object with the data from the JSON file.
@@ -381,6 +454,7 @@ class BaseInfo:
         self.from_dict(mf.read_json(path, invalidPathReturn={}),
                        global_vars = global_vars)
         return self
+    
     
 class ColorSur:
     def __init__(self, size: Size, sum_dots: int = 4, max_delta_x = 5, max_delta_y = 5) -> None:
@@ -449,7 +523,12 @@ if __name__ == '__main__':
         def __init__(self, x: int, y: int):
             super().__init__()
             self.i = {np.int_(x*y): pg.Surface((2, 2), pg.SRCALPHA)}
+            self.p: 'TestBI' = None
+            self.pg = pg.Vector2(3.14159265357989)
     i = TestBI(1, 2)
+    j = TestBI(3, 4)
+    i.p = j
+    j.p = i
     d = i.to_dict(True, True, True)
     i2 = TestBI(-1, -2).from_dict(d)
     

@@ -1,11 +1,18 @@
+'''
+Date: 2023-10-18 22:21:51
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-01-09 22:49:30
+Description: 
+'''
 
+from mbapy.file import replace_invalid_path_chr
 from mbapy.paper import *
 
 if __name__ == '__main__':
     # dev code
     from mbapy.base import rand_choose
     from mbapy.file import convert_pdf_to_txt, read_json
-    
+
     # RIS parse
     ris = parse_ris('./data_tmp/savedrecs.ris', '')
     ris = rand_choose(ris)

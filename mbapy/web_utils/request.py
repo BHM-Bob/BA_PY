@@ -30,6 +30,8 @@ else:
     
 
 def random_sleep(max_t: int = 10, min_t: int = 1):
+    if isinstance(max_t, int) or isinstance(min_t, int):
+        return time.sleep(random.uniform(float(min_t), float(max_t)))
     time.sleep(random.randint(min_t, max_t))
 
 def get_requests_retry_session(
@@ -65,11 +67,11 @@ def get_requests_retry_session(
     session.mount('https://', adapter)
     return session
 
-def get_url_page(url:str, coding = 'gbk'):
+def get_url_page(url:str, coding = 'utf-8'):
     """
     Given a url and a coding, this function returns the decoded content of the page.
     :param url: A string representing the URL to be visited.
-    :param coding: A string representing the character encoding of the page. Default is gbk.
+    :param coding: A string representing the character encoding of the page. Default is utf-8.
     :return: A string representing the decoded content of the page.
     """
     req = urllib.request.Request(url)
@@ -81,11 +83,11 @@ def get_url_page(url:str, coding = 'gbk'):
     urllib.request.install_opener(opener)
     return opener.open(req,timeout = 30).read().decode(coding,errors = 'ignore')
 
-def get_url_page_s(url:str, coding = 'gbk'):
+def get_url_page_s(url:str, coding = 'utf-8'):
     """
     Returns the HTML page content from the given URL. The function takes two parameters:
      - url: A string that represents the URL of the web page to retrieve.
-     - coding: A string that represents the encoding of the HTML content. Default is 'gbk'.
+     - coding: A string that represents the encoding of the HTML content. Default is 'utf-8'.
     The function tries to retrieve the HTML page content from the given URL using the get_url_page function,
     with the specified encoding. If it fails, it returns '-html-None'.
     """
@@ -94,7 +96,7 @@ def get_url_page_s(url:str, coding = 'gbk'):
     except:
         return '-html-None'
     
-def get_url_page_b(url:str, return_html_text:bool = False, debug:bool = False, coding = 'gbk'):
+def get_url_page_b(url:str, return_html_text:bool = False, debug:bool = False, coding = 'utf-8'):
     """
     This function takes a URL and returns the HTML page of the URL in a BeautifulSoup object. It has the option to return a string of the HTML text as well. It also takes optional arguments for debugging and specifying the coding of the page to be retrieved. 
 
@@ -102,7 +104,7 @@ def get_url_page_b(url:str, return_html_text:bool = False, debug:bool = False, c
         url (str): A string representing the URL to retrieve.
         return_html_text (bool): A boolean indicating whether or not to return the HTML text as a string. Defaults to False.
         debug (bool): A boolean indicating whether to use debug mode. Defaults to False.
-        coding: The coding of the page to retrieve. Defaults to 'gbk'.
+        coding: The coding of the page to retrieve. Defaults to 'utf-8'.
 
     Returns:
         BeautifulSoup object: A BeautifulSoup object representing the HTML page of the URL.
@@ -465,6 +467,8 @@ def BrowserElementActionWarpper(func):
                      sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1), **kwargs):
         if element is None:
             element = 'document.body'
+        elif element == 'window':
+            pass
         else:
             by = self._get_by(by)
             try:
@@ -533,7 +537,8 @@ class Browser:
     def get(self, url: str,
             sleep_before: Union[None, int, float, Tuple[int, int]] = None,
             sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5)):
-        return self.browser.get(url)
+        self.browser.get(url)
+        return self.browser.page_source
     
     def find_elements(self, element: str, by: str = 'xpath'):
         by = self._get_by(by)
@@ -603,7 +608,8 @@ class Browser:
     @BrowserElementActionWarpper
     def scroll_percent(self, dx: Union[str, float], dy: Union[str, float], duration: int,
                    element: Union[None, str, ElementType], by: str = 'xpath',
-                   executor: str = 'JS', time_out: int = 5, multi_idx: int = 0,
+                   executor: str = 'JS', js_method: str = 'scrollBy',
+                   verbose: bool = False, time_out: int = 5, multi_idx: int = 0,
                    sleep_before: Union[None, int, float, Tuple[int, int]] = None,
                    sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1)):
         """
@@ -614,6 +620,8 @@ class Browser:
             - dy (Union[str, float]): The percentage to scroll in the vertical direction. If 'bottom' is passed, scroll to the bottom of the element.
             - duration (int): The duration of the scrolling animation in seconds.
             - element (Union[str, ElementType]): The element to be clicked. It can be either a string representing the element's xpath or the actual element object.
+                - None: wil be 'document.body', scroll the whole page.
+                - 'window': scroll the whole page.
                 - str: xpath, CSS, class expression to find the element.
                 - ElementType: The actual element object.
             - by (str, optional): The locator strategy to find the element. Defaults to 'xpath'.
@@ -631,29 +639,31 @@ class Browser:
                 _get_scroll_width = lambda element : self.execute_script(
                     "return arguments[0].scrollWidth", element)
             else:
-                _get_scroll_width = lambda element : dx * self.execute_script(
-                    "return arguments[0].scrollWidth", element)
+                _get_scroll_width = lambda element : dx * (self.execute_script(
+                    "return arguments[0].scrollWidth", element) or 0.1)
             if dy == 'bottom':
                 _get_scroll_height = lambda element : self.execute_script(
                     "return arguments[0].scrollHeight", element)
             else:
-                _get_scroll_height = lambda element : dy * self.execute_script(
-                    "return arguments[0].scrollHeight", element)
+                _get_scroll_height = lambda element : dy * (self.execute_script(
+                    "return arguments[0].scrollHeight", element) or 0.1)
             
             scrolled_len, last_len, scroll_len = np.zeros(2), np.zeros(2), np.zeros(2) # w, h
             end_time = time.time() + duration
             while time.time() < end_time:
-                scroll_len[0] = _get_scroll_width(element) # 防止动态加载
-                scroll_len[1] = _get_scroll_height(element) # 防止动态加载
-                scrolled_len[0] = self.execute_script('return arguments[0].scrollLeft', element)
-                scrolled_len[1] = self.execute_script('return arguments[0].scrollTop', element)
+                scroll_len[0] = _get_scroll_width(element) if dx != 0 else 0 # 适应动态加载
+                scroll_len[1] = _get_scroll_height(element) if dy != 0 else 0 # 适应动态加载
+                scrolled_len[0] = self.execute_script('return arguments[0].scrollLeft', element) if dx != 0 else 0
+                scrolled_len[1] = self.execute_script('return arguments[0].scrollTop', element) if dx != 0 else 0
+                if verbose:
+                    print(f'scrolled_len: {scrolled_len}, last_len: {last_len}, scroll_len: {scroll_len}')
                 last_len = scroll_len - scrolled_len
                 last_frames = (end_time - time.time()) // 0.1 # 假设每秒10帧
                 if last_frames > 0:
                     scroll_per_frame = last_len / last_frames
-                    self.execute_script("arguments[0].scrollTo(arguments[1], arguments[2]);",
+                    self.execute_script(f"arguments[0].{js_method}(arguments[1], arguments[2]);",
                                         element, int(scroll_per_frame[0]), int(scroll_per_frame[1]))
-                    time.sleep(1 / 15)  # 等待1/15秒
+                    time.sleep(1 / 15) # 等待1/15秒
         else:
             return put_err(f'Not implemented with executor {executor},\
                 do nothing and return None')

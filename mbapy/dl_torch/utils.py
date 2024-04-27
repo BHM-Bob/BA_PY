@@ -4,14 +4,14 @@ import math
 import os
 import time
 from queue import Queue
-
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ..base import MyArgs, get_default_for_None, get_fmt_time, put_err, format_secs
+from ..base import (MyArgs, format_secs, get_default_for_None, get_fmt_time,
+                    put_err)
 from ..file import read_json, save_json
 
 viz = None

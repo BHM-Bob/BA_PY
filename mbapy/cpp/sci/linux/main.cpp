@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-11-20 13:03:48
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2023-11-20 14:35:00
+ * @LastEditTime: 2024-01-09 11:27:23
  * @Description: 
  */
 
@@ -51,7 +51,6 @@ bool test_match_non_sp(void)
 
 int main(void)
 {
-    printf("GGGKKK\n");
     test_match_non_sp();
     return 0;
 }

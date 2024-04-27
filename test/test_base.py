@@ -1,15 +1,16 @@
 '''
 Date: 2023-06-30 12:25:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-07-12 21:19:31
+LastEditTime: 2024-01-09 22:49:59
 FilePath: \BA_PY\test\test_base.py
 Description: 
 '''
-import unittest
 import inspect
+import unittest
 from functools import wraps
 
 from mbapy.base import *
+
 
 def test_TimeCosts():
     @TimeCosts(2)

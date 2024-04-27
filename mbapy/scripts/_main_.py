@@ -1,3 +1,10 @@
+'''
+Date: 2024-01-08 21:31:52
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-04-21 18:45:32
+FilePath: \BA_PY\mbapy\scripts\_main_.py
+Description: 
+'''
 import importlib
 import os
 import sys
@@ -5,57 +12,10 @@ import sys
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 
-scripts_info = {
-    'cnipa':
-        {
-            'brief': 'get patents info from CNIPA.',
-            'detailed': 
-                """
-                If it accessible, get info and store it into a json session file.
-                Example: python -m mbapy.scripts.cnipa -q "peptide" -o "E:\\peptide patents" -log
-                """,
-        },
-    'scihub':
-        {
-            'brief': 'download papers and it\'s refs(optional) from scihub.',
-            'detailed': 
-                """
-                If it can be downloaded, download and store it into session.
-                Example: python -m mbapy.scripts.scihub -i "E:\\peptide.ris" -o "E:\\peptide papers" -log
-                """,
-        },
-    'scihub_selenium':
-        {
-            'brief': 'download papers and it\'s refs(optional) from scihub using selenium.',
-            'detailed': 
-                """
-                If it can be downloaded, download and store it into session.
-                Example: python -m mbapy.scripts.scihub_selenium -i "E:\\peptide.ris" -o "E:\\peptide papers" -log -gui
-                """,
-        },
-    'extract_paper':
-        {
-            'brief': 'extract papers content to a json file.',
-            'detailed': 
-                """
-                If it can be parsed to sections, output each sections separatly, else all text content.
-                Example: python -m mbapy.scripts.extract_paper -i "E:\\peptide papers" -log
-                """,
-        },
-    'peptide':
-        {
-            'brief': 'tools for peptide.',
-            'detailed':
-                """
-                sub command 1: subval:
-                    : calcu SPPS substitution value for a release test of resin.
-                sub command 2: mw:
-                    : calcu MW and Exact Mass for a peptide.
-                sub command 1: mmw:
-                    : calcu MW of each peptide mutations syn by SPPS.
-                """
-        }
-}
+from mbapy.base import get_storage_path
+from mbapy.file import opts_file
+
+scripts_info = opts_file(get_storage_path('mbapy-cli-scripts-list.json'), way = 'json')
 
 
 def print_scripts_list():
@@ -73,9 +33,7 @@ def print_scripts_info():
         
 def exec_scripts():
     import mbapy
-
-    # append '-h' if only input 'mbapy-cli sub-script'
-    sys.argv.extend(['-h'] if len(sys.argv) == 2 else [])
+    
     # NOTE: DO NOT use exec
     # check and exec scripts
     script = importlib.import_module(f'.{sys.argv[1]}', 'mbapy.scripts')
@@ -94,7 +52,7 @@ def main():
         elif sys.argv[1] in ['-i', '--info']:
             print_scripts_info()
         elif sys.argv[1] in ['-h', '--help']:
-            help = """
+            help_info = """
             usage-1: mbapy-cli [-h] [-l | -i]
             options:
             -h, --help  show this help message and exit
@@ -107,18 +65,21 @@ def main():
             args  args for sub-scripts
             -h, --help  show this help message and exit
             """
-            print(help)
+            print(help_info)
         elif sys.argv[1] in scripts_info:
-            # exec scripts only with arg '-h'
+            # exec scripts only no arg
             exec_scripts()
     else:
         if sys.argv[1] in scripts_info:
             # exec scripts
             exec_scripts()
         else:
-            print(f'unkown scripts: {sys.argv[1]} and args: ', end='')
+            print(f'mbapy-cli: unkown scripts: {sys.argv[1]} and args: ', end='')
             [print(f' {arg}', end='') for arg in sys.argv[1:]]
-            print('')
+            print('\n, skip')
+            
+    # print a '\n' in the end
+    print('')
             
 
 if __name__ == '__main__':

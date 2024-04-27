@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-12-17 10:06:55
+LastEditTime: 2024-04-25 22:58:26
 Description: 
 '''
 import ctypes
@@ -91,7 +91,7 @@ class _Config_Web(_ConfigBase):
         else:
             print(f'\nmbapy::_Config_Web: unkown os name: {platform.system().lower()}, use windows default chromedriver path\n')
             self.chrome_driver_path = os.path.expanduser("~/AppData/Local/Google/Chrome/Application/chromedriver.exe")
-        self.quest_head = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        self.request_header = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
     
 class _Config(_ConfigBase):
     def __init__(self) -> None:
@@ -297,7 +297,10 @@ def Timer():
 
 def autoparse(init):
     """
-    Automatically assign property for __ini__() func
+    Automatically assign property for __ini__() func.
+    
+    Note:
+         - If has *args and **kwargs, ONLY support 'args' and 'kwargs' as the SPECIAL parameter name.
     
     Example:
     --------
@@ -353,6 +356,10 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
 
     Returns:
         A decorated function that performs argument validity checks before executing the original function.
+        
+    Notes:
+        - If all checkers get passed, the original function is executed.
+        - If any checker fails, the function returns None or raises a ValueError, depending on the value of `raise_err`.
 
     Example usage:
     >>> @check_arguments(path = check_parameters_path, head = check_parameters_len)
@@ -363,32 +370,39 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # info string
             info_string = f"Parameter checker for {func.__code__.co_name} : Invalid value for argument "
+            def check_arg(checker, arg_name: str, arg_value):
+                if not checker(arg_value):
+                    if raise_err:
+                        raise ValueError(info_string+arg_name)
+                    else:
+                        return put_err(info_string+arg_name, False)
+                return True
+            # args_name will exclude *args and **kwargs with name of args and kwargs
+            args_name = list(func.__code__.co_varnames)[:func.__code__.co_argcount+
+                                                 func.__code__.co_kwonlyargcount]
             # check positional arguments
-            for i, arg_check in enumerate(arg_checkers):
+            for i, arg_checker in enumerate(arg_checkers):
                 if i < len(args):
-                    arg = args[i]
-                    if not arg_check(arg):
-                        arg_name = func.__code__.co_varnames[i]
-                        if raise_err:
-                            raise ValueError(info_string+arg_name)
-                        else:
-                            # directly return a none value, skip the err pop
-                            return put_err(info_string+arg_name, None)
+                    if not check_arg(arg_checker, args_name[i], args[i]):
+                        return None
             # check keyword arguments
             for arg_name, kwarg_checker in kwarg_checkers.items():
-                # pass the rigth arg name
-                if arg_name in func.__code__.co_varnames:
+                # if passed the rigth arg name
+                if arg_name in args_name:
                     # get the index of the argument
-                    idx = func.__code__.co_varnames.index(arg_name)
-                    # get the argument through the index if passed positionally
-                    arg = args[idx] if idx < len(args) else kwargs[arg_name]
-                    if not kwarg_checker(arg):
-                        if raise_err:
-                            raise ValueError(info_string+arg_name)
-                        else:
-                            return put_err(info_string+arg_name, None)
+                    idx = args_name.index(arg_name)
+                    # get arg value
+                    if idx < len(args):
+                        arg_value = args[idx]
+                    elif arg_name in kwargs:
+                        arg_value = kwargs[arg_name]
+                    elif func.__defaults__ and idx-len(args) < len(func.__defaults__):
+                        arg_value = func.__defaults__[idx-len(args)]
+                    else:
+                        raise TypeError(f'{func.__code__.co_name}() minssing required argument')
+                    if not check_arg(kwarg_checker, arg_name, arg_value):
+                        return None
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -460,13 +474,26 @@ class MyArgs():
     def __init__(self, args:dict) -> None:
         self.__args = dict()
         self.get_args(args)
+        
     def update_args(self, args:dict, force_update = True):
         for arg_name in list(args.keys()):
             if (arg_name not in self.__args) or force_update:
                 setattr(self, arg_name, args[arg_name])
         return self
+    
+    def get_args(self, args:dict, force_update = True, del_kwargs = True):
+        for arg_name, arg_value in args.items():
+            if (arg_name not in self.__args) or force_update:
+                setattr(self, arg_name, arg_value)
+        if del_kwargs:
+            for arg_name in self.__args:
+                if arg_name in args:
+                    del args[arg_name]
+        return self
+    
     def add_arg(self, arg_name:str, arg_value, force_update = True):
         setattr(self, arg_name, arg_value)
+        
     def toDict(self):
         dic = {}
         for attr in vars(self):
@@ -549,7 +576,7 @@ def get_storage_path(sub_path:str):
 
 def get_dll_path_for_sys(module_name:str, **kwargs):
     if platform.system().lower() == 'windows':
-        return get_storage_path(f'{module_name}.dll')
+        return get_storage_path(f'lib{module_name}.dll')
     elif platform.system().lower() == 'linux':
         return get_storage_path(f'lib{module_name}.so')
     else:
@@ -557,12 +584,13 @@ def get_dll_path_for_sys(module_name:str, **kwargs):
 
 class CDLL:
     @autoparse
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, winmode: int = 0) -> None:
         """load a DLL file from path"""
         if not os.path.isfile(path):
             put_err(f'{path:s} is not exist')
         else:
-            self.dll = ctypes.cdll.LoadLibrary(path)
+            # self.dll = ctypes.cdll.LoadLibrary(path)
+            self.dll = ctypes.CDLL(path, winmode = winmode)
         # transfer ctype obj to c pointer
         self.ptr = ctypes.pointer # pointer generator
         self.ref = ctypes.byref # reference generator
@@ -580,7 +608,7 @@ class CDLL:
         self.VOID = ctypes.c_void_p # void* type
     def convert_c_lst(self, lst:list, c_type = ctypes.c_int):
         return (c_type * len(lst))(*lst)
-    def convert_py_lst(self, c_lst:ctypes.POINTER(ctypes.c_int), size: int):
+    def convert_py_lst(self, c_lst, size: int):
         return [c_lst[i][0] for i in range(size)]
     def get_func(self, func_name:str, func_args:list = None, func_ret = None):
         """
@@ -664,5 +692,11 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
-    # set_default_kwargs
-    d = set_default_kwargs({'a':1}, discard_extra=True, eps = 0.5, min_samples = 3)
+    class Test:
+        @parameter_checker(b = lambda b: b in ['b', 'B'], raise_err=False)
+        def __init__(self, a, b: str = 'b', *args, **kwargs) -> None:
+            print(a, b)
+            
+    Test('A')
+    Test('A', 'A', e = 'E')
+    Test('A', 'B', 10)

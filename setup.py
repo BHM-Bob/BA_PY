@@ -2,22 +2,18 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-06 19:57:31
+LastEditTime: 2024-04-25 23:18:02
 Description: 
 '''
 """
 something is from https://github.com/pypa/sampleproject
 thanks to https://zetcode.com/python/package/
-"""
-
-"""A setuptools based setup module.
-See:
-https://packaging.python.org/guides/distributing-packages-using-setuptools/
-https://github.com/pypa/sampleproject
+thanks to https://github.com/gaogaotiantian/viztracer/blob/master/setup.py
 """
 
 import json
 import pathlib
+import sys
 
 # Always prefer setuptools over distutils
 from setuptools import find_packages, setup
@@ -37,6 +33,24 @@ for line in version_info.split('\n'):
         __author__ = line[line.find('"')+1:-1]
     if '__url__' in line:
         __url__ = line[line.find('"')+1:-1]
+        
+# decide which dyna lib to compare with
+if sys.platform == "win32":
+    dynlib = [
+        "storage/libsci.dll",
+        "storage/libstats.dll",
+    ]
+elif sys.platform in ["linux", "linux2"]:
+    dynlib = [
+        "storage/libsci.so",
+        "storage/libstats.so",
+    ]
+else:
+    dynlib = [
+        "storage/libsci.dll",
+        "storage/libstats.dll",
+    ]
+    
 
 setup(
     name = "mbapy",
@@ -56,7 +70,7 @@ setup(
         # "Programming Language :: Python :: 3 :: Only",
     ],
         
-    keywords = ["mbapy", "Utilities", "plot"],
+    keywords = ["mbapy", "Utilities", "plot", "stats", "pdf", "paper", "crawler"],
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',
@@ -67,9 +81,9 @@ setup(
     author = __author__,
     author_email = __author_email__,
     
-    packages = find_packages(exclude=["test"]),
-    
+    packages = find_packages(exclude=["test", "test."]),
     include_package_data = True, # define in MANIFEST.in file
+    package_data = {"mbapy": dynlib},
     
     # deprecated, function replaced by entry_points. remain this line for further usage.
     # data_files=[('Scripts', ['mbapy/storage/mbapy.exe'])],
@@ -84,7 +98,9 @@ setup(
     
     install_requires=requirements['std'],
     extras_require={
+        'none': [],
         'bio': requirements['std'] + requirements['bio'],
+        'game': requirements['std'] + requirements['game'],
         'full': requirements['std'] + requirements['full'],
         },
 )
@@ -92,4 +108,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.6.0.tar.gz
+# twine upload dist/mbapy-0.7.3.tar.gz

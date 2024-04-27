@@ -1,6 +1,7 @@
 {
     "std": 
     [
+        "aiohttp",
         "beautifulsoup4",
         "chardet",
         "matplotlib",
@@ -10,33 +11,41 @@
         "requests",
         "scikit-learn",
         "scipy",
-        "seaborn",
+        "seaborn>=0.13.0",
         "selenium",
         "urllib3",
         "statsmodels",
         "scikit_posthocs",
         "pdfminer",
+        "PyPDF2",
         "rispy",
         "lxml",
         "crossref_commons"
     ],
     "bio":
     [
+        "wget",
         "pdfplumber",
         "pyteomics"
+    ],
+    "game":
+    [
+        "pygame",
+        "opencv-python"
     ],
     "full":
     [
         "cn2an",
         "ujson",
         "yaml",
-        "PyPDF2",
         "pdfplumber",
         "Markdown",
         "imageio",
+        "pillow_heif",
         "wget",
         "pyteomics",
         "opencv-python",
+        "moviepy",
         "pygame",
         "easyocr"
     ]

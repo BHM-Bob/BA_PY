@@ -1,4 +1,6 @@
-include requirements.txt
-include mbapy/storage/stats.dll
+include requirements.json
+include mbapy/storage/libstats.dll
 include mbapy/storage/libstats.so
+include mbapy/storage/libsci.dll
 include mbapy/storage/libsci.so
+include mbapy/storage/mbapy-cli-scripts-list.json
