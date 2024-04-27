@@ -391,10 +391,6 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
         f = open(args.out, 'w')
     else:
         f = None
-    # check args
-    if args.multi_process != 1 and not math.log2(args.multi_process).is_integer():
-        put_err(f'multi_process({args.multi_process}) should be a power of 2, set it to 1.')
-        args.multi_process = 1
     # show args
     verbose = not args.disable_verbose
     show_args(args, ['seq', 'weight', 'max_repeat', 'disable_aa_deletion',
@@ -409,17 +405,17 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     if args.multi_process == 1:
         all_mutations = mutate_peptide(all_mutations, args, 0, None)
     else:
-        max_deepth = int(math.log2(args.multi_process))
+        max_deepth = int(math.log2(args.multi_process))+1
         all_mutations = mutate_peptide(all_mutations, args, 0, max_deepth)
         mutations_lst = all_mutations.extract_mutations(flatten=False)
         pool = TaskPool('process', args.multi_process).run()
         for i, pre_mutaion in enumerate(mutations_lst):
             pool.add_task(f'{i}', mutate_peptide, pre_mutaion, args, max_deepth)
-        pool.wait_till(lambda : pool.count_done_tasks() == args.multi_process,
+        pool.wait_till(lambda : pool.count_done_tasks() == len(mutations_lst),
                        verbose=verbose)
         for tree, task_result in zip(mutations_lst, pool.tasks.values()):
             tree.mutate = task_result[1].mutate
-            tree.remain = task_result[1].remain        
+            tree.remain = task_result[1].remain
     all_mutations = all_mutations.extract_mutations()
     mw2pep, peps = {}, {}
     for pep in all_mutations:
@@ -560,7 +556,7 @@ if __name__ == "__main__":
     # def func(idx, mp):
     #     main(f'mmw -s Fmoc-Cys(Acm)-Val-Asn(Trt)-Cys(Acm)-Val-Asn(Trt) -m -mp {mp} --disable-verbose'.split())
     # # func(mp = 1) # func used     33.542s in total,      6.708s by mean (release run)
-    # # func(mp = 2) # func used     74.241s in total,     14.848s by mean (release run)
+    # # func(mp = 3) # func used     74.241s in total,     14.848s by mean (release run)
     # # func(mp = 4) # func used     73.012s in total,     14.602s by mean (release run)
     
     # release code
