@@ -36,6 +36,7 @@
     "full":
     [
         "cn2an",
+        "ujson",
         "yaml",
         "pdfplumber",
         "Markdown",

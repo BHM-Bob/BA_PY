@@ -1,5 +1,6 @@
 import argparse
 import os
+import math
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -13,10 +14,14 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 from mbapy import base, file
 from mbapy.bio.peptide import AnimoAcid, Peptide
 
-if __name__ == '__main__':
-    from mbapy.scripts._script_utils_ import clean_path, show_args
-else:
-    from ._script_utils_ import clean_path, show_args
+# if __name__ == '__main__':
+from mbapy.base import put_err
+from mbapy.web import TaskPool
+from mbapy.scripts._script_utils_ import clean_path, show_args
+# else:
+#     from ..base import put_err
+#     from ..web import TaskPool
+#     from ._script_utils_ import clean_path, show_args
 
 
 def calcu_substitution_value(args: argparse.Namespace):
@@ -270,17 +275,21 @@ class MutationTree:
             cp.mutate = mutate
         return cp
     
-    def extract_mutations(self):
+    def extract_mutations(self, flatten: bool = True):
         """
         extract all terminal dots from mutations(Tree)
-            - will CHANGE it's peptide.AAs
+            - flatten==True:  will CHANGE it's peptide.AAs, return the flattened peptide.
+            - flatten==False: will simply return all leaves of MutationTree.
         """
         if self.mutate is None and self.remain is None:
-            return [self.seq.flatten(inplace=True)]
+            if flatten:
+                return [self.seq.flatten(inplace=True)]
+            else:
+                return [self]
         else:
             final_seq = []
-            final_seq.extend(self.remain.extract_mutations())
-            final_seq.extend(self.mutate.extract_mutations())
+            final_seq.extend(self.remain.extract_mutations(flatten))
+            final_seq.extend(self.mutate.extract_mutations(flatten))
             return final_seq
     
     def check_is_end_pos(self):
@@ -313,12 +322,16 @@ class MutationTree:
             return True
         return False
         
-def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
+def mutate_peptide(tree: MutationTree, args: argparse.Namespace,
+                   deepth: int, max_depth: int = None):
     """
     Parameters:
         - mutations: Tree object, store all mutations and there relationship.
         - max_repeat: int
     """
+    # check if max deepth is reached
+    if max_depth is not None and deepth >= max_depth:
+        return tree
     # perofrm ONE mutation
     tree = tree.opts.perform_one(tree, args)
     # if NO mutaion can be done, 
@@ -326,13 +339,13 @@ def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
         # try move current AA in this tree to next AA
         if tree.move_to_next(args.max_repeat):
             # move success, go on
-            mutate_peptide(tree, args)
+            mutate_peptide(tree, args, deepth+1, max_depth)
         else:
             # it is the end, return tree
             return tree
     else: # go on with two branches
-        mutate_peptide(tree.mutate, args)
-        mutate_peptide(tree.remain, args)
+        mutate_peptide(tree.mutate, args, deepth+1, max_depth)
+        mutate_peptide(tree.remain, args, deepth+1, max_depth)
     return tree
 
 def calcu_mw_of_mutations(args: argparse.Namespace):
@@ -365,10 +378,11 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     If an output file was specified, it is closed at the end.
     """
     # set _print
-    def _print(content: str, f):
+    def _print(content: str, f, verbose = True):
         if f is not None:
             f.write(content+'\n')
-        print(content)
+        if verbose:
+            print(content)
     if args.out is not None:
         args.out = clean_path(args.out)
         if os.path.isdir(args.out):
@@ -378,15 +392,30 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     else:
         f = None
     # show args
-    show_args(args, ['seq', 'weight','max_repeat', 'disable_aa_deletion', 'out','mass'],
-              printf = lambda x : _print(x, f))
+    verbose = not args.disable_verbose
+    show_args(args, ['seq', 'weight', 'max_repeat', 'disable_aa_deletion',
+                     'out', 'mass', 'multi_process', 'disable_verbose'],
+              printf = lambda x : _print(x, f, verbose))
     # show mother peptide info
-    peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
+    peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f, verbose))
     # calcu mutations
     all_mutations = MutationTree(peptide=peptide, seq=peptide.copy(),
                                  opts=MutationOpts(AA_repeat=args.max_repeat),
                                  pos=[0, 0, 1])
-    all_mutations = mutate_peptide(all_mutations, args)
+    if args.multi_process == 1:
+        all_mutations = mutate_peptide(all_mutations, args, 0, None)
+    else:
+        max_deepth = int(math.log2(args.multi_process))+1
+        all_mutations = mutate_peptide(all_mutations, args, 0, max_deepth)
+        mutations_lst = all_mutations.extract_mutations(flatten=False)
+        pool = TaskPool('process', args.multi_process).run()
+        for i, pre_mutaion in enumerate(mutations_lst):
+            pool.add_task(f'{i}', mutate_peptide, pre_mutaion, args, max_deepth)
+        pool.wait_till(lambda : pool.count_done_tasks() == len(mutations_lst),
+                       verbose=verbose)
+        for tree, task_result in zip(mutations_lst, pool.tasks.values()):
+            tree.mutate = task_result[1].mutate
+            tree.remain = task_result[1].remain
     all_mutations = all_mutations.extract_mutations()
     mw2pep, peps = {}, {}
     for pep in all_mutations:
@@ -403,13 +432,13 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
                 else:
                     mw2pep[mw] = [pep]
     # output info
-    _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f)
+    _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f, verbose)
     idx, weigth_type = 0, 'Exact Mass' if args.mass else 'MW'
     for i, mw in enumerate(sorted(mw2pep)):
-        _print(f'\n{weigth_type}: {mw:10.5f}', f)
+        _print(f'\n{weigth_type}: {mw:10.5f}', f, verbose)
         for j, pep in enumerate(mw2pep[mw]):
             mf = f'({pep.get_molecular_formula()})' if args.mass else ''
-            _print(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', f)
+            _print(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', f, verbose)
             idx += 1
     # handle f-print
     if f is not None:
@@ -417,13 +446,7 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
         
 def transfer_letters(args):
     # show args
-    print(f'get arg: seqeunce: {args.seq}')
-    print(f'get arg: source repr width: {args.src}')
-    print(f'get arg: target repr width: {args.trg}')
-    print(f'get arg: disable protect groups: {args.dpg}')
-    print(f'get arg: disable dash line: {args.ddash}')
-    print(f'get arg: input: {args.input}')
-    print(f'get arg: out: {args.out}')
+    show_args(args, ['seq', 'src', 'trg', 'dpg', 'ddash', 'input', 'out'])
     # get input
     if args.input is not None:
         from mbapy.base import put_err
@@ -464,14 +487,6 @@ _str2func = {
 }
 
 
-# if __name__ == '__main__':
-#     # dev code
-#     from mbapy.game import BaseInfo
-#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
-#                                    max_repeat = 1, weight = '', mass = False))
-#     calcu_mw_of_mutations(BaseInfo(seq = 'Fmoc-Cys(Acm)-Val-Asn(Trt)', out = '.',
-#                                    max_repeat = 1, weight = '', mass = True))
-
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
     subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
@@ -505,6 +520,10 @@ def main(sys_args: List[str] = None):
                                 help='save results to output file/dir. Defaults None, do not save.')
     mutationweight.add_argument('-m', '--mass', action='store_true', default=False,
                                 help='calcu Exact Mass instead of Molecular Weight.')
+    mutationweight.add_argument('-mp', '--multi-process', type = int, default=1,
+                                help='number of multi-process to use, default is %(default)s.')
+    mutationweight.add_argument('--disable-verbose', action='store_true', default=False,
+                                help='disable verbose output to console.')
     
     letters = subparsers.add_parser('letters', aliases = ['transfer-letters'], description='transfer AnimoAcid repr letters width.')
     letters.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, default='',
@@ -531,4 +550,14 @@ def main(sys_args: List[str] = None):
         base.put_err(f'no such sub commmand: {args.sub_command}')
 
 if __name__ == "__main__":
+    # dev code. MUST BE COMMENTED OUT WHEN PUBLISHING
+    # from mbapy.base import TimeCosts
+    # @TimeCosts(5)
+    # def func(idx, mp):
+    #     main(f'mmw -s Fmoc-Cys(Acm)-Val-Asn(Trt)-Cys(Acm)-Val-Asn(Trt) -m -mp {mp} --disable-verbose'.split())
+    # # func(mp = 1) # func used     33.542s in total,      6.708s by mean (release run)
+    # # func(mp = 3) # func used     74.241s in total,     14.848s by mean (release run)
+    # # func(mp = 4) # func used     73.012s in total,     14.602s by mean (release run)
+    
+    # release code
     main()

@@ -7,8 +7,11 @@ import threading
 import multiprocessing
 from collections import namedtuple
 from enum import Enum
+from functools import partial
 from queue import Queue
 from typing import Any, Callable, Dict, List, Tuple, Union
+
+from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
@@ -306,7 +309,8 @@ class TaskPool:
 
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
-        self.tasks[name] = future
+        future.add_done_callback(partial(self._query_async_task_callback, task_name=name))
+        self.tasks[name] = TaskStatus.NOT_RETURNED
         return name
     
     def _add_task_thread(self, name: str, func, *args, **kwargs):
@@ -324,33 +328,27 @@ class TaskPool:
         mode = 'async' if self.MODE == 'async' else 'thread'
         return getattr(self, f'_add_task_{mode}')(name, coro_func, *args, **kwargs)
 
-    def _query_async_task(self, name, block: bool = True, timeout: int = 3):
-        if name in self.tasks:
-            future = self.tasks[name]
-            if future.done():
-                try:
-                    result = future.result()
-                    del self.tasks[name]
-                    return result
-                except Exception as e:
-                    del self.tasks[name]
-                    return self.TASK_NOT_SUCCEEDED, e
-            else:
-                return self.TASK_NOT_FINISHED
-        else:
-            return self.TASK_NOT_FOUND
-        
-    def _query_thread_task(self, name, block: bool = True, timeout: int = 3):
-        # short-cut for not found
-        if name not in self.tasks:
-            return self.TASK_NOT_FOUND
-        # retrive finished results
+    def _query_async_task_callback(self, future: asyncio.Future, task_name: str):
+        try:
+            self._thread_result_queue.put((task_name, future.result(),
+                                           TaskStatus.SUCCEED))
+        except Exception as e:
+            self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+            
+    def _query_task_queue(self, block: bool = True, timeout: int = 3):
         while not self._thread_result_queue.empty():
             try:
                 _name, result, statue = self._thread_result_queue.get(block, timeout)
                 self.tasks[_name] = (_name, result, statue)
-            except:
-                pass
+            except Exception as e:
+                put_err(f'error {e} when get result from queue')        
+        
+    def query_task(self, name, block: bool = False, timeout: int = 3):
+        # short-cut for not found
+        if name not in self.tasks:
+            return self.TASK_NOT_FOUND
+        # retrive finished results
+        self._query_task_queue(block=block, timeout=timeout)
         # check if not return, succeed, or not succeed
         if self.tasks[name] == TaskStatus.NOT_RETURNED:
             return self.TASK_NOT_FINISHED
@@ -360,11 +358,23 @@ class TaskPool:
             if statue == TaskStatus.NOT_SUCCEEDED:
                 put_err(f'Task {name} failed with {result}, return {result}')
             return result
+    
+    def count_waiting_tasks(self):
+        """
+        - for async mode, return the number of unfinished tasks.
+        - for thread, threads, and process mode, return the number of the un-begined tasks.
+        """
+        if self.MODE == 'async':
+            return len([None for task in self.tasks.values() if not task.done()])
+        elif self.MODE in ['thread', 'threads', 'process']:
+            return self._thread_task_queue.qsize()
         
-    def query_task(self, name: str, block: bool = False):
-        # map mode to function
-        mode = 'async' if self.MODE == 'async' else 'thread'
-        return getattr(self, f'_query_{mode}_task')(name, block)
+    def count_done_tasks(self):
+        """INCLUDE succeed and failed tasks."""
+        self._query_task_queue(block=False)
+        in_que = self._thread_result_queue.qsize()
+        in_dict = len([None for task in self.tasks.values() if task != TaskStatus.NOT_RETURNED])
+        return in_que + in_dict
 
     def run(self):
         """launch the thread and event loop"""
@@ -389,6 +399,34 @@ class TaskPool:
             return True
         elif self.MODE in ['thread', 'threads', 'process']:
             return self._thread_task_queue.empty()
+        
+    def wait_till(self, condition_func, wait_each_loop: float = 0.5,
+                  timeout: float = None, verbose: bool = False, *args, **kwargs):
+        """
+        wait till condition_func return True, or timeout.
+        
+        Parameters:
+            - condition_func (Callable): a function that return True or False.
+            - wait_each_loop (float, default=0.1): sleep time in a loop while waiting.
+            - timeout (float, default=None): timeout in seconds.
+            - *args, **kwargs: other args for condition_func.
+        
+        Returns:
+            - pool(TaskPool): retrun self for chaining.
+            - False: means timeout.
+        """
+        st = time.time()
+        if verbose:
+            bar =tqdm(desc='waiting', total=len(self.tasks), initial=self.count_done_tasks())
+        while not condition_func(*args, **kwargs):
+            if timeout is not None and time.time() - st > timeout:
+                return False
+            if verbose:
+                done = self.count_done_tasks()
+                bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
+                bar.update(self.count_done_tasks() - bar.n)
+            time.sleep(wait_each_loop)
+        return self
     
     def close(self):
         """close the thread and event loop, join the thread"""
