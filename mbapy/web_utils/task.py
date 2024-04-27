@@ -11,6 +11,8 @@ from functools import partial
 from queue import Queue
 from typing import Any, Callable, Dict, List, Tuple, Union
 
+from tqdm import tqdm
+
 if __name__ == '__main__':
     # dev mode
     from mbapy.base import put_err, put_log, parameter_checker
@@ -397,6 +399,34 @@ class TaskPool:
             return True
         elif self.MODE in ['thread', 'threads', 'process']:
             return self._thread_task_queue.empty()
+        
+    def wait_till(self, condition_func, wait_each_loop: float = 0.5,
+                  timeout: float = None, verbose: bool = False, *args, **kwargs):
+        """
+        wait till condition_func return True, or timeout.
+        
+        Parameters:
+            - condition_func (Callable): a function that return True or False.
+            - wait_each_loop (float, default=0.1): sleep time in a loop while waiting.
+            - timeout (float, default=None): timeout in seconds.
+            - *args, **kwargs: other args for condition_func.
+        
+        Returns:
+            - pool(TaskPool): retrun self for chaining.
+            - False: means timeout.
+        """
+        st = time.time()
+        if verbose:
+            bar =tqdm(desc='waiting', total=len(self.tasks), initial=self.count_done_tasks())
+        while not condition_func(*args, **kwargs):
+            if timeout is not None and time.time() - st > timeout:
+                return False
+            if verbose:
+                done = self.count_done_tasks()
+                bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
+                bar.update(self.count_done_tasks() - bar.n)
+            time.sleep(wait_each_loop)
+        return self
     
     def close(self):
         """close the thread and event loop, join the thread"""
