@@ -28,6 +28,7 @@
     "full":
     [
         "cn2an",
+        "ujson",
         "yaml",
         "PyPDF2",
         "pdfplumber",
