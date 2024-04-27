@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-24 11:11:58
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-26 23:33:10
+LastEditTime: 2024-04-27 11:30:13
 Description: 
 '''
 import asyncio
@@ -23,13 +23,15 @@ class TaskPoolCorutineTest(unittest.TestCase):
         pool = TaskPool().run()
         pool.add_task("task1", example_coroutine, "task1", 2)
         pool.add_task("task2", example_coroutine, "task2", 4)
-
+        
+        self.assertEqual(pool.count_done_tasks(), 0)  # Output: 0
         self.assertEqual(pool.query_task("task1"), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
         self.assertEqual(pool.query_task("task2"), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
 
         # wait for tasks to finish
         time.sleep(10)
-
+        
+        self.assertEqual(pool.count_done_tasks(), 2)  # Output: 2
         self.assertEqual(pool.query_task("task1"), 'Coroutine task1 result')  # Output: Coroutine task1 finished after 3 seconds
         self.assertEqual(pool.query_task("task2"), 'Coroutine task2 result')  # Output: Coroutine task2 finished after 5 seconds
         
