@@ -185,8 +185,7 @@ class MutationOpts:
         tree.mutate.opts = MutationOpts(AA_repeat=0)
         # decrease the repeat AA opts in remain branches
         tree.remain.opts.AA_repeat -= 1
-        return tree
-        
+        return tree        
 
     def delete_NCR(self, tree: 'MutationTree', NCR: str):
         """
@@ -224,8 +223,10 @@ class MutationOpts:
         """
         able = tree.opts.check_empty(tree.pos, tree.seq, args)
         if able:
-            # generate two branch
+            # generate two branch and set seq to None to free memory
             tree.generate_two_branch()
+            if not args.disable_low_memory:
+                tree.seq = None
             # perform mutation
             if 'AA_deletion' in able:
                 tree = self.delete_AA(tree, args.max_repeat)
@@ -239,6 +240,10 @@ class MutationOpts:
                 tree = self.delete_NCR(tree, 'R')
             else:
                 raise ValueError('error when check empty with MutationOpts')
+            # set opts and pos to None to free memory
+            if not args.disable_low_memory:
+                tree.opts = None
+                tree.pos = None
         # return tree
         return tree
     
@@ -394,10 +399,11 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     # show args
     verbose = not args.disable_verbose
     show_args(args, ['seq', 'weight', 'max_repeat', 'disable_aa_deletion',
-                     'out', 'mass', 'multi_process', 'disable_verbose'],
-              printf = lambda x : _print(x, f, verbose))
+                     'out', 'mass', 'multi_process', 'disable_verbose',
+                     'disable_low_memory'],
+              printf = lambda x : _print(x, f))
     # show mother peptide info
-    peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f, verbose))
+    peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
     # calcu mutations
     all_mutations = MutationTree(peptide=peptide, seq=peptide.copy(),
                                  opts=MutationOpts(AA_repeat=args.max_repeat),
@@ -412,7 +418,7 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
         for i, pre_mutaion in enumerate(mutations_lst):
             pool.add_task(f'{i}', mutate_peptide, pre_mutaion, args, max_deepth)
         pool.wait_till(lambda : pool.count_done_tasks() == len(mutations_lst),
-                       verbose=verbose)
+                       verbose=True)
         for tree, task_result in zip(mutations_lst, pool.tasks.values()):
             tree.mutate = task_result[1].mutate
             tree.remain = task_result[1].remain
@@ -524,6 +530,8 @@ def main(sys_args: List[str] = None):
                                 help='number of multi-process to use, default is %(default)s.')
     mutationweight.add_argument('--disable-verbose', action='store_true', default=False,
                                 help='disable verbose output to console.')
+    mutationweight.add_argument('--disable-low-memory', action='store_true', default=False,
+                                help='disable low memory mode, which may be slower but use less memory.')
     
     letters = subparsers.add_parser('letters', aliases = ['transfer-letters'], description='transfer AnimoAcid repr letters width.')
     letters.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, default='',
