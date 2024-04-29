@@ -309,6 +309,8 @@ class Peptide:
                 parts[-1] = parts[-1] + C_pg
             # generate AAs
             self.AAs = [AnimoAcid(part, aa_repr_w) for part in parts]
+        else:
+            self.AAs = []
         
     def flatten(self, inplace: bool = False):
         """
@@ -323,9 +325,7 @@ class Peptide:
                 seq.append(aa)
         if inplace:
             self.AAs = seq
-            return self
-        else:
-            return seq
+        return seq
         
     def repr(self, repr_w: int = 3, include_pg: bool = True,
              include_dash: bool = True):
