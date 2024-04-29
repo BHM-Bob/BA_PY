@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import os
 import math
 import sys
@@ -8,20 +9,22 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
+from tqdm import tqdm
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
-from mbapy import base, file
-from mbapy.bio.peptide import AnimoAcid, Peptide
 
 # if __name__ == '__main__':
-from mbapy.base import put_err
+from mbapy.base import put_err, split_list
+from mbapy.bio.peptide import AnimoAcid, Peptide
+from mbapy.file import opts_file, get_valid_file_path
 from mbapy.web import TaskPool
 from mbapy.scripts._script_utils_ import clean_path, show_args
 # else:
 #     from ..base import put_err
-#     from ..web import TaskPool
+#     from ..file import opts_file, get_valid_file_path
 #     from ._script_utils_ import clean_path, show_args
+#     from ..bio.peptide import AnimoAcid, Peptide
 
 
 def calcu_substitution_value(args: argparse.Namespace):
@@ -48,6 +51,7 @@ def calcu_substitution_value(args: argparse.Namespace):
     a = np.array([float(i) for i in args.absorbance.split(',') if len(i)])
     m = np.array([float(i) for i in args.weight.split(',') if len(i)])
     mean_subval = np.mean(args.coff*a/m)
+    print(f'\nSubstitution Value: {args.coff*a/m}')
     print(f'\nAvg Substitution Value: {mean_subval}')
     
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -225,8 +229,6 @@ class MutationOpts:
         if able:
             # generate two branch and set seq to None to free memory
             tree.generate_two_branch()
-            if not args.disable_low_memory:
-                tree.seq = None
             # perform mutation
             if 'AA_deletion' in able:
                 tree = self.delete_AA(tree, args.max_repeat)
@@ -240,10 +242,6 @@ class MutationOpts:
                 tree = self.delete_NCR(tree, 'R')
             else:
                 raise ValueError('error when check empty with MutationOpts')
-            # set opts and pos to None to free memory
-            if not args.disable_low_memory:
-                tree.opts = None
-                tree.pos = None
         # return tree
         return tree
     
@@ -288,7 +286,8 @@ class MutationTree:
         """
         if self.mutate is None and self.remain is None:
             if flatten:
-                return [self.seq.flatten(inplace=True)]
+                self.seq.flatten(inplace=True)
+                return [self.seq]
             else:
                 return [self]
         else:
@@ -327,16 +326,12 @@ class MutationTree:
             return True
         return False
         
-def mutate_peptide(tree: MutationTree, args: argparse.Namespace,
-                   deepth: int, max_depth: int = None):
+def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
     """
     Parameters:
         - mutations: Tree object, store all mutations and there relationship.
         - max_repeat: int
     """
-    # check if max deepth is reached
-    if max_depth is not None and deepth >= max_depth:
-        return tree
     # perofrm ONE mutation
     tree = tree.opts.perform_one(tree, args)
     # if NO mutaion can be done, 
@@ -344,14 +339,36 @@ def mutate_peptide(tree: MutationTree, args: argparse.Namespace,
         # try move current AA in this tree to next AA
         if tree.move_to_next(args.max_repeat):
             # move success, go on
-            mutate_peptide(tree, args, deepth+1, max_depth)
+            mutate_peptide(tree, args)
         else:
             # it is the end, return tree
             return tree
     else: # go on with two branches
-        mutate_peptide(tree.mutate, args, deepth+1, max_depth)
-        mutate_peptide(tree.remain, args, deepth+1, max_depth)
+        mutate_peptide(tree.mutate, args)
+        mutate_peptide(tree.remain, args)
     return tree
+
+def calcu_mutations_mw(seqs: List[Peptide], mass: bool = False, verbose: bool = True):
+    peps, mw2pep = {}, {}
+    for pep in tqdm(seqs,
+                    desc='Gathering mutations and Calculating molecular weight',
+                    disable=not verbose):
+        full_pep = Peptide(None)
+        full_pep.AAs.extend(aa.AAs for aa in pep)
+        full_pep.flatten(inplace = True)
+        if len(full_pep.AAs):
+            pep_repr = str(full_pep)
+            if pep_repr not in peps:
+                peps[pep_repr] = len(peps)
+                if mass:
+                    mw = full_pep.calcu_mass()
+                else:
+                    mw = full_pep.calcu_mw()
+                if mw in mw2pep:
+                    mw2pep[mw].append(full_pep)
+                else:
+                    mw2pep[mw] = [full_pep]
+    return peps, mw2pep
 
 def calcu_mw_of_mutations(args: argparse.Namespace):
     """
@@ -391,7 +408,7 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     if args.out is not None:
         args.out = clean_path(args.out)
         if os.path.isdir(args.out):
-            file_name = file.get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
+            file_name = get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
             args.out = os.path.join(args.out, file_name)
         f = open(args.out, 'w')
     else:
@@ -399,64 +416,60 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     # show args
     verbose = not args.disable_verbose
     show_args(args, ['seq', 'weight', 'max_repeat', 'disable_aa_deletion',
-                     'out', 'mass', 'multi_process', 'disable_verbose',
-                     'disable_low_memory'],
+                     'out', 'mass', 'disable_verbose', 'multi_process'],
               printf = lambda x : _print(x, f))
     # show mother peptide info
     peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
     # calcu mutations
-    all_mutations = MutationTree(peptide=peptide, seq=peptide.copy(),
-                                 opts=MutationOpts(AA_repeat=args.max_repeat),
-                                 pos=[0, 0, 1])
+    seq, mw2pep, peps = [], {}, {}
+    for aa in tqdm(peptide.AAs, desc='Mutating peptide'):
+        pep = Peptide(None)
+        pep.AAs = [aa.copy()]
+        aa_mutations = MutationTree(peptide=pep, seq=pep.copy(),
+                                    opts=MutationOpts(AA_repeat=args.max_repeat),
+                                    pos=[0, 0, 1])
+        aa_mutations = mutate_peptide(aa_mutations, args)
+        seq.append(aa_mutations.extract_mutations())
+    # gather mutations, calcu mw and store in dict
+    seqs = list(itertools.product(*seq))
     if args.multi_process == 1:
-        all_mutations = mutate_peptide(all_mutations, args, 0, None)
+        peps, mw2pep = calcu_mutations_mw(seqs, mass=args.mass, verbose=True)
     else:
-        max_deepth = int(math.log2(args.multi_process))+1
-        all_mutations = mutate_peptide(all_mutations, args, 0, max_deepth)
-        mutations_lst = all_mutations.extract_mutations(flatten=False)
-        pool = TaskPool('process', args.multi_process).run()
-        for i, pre_mutaion in enumerate(mutations_lst):
-            pool.add_task(f'{i}', mutate_peptide, pre_mutaion, args, max_deepth)
-        pool.wait_till(lambda : pool.count_done_tasks() == len(mutations_lst),
-                       verbose=True)
-        for tree, task_result in zip(mutations_lst, pool.tasks.values()):
-            tree.mutate = task_result[1].mutate
-            tree.remain = task_result[1].remain
-    all_mutations = all_mutations.extract_mutations()
-    mw2pep, peps = {}, {}
-    for pep in all_mutations:
-        if len(pep.AAs):
-            pep_repr = str(pep)
-            if pep_repr not in peps:
-                peps[pep_repr] = len(peps)
-                if args.mass:
-                    mw = pep.calcu_mass()
+        print('Gathering mutations and Calculating molecular weight...')
+        peps, mw2pep = {}, {}
+        pool = TaskPool('process', args.multi_process)
+        for i, batch in enumerate(split_list(seqs, args.process_batch)):
+            pool.add_task(f'{i}', calcu_mutations_mw, batch, args.mass, False)
+        pool.run()
+        pool.wait_till(lambda : pool.count_done_tasks() == len(pool.tasks), verbose=True)
+        for (_, (peps_i, mw2pep_i), _) in pool.tasks.values():
+            peps.update(peps_i)
+            for i in mw2pep_i:
+                if i in mw2pep:
+                    mw2pep[i].extend(mw2pep_i[i])
                 else:
-                    mw = pep.calcu_mw()
-                if mw in mw2pep:
-                    mw2pep[mw].append(pep)
-                else:
-                    mw2pep[mw] = [pep]
+                    mw2pep[i] = mw2pep_i[i]
     # output info
-    _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f, verbose)
-    idx, weigth_type = 0, 'Exact Mass' if args.mass else 'MW'
-    for i, mw in enumerate(sorted(mw2pep)):
-        _print(f'\n{weigth_type}: {mw:10.5f}', f, verbose)
-        for j, pep in enumerate(mw2pep[mw]):
-            mf = f'({pep.get_molecular_formula()})' if args.mass else ''
-            _print(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', f, verbose)
-            idx += 1
+    _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f)
+    if verbose:
+        idx, weigth_type = 0, 'Exact Mass' if args.mass else 'MW'
+        for i, mw in enumerate(sorted(mw2pep)):
+            _print(f'\n{weigth_type}: {mw:10.5f}', f, verbose)
+            for j, pep in enumerate(mw2pep[mw]):
+                mf = f'({pep.get_molecular_formula()})' if args.mass else ''
+                _print(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', f, verbose)
+                idx += 1
     # handle f-print
     if f is not None:
         f.close()
+        # save mw2pep and peps
+        opts_file(args.out / '.pkl', 'w', data = {'mw2pep':mw2pep, 'peps':peps}, way = 'pkl')
         
 def transfer_letters(args):
     # show args
     show_args(args, ['seq', 'src', 'trg', 'dpg', 'ddash', 'input', 'out'])
     # get input
     if args.input is not None:
-        from mbapy.base import put_err
-        from mbapy.file import opts_file
         path = clean_path(args.input)
         peps = []
         for line in opts_file(path, way='lines'):
@@ -526,12 +539,12 @@ def main(sys_args: List[str] = None):
                                 help='save results to output file/dir. Defaults None, do not save.')
     mutationweight.add_argument('-m', '--mass', action='store_true', default=False,
                                 help='calcu Exact Mass instead of Molecular Weight.')
-    mutationweight.add_argument('-mp', '--multi-process', type = int, default=1,
-                                help='number of multi-process to use, default is %(default)s.')
     mutationweight.add_argument('--disable-verbose', action='store_true', default=False,
                                 help='disable verbose output to console.')
-    mutationweight.add_argument('--disable-low-memory', action='store_true', default=False,
-                                help='disable low memory mode, which may be slower but use less memory.')
+    mutationweight.add_argument('--multi-process', type = int, default = 1,
+                                help='number of multi-process to use. Defaults 1, no multi-process.')
+    mutationweight.add_argument('--process-batch', type = int, default = 500000,
+                                help='number of peptides to process in each batch. Defaults %(default)% in a batch.')
     
     letters = subparsers.add_parser('letters', aliases = ['transfer-letters'], description='transfer AnimoAcid repr letters width.')
     letters.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, default='',
@@ -555,14 +568,14 @@ def main(sys_args: List[str] = None):
         print(f'excuting command: {args.sub_command}')
         _str2func[args.sub_command](args)
     else:
-        base.put_err(f'no such sub commmand: {args.sub_command}')
+        put_err(f'no such sub commmand: {args.sub_command}')
 
 if __name__ == "__main__":
     # dev code. MUST BE COMMENTED OUT WHEN PUBLISHING
     # from mbapy.base import TimeCosts
     # @TimeCosts(5)
     # def func(idx, mp):
-    #     main(f'mmw -s Fmoc-Cys(Acm)-Val-Asn(Trt)-Cys(Acm)-Val-Asn(Trt) -m -mp {mp} --disable-verbose'.split())
+    # main(f'mmw -s Fmoc-Cys(Acm)-Val-Asn(Trt)-Cys(Acm)-Val-Asn(Trt) -m --multi-process 2 --process-batch 1000'.split())
     # # func(mp = 1) # func used     33.542s in total,      6.708s by mean (release run)
     # # func(mp = 3) # func used     74.241s in total,     14.848s by mean (release run)
     # # func(mp = 4) # func used     73.012s in total,     14.602s by mean (release run)
