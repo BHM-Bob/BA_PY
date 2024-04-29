@@ -463,7 +463,7 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     if f is not None:
         f.close()
         # save mw2pep and peps
-        opts_file(args.out / '.pkl', 'w', data = {'mw2pep':mw2pep, 'peps':peps}, way = 'pkl')
+        opts_file(str(args.out)+'.pkl', 'wb', data = {'mw2pep':mw2pep, 'peps':peps}, way = 'pkl')
         
 def transfer_letters(args):
     # show args
