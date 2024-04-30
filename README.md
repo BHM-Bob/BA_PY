@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-04-29 22:00:38
+ * @LastEditTime: 2024-04-30 10:19:58
  * @Description: 
 -->
 
@@ -29,6 +29,7 @@
 </p>
 
 <p style="text-align:center;">
+<img alt="GitHub language count" src="https://img.shields.io/github/languages/count/BHM-Bob/BA_PY">
 <a href="https://github.com/BHM-Bob/BA_PY/"><img src="https://img.shields.io/readthedocs/ba-py" alt="docs" style="display:inline-block; margin-left:auto; margin-right:auto;" /></a>
 <a href="https://github.com/BHM-Bob/BA_PY/"><img src="https://img.shields.io/github/license/BHM-Bob/BA_PY" alt="license" style="display:inline-block; margin-left:auto; margin-right:auto;" /></a>
 <a href="https://github.com/BHM-Bob/BA_PY/"><img src="https://codeium.com/badges/main" alt="codeium" style="display:inline-block; margin-left:auto; margin-right:auto;" /></a>
