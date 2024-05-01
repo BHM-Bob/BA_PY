@@ -10,6 +10,7 @@ from enum import Enum
 from functools import partial
 from queue import Queue
 from typing import Any, Callable, Dict, List, Tuple, Union
+from uuid import uuid4
 
 from tqdm import tqdm
 
@@ -321,7 +322,7 @@ class TaskPool:
     def add_task(self, name: str, coro_func, *args, **kwargs):
         # check name
         if name == '' or name is None:
-            name = f'{coro_func.__name__}-{time.time():.6f}'
+            name = f'{coro_func.__name__}-{uuid4()}'
         if name in self.tasks:
             put_err(f'Task {name} already exists, replace it with the new one')
         # map mode to function

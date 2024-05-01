@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-24 11:11:58
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-27 11:30:13
+LastEditTime: 2024-05-01 18:45:06
 Description: 
 '''
 import asyncio
@@ -85,7 +85,6 @@ class TaskPoolThreadTest(unittest.TestCase):
         
         pool = TaskPool('thread').run()
         pool.add_task('', example_function, "task1", 2)
-        time.sleep(0.1)
         pool.add_task('', example_function, "task2", 4)
         
         names = list(pool.tasks.keys())
