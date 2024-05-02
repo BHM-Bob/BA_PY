@@ -141,21 +141,20 @@ def qqplot(tags:List[str], df:pd.DataFrame, figsize = (12, 6), nrows = 1, ncols 
             axs[-1].set_ylabel('Sample Quantiles', fontsize = kwargs['label_size'])
     return axs
             
-def save_show(path:str, dpi = 300, bbox_inches = 'tight'):
+def save_show(path:str, dpi = 300, bbox_inches = 'tight', show: bool = True):
     """
     Saves the current matplotlib figure to a file at the specified path and displays the figure.
 
     Parameters:
-        path (str): The path where the figure will be saved.
-        dpi (int, optional): The resolution of the saved figure in dots per inch. Default is 300.
-        bbox_inches (str or Bbox, optional): The portion of the figure to save. Default is 'tight'.
-
-    Returns:
-        None
+        - path (str): The path where the figure will be saved.
+        - dpi (int, optional): The resolution of the saved figure in dots per inch. Default is 300.
+        - bbox_inches (str or Bbox, optional): The portion of the figure to save. Default is 'tight'.
+        - show (bool, optional): Whether to show the figure after saving. Default is True.
     """
     plt.tight_layout()
     plt.gcf().savefig(path, dpi=dpi, bbox_inches = bbox_inches)
-    plt.show()
+    if show:
+        plt.show()
     
 def plot_stats_star(x1: float, x2: float, h: float, endpoint: float, p_value: float,
                     ax = plt, p2star: Callable[[float], str] = p_value_to_stars):
