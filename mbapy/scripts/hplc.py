@@ -260,7 +260,7 @@ class explore_hplc(plot_hplc):
             # search peaks
             st = int(self.args.start_search_time)
             peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i['Absorbance'], rel_height = 1,
-                                                        height =self.args.min_height,
+                                                        prominence =self.args.min_height,
                                                         width = self.args.min_peak_width)
             peaks_idx = peaks_idx[peaks_idx > st]
             peak_df = data_df_i.iloc[peaks_idx, :]
