@@ -171,6 +171,7 @@ class explore_hplc(plot_hplc):
         self.fig = None
         self.dfs_checkin = {}
         self.stored_dfs = {}
+        self._expansion = []
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -249,8 +250,6 @@ class explore_hplc(plot_hplc):
         peak_labels = self.process_peak_labels(self.args.peak_labels)
         peak_labels_v = np.array(list(peak_labels.keys()))
         # plot each
-        xlim = self.args.xlim.split(',')
-        xlim_max = data_df[0]['Time'].max()
         tag_offset = [float(i) for i in self.args.tag_offset.split(',')]
         marker_offset = [float(i) for i in self.args.marker_offset.split(',')]
         lines, scatters, sc_labels = [], [], []
@@ -258,7 +257,6 @@ class explore_hplc(plot_hplc):
             label_string, color = label
             line = ax.plot(data_df_i['Time'], data_df_i['Absorbance'], color = color, label = label_string)[0]
             lines.append(line)
-            xlim_max = max(xlim_max, data_df_i['Time'].max())
             # search peaks
             st = int(self.args.start_search_time)
             peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i['Absorbance'], rel_height = 1,
@@ -278,17 +276,16 @@ class explore_hplc(plot_hplc):
                 if self.args.show_tag_text:
                     ax.text(t+tag_offset[0], a+tag_offset[1], f'{t:.2f}', fontsize=self.args.tag_fontsize)
         # style fix
-        xlim = [float(xlim[0]), xlim_max if xlim[1] == 'None' else float(xlim[1])]
         ax.tick_params(axis='both', which='major', labelsize=self.args.axis_ticks_fontsize)
         ax.set_xlabel(self.args.xlabel, fontsize=self.args.axis_label_fontsize)
         ax.set_ylabel(self.args.ylabel, fontsize=self.args.axis_label_fontsize)
-        ax.set_xlim(xlim[0], xlim[1])
         # set file labels legend
-        file_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.legend_pos,
-                                 bbox_to_anchor = (self.args.bbox1, self.args.bbox2), draggable = True)
-        ax.add_artist(file_legend)
+        if self.args.show_file_legend:
+            file_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.legend_pos,
+                                    bbox_to_anchor = (self.args.bbox1, self.args.bbox2), draggable = True)
+            ax.add_artist(file_legend)
         # set peak labels legend
-        if scatters:
+        if scatters and self.args.show_peak_legend:
             [line.set_label(None) for line in lines]
             [sc.set_label(l) for sc, l in zip(scatters, sc_labels)]
             peak_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.legend_pos,
@@ -303,18 +300,26 @@ class explore_hplc(plot_hplc):
         with ui.pyplot(figsize=(self.args.fig_w, self.args.fig_h), close=False) as fig:
             self.fig = fig.fig
             getattr(self, f'plot_{self.args.system}')(fig.fig.gca())
+            
+    def _ui_only_one_expansion(self, e):
+        if e.value:
+            for expansion in self._expansion:
+                if expansion != e.sender:
+                    expansion.value = False                
     
     def main_process(self):
         from nicegui import app, ui
         from mbapy.game import BaseInfo
         # make global settings
+        # do not support xlim because it makes confusion with peak searching
         self.args = BaseInfo(file_labels = '', peak_labels = '', merge = False, recursive = False,
                              min_peak_width = 1, min_height = 0, start_search_time = 0,
-                             xlim = '0,None', show_tag_text = True, labels_eps = 0.1,
+                             show_tag_text = True, labels_eps = 0.1,
                              legend_pos = 'upper right', bbox1 = 1.2, bbox2 = 1,
                              title = '', xlabel = 'Time (min)', ylabel = 'Absorbance (AU)',
                              axis_ticks_fontsize = 20,axis_label_fontsize = 25, 
                              file_col_mode = 'hls', peak_col_mode = 'Set1',
+                             show_tag_legend = True, show_file_legend = True,
                              tag_fontsize = 15, tag_offset = '0.05,0.05', marker_size = 80, marker_offset = '0,0.05',
                              title_fontsize = 25, legend_fontsize = 15,
                              fig_w = 10, fig_h = 8, fig = None, dpi = 600, file_name = '', show_fig = False,
@@ -339,47 +344,56 @@ class explore_hplc(plot_hplc):
                 tabs = self.make_tabs()
             with splitter.after:
                 with ui.row().classes('w-full h-full'):
-                    with ui.card():
+                    with ui.column().classes('h-full'):
                         # data filtering configs
-                        ui.label('Data Filtering').classes('text-h6')
-                        ui.select(list(self.SUPPORT_SYSTEMS), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').classes('w-full')
-                        ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width')
-                        ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
-                        ui.number('start search time', value=self.args.start_search_time, min = 0).bind_value_to(self.args,'start_search_time')
-                        ui.input('xlim', value=self.args.xlim).bind_value_to(self.args, 'xlim').tooltip('input as lim1,lim2')
+                        with ui.expansion('Data Filtering', icon='filter_alt', value=True, on_value_change=self._ui_only_one_expansion) as expansion1:
+                            self._expansion.append(expansion1)
+                            ui.select(list(self.SUPPORT_SYSTEMS), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').classes('w-full')
+                            ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width')
+                            ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
+                            ui.number('start search time', value=self.args.start_search_time, min = 0).bind_value_to(self.args,'start_search_time')
                         # configs for fontsize
-                        ui.label('Configs for Fontsize').classes('text-h6')
-                        ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
-                        ui.number('axis ticks fontsize', value=self.args.axis_ticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_ticks_fontsize')
-                        ui.number('axis label fontsize', value=self.args.axis_label_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsize')
-                        ui.checkbox('show tag text', value=self.args.show_tag_text).bind_value_to(self.args,'show_tag_text')
-                        ui.number('tag fontsize', value=self.args.tag_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'tag_fontsize')
-                        ui.input('tag offset', value=self.args.tag_offset).bind_value_to(self.args, 'tag_offset').tooltip('input as x_offset,y_offset')
-                        ui.number('marker size', value=self.args.marker_size, min=0, step=5, format='%.1f').bind_value_to(self.args,'marker_size')
-                        ui.input('marker offset', value=self.args.marker_offset).bind_value_to(self.args,'marker_offset').tooltip('input as x_offset,y_offset')
-                        ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
-                        ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
-                        ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
-                    with ui.card():
+                        with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
+                            self._expansion.append(expansion2)
+                            ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
+                            ui.number('axis ticks fontsize', value=self.args.axis_ticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_ticks_fontsize')
+                            ui.number('axis label fontsize', value=self.args.axis_label_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsize')
+                            ui.checkbox('show tag text', value=self.args.show_tag_text).bind_value_to(self.args,'show_tag_text')
+                            with ui.row().classes('w-full'):
+                                ui.number('tag fontsize', value=self.args.tag_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'tag_fontsize')
+                                ui.input('tag offset', value=self.args.tag_offset).bind_value_to(self.args, 'tag_offset').tooltip('input as x_offset,y_offset')
+                            with ui.row().classes('w-full'):
+                                ui.number('marker size', value=self.args.marker_size, min=0, step=5, format='%.1f').bind_value_to(self.args,'marker_size')
+                                ui.input('marker offset', value=self.args.marker_offset).bind_value_to(self.args,'marker_offset').tooltip('input as x_offset,y_offset')
+                            ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
+                            ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
+                            ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
                         # configs for legend
-                        ui.label('Configs for Legend').classes('text-h6')
-                        ui.textarea('file labels').bind_value_to(self.args, 'file_labels').props('clearable').tooltip('input as label1,color1;label2,color2')
-                        ui.textarea('peak labels').bind_value_to(self.args, 'peak_labels').props('clearable').tooltip('input as peaktime,label,color;...')
-                        col_mode_option = ['hls', 'Set1', 'Set2', 'Set3', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'tab10', 'tab20', 'tab20b', 'tab20c']
-                        ui.select(label='file col mode', options = col_mode_option, value=self.args.file_col_mode).bind_value_to(self.args, 'file_col_mode')
-                        ui.select(label='peak col mode', options = col_mode_option, value=self.args.peak_col_mode).bind_value_to(self.args, 'peak_col_mode')
-                        ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.1f').bind_value_to(self.args, 'labels_eps')
-                        ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
-                        ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
-                        ui.number('bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1')
-                        ui.number('bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2')
+                        with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion3:
+                            self._expansion.append(expansion3)
+                            with ui.row().classes('w-full'):
+                                ui.checkbox('show file legend', value=self.args.show_file_legend).bind_value_to(self.args,'show_file_legend')
+                                ui.checkbox('show peak legend', value=self.args.show_tag_legend).bind_value_to(self.args,'show_tag_legend')
+                            with ui.row().classes('w-full'):
+                                ui.textarea('file labels').bind_value_to(self.args, 'file_labels').props('clearable').tooltip('input as label1,color1;label2,color2')
+                                ui.textarea('peak labels').bind_value_to(self.args, 'peak_labels').props('clearable').tooltip('input as peaktime,label,color;...')
+                            col_mode_option = ['hls', 'Set1', 'Set2', 'Set3', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'tab10', 'tab20', 'tab20b', 'tab20c']
+                            with ui.row().classes('w-full'):
+                                ui.select(label='file col mode', options = col_mode_option, value=self.args.file_col_mode).bind_value_to(self.args, 'file_col_mode').classes('w-32')
+                                ui.select(label='peak col mode', options = col_mode_option, value=self.args.peak_col_mode).bind_value_to(self.args, 'peak_col_mode').classes('w-32')
+                            ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.1f').bind_value_to(self.args, 'labels_eps')
+                            ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
+                            ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
+                            ui.number('bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1')
+                            ui.number('bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2')
                         # configs for saving
-                        ui.label('Configs for Saving').classes('text-h6')
-                        ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
-                        ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
-                        ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
-                        ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
-                        ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
+                        with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
+                            self._expansion.append(expansion4)
+                            ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
+                            ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
+                            ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
+                            ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
+                            ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
                         ui.label(f'selected {len(self.dfs)} data files').classes('text-h6').bind_text_from(self, 'dfs', lambda dfs: f'selected {len(dfs)} data files')
                         self.make_fig()
