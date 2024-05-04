@@ -280,6 +280,7 @@ class explore_mass(plot_mass):
             raise FileNotFoundError(f'can not find peak-list or mass-charge txt files in {self.args.dir}')
         # make global settings
         self.args = BaseInfo(now_name = list(dfs.keys())[0], dfs = dfs,
+                            #  instance_refresh = False, # instance refresh not implemented yet
                             labels_string = self.labels_string,
                             title = '', xlabel = 'Mass/Charge', ylabel = 'Intensity (cps)',
                             xticks_fontsize = 20, yticks_fontsize = 20, tag_fontsize = 15,
@@ -290,6 +291,7 @@ class explore_mass(plot_mass):
         with ui.header(elevated=True).style('background-color: #3874c8'):
             ui.label('mbapy-cli mass | Mass Data Explorer').classes('text-h4')
             ui.space()
+            # ui.checkbox('Instance refresh', value=self.args.instance_refresh).bind_value_to(self.args, 'instance_refresh')
             ui.button('Refresh', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
             ui.button('Save', on_click=partial(save_show, path = self.args.file_name, dpi = self.args.dpi, show = self.args.show_fig), icon='save').props('no-caps')
             ui.button('Show', on_click=plt.show, icon='open_in_new').props('no-caps')
@@ -300,7 +302,7 @@ class explore_mass(plot_mass):
                 with ui.tabs(value = df_short_names[0]).props('vertical').classes('h-full') as tabs:
                     df_tabs = [ui.tab(n).props('no-caps') for n in df_short_names]
                 tabs.bind_value_to(self.args, 'now_name', lambda short_name: os.path.join(self.args.dir, short_name))
-                tabs.on_value_change(self.make_fig)
+                # tabs.on_value_change(self.make_fig) # instance refresh not implemented yet
             with splitter.after:
                 with ui.row().classes('w-full h-full'):
                     with ui.card():
@@ -310,7 +312,7 @@ class explore_mass(plot_mass):
                         ui.checkbox('filter by mass', value=self.args.mass).bind_value_to(self.args,'mass')
                         ui.number('min peak width', value=self.args.min_peak_width, min = 1).bind_value_to(self.args,'min_peak_width')
                         ui.number('min height', value=self.args.min_height, min = 0).bind_value_to(self.args, 'min_height')
-                        ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent')
+                        ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent').classes('w-full')
                         ui.input('xlim', value=self.args.xlim).bind_value_to(self.args, 'xlim')
                         # configs for fontsize
                         ui.label('Configs for Fontsize').classes('text-h6')
@@ -325,7 +327,7 @@ class explore_mass(plot_mass):
                     with ui.card():
                         # configs for legend
                         ui.label('Configs for Legend').classes('text-h6')
-                        ui.textarea('labels', value=self.args.labels_string, on_change=self.update_labels).bind_value_to(self.args, 'labels_string')
+                        ui.textarea('labels', value=self.args.labels_string, on_change=self.update_labels).bind_value_to(self.args, 'labels_string').props('clearable')
                         ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'labels_eps')
                         ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
                         ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
