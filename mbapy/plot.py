@@ -57,7 +57,7 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
         - hls : [default] sns.color_palette('hls', n)
         - green : sum 5 grenns
         - pair : plt.get_cmap('tab20')
-        - None : plt.get_cmap('Set1') for n<=9 or plt.get_cmap('Set3') for n<= 12
+        - others : plt.get_cmap(mode)
     """
     assert n >= 1, 'n < 1'
     ret = None
@@ -71,6 +71,8 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
         ret = rgbs2hexs(plt.get_cmap('Set3').colors)
     elif n <= 20 and mode == 'pair':
         ret = rgbs2hexs(plt.get_cmap('tab20').colors)
+    else:
+        ret = rgbs2hexs(plt.get_cmap(mode).colors)
     if return_n and ret is not None:
         ret = ret[:n]
     return ret
