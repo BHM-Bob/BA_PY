@@ -238,10 +238,12 @@ class explore_mass(plot_mass):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.labels_string = args.labels
+        self.fig = None
         
     @ui.refreshable
     def make_fig(self):
         from nicegui import ui
+        plt.close(self.fig)
         with ui.pyplot(figsize=(self.args.fig_w, self.args.fig_h), close = False) as fig:
             name = self.args.now_name
             if self.use_recursive_output:
@@ -265,7 +267,7 @@ class explore_mass(plot_mass):
             plt.ylabel(self.args.ylabel, fontsize=self.args.axis_label_fontsizes)
             plt.legend(fontsize=self.args.legend_fontsize, loc=self.args.legend_pos,
                        bbox_to_anchor=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2), draggable = True)
-        self.args.fig = fig
+        self.fig = fig.fig
         
     def update_labels(self):
         self.args.labels = self.process_labels(self.args.labels_string)
@@ -285,7 +287,7 @@ class explore_mass(plot_mass):
                             title = '', xlabel = 'Mass/Charge', ylabel = 'Intensity (cps)',
                             xticks_fontsize = 20, yticks_fontsize = 20, tag_fontsize = 15,
                             axis_label_fontsizes = 25, title_fontsize = 25, legend_fontsize = 15,
-                            fig_w = 10, fig_h = 8, fig = None, dpi = 600, file_name = '',
+                            fig_w = 10, fig_h = 8, dpi = 600, file_name = '',
                             **self.args.__dict__)
         # GUI
         with ui.header(elevated=True).style('background-color: #3874c8'):
