@@ -172,6 +172,7 @@ class explore_hplc(plot_hplc):
         self.dfs_checkin = {}
         self.stored_dfs = {}
         self._expansion = []
+        self._time_tik_per_min = {'waters':1/60} # a min time unit is how many minutes
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -250,15 +251,14 @@ class explore_hplc(plot_hplc):
         peak_labels = self.process_peak_labels(self.args.peak_labels)
         peak_labels_v = np.array(list(peak_labels.keys()))
         # plot each
-        tag_offset = [float(i) for i in self.args.tag_offset.split(',')]
-        marker_offset = [float(i) for i in self.args.marker_offset.split(',')]
+        ax.figure.set_dpi(self.args.dpi)
         lines, scatters, sc_labels = [], [], []
         for label, info_df_i, data_df_i in zip(file_labels, info_df, data_df):
             label_string, color = label
             line = ax.plot(data_df_i['Time'], data_df_i['Absorbance'], color = color, label = label_string)[0]
             lines.append(line)
             # search peaks
-            st = int(self.args.start_search_time)
+            st = int(self.args.start_search_time * 60) # start_search_time is in minutes
             peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i['Absorbance'], rel_height = 1,
                                                         prominence =self.args.min_height,
                                                         width = self.args.min_peak_width)
@@ -268,13 +268,13 @@ class explore_hplc(plot_hplc):
                 matched = np.where(np.abs(peak_labels_v - t) < self.args.labels_eps)[0]
                 if matched.size > 0:
                     label, col = peak_labels[peak_labels_v[matched[0]]]
-                    sc = ax.scatter(t+marker_offset[0], a+marker_offset[1], marker='*', s = self.args.marker_size, color = col)
+                    sc = ax.scatter(t+self.args.marker_offset[0], a+self.args.marker_offset[1], marker='*', s = self.args.marker_size, color = col)
                     scatters.append(sc)
                     sc_labels.append(label)
                 else:
-                    ax.scatter(t+marker_offset[0], a+marker_offset[1], marker=11, s = self.args.marker_size, color = 'black')
+                    ax.scatter(t+self.args.marker_offset[0], a+self.args.marker_offset[1], marker=11, s = self.args.marker_size, color = 'black')
                 if self.args.show_tag_text:
-                    ax.text(t+tag_offset[0], a+tag_offset[1], f'{t:.2f}', fontsize=self.args.tag_fontsize)
+                    ax.text(t+self.args.tag_offset[0], a+self.args.tag_offset[1], f'{t:.2f}', fontsize=self.args.tag_fontsize)
         # style fix
         ax.tick_params(axis='both', which='major', labelsize=self.args.axis_ticks_fontsize)
         ax.set_xlabel(self.args.xlabel, fontsize=self.args.axis_label_fontsize)
@@ -285,13 +285,16 @@ class explore_hplc(plot_hplc):
                                     bbox_to_anchor = (self.args.bbox1, self.args.bbox2), draggable = True)
             ax.add_artist(file_legend)
         # set peak labels legend
-        if scatters and self.args.show_peak_legend:
+        if scatters and self.args.show_tag_legend:
             [line.set_label(None) for line in lines]
             [sc.set_label(l) for sc, l in zip(scatters, sc_labels)]
             peak_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.legend_pos,
                                      bbox_to_anchor = (self.args.bbox1, self.args.bbox2), draggable = True)
             ax.add_artist(peak_legend)
-        
+        # saving
+        ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
+        ax.set_ylim(bottom=self.args.ylim[0], top=self.args.ylim[1])
+        plt.tight_layout()
                 
     @ui.refreshable
     def make_fig(self):
@@ -305,7 +308,17 @@ class explore_hplc(plot_hplc):
         if e.value:
             for expansion in self._expansion:
                 if expansion != e.sender:
-                    expansion.value = False                
+                    expansion.value = False
+                    
+    def save_fig(self):
+        from nicegui import ui
+        path = os.path.join('./', self.args.file_name)
+        ui.notify(f'saving figure to {path}')
+        save_show(path, dpi = self.args.dpi, show = False)
+        
+    @staticmethod
+    def _apply_v2list(v, lst, idx):
+        lst[idx] = v
     
     def main_process(self):
         from nicegui import app, ui
@@ -320,9 +333,10 @@ class explore_hplc(plot_hplc):
                              axis_ticks_fontsize = 20,axis_label_fontsize = 25, 
                              file_col_mode = 'hls', peak_col_mode = 'Set1',
                              show_tag_legend = True, show_file_legend = True,
-                             tag_fontsize = 15, tag_offset = '0.05,0.05', marker_size = 80, marker_offset = '0,0.05',
+                             tag_fontsize = 15, tag_offset = [0.05,0.05], marker_size = 80, marker_offset = [0,0.05],
                              title_fontsize = 25, legend_fontsize = 15,
-                             fig_w = 10, fig_h = 8, fig = None, dpi = 600, file_name = '', show_fig = False,
+                             xlim = [0, None], ylim = [None, None],
+                             fig_w = 10, fig_h = 8, fig = None, dpi = 600, file_name = '',
                              **self.args.__dict__)
         # load dfs from input dir
         for name, dfs in self.load_dfs_from_data_file().items():
@@ -335,7 +349,7 @@ class explore_hplc(plot_hplc):
             ui.space()
             ui.checkbox('merge', value=self.args.merge).bind_value_to(self.args,'merge').bind_value_from(self, 'dfs', lambda dfs: len(dfs) > 1)
             ui.button('Plot', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
-            ui.button('Save', on_click=partial(save_show, path = self.args.file_name, dpi = self.args.dpi, show = self.args.show_fig), icon='save').props('no-caps')
+            ui.button('Save', on_click=self.save_fig, icon='save').props('no-caps')
             ui.button('Show', on_click=plt.show, icon='open_in_new').props('no-caps')
             ui.button('Exit', on_click=app.shutdown, icon='power')
         with ui.splitter(value = 20).classes('w-full h-full h-56') as splitter:
@@ -351,23 +365,29 @@ class explore_hplc(plot_hplc):
                             ui.select(list(self.SUPPORT_SYSTEMS), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').classes('w-full')
                             ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width')
                             ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
-                            ui.number('start search time', value=self.args.start_search_time, min = 0).bind_value_to(self.args,'start_search_time')
+                            ui.number('start search time', value=self.args.start_search_time, min = 0).bind_value_to(self.args,'start_search_time').tooltip('in minutes')
                         # configs for fontsize
                         with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)
-                            ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
-                            ui.number('axis ticks fontsize', value=self.args.axis_ticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_ticks_fontsize')
-                            ui.number('axis label fontsize', value=self.args.axis_label_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsize')
+                            with ui.row().classes('w-full'):
+                                ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
+                                ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
+                            with ui.row().classes('w-full'):
+                                ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
+                                ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
+                            with ui.row().classes('w-full'):
+                                ui.number('axis label fontsize', value=self.args.axis_label_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsize')
+                                ui.number('axis ticks fontsize', value=self.args.axis_ticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_ticks_fontsize')
                             ui.checkbox('show tag text', value=self.args.show_tag_text).bind_value_to(self.args,'show_tag_text')
                             with ui.row().classes('w-full'):
                                 ui.number('tag fontsize', value=self.args.tag_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'tag_fontsize')
-                                ui.input('tag offset', value=self.args.tag_offset).bind_value_to(self.args, 'tag_offset').tooltip('input as x_offset,y_offset')
-                            with ui.row().classes('w-full'):
                                 ui.number('marker size', value=self.args.marker_size, min=0, step=5, format='%.1f').bind_value_to(self.args,'marker_size')
-                                ui.input('marker offset', value=self.args.marker_offset).bind_value_to(self.args,'marker_offset').tooltip('input as x_offset,y_offset')
-                            ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
-                            ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
-                            ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
+                            with ui.row().classes('w-full'):
+                                ui.number('tag offset x', value=self.args.tag_offset[0], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.tag_offset, 0))
+                                ui.number('marker offset x', value=self.args.marker_offset[0], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.marker_offset, 0))
+                            with ui.row().classes('w-full'):
+                                ui.number('tag offset y', value=self.args.tag_offset[1], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.tag_offset, 1))
+                                ui.number('marker offset y', value=self.args.marker_offset[1], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.marker_offset, 1))
                         # configs for legend
                         with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion3:
                             self._expansion.append(expansion3)
@@ -384,15 +404,22 @@ class explore_hplc(plot_hplc):
                             ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.1f').bind_value_to(self.args, 'labels_eps')
                             ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
                             ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
-                            ui.number('bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1')
-                            ui.number('bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2')
+                            with ui.row().classes('w-full'):
+                                ui.number('bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1').classes('w-32')
+                                ui.number('bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2').classes('w-32')
                         # configs for saving
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
                             self._expansion.append(expansion4)
-                            ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
+                            with ui.row().classes('w-full'):
+                                ui.number('xlim-min', value=self.args.xlim[0], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 0))
+                                ui.number('xlim-max', value=self.args.xlim[1], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 1))
+                            with ui.row().classes('w-full'):
+                                ui.number('ylim-min', value=self.args.ylim[0], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 0))
+                                ui.number('ylim-max', value=self.args.ylim[1], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 1))
                             ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
                             ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
-                            ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
+                            dpi_input = ui.number('DPI', value=self.args.dpi, min=100, step=100, format='%d').bind_value_to(self.args, 'dpi')
+                            ui.select(options=[100, 300, 600], value=dpi_input.value, label='Quick Set DPI').bind_value_to(dpi_input).classes('w-full')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
                         ui.label(f'selected {len(self.dfs)} data files').classes('text-h6').bind_text_from(self, 'dfs', lambda dfs: f'selected {len(dfs)} data files')
