@@ -243,6 +243,13 @@ class explore_mass(plot_mass):
         super().__init__(args, printf)
         self.labels_string = args.labels
         self.fig = None
+        self._expansion = []
+        
+    def _ui_only_one_expansion(self, e):
+        if e.value:
+            for expansion in self._expansion:
+                if expansion != e.sender:
+                    expansion.value = False
         
     @ui.refreshable
     def make_fig(self):
@@ -303,51 +310,54 @@ class explore_mass(plot_mass):
             ui.button('Save', on_click=partial(save_show, path = self.args.file_name, dpi = self.args.dpi, show = self.args.show_fig), icon='save').props('no-caps')
             ui.button('Show', on_click=plt.show, icon='open_in_new').props('no-caps')
             ui.button('Exit', on_click=app.shutdown, icon='power')
-        with ui.splitter(value = 20).classes('w-full h-full h-56') as splitter:
+        with ui.splitter(value = 15).classes('w-full h-full h-56') as splitter:
             with splitter.before:
                 df_short_names = [n.replace(os.path.join(self.args.dir, ''), '') for n in dfs]
-                with ui.tabs(value = df_short_names[0]).props('vertical').classes('h-full') as tabs:
-                    df_tabs = [ui.tab(n).props('no-caps') for n in df_short_names]
+                with ui.tabs(value = df_short_names[0]).props('vertical').classes('w-full h-full') as tabs:
+                    df_tabs = [ui.tab(n).props('no-caps').classes('w-full') for n in df_short_names]
                 tabs.bind_value_to(self.args, 'now_name', lambda short_name: os.path.join(self.args.dir, short_name))
                 # tabs.on_value_change(self.make_fig) # instance refresh not implemented yet
             with splitter.after:
                 with ui.row().classes('w-full h-full'):
-                    with ui.card():
+                    with ui.column().classes('h-full'):
                         # data filtering configs
-                        ui.label('Data Filtering').classes('text-h6')
-                        ui.checkbox('use peaks cache', value=self.args.use_peaks_cache).bind_value_to(self.args, 'use_peaks_cache')
-                        ui.checkbox('filter by mass', value=self.args.mass).bind_value_to(self.args,'mass')
-                        ui.number('min peak width', value=self.args.min_peak_width, min = 1).bind_value_to(self.args,'min_peak_width')
-                        ui.number('min height', value=self.args.min_height, min = 0).bind_value_to(self.args, 'min_height')
-                        ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent').classes('w-full')
-                        ui.input('xlim', value=self.args.xlim).bind_value_to(self.args, 'xlim')
+                        with ui.expansion('Data Filtering', icon='filter_alt', value=True, on_value_change=self._ui_only_one_expansion) as expansion1:
+                            self._expansion.append(expansion1)
+                            ui.checkbox('use peaks cache', value=self.args.use_peaks_cache).bind_value_to(self.args, 'use_peaks_cache')
+                            ui.checkbox('filter by mass', value=self.args.mass).bind_value_to(self.args,'mass')
+                            ui.number('min peak width', value=self.args.min_peak_width, min = 1).bind_value_to(self.args,'min_peak_width')
+                            ui.number('min height', value=self.args.min_height, min = 0).bind_value_to(self.args, 'min_height')
+                            ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent').classes('w-full')
+                            ui.input('xlim', value=self.args.xlim).bind_value_to(self.args, 'xlim')
                         # configs for fontsize
-                        ui.label('Configs for Fontsize').classes('text-h6')
-                        ui.number('xticks fontsize', value=self.args.xticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'xticks_fontsize')
-                        ui.number('yticks fontsize', value=self.args.yticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'yticks_fontsize')
-                        ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
-                        ui.number('axis label fontsize', value=self.args.axis_label_fontsizes, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsizes')
-                        ui.number('tag fontsize', value=self.args.tag_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'tag_fontsize')
-                        ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
-                        ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
-                        ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
-                    with ui.card():
+                        with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
+                            self._expansion.append(expansion2)
+                            ui.number('xticks fontsize', value=self.args.xticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'xticks_fontsize')
+                            ui.number('yticks fontsize', value=self.args.yticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'yticks_fontsize')
+                            ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
+                            ui.number('axis label fontsize', value=self.args.axis_label_fontsizes, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsizes')
+                            ui.number('tag fontsize', value=self.args.tag_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'tag_fontsize')
+                            ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
+                            ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
+                            ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
                         # configs for legend
-                        ui.label('Configs for Legend').classes('text-h6')
-                        ui.textarea('labels', value=self.args.labels_string).bind_value_to(self.args, 'labels_string').props('clearable')
-                        ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'labels_eps')
-                        ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
-                        ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
-                        ui.number('bbox1', value=self.args.legend_pos_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox1')
-                        ui.number('bbox2', value=self.args.legend_pos_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox2')
+                        with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion3:
+                            self._expansion.append(expansion3)
+                            ui.textarea('labels', value=self.args.labels_string).bind_value_to(self.args, 'labels_string').props('clearable')
+                            ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'labels_eps')
+                            ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
+                            ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
+                            ui.number('bbox1', value=self.args.legend_pos_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox1')
+                            ui.number('bbox2', value=self.args.legend_pos_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox2')
                         # configs for saving
-                        ui.label('Configs for Saving').classes('text-h6')
-                        ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
-                        ui.number('axis expand', value=self.args.expand, min=0, max=1, step=0.01, format='%.3f').bind_value_to(self.args, 'expand')
-                        ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
-                        ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
-                        ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
-                        ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
+                        with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
+                            self._expansion.append(expansion4)
+                            ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
+                            ui.number('axis expand', value=self.args.expand, min=0, max=1, step=0.01, format='%.3f').bind_value_to(self.args, 'expand')
+                            ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
+                            ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
+                            ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
+                            ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
                         ui.label(f'{df_short_names[0]}').classes('text-h6').bind_text_from(tabs, 'value')
                         self.make_fig()
