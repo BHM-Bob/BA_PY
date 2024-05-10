@@ -288,8 +288,8 @@ class explore_hplc(plot_hplc):
         if scatters and self.args.show_tag_legend:
             [line.set_label(None) for line in lines]
             [sc.set_label(l) for sc, l in zip(scatters, sc_labels)]
-            peak_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.legend_pos,
-                                     bbox_to_anchor = (self.args.bbox1, self.args.bbox2), draggable = True)
+            peak_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.peak_legend_pos,
+                                     bbox_to_anchor = (self.args.peak_bbox1, self.args.peak_bbox2), draggable = True)
             ax.add_artist(peak_legend)
         # saving
         ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
@@ -326,9 +326,10 @@ class explore_hplc(plot_hplc):
         # make global settings
         # do not support xlim because it makes confusion with peak searching
         self.args = BaseInfo(file_labels = '', peak_labels = '', merge = False, recursive = False,
-                             min_peak_width = 1, min_height = 0, start_search_time = 0,
+                             min_peak_width = 1, min_height = 0.01, start_search_time = 0,
                              show_tag_text = True, labels_eps = 0.1,
                              legend_pos = 'upper right', bbox1 = 1.2, bbox2 = 1,
+                             peak_legend_pos = 'upper right', peak_bbox1 = 1.2, peak_bbox2 = 0.5,
                              title = '', xlabel = 'Time (min)', ylabel = 'Absorbance (AU)',
                              axis_ticks_fontsize = 20,axis_label_fontsize = 25, 
                              file_col_mode = 'hls', peak_col_mode = 'Set1',
@@ -397,16 +398,22 @@ class explore_hplc(plot_hplc):
                             with ui.row().classes('w-full'):
                                 ui.textarea('file labels').bind_value_to(self.args, 'file_labels').props('clearable').tooltip('input as label1,color1;label2,color2')
                                 ui.textarea('peak labels').bind_value_to(self.args, 'peak_labels').props('clearable').tooltip('input as peaktime,label,color;...')
-                            col_mode_option = ['hls', 'Set1', 'Set2', 'Set3', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'tab10', 'tab20', 'tab20b', 'tab20c']
                             with ui.row().classes('w-full'):
-                                ui.select(label='file col mode', options = col_mode_option, value=self.args.file_col_mode).bind_value_to(self.args, 'file_col_mode').classes('w-32')
-                                ui.select(label='peak col mode', options = col_mode_option, value=self.args.peak_col_mode).bind_value_to(self.args, 'peak_col_mode').classes('w-32')
+                                col_mode_option = ['hls', 'Set1', 'Set2', 'Set3', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'tab10', 'tab20', 'tab20b', 'tab20c']
+                                ui.select(label='file col mode', options = col_mode_option, value=self.args.file_col_mode).bind_value_to(self.args, 'file_col_mode').classes('w-2/5')
+                                ui.select(label='peak col mode', options = col_mode_option, value=self.args.peak_col_mode).bind_value_to(self.args, 'peak_col_mode').classes('w-2/5')
                             ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.1f').bind_value_to(self.args, 'labels_eps')
                             ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
-                            ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
                             with ui.row().classes('w-full'):
-                                ui.number('bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1').classes('w-32')
-                                ui.number('bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2').classes('w-32')
+                                all_loc = ['best', 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center']
+                                ui.select(label='file legend loc', options=all_loc, value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos').classes('w-2/5')
+                                ui.select(label='peak legend loc', options=all_loc, value=self.args.peak_legend_pos).bind_value_to(self.args, 'peak_legend_pos').classes('w-2/5')
+                            with ui.row().classes('w-full'):
+                                ui.number('file bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1').classes('w-2/5')
+                                ui.number('peak bbox1', value=self.args.peak_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'peak_bbox1').classes('w-2/5')
+                            with ui.row().classes('w-full'):
+                                ui.number('file bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2').classes('w-2/5')
+                                ui.number('peak bbox2', value=self.args.peak_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'peak_bbox2').classes('w-2/5')
                         # configs for saving
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
                             self._expansion.append(expansion4)
