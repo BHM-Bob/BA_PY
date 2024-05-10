@@ -101,7 +101,7 @@ class plot_mass(Command):
     @staticmethod
     def load_data(dir: str, recursive: bool):
         # find base peak file and peak list file
-        paths = get_paths_with_extension(dir, ['txt'],recursive)
+        paths = get_paths_with_extension(dir, ['txt'], recursive)
         dfs = {path:plot_mass.load_file(Path(path)) for path in paths}
         dfs = {k:v for k,v in dfs.items() if v is not None}
         if not dfs:
@@ -245,10 +245,10 @@ class explore_mass(plot_mass):
         from nicegui import ui
         plt.close(self.fig)
         with ui.pyplot(figsize=(self.args.fig_w, self.args.fig_h), close = False) as fig:
-            name = self.args.now_name
             if self.use_recursive_output:
                 self.args.output = os.path.dirname(self.args.now_name)
-            df = self.args.dfs[name].copy() # avoid modify original data
+            df = self.args.dfs[self.args.now_name].copy() # avoid modify original data
+            name = Path(self.args.now_name).resolve().stem # same as plot-mass
             print(f'plotting {name}: {df._attrs["content_type"]}')
             ax = fig.fig.gca()
             if df._attrs["content_type"] == 'peak list': # avoid drop all data but still draw
