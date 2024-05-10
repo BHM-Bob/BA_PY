@@ -141,6 +141,8 @@ class plot_mass(Command):
             if matched.size > 0:
                 label, text_col = args.labels.get(labels_ms[matched[0]])
                 _plot_vlines([ms], [h], text_col, label)
+            else:
+                text_col = args.color
             ax.text(ms, h, f'* {ms:.2f}({c:d})',
                     fontsize=args.__dict__.get('tag_fontsize', 15), color = text_col)
         plt.yscale('log')
@@ -186,6 +188,8 @@ class plot_mass(Command):
             if matched.size > 0:
                 label, text_col = args.labels.get(labels_ms[matched[0]])
                 _plot_vlines([ms], [h], text_col, label)
+            else:
+                text_col = args.color
             ax.text(ms, h, f'* {ms:.2f}',
                     fontsize=args.__dict__.get('tag_fontsize', 15), color = text_col)
         # fix style
@@ -245,10 +249,14 @@ class explore_mass(plot_mass):
         from nicegui import ui
         plt.close(self.fig)
         with ui.pyplot(figsize=(self.args.fig_w, self.args.fig_h), close = False) as fig:
+            # process labels
+            self.args.labels = self.process_labels(self.args.labels_string)
+            # process io path
             if self.use_recursive_output:
                 self.args.output = os.path.dirname(self.args.now_name)
             df = self.args.dfs[self.args.now_name].copy() # avoid modify original data
             name = Path(self.args.now_name).resolve().stem # same as plot-mass
+            # plot
             print(f'plotting {name}: {df._attrs["content_type"]}')
             ax = fig.fig.gca()
             if df._attrs["content_type"] == 'peak list': # avoid drop all data but still draw
@@ -268,9 +276,6 @@ class explore_mass(plot_mass):
             plt.legend(fontsize=self.args.legend_fontsize, loc=self.args.legend_pos,
                        bbox_to_anchor=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2), draggable = True)
         self.fig = fig.fig
-        
-    def update_labels(self):
-        self.args.labels = self.process_labels(self.args.labels_string)
         
     def main_process(self):
         from nicegui import app, ui
@@ -329,7 +334,7 @@ class explore_mass(plot_mass):
                     with ui.card():
                         # configs for legend
                         ui.label('Configs for Legend').classes('text-h6')
-                        ui.textarea('labels', value=self.args.labels_string, on_change=self.update_labels).bind_value_to(self.args, 'labels_string').props('clearable')
+                        ui.textarea('labels', value=self.args.labels_string).bind_value_to(self.args, 'labels_string').props('clearable')
                         ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'labels_eps')
                         ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
                         ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
