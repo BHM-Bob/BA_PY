@@ -33,6 +33,7 @@ class plot_mass(Command):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.use_recursive_output = False
+        self.original_output = None
         
     @staticmethod
     def process_labels(labels: str):
@@ -208,6 +209,7 @@ class plot_mass(Command):
             path = Path(n).resolve()
             name = path.stem
             if self.use_recursive_output:
+                self.original_output = self.args.output
                 self.args.output = str(path.parent)
             print(f'\n\n\n\n\n{name}: {df._attrs["content_type"]}:\n', df)
             df.to_csv(os.path.join(self.args.output, f'{name} {df._attrs["content_type"]}.csv'))
@@ -235,6 +237,9 @@ class plot_mass(Command):
                           dpi = 600, show = self.args.show_fig)
             else:
                 print(f'no data left after filtering, skip {name}: {df._attrs["content_type"]}')
+            # recovery output path
+            if self.use_recursive_output:
+                self.output = self.original_output
             
 
 class explore_mass(plot_mass):
@@ -260,6 +265,7 @@ class explore_mass(plot_mass):
             self.args.labels = self.process_labels(self.args.labels_string)
             # process io path
             if self.use_recursive_output:
+                self.original_output = self.args.output
                 self.args.output = os.path.dirname(self.args.now_name)
             df = self.args.dfs[self.args.now_name].copy() # avoid modify original data
             name = Path(self.args.now_name).resolve().stem # same as plot-mass
@@ -282,7 +288,16 @@ class explore_mass(plot_mass):
             plt.ylabel(self.args.ylabel, fontsize=self.args.axis_label_fontsizes)
             plt.legend(fontsize=self.args.legend_fontsize, loc=self.args.legend_pos,
                        bbox_to_anchor=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2), draggable = True)
+            # recovery output path
+            if self.use_recursive_output:
+                self.output = self.original_output
         self.fig = fig.fig
+        
+    def save_fig(self):
+        from nicegui import ui
+        path = os.path.join(self.args.output, self.args.file_name + ('' if self.args.file_name.endswith('.png') else '.png'))
+        ui.notify(f'saving figure to {path}')
+        save_show(path, dpi = self.args.dpi, show = self.args.show_fig)
         
     def main_process(self):
         from nicegui import app, ui
@@ -307,7 +322,7 @@ class explore_mass(plot_mass):
             ui.space()
             # ui.checkbox('Instance refresh', value=self.args.instance_refresh).bind_value_to(self.args, 'instance_refresh')
             ui.button('Refresh', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
-            ui.button('Save', on_click=partial(save_show, path = self.args.file_name, dpi = self.args.dpi, show = self.args.show_fig), icon='save').props('no-caps')
+            ui.button('Save', on_click=self.save_fig, icon='save').props('no-caps')
             ui.button('Show', on_click=plt.show, icon='open_in_new').props('no-caps')
             ui.button('Exit', on_click=app.shutdown, icon='power')
         with ui.splitter(value = 15).classes('w-full h-full h-56') as splitter:
