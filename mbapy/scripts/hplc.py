@@ -173,6 +173,7 @@ class explore_hplc(plot_hplc):
         self.stored_dfs = {}
         self._expansion = []
         self._time_tik_per_min = {'waters':1/60} # a min time unit is how many minutes
+        self._bbox_extra_artists = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -255,14 +256,18 @@ class explore_hplc(plot_hplc):
         lines, scatters, sc_labels = [], [], []
         for label, info_df_i, data_df_i in zip(file_labels, info_df, data_df):
             label_string, color = label
-            line = ax.plot(data_df_i['Time'], data_df_i['Absorbance'], color = color, label = label_string)[0]
+            line = ax.plot(data_df_i['Time'], data_df_i['Absorbance'],
+                           color = color, label = label_string, linewidth = self.args.line_width)[0]
             lines.append(line)
             # search peaks
             st = int(self.args.start_search_time * 60) # start_search_time is in minutes
+            ed = int(self.args.end_search_time * 60) if self.args.end_search_time is not None else None
             peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i['Absorbance'], rel_height = 1,
                                                         prominence =self.args.min_height,
                                                         width = self.args.min_peak_width)
-            peaks_idx = peaks_idx[peaks_idx > st]
+            peaks_idx = peaks_idx[peaks_idx >= st]
+            if ed is not None:
+                peaks_idx = peaks_idx[peaks_idx <= ed]
             peak_df = data_df_i.iloc[peaks_idx, :]
             for t, a in zip(peak_df['Time'], peak_df['Absorbance']):                    
                 matched = np.where(np.abs(peak_labels_v - t) < self.args.labels_eps)[0]
@@ -272,18 +277,21 @@ class explore_hplc(plot_hplc):
                     scatters.append(sc)
                     sc_labels.append(label)
                 else:
-                    ax.scatter(t+self.args.marker_offset[0], a+self.args.marker_offset[1], marker=11, s = self.args.marker_size, color = 'black')
+                    col = 'black'
+                    ax.scatter(t+self.args.marker_offset[0], a+self.args.marker_offset[1], marker=11, s = self.args.marker_size, color = col)
                 if self.args.show_tag_text:
-                    ax.text(t+self.args.tag_offset[0], a+self.args.tag_offset[1], f'{t:.2f}', fontsize=self.args.tag_fontsize)
+                    ax.text(t+self.args.tag_offset[0], a+self.args.tag_offset[1], f'{t:.2f}', fontsize=self.args.tag_fontsize, color = col)
         # style fix
         ax.tick_params(axis='both', which='major', labelsize=self.args.axis_ticks_fontsize)
         ax.set_xlabel(self.args.xlabel, fontsize=self.args.axis_label_fontsize)
         ax.set_ylabel(self.args.ylabel, fontsize=self.args.axis_label_fontsize)
         # set file labels legend
+        self._bbox_extra_artists = []
         if self.args.show_file_legend:
             file_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.legend_pos,
                                     bbox_to_anchor = (self.args.bbox1, self.args.bbox2), draggable = True)
             ax.add_artist(file_legend)
+            self._bbox_extra_artists.append(file_legend)
         # set peak labels legend
         if scatters and self.args.show_tag_legend:
             [line.set_label(None) for line in lines]
@@ -291,6 +299,7 @@ class explore_hplc(plot_hplc):
             peak_legend = plt.legend(fontsize=self.args.legend_fontsize, loc = self.args.peak_legend_pos,
                                      bbox_to_anchor = (self.args.peak_bbox1, self.args.peak_bbox2), draggable = True)
             ax.add_artist(peak_legend)
+            self._bbox_extra_artists.append(peak_legend)
         # saving
         ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
         ax.set_ylim(bottom=self.args.ylim[0], top=self.args.ylim[1])
@@ -314,7 +323,7 @@ class explore_hplc(plot_hplc):
         from nicegui import ui
         path = os.path.join('./', self.args.file_name)
         ui.notify(f'saving figure to {path}')
-        save_show(path, dpi = self.args.dpi, show = False)
+        save_show(path, dpi = self.args.dpi, show = False, bbox_extra_artists = self._bbox_extra_artists)
         
     @staticmethod
     def _apply_v2list(v, lst, idx):
@@ -326,7 +335,7 @@ class explore_hplc(plot_hplc):
         # make global settings
         # do not support xlim because it makes confusion with peak searching
         self.args = BaseInfo(file_labels = '', peak_labels = '', merge = False, recursive = False,
-                             min_peak_width = 1, min_height = 0.01, start_search_time = 0,
+                             min_peak_width = 1, min_height = 0.01, start_search_time = 0, end_search_time = None,
                              show_tag_text = True, labels_eps = 0.1,
                              legend_pos = 'upper right', bbox1 = 1.2, bbox2 = 1,
                              peak_legend_pos = 'upper right', peak_bbox1 = 1.2, peak_bbox2 = 0.5,
@@ -335,7 +344,7 @@ class explore_hplc(plot_hplc):
                              file_col_mode = 'hls', peak_col_mode = 'Set1',
                              show_tag_legend = True, show_file_legend = True,
                              tag_fontsize = 15, tag_offset = [0.05,0.05], marker_size = 80, marker_offset = [0,0.05],
-                             title_fontsize = 25, legend_fontsize = 15,
+                             title_fontsize = 25, legend_fontsize = 15, line_width = 2,
                              xlim = [0, None], ylim = [None, None],
                              fig_w = 10, fig_h = 8, fig = None, dpi = 600, file_name = '',
                              **self.args.__dict__)
@@ -367,6 +376,7 @@ class explore_hplc(plot_hplc):
                             ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width')
                             ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
                             ui.number('start search time', value=self.args.start_search_time, min = 0).bind_value_to(self.args,'start_search_time').tooltip('in minutes')
+                            ui.number('end search time', value=self.args.end_search_time, min = 0).bind_value_to(self.args, 'end_search_time').tooltip('in minutes')
                         # configs for fontsize
                         with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)
@@ -389,6 +399,7 @@ class explore_hplc(plot_hplc):
                             with ui.row().classes('w-full'):
                                 ui.number('tag offset y', value=self.args.tag_offset[1], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.tag_offset, 1))
                                 ui.number('marker offset y', value=self.args.marker_offset[1], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.marker_offset, 1))
+                            ui.number('line width', value=self.args.line_width, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'line_width')
                         # configs for legend
                         with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion3:
                             self._expansion.append(expansion3)
@@ -402,29 +413,29 @@ class explore_hplc(plot_hplc):
                                 col_mode_option = ['hls', 'Set1', 'Set2', 'Set3', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'tab10', 'tab20', 'tab20b', 'tab20c']
                                 ui.select(label='file col mode', options = col_mode_option, value=self.args.file_col_mode).bind_value_to(self.args, 'file_col_mode').classes('w-2/5')
                                 ui.select(label='peak col mode', options = col_mode_option, value=self.args.peak_col_mode).bind_value_to(self.args, 'peak_col_mode').classes('w-2/5')
-                            ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.1f').bind_value_to(self.args, 'labels_eps')
-                            ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
+                            ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.2f').bind_value_to(self.args, 'labels_eps')
+                            ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.2f').bind_value_to(self.args, 'legend_fontsize')
                             with ui.row().classes('w-full'):
                                 all_loc = ['best', 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center']
                                 ui.select(label='file legend loc', options=all_loc, value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos').classes('w-2/5')
                                 ui.select(label='peak legend loc', options=all_loc, value=self.args.peak_legend_pos).bind_value_to(self.args, 'peak_legend_pos').classes('w-2/5')
                             with ui.row().classes('w-full'):
-                                ui.number('file bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox1').classes('w-2/5')
-                                ui.number('peak bbox1', value=self.args.peak_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'peak_bbox1').classes('w-2/5')
+                                ui.number('file bbox1', value=self.args.bbox1, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'bbox1').classes('w-2/5')
+                                ui.number('peak bbox1', value=self.args.peak_bbox1, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'peak_bbox1').classes('w-2/5')
                             with ui.row().classes('w-full'):
-                                ui.number('file bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'bbox2').classes('w-2/5')
-                                ui.number('peak bbox2', value=self.args.peak_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'peak_bbox2').classes('w-2/5')
+                                ui.number('file bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'bbox2').classes('w-2/5')
+                                ui.number('peak bbox2', value=self.args.peak_bbox2, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'peak_bbox2').classes('w-2/5')
                         # configs for saving
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
                             self._expansion.append(expansion4)
                             with ui.row().classes('w-full'):
-                                ui.number('xlim-min', value=self.args.xlim[0], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 0))
-                                ui.number('xlim-max', value=self.args.xlim[1], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 1))
+                                ui.number('xlim-min', value=self.args.xlim[0], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 0))
+                                ui.number('xlim-max', value=self.args.xlim[1], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 1))
                             with ui.row().classes('w-full'):
-                                ui.number('ylim-min', value=self.args.ylim[0], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 0))
-                                ui.number('ylim-max', value=self.args.ylim[1], min=0, step=0.1, format='%.1f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 1))
-                            ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
-                            ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
+                                ui.number('ylim-min', value=self.args.ylim[0], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 0))
+                                ui.number('ylim-max', value=self.args.ylim[1], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 1))
+                            ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.2f').bind_value_to(self.args, 'fig_w')
+                            ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.2f').bind_value_to(self.args, 'fig_h')
                             dpi_input = ui.number('DPI', value=self.args.dpi, min=100, step=100, format='%d').bind_value_to(self.args, 'dpi')
                             ui.select(options=[100, 300, 600], value=dpi_input.value, label='Quick Set DPI').bind_value_to(dpi_input).classes('w-full')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
