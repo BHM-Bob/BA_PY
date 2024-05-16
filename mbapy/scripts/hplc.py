@@ -170,10 +170,16 @@ class explore_hplc(plot_hplc):
         self.now_name = ''
         self.fig = None
         self.dfs_checkin = {}
+        self.dfs_refinment_x = {}
         self.stored_dfs = {}
         self._expansion = []
         self._time_tik_per_min = {'waters':1/60} # a min time unit is how many minutes
         self._bbox_extra_artists = None
+        self.is_bind_lim = False
+        self.xlim_number_min = None
+        self.xlim_number_max = None
+        self.xlim_search_number_min = None
+        self.xlim_search_number_max = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -181,6 +187,10 @@ class explore_hplc(plot_hplc):
                           help="data file directory, default is %(default)s.")
         args.add_argument('-s', '--system', type = str, default='waters',
                           help="HPLC system. Default is %(default)s, only accept arw file exported by Waters.")
+        args.add_argument('-url', '--url', type = str, default='localhost',
+                          help="url to connect to, default is %(default)s.")
+        args.add_argument('-port', '--port', type = int, default=8011,
+                          help="port to connect to, default is %(default)s.")
         return args
     
     def process_args(self):
@@ -207,6 +217,7 @@ class explore_hplc(plot_hplc):
             self.dfs[event.sender.text] = self.stored_dfs[event.sender.text]
         else:
             self.dfs.pop(event.sender.text, None)
+        self._ui_refinment_numbers.refresh()
         
     @ui.refreshable
     def make_tabs(self):
@@ -237,7 +248,11 @@ class explore_hplc(plot_hplc):
         for name, df in self.dfs.items():
             names.append(name)
             info_df.append(df[0])
-            data_df.append(df[1])
+            data_df_i = df[1]
+            if name in self.dfs_refinment_x:
+                data_df_i = data_df_i.copy(True)
+                data_df_i['Time'] += self.dfs_refinment_x[name]
+            data_df.append(data_df_i)
         # check if no data
         if len(info_df) == 0:
             return ui.notify('no data to plot')
@@ -319,6 +334,26 @@ class explore_hplc(plot_hplc):
                 if expansion != e.sender:
                     expansion.value = False
                     
+    @ui.refreshable
+    def _ui_refinment_numbers(self):
+        from nicegui import ui
+        # update dfs_refinment
+        self.dfs_refinment_x = {n: (0 if n not in self.dfs_refinment_x else self.dfs_refinment_x[n]) for n in self.dfs}
+        # update refinment numbers GUI
+        for n, v in self.dfs_refinment_x.items():
+            ui.number(label=f'x:{n}', value=v, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_x, n).classes('w-full').tooltip(f'x:{n}')
+            
+    def _ui_bind_xlim_onchange(self, e):
+        if self.is_bind_lim:
+            if e.sender == self.xlim_number_min:
+                self.xlim_search_number_min.set_value(e.value)
+            elif e.sender == self.xlim_search_number_min:
+                self.xlim_number_min.set_value(e.value)
+            elif e.sender == self.xlim_number_max:
+                self.xlim_search_number_max.set_value(e.value)
+            elif e.sender == self.xlim_search_number_max:
+                self.xlim_number_max.set_value(e.value)
+                    
     def save_fig(self):
         from nicegui import ui
         path = os.path.join('./', self.args.file_name)
@@ -357,6 +392,7 @@ class explore_hplc(plot_hplc):
         with ui.header(elevated=True).style('background-color: #3874c8'):
             ui.label('mbapy-cli HPLC | HPLC Data Explorer').classes('text-h4')
             ui.space()
+            ui.checkbox('bind lim', value=self.is_bind_lim).bind_value_to(self, 'is_bind_lim').tooltip('bind value of search-lim and plot-lim')
             ui.checkbox('merge', value=self.args.merge).bind_value_to(self.args,'merge').bind_value_from(self, 'dfs', lambda dfs: len(dfs) > 1)
             ui.button('Plot', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
             ui.button('Save', on_click=self.save_fig, icon='save').props('no-caps')
@@ -375,11 +411,15 @@ class explore_hplc(plot_hplc):
                             ui.select(list(self.SUPPORT_SYSTEMS), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').classes('w-full')
                             ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width')
                             ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
-                            ui.number('start search time', value=self.args.start_search_time, min = 0).bind_value_to(self.args,'start_search_time').tooltip('in minutes')
-                            ui.number('end search time', value=self.args.end_search_time, min = 0).bind_value_to(self.args, 'end_search_time').tooltip('in minutes')
-                        # configs for fontsize
-                        with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
+                            self.xlim_search_number_min = ui.number('start search time', value=self.args.start_search_time, min = 0, on_change=self._ui_bind_xlim_onchange).bind_value_to(self.args,'start_search_time').tooltip('in minutes')
+                            self.xlim_search_number_max = ui.number('end search time', value=self.args.end_search_time, min = 0, on_change=self._ui_bind_xlim_onchange).bind_value_to(self.args, 'end_search_time').tooltip('in minutes')
+                        # data refinment configs
+                        with ui.expansion('Data Refinment', icon='auto_fix_high', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)
+                            self._ui_refinment_numbers()
+                        # configs for fontsize
+                        with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion3:
+                            self._expansion.append(expansion3)
                             with ui.row().classes('w-full'):
                                 ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
                                 ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
@@ -401,8 +441,8 @@ class explore_hplc(plot_hplc):
                                 ui.number('marker offset y', value=self.args.marker_offset[1], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.marker_offset, 1))
                             ui.number('line width', value=self.args.line_width, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'line_width')
                         # configs for legend
-                        with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion3:
-                            self._expansion.append(expansion3)
+                        with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion4:
+                            self._expansion.append(expansion4)
                             with ui.row().classes('w-full'):
                                 ui.checkbox('show file legend', value=self.args.show_file_legend).bind_value_to(self.args,'show_file_legend')
                                 ui.checkbox('show peak legend', value=self.args.show_tag_legend).bind_value_to(self.args,'show_tag_legend')
@@ -413,8 +453,9 @@ class explore_hplc(plot_hplc):
                                 col_mode_option = ['hls', 'Set1', 'Set2', 'Set3', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'tab10', 'tab20', 'tab20b', 'tab20c']
                                 ui.select(label='file col mode', options = col_mode_option, value=self.args.file_col_mode).bind_value_to(self.args, 'file_col_mode').classes('w-2/5')
                                 ui.select(label='peak col mode', options = col_mode_option, value=self.args.peak_col_mode).bind_value_to(self.args, 'peak_col_mode').classes('w-2/5')
-                            ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.2f').bind_value_to(self.args, 'labels_eps')
-                            ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.2f').bind_value_to(self.args, 'legend_fontsize')
+                            with ui.row().classes('w-full'):
+                                ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.2f').bind_value_to(self.args, 'labels_eps')
+                                ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.2f').bind_value_to(self.args, 'legend_fontsize')
                             with ui.row().classes('w-full'):
                                 all_loc = ['best', 'upper right', 'upper left', 'lower left', 'lower right', 'right', 'center left', 'center right', 'lower center', 'upper center', 'center']
                                 ui.select(label='file legend loc', options=all_loc, value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos').classes('w-2/5')
@@ -426,11 +467,11 @@ class explore_hplc(plot_hplc):
                                 ui.number('file bbox2', value=self.args.bbox2, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'bbox2').classes('w-2/5')
                                 ui.number('peak bbox2', value=self.args.peak_bbox2, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'peak_bbox2').classes('w-2/5')
                         # configs for saving
-                        with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
-                            self._expansion.append(expansion4)
+                        with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion5:
+                            self._expansion.append(expansion5)
                             with ui.row().classes('w-full'):
-                                ui.number('xlim-min', value=self.args.xlim[0], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 0))
-                                ui.number('xlim-max', value=self.args.xlim[1], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 1))
+                                self.xlim_number_min = ui.number('xlim-min', value=self.args.xlim[0], step=0.1, format='%.2f', on_change=self._ui_bind_xlim_onchange).on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 0))
+                                self.xlim_number_max = ui.number('xlim-max', value=self.args.xlim[1], step=0.1, format='%.2f', on_change=self._ui_bind_xlim_onchange).on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 1))
                             with ui.row().classes('w-full'):
                                 ui.number('ylim-min', value=self.args.ylim[0], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 0))
                                 ui.number('ylim-max', value=self.args.ylim[1], step=0.1, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 1))
@@ -443,7 +484,7 @@ class explore_hplc(plot_hplc):
                         ui.label(f'selected {len(self.dfs)} data files').classes('text-h6').bind_text_from(self, 'dfs', lambda dfs: f'selected {len(dfs)} data files')
                         self.make_fig()
         ## run GUI
-        ui.run(host = 'localhost', port = 8011, title = 'HPLC Data Explorer', reload=False)
+        ui.run(host = self.args.url, port = self.args.port, title = 'HPLC Data Explorer', reload=False)
         
 
 _str2func = {
