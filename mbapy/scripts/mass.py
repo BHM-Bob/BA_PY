@@ -148,8 +148,10 @@ class plot_mass(Command):
                     fontsize=args.__dict__.get('tag_fontsize', 15), color = text_col)
         plt.yscale('log')
         axis_lim = (1-args.expand, 1+args.expand)
-        plt.xlim(df['mass_data'].min() * axis_lim[0], df['mass_data'].max() * axis_lim[1])
-        plt.ylim(df['Height'].min() * axis_lim[0], df['Height'].max() * axis_lim[1])
+        y_axis_expand = args.__dict__.get('yaxis_expand', args.expand)
+        y_axis_lim = (1-y_axis_expand, 1+y_axis_expand)
+        plt.xlim(df['Mass/Charge'].min() * axis_lim[0], df['Mass/Charge'].max() * axis_lim[1])
+        plt.ylim(df['Height'].min() * y_axis_lim[0], df['Height'].max() * y_axis_lim[1])
         ax.set_title(f'{name} (Peak List of TOF MS)', fontsize=25)
         ax.set_xlabel(f'Mass{"" if args.mass else "/charge"}', fontsize=25)
         ax.set_ylabel('Intensity (cps)', fontsize=25)
@@ -196,8 +198,10 @@ class plot_mass(Command):
         # fix style
         plt.yscale('log')
         axis_lim = (1-args.expand, 1+args.expand)
+        y_axis_expand = args.__dict__.get('yaxis_expand', args.expand)
+        y_axis_lim = (1-y_axis_expand, 1+y_axis_expand)
         plt.xlim(df['Mass/Charge'].min() * axis_lim[0], df['Mass/Charge'].max() * axis_lim[1])
-        plt.ylim(df['Intensity'].min() * axis_lim[0], df['Intensity'].max() * axis_lim[1])
+        plt.ylim(df['Intensity'].min() * y_axis_lim[0], df['Intensity'].max() * y_axis_lim[1])
         ax.set_title(f'{name} (Mass/Charge of TOF MS)', fontsize=25)
         ax.set_xlabel(f'Mass/Charge', fontsize=25)
         ax.set_ylabel('Intensity (cps)', fontsize=25)
@@ -291,7 +295,7 @@ class explore_mass(plot_mass):
             # recovery output path
             if self.use_recursive_output:
                 self.output = self.original_output
-        self.fig = fig.fig
+            self.fig = fig.fig
         
     def save_fig(self):
         from nicegui import ui
@@ -314,7 +318,7 @@ class explore_mass(plot_mass):
                             title = '', xlabel = 'Mass/Charge', ylabel = 'Intensity (cps)',
                             xticks_fontsize = 20, yticks_fontsize = 20, tag_fontsize = 15,
                             axis_label_fontsizes = 25, title_fontsize = 25, legend_fontsize = 15,
-                            fig_w = 10, fig_h = 8, dpi = 600, file_name = '',
+                            fig_w = 10, fig_h = 8, dpi = 600, file_name = '', yaxis_expand = 0.1,
                             **self.args.__dict__)
         # GUI
         with ui.header(elevated=True).style('background-color: #3874c8'):
@@ -362,13 +366,16 @@ class explore_mass(plot_mass):
                             ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'labels_eps')
                             ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
                             ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
-                            ui.number('bbox1', value=self.args.legend_pos_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox1')
-                            ui.number('bbox2', value=self.args.legend_pos_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox2')
+                            with ui.row().classes('w-full'):
+                                ui.number('bbox1', value=self.args.legend_pos_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox1')
+                                ui.number('bbox2', value=self.args.legend_pos_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox2')
                         # configs for saving
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
                             self._expansion.append(expansion4)
                             ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
-                            ui.number('axis expand', value=self.args.expand, min=0, max=1, step=0.01, format='%.3f').bind_value_to(self.args, 'expand')
+                            with ui.row().classes('w-full'):
+                                ui.number('x axis expand', value=self.args.expand, min=0, max=1, step=0.01, format='%.3f').classes('w-2/5').bind_value_to(self.args, 'expand')
+                                ui.number('y axis expand', value=self.args.yaxis_expand, min=0, max=1, step=0.01, format='%.3f').classes('w-2/5').bind_value_to(self.args, 'yaxis_expand')
                             ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
                             ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
                             ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
