@@ -171,6 +171,7 @@ class explore_hplc(plot_hplc):
         self.fig = None
         self.dfs_checkin = {}
         self.dfs_refinment_x = {}
+        self.dfs_refinment_y = {}
         self.stored_dfs = {}
         self._expansion = []
         self._time_tik_per_min = {'waters':1/60} # a min time unit is how many minutes
@@ -249,9 +250,10 @@ class explore_hplc(plot_hplc):
             names.append(name)
             info_df.append(df[0])
             data_df_i = df[1]
-            if name in self.dfs_refinment_x:
+            if name in self.dfs_refinment_x or name in self.dfs_refinment_y:
                 data_df_i = data_df_i.copy(True)
-                data_df_i['Time'] += self.dfs_refinment_x[name]
+                data_df_i['Time'] += self.dfs_refinment_x.get(name, 0)
+                data_df_i['Absorbance'] += self.dfs_refinment_y.get(name, 0)
             data_df.append(data_df_i)
         # check if no data
         if len(info_df) == 0:
@@ -339,9 +341,14 @@ class explore_hplc(plot_hplc):
         from nicegui import ui
         # update dfs_refinment
         self.dfs_refinment_x = {n: (0 if n not in self.dfs_refinment_x else self.dfs_refinment_x[n]) for n in self.dfs}
+        self.dfs_refinment_y = {n: (0 if n not in self.dfs_refinment_y else self.dfs_refinment_y[n]) for n in self.dfs}
         # update refinment numbers GUI
-        for n, v in self.dfs_refinment_x.items():
-            ui.number(label=f'x:{n}', value=v, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_x, n).classes('w-full').tooltip(f'x:{n}')
+        for (n, x), (_, y) in zip(self.dfs_refinment_x.items(), self.dfs_refinment_y.items()):
+            ui.label(n).tooltip(n)
+            with ui.row():
+                ui.number(label='x', value=x, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_x, n).classes('w-2/5')
+                ui.number(label='y', value=y, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_y, n).classes('w-2/5')
+            
             
     def _ui_bind_xlim_onchange(self, e):
         if self.is_bind_lim:
