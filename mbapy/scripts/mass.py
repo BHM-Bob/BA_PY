@@ -150,7 +150,7 @@ class plot_mass(Command):
         axis_lim = (1-args.expand, 1+args.expand)
         y_axis_expand = args.__dict__.get('yaxis_expand', args.expand)
         y_axis_lim = (1-y_axis_expand, 1+y_axis_expand)
-        plt.xlim(df['Mass/Charge'].min() * axis_lim[0], df['Mass/Charge'].max() * axis_lim[1])
+        plt.xlim(df['mass_data'].min() * axis_lim[0], df['mass_data'].max() * axis_lim[1])
         plt.ylim(df['Height'].min() * y_axis_lim[0], df['Height'].max() * y_axis_lim[1])
         ax.set_title(f'{name} (Peak List of TOF MS)', fontsize=25)
         ax.set_xlabel(f'Mass{"" if args.mass else "/charge"}', fontsize=25)
@@ -343,7 +343,7 @@ class explore_mass(plot_mass):
                         with ui.expansion('Data Filtering', icon='filter_alt', value=True, on_value_change=self._ui_only_one_expansion) as expansion1:
                             self._expansion.append(expansion1)
                             ui.checkbox('use peaks cache', value=self.args.use_peaks_cache).bind_value_to(self.args, 'use_peaks_cache')
-                            ui.checkbox('filter by mass', value=self.args.mass).bind_value_to(self.args,'mass')
+                            ui.checkbox('filter by mass', value=self.args.mass).bind_value_to(self.args, 'mass')
                             ui.number('min peak width', value=self.args.min_peak_width, min = 1).bind_value_to(self.args,'min_peak_width')
                             ui.number('min height', value=self.args.min_height, min = 0).bind_value_to(self.args, 'min_height')
                             ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent').classes('w-full')
@@ -363,12 +363,12 @@ class explore_mass(plot_mass):
                         with ui.expansion('Configs for Legend', icon='more', on_value_change=self._ui_only_one_expansion) as expansion3:
                             self._expansion.append(expansion3)
                             ui.textarea('labels', value=self.args.labels_string).bind_value_to(self.args, 'labels_string').props('clearable')
-                            ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'labels_eps')
+                            ui.number('labels eps', value=self.args.labels_eps, min=0, step=0.1, format='%.2f').bind_value_to(self.args, 'labels_eps')
                             ui.number('legend fontsize', value=self.args.legend_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'legend_fontsize')
                             ui.input('legend loc', value=self.args.legend_pos).bind_value_to(self.args, 'legend_pos')
                             with ui.row().classes('w-full'):
-                                ui.number('bbox1', value=self.args.legend_pos_bbox1, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox1')
-                                ui.number('bbox2', value=self.args.legend_pos_bbox2, min=0, step=0.1, format='%.1f').bind_value_to(self.args, 'legend_pos_bbox2')
+                                ui.number('bbox1', value=self.args.legend_pos_bbox1, min=0, step=0.1, format='%.3f').bind_value_to(self.args, 'legend_pos_bbox1')
+                                ui.number('bbox2', value=self.args.legend_pos_bbox2, min=0, step=0.1, format='%.3f').bind_value_to(self.args, 'legend_pos_bbox2')
                         # configs for saving
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
                             self._expansion.append(expansion4)
@@ -376,8 +376,8 @@ class explore_mass(plot_mass):
                             with ui.row().classes('w-full'):
                                 ui.number('x axis expand', value=self.args.expand, min=0, max=1, step=0.01, format='%.3f').classes('w-2/5').bind_value_to(self.args, 'expand')
                                 ui.number('y axis expand', value=self.args.yaxis_expand, min=0, max=1, step=0.01, format='%.3f').classes('w-2/5').bind_value_to(self.args, 'yaxis_expand')
-                            ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_w')
-                            ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.1f').bind_value_to(self.args, 'fig_h')
+                            ui.number('figure width', value=self.args.fig_w, min=1, step=0.5, format='%.3f').bind_value_to(self.args, 'fig_w')
+                            ui.number('figure height', value=self.args.fig_h, min=1, step=0.5, format='%.3f').bind_value_to(self.args, 'fig_h')
                             ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
