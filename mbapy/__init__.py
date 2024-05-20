@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 22:16:49
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-19 22:01:01
+LastEditTime: 2024-05-20 21:22:29
 Description: some helpful python scripts in plot, stats and deeplearning
 '''
 import os
@@ -14,7 +14,7 @@ if 'MBAPY_FAST_LOAD' not in os.environ:
     os.environ['MBAPY_FAST_LOAD'] = 'False'
     
 if os.environ['MBAPY_FAST_LOAD'] == 'False':
-    from . import base, file, paper, plot, stats, web
+    from . import base, file, paper, plot, stats, web, sci_instrument
     
 from .__version__ import (__author__, __author_email__, __build__,
                           __description__, __license__, __title__, __url__,
