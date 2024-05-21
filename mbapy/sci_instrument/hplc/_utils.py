@@ -41,14 +41,14 @@ def process_peak_labels(labels: str, peak_col_mode = 'hls'):
 def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
               ax = None, fig_size = (10, 8),
               dfs_refinment_x: Dict[str, float] = {}, dfs_refinment_y: Dict[str, float] = {},
-              file_labels: Dict[str, Tuple[str, str]] = {}, file_label_fn: Callable = process_file_labels,
-              show_file_legend = True, file_legend_pos = 'upper right', file_legend_bbox = (1.3, 0.5),
-              peak_labels: Dict[float, Tuple[str, str]] = {}, peak_label_fn: Callable = process_peak_labels,
+              file_labels: Union[str, Tuple[str, str, str]] = [], file_label_fn: Callable = process_file_labels,
+              show_file_legend = True, file_legend_pos = 'upper right', file_legend_bbox = (1.3, 0.75),
+              peak_labels: Union[str, Dict[float, Tuple[str, str]]] = {}, peak_label_fn: Callable = process_peak_labels,
               show_tag_legend = True, peak_legend_pos = 'upper right', peak_legend_bbox = (1.3, 1),
               start_search_time = 0, end_search_time = None, labels_eps = 0.1, min_height = 0, min_peak_width = 1,
               marker_offset = (0, 0.05), marker_size = 80,
               show_tag_text = True, tag_offset = (0.05, 0.05), tag_fontsize = 15,
-              dpi = 600, line_width = 2, legend_fontsize = 15, ) -> Tuple[plt.Axes, List[plt.Artist]]:
+              dpi = 600, line_width = 2, legend_fontsize = 15, **kwargs) -> Tuple[plt.Axes, List[plt.Artist]]:
     """
     Parameters:
         - hplc_data: Union[HPLC_Data, List[HPLC_Data]], HPLC_Data or list of HPLC_Data
@@ -66,11 +66,11 @@ def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
         - show_tag_legend: FLAG, whether to show peak labels
         - peak_legend_pos: str, peak_legend_pos of peak legend
         - peak_legend_bbox: Tuple[float, float], bbox_to_anchor of peak legend
-        - start_search_time: start of search time
-        - end_search_time: end of search time
+        - start_search_time: start of search time, in minutes
+        - end_search_time: end of search time, in minutes
         - labels_eps: eps for matching peak labels
         - min_height: min height for peak detection
-        - min_peak_width: min peak width for peak detection
+        - min_peak_width: min peak width for peak detection, in minutes
         - marker_offset: Tuple[float, float], offset for peak markers
         - marker_size: peak marker size
         - show_tag_text: FLAG, whether to show tag text
@@ -95,9 +95,9 @@ def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
             data_dfs[-1][data.Y_HEADER] += dfs_refinment_y.get(names[-1], 0)
     # 若无数据则返回错误信息
     if len(data_dfs) == 0:
-        return put_err('no data to plot')
+        return put_err('no data to plot, return None')
     # 处理文件标签
-    if not isinstance(file_labels, dict):
+    if isinstance(file_labels, str):
         file_labels = file_label_fn(file_labels)
     if not file_labels or len(file_labels) != len(names):
         put_err(f'only {len(file_labels)} labels found, should be {len(names)} labels, use name instead')
@@ -105,7 +105,7 @@ def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
         if len(file_labels) == 1:
             file_labels[0][1] = 'black' # 避免使用调色板颜色的单个标签
     # 处理峰值标签
-    if not isinstance(peak_labels, dict):
+    if isinstance(peak_labels, str):
         peak_labels = peak_label_fn(peak_labels)
     peak_labels_v = np.array(list(peak_labels.keys()))
     # 绘制每个数据
@@ -119,11 +119,11 @@ def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
                        color = color, label = label_string, linewidth = line_width)[0]
         lines.append(line)
         # 搜索峰值
-        st = int(start_search_time * 60) # start_search_time单位为分钟
-        ed = int(end_search_time * 60) if end_search_time is not None else None
+        st = int(start_search_time * data_i.TICKS_IN_MINUTE) # start_search_time单位为分钟, st's unit is data tick
+        ed = int(end_search_time * data_i.TICKS_IN_MINUTE) if end_search_time is not None else None
         peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i['Absorbance'], rel_height = 1,
-                                                        prominence = min_height, width = min_peak_width)
-        peaks_idx = peaks_idx[peaks_idx >= st]
+                                                        prominence = min_height, width = min_peak_width*data_i.TICKS_IN_MINUTE)
+        peaks_idx = peaks_idx[peaks_idx >= (st - data_i.TICKS_IN_MINUTE*dfs_refinment_x.get(data_i.get_tag(), 0))] # addjust for offset
         if ed is not None:
             peaks_idx = peaks_idx[peaks_idx <= ed]
         peak_df = data_df_i.iloc[peaks_idx, :]

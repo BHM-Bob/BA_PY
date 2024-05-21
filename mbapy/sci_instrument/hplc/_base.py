@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-20 21:42:01
+LastEditTime: 2024-05-21 10:56:50
 Description: 
 '''
 import os
@@ -25,8 +25,12 @@ class HPLC_Data:
         self.data_file_path = data_file_path
         self.X_HEADER = 'Time'
         self.Y_HEADER = 'Absorbance'
+        self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
         
     def load_raw_data_file(self, *args, **kwargs):
+        raise NotImplementedError()
+    
+    def load_raw_data_from_bytes(self, *args, **kwargs):
         raise NotImplementedError()
     
     def load_processed_data_file(self, *args, **kwargs):

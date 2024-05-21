@@ -26,6 +26,7 @@ class WatersData(HPLC_Data):
         self.process_raw_data_path: str = None
         self.X_HEADER = 'Time'
         self.Y_HEADER = 'Absorbance'
+        self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
         
     def load_raw_data_file(self, raw_data_bytes: bytes = None):
         if raw_data_bytes is None and self.data_file_path:
@@ -33,6 +34,9 @@ class WatersData(HPLC_Data):
         else:
             return None # no waring, return None
         return decode_bits_to_str(raw_data_bytes)
+    
+    def load_raw_data_from_bytes(self, raw_data_bytes: bytes):
+        return self.load_raw_data_file(raw_data_bytes)
     
     @parameter_checker(path=lambda path: path is None or check_parameters_path(path))
     def load_processed_data_file(self, path: str = None, data_bytes: bytes = None):
