@@ -361,6 +361,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main('explore-hplc -i data_tmp/scripts/hplc'.split())
+    # main('explore-hplc -i data_tmp/scripts/hplc'.split())
     
     main()
