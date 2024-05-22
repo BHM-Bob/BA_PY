@@ -7,12 +7,15 @@ import numpy as np
 import pandas as pd
 
 if __name__ == '__main__':
+    from mbapy.base import put_err, parameter_checker, check_parameters_path
     from mbapy.sci_instrument.hplc._base import HplcData
 else:
+    from ...base import put_err, parameter_checker, check_parameters_path
     from ._base import HplcData
     
     
 class SciexData(HplcData):
+    @parameter_checker(data_file_path=lambda path: path is None or (check_parameters_path(path) and path.endswith('.txt')))
     def __init__(self, data_file_path: Optional[str] = None) -> None:
         super().__init__(data_file_path)
         self.X_HEADER = 'Time'
@@ -25,6 +28,7 @@ class SciexData(HplcData):
 
 
 class SciexTicData(HplcData):
+    @parameter_checker(data_file_path=lambda path: path is None or (check_parameters_path(path) and path.endswith('.txt')))
     def __init__(self, data_file_path: Optional[str] = None) -> None:
         super().__init__(data_file_path)
         self.X_HEADER = 'Time'
