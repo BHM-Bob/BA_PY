@@ -15,24 +15,25 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 from mbapy.base import put_err
 from mbapy.plot import get_palette, save_show
 from mbapy.file import decode_bits_to_str, get_paths_with_extension, get_valid_file_path
-from mbapy.sci_instrument.hplc.waters import WatersData
+from mbapy.sci_instrument.hplc import HplcData, WatersData, SciexData, SciexTicData
 from mbapy.sci_instrument.hplc._utils import plot_hplc as _plot_hplc, process_file_labels, process_peak_labels
 from mbapy.scripts._script_utils_ import clean_path, Command, excute_command
 
 
 class plot_hplc(Command):
+    SUPPORT_SYSTEMS = {'waters', 'SCIEX', 'SCIEX-TIC'}
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.dfs = {}
-        self.SUPPORT_SYSTEMS = {'waters'}
-        self.name2model = {'waters': WatersData}
+        self.sys2suffix = {'waters': 'arw', 'SCIEX': 'txt', 'SCIEX-TIC': 'txt'}
+        self.sys2model: Dict[str, HplcData] = {'waters': WatersData, 'SCIEX': SciexData, 'SCIEX-TIC': SciexTicData}
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
         args.add_argument('-i', '--input', type = str, default='.',
                           help="data file directory, default is %(default)s.")
         args.add_argument('-s', '--system', type = str, default='waters',
-                          help="HPLC system. Default is %(default)s, only accept arw file exported by Waters.")
+                          help=f"HPLC system. Default is %(default)s, those systems are supported: {plot_hplc.SUPPORT_SYSTEMS}")
         args.add_argument('-r', '--recursive', action='store_true', default=False,
                           help='search input directory recursively, default is %(default)s.')
         args.add_argument('-merge', action='store_true', default=False,
@@ -57,14 +58,13 @@ class plot_hplc(Command):
         return args
 
     def load_dfs_from_data_file(self):
-        if self.args.system == 'waters':
-            paths = get_paths_with_extension(self.args.input, ['arw'], recursive=self.args.recursive)
-            dfs = [self.data_model(path) for path in paths]
-            dfs = {data.get_tag():data for data in dfs}
+        paths = get_paths_with_extension(self.args.input, [self.sys2suffix[self.args.system]], recursive=self.args.recursive)
+        dfs = [self.data_model(path) for path in paths]
+        dfs = {data.get_tag():data for data in dfs if data.SUCCEED_LOADED}
         return dfs
 
     def process_args(self):
-        assert self.args.system in {'waters'}, f'not support HPLC system: {self.args.system}'
+        assert self.args.system in self.SUPPORT_SYSTEMS, f'not support HPLC system: {self.args.system}'
         # process self.args
         self.args.input = clean_path(self.args.input)
         self.args.output = clean_path(self.args.output) if self.args.output else self.args.input
@@ -72,7 +72,7 @@ class plot_hplc(Command):
             print(f'given output {self.args.output} is a file, change it to parent dir')
             self.args.output = self.args.output.parent
         self.args.file_legend_bbox = eval(f'({self.args.file_legend_bbox})') # NOTE: can be invoked
-        self.data_model = self.name2model[self.args.system]
+        self.data_model = self.sys2model[self.args.system]
         # file labels
         self.args.file_labels = process_file_labels(self.args.file_labels)
 
@@ -87,10 +87,9 @@ class plot_hplc(Command):
             raise FileNotFoundError(f'can not find data files in {self.args.input}')
         # show data general info and output peak list DataFrame
         if self.args.merge:
-            if self.args.system == 'waters':
-                dfs = list(self.dfs.values())
-                ax, legends = _plot_hplc(dfs, **self.args.__dict__)
-                _save_fig(self.args.output, "merge.png", self.args.dpi, self.args.show, legends)
+            dfs = list(self.dfs.values())
+            ax, legends = _plot_hplc(dfs, **self.args.__dict__)
+            _save_fig(self.args.output, "merge.png", self.args.dpi, self.args.show, legends)
         else:
             for tag, data in self.dfs.items():
                 print(f'plotting data for {tag}')
@@ -123,7 +122,7 @@ class explore_hplc(plot_hplc):
         args.add_argument('-i', '--input', type = str, default='.',
                           help="data file directory, default is %(default)s.")
         args.add_argument('-s', '--system', type = str, default='waters',
-                          help="HPLC system. Default is %(default)s, only accept arw file exported by Waters.")
+                          help="HPLC system. Default is %(default)s, those systems are supported: {plot_hplc.SUPPORT_SYSTEMS}")
         args.add_argument('-url', '--url', type = str, default='localhost',
                           help="url to connect to, default is %(default)s.")
         args.add_argument('-port', '--port', type = int, default=8011,
@@ -131,21 +130,31 @@ class explore_hplc(plot_hplc):
         return args
     
     def process_args(self):
-        assert self.args.system in {'waters'}, f'not support HPLC system: {self.args.system}'
+        assert self.args.system in self.SUPPORT_SYSTEMS, f'not support HPLC system: {self.args.system}'
         self.args.input = clean_path(self.args.input)
-        self.data_model = self.name2model[self.args.system]
+        self.data_model = self.sys2model[self.args.system]
         
     async def load_data(self, event):
         from nicegui import ui
         for name, content in zip(event.names, event.contents):
-            if self.args.system == 'waters':
-                if name.endswith('.arw'):
-                    self.stored_dfs[name] = self.data_model()
-                    self.stored_dfs[name].load_raw_data_from_bytes(content)
-                else:
-                    ui.notify(f'{name} is not a arw file, skip')
+            if name.endswith(self.sys2suffix[self.args.system]):
+                df = self.data_model()
+                df.raw_data = df.load_raw_data_from_bytes(content.read())
+                df.processed_data = df.process_raw_data()
+                df.data_file_path = name
+                if df.check_processed_data_empty():
+                    ui.notify(f'{name} is not a valid {self.args.system} file, skip')
                     continue
+                self.stored_dfs[df.make_tag()] = df
+            else:
+                ui.notify(f'{name} is not a arw file, skip')
+                continue
             ui.notify(f'loaded {name}')
+        self.make_tabs.refresh()
+        
+    def load_data_from_dir(self):
+        for name, dfs in self.load_dfs_from_data_file().items():
+            self.stored_dfs[name] = dfs
         self.make_tabs.refresh()
         
     def _push_df_from_tabs(self, event):
@@ -244,9 +253,8 @@ class explore_hplc(plot_hplc):
                              xlim = [0, None], ylim = [None, None],
                              fig_size = [10, 8], fig = None, dpi = 600, file_name = '',
                              **self.args.__dict__)
-        # load dfs from input dir
-        for name, dfs in self.load_dfs_from_data_file().items():
-            self.stored_dfs[name] = dfs
+        # load dfs from input dir to stored_dfs
+        self.load_data_from_dir()
         # GUI
         with ui.header(elevated=True).style('background-color: #3874c8'):
             ui.label('mbapy-cli HPLC | HPLC Data Explorer').classes('text-h4')
@@ -267,7 +275,7 @@ class explore_hplc(plot_hplc):
                         # data filtering configs
                         with ui.expansion('Data Filtering', icon='filter_alt', value=True, on_value_change=self._ui_only_one_expansion) as expansion1:
                             self._expansion.append(expansion1)
-                            ui.select(list(self.SUPPORT_SYSTEMS), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').bind_value_to(self, 'data_model', lambda s: self.name2model[s]).classes('w-full')
+                            ui.select(sorted(list(self.SUPPORT_SYSTEMS)), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').bind_value_to(self, 'data_model', lambda s: self.sys2model[s]).on_value_change(self.load_data_from_dir).classes('w-full')
                             ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width').tooltip('in minutes')
                             ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
                             ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.2f').bind_value_to(self.args, 'labels_eps')
@@ -361,6 +369,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main('explore-hplc -i data_tmp/scripts/hplc'.split())
+    # main('explore-hplc -i data_tmp/scripts/mass'.split())
     
     main()

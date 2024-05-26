@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     from mbapy.base import put_err
-    from mbapy.sci_instrument.hplc._base import HPLC_Data
     from mbapy.plot import get_palette
+    from mbapy.sci_instrument.hplc._base import HplcData
 else:
     from ...base import put_err
     from ...plot import get_palette
-    from ._base import HPLC_Data
+    from ._base import HplcData
     
     
 def process_file_labels(labels: str, file_col_mode = 'hls'):
@@ -38,14 +38,14 @@ def process_peak_labels(labels: str, peak_col_mode = 'hls'):
             peak_labels[float(t)] = [label, color]
     return peak_labels
 
-def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
+def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
               ax = None, fig_size = (10, 8),
               dfs_refinment_x: Dict[str, float] = {}, dfs_refinment_y: Dict[str, float] = {},
               file_labels: Union[str, Tuple[str, str, str]] = [], file_label_fn: Callable = process_file_labels,
               show_file_legend = True, file_legend_pos = 'upper right', file_legend_bbox = (1.3, 0.75),
               peak_labels: Union[str, Dict[float, Tuple[str, str]]] = {}, peak_label_fn: Callable = process_peak_labels,
               show_tag_legend = True, peak_legend_pos = 'upper right', peak_legend_bbox = (1.3, 1),
-              start_search_time = 0, end_search_time = None, labels_eps = 0.1, min_height = 0, min_peak_width = 1,
+              start_search_time: float = 0, end_search_time = None, labels_eps = 0.1, min_height = 0, min_peak_width = 1,
               marker_offset = (0, 0.05), marker_size = 80,
               show_tag_text = True, tag_offset = (0.05, 0.05), tag_fontsize = 15,
               dpi = 600, line_width = 2, legend_fontsize = 15, **kwargs) -> Tuple[plt.Axes, List[plt.Artist]]:
@@ -85,7 +85,7 @@ def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
         - List[plt.Artist]: legend artists, for saving
     """
     names, data_dfs = [], []
-    hplc_data = [hplc_data] if isinstance(hplc_data, HPLC_Data) else hplc_data
+    hplc_data = [hplc_data] if isinstance(hplc_data, HplcData) else hplc_data
     for data in hplc_data:
         names.append(data.get_tag())
         data_dfs.append(data.get_abs_data())
@@ -119,15 +119,15 @@ def plot_hplc(hplc_data: Union[HPLC_Data, List[HPLC_Data]],
                        color = color, label = label_string, linewidth = line_width)[0]
         lines.append(line)
         # 搜索峰值
-        st = int(start_search_time * data_i.TICKS_IN_MINUTE) # start_search_time单位为分钟, st's unit is data tick
-        ed = int(end_search_time * data_i.TICKS_IN_MINUTE) if end_search_time is not None else None
-        peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i['Absorbance'], rel_height = 1,
-                                                        prominence = min_height, width = min_peak_width*data_i.TICKS_IN_MINUTE)
-        peaks_idx = peaks_idx[peaks_idx >= (st - data_i.TICKS_IN_MINUTE*dfs_refinment_x.get(data_i.get_tag(), 0))] # addjust for offset
+        st = data_i.get_tick_by_minute(start_search_time) # start_search_time单位为分钟, st's unit is data tick
+        ed = data_i.get_tick_by_minute(end_search_time) if end_search_time is not None else None
+        peaks_idx, peak_props = scipy.signal.find_peaks(data_df_i[data_i.Y_HEADER], rel_height = 1,
+                                                        prominence = min_height, width = data_i.get_tick_by_minute(min_peak_width))
+        peaks_idx = peaks_idx[peaks_idx >= (st - data_i.get_tick_by_minute(dfs_refinment_x.get(data_i.get_tag(), 0)))] # addjust for offset
         if ed is not None:
             peaks_idx = peaks_idx[peaks_idx <= ed]
         peak_df = data_df_i.iloc[peaks_idx, :]
-        for t, a in zip(peak_df['Time'], peak_df['Absorbance']):                    
+        for t, a in zip(peak_df[data_i.X_HEADER], peak_df[data_i.Y_HEADER]):                    
             matched = np.where(np.abs(peak_labels_v - t) < labels_eps)[0]
             if matched.size > 0:
                 label, col = peak_labels[peak_labels_v[matched[0]]]
