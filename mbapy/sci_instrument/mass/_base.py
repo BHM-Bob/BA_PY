@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-25 08:37:44
+LastEditTime: 2024-05-26 22:44:40
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -12,16 +12,19 @@ import numpy as np
 import pandas as pd
 import scipy
 
-if __name__ == '__main__':
-    from mbapy.base import check_parameters_path, parameter_checker, put_err
-    from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
-                            get_valid_file_path, opts_file, write_sheets)
-    from mbapy.sci_instrument._base import SciInstrumentData
-else:
-    from ...base import check_parameters_path, parameter_checker, put_err
-    from ...file import (decode_bits_to_str, get_paths_with_extension,
-                         get_valid_file_path, opts_file, write_sheets)
-    from .._base import SciInstrumentData
+# if __name__ == '__main__':
+from mbapy.base import check_parameters_path, parameter_checker, put_err
+from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
+                        get_valid_file_path, opts_file, write_sheets)
+from mbapy.sci_instrument._base import SciInstrumentData
+from mbapy.web import TaskPool
+
+# else:
+#     from ...base import check_parameters_path, parameter_checker, put_err
+#     from ...file import (decode_bits_to_str, get_paths_with_extension,
+#                          get_valid_file_path, opts_file, write_sheets)
+#     from ...web import TaskPool
+#     from .._base import SciInstrumentData
     
     
 class MassData(SciInstrumentData):
@@ -33,7 +36,6 @@ class MassData(SciInstrumentData):
         self.MULTI_HEADERS = [self.X_HEADER, self.Y_HEADER]
         self.HEADERS_TYPE = {self.X_HEADER: float, self.Y_HEADER: float}
         
-    
     @parameter_checker(path=lambda path: path is None or check_parameters_path(path))
     def load_processed_data_file(self, path: str = None, data_bytes: bytes = None):
         if path is None and data_bytes is None:
@@ -77,32 +79,65 @@ class MassData(SciInstrumentData):
     def get_tick_by_minute(x):
         return put_err(f'Not supported for {__class__.__name__}, return None')
     
-    def search_peaks(self, xlim: Tuple[float, float] = None, min_height: float = None,
-                     min_height_percent: float = 1, min_width: float = 4, **kwargs):
+    def search_peaks(self, xlim: Tuple[float, float] = None, min_width: float = 4,
+                     parallel: TaskPool = None, n_parallel: int = 4):
         """
+        1. filter data by xlim
+        2. find peaks using scipy.signal.find_peaks_cwt with min_width parameter
+        
         Parameters:
             - xlim: (float, float), the range of x-axis to search peaks, default is None, which means all data
-            - min_height: float, the minimum height of peaks, default is None, which means 0
-            - min_height_percent: float, [0, 100], the minimum height of peaks as a percentage of the maximum height, default is None
             - min_width: int, the minimum width of peaks, default is 4
+            - parallel: TaskPool, the parallel task pool, default is None, which means not use parallel
+            - n_parallel: int, the number of parallel processes, default is 4
         
         Returns:
-            - peak_df: pandas.DataFrame, the dataframe of peaks
+            - peak_df: pandas.DataFrame, the dataframe of peaks. Has columns: [X_HEADER, Y_HEADER, 'index']
+            
+        Note:
+            - use scipy.signal.find_peaks_cwt to find peaks.
+            - the result is different between parallel and non-parallel because of the usage of scipy.signal.find_peaks_cwt
         """
-        tmp_df = self.data_df.copy()
+        # 1. filter data by xlim
         if xlim is None:
-            xlim = (tmp_df[self.X_HEADER].min(), tmp_df[self.X_HEADER].max())
+            xlim = (self.data_df[self.X_HEADER].min(), self.data_df[self.X_HEADER].max())
+        y = self.data_df[self.Y_HEADER][(self.data_df[self.X_HEADER] >= xlim[0]) &\
+                                          (self.data_df[self.X_HEADER] <= xlim[1])]
+        # 2. find peaks using scipy.signal.find_peaks_cwt with min_width parameter
+        if parallel is not None:
+            y_list = np.array_split(np.array(y), n_parallel)
+            y_list = [np.concatenate([y_list[i], y_list[i+1][:min_width]]) for i in range(n_parallel-1)] + [y_list[-1]]
+            names = [parallel.add_task(None, scipy.signal.find_peaks_cwt, y_i, min_width) for y_i in y_list]
+            y_list_r = list(parallel.wait_till_tasks_done(names).values())
+            size = 0
+            for i, r_i in enumerate(y_list_r):
+                r_i += size
+                size += y_list[i].size
+            peaks_idx = np.concatenate(y_list_r)
+        else:
+            peaks_idx = scipy.signal.find_peaks_cwt(y, min_width)
+        if peaks_idx.size == 0:
+            return put_err('No peaks found, return None')
+        self.peak_df = self.data_df.iloc[peaks_idx].copy()
+        # return self.peak_df.reset_index(drop=False)
+        return self.peak_df.reset_index(drop=False)
+    
+    def filter_peaks(self, xlim: Tuple[float, float] = None, min_height: float = None,
+                     min_height_percent: float = 1):
+        # search peaks if peak_df is None
+        if self.check_processed_data_empty(self.peak_df):
+            self.search_peaks(xlim)
+        # filter peaks by xlim and min_height
+        if xlim is None:
+            xlim = (self.peak_df[self.X_HEADER].min(), self.peak_df[self.X_HEADER].max())
         if min_height is None:
             min_height = 0
         if min_height_percent is not None:
-            min_height = max(min_height, min_height_percent / 100 * tmp_df[self.Y_HEADER].max())
-        tmp_df = tmp_df[tmp_df[self.Y_HEADER] >= min_height]
-        y = self.data_df[self.Y_HEADER][(self.data_df[self.X_HEADER] >= xlim[0]) &\
-                                          (self.data_df[self.X_HEADER] <= xlim[1]) &\
-                                            (self.data_df[self.Y_HEADER] >= min_height)]
-        peaks_idx = scipy.signal.find_peaks_cwt(y, min_width)
-        self.peak_df = tmp_df.iloc[peaks_idx].copy()
-        return self.peak_df
+            min_height = max(min_height, min_height_percent / 100 * self.peak_df[self.Y_HEADER].max())
+        self.peak_df = self.peak_df[(self.peak_df[self.X_HEADER] >= xlim[0]) &\
+                                        (self.peak_df[self.X_HEADER] <= xlim[1]) &\
+                                            (self.peak_df[self.Y_HEADER] >= min_height)].copy()
+        return self.peak_df.reset_index(drop=True)
     
     
 __all__ = [
@@ -110,4 +145,15 @@ __all__ = [
 ]
     
 if __name__ == '__main__':
-    pass
+    data = MassData('data_tmp/scripts/mass/d.txt')
+    data.X_HEADER, data.Y_HEADER = 'Mass/Charge', 'Intensity'
+    data.MULTI_HEADERS = [data.X_HEADER, data.Y_HEADER]
+    data.HEADERS_TYPE = {data.X_HEADER:float, data.Y_HEADER:float}
+    data.raw_data = data.load_raw_data_file()
+    data.processed_data = data.process_raw_data()
+    task_pool = TaskPool('process', 4).run()
+    peak_df_4 = data.search_peaks(parallel=task_pool).copy()
+    peak_df_1 = data.search_peaks().copy()
+    print(peak_df_4.equals(peak_df_1))
+    data.peak_df = data.filter_peaks(xlim=(100, 200), min_height=1000)
+    data.save_processed_data()
