@@ -1,24 +1,24 @@
 import _thread
 import asyncio
+import multiprocessing
 import os
 import re
-import time
 import threading
-import multiprocessing
+import time
 from collections import namedtuple
 from enum import Enum
 from functools import partial
 from queue import Queue
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Set, Tuple, Union
 from uuid import uuid4
 
 from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import put_err, put_log, parameter_checker
+    from mbapy.base import parameter_checker, put_err, put_log
 else:
-    from ..base import put_err, put_log, parameter_checker
+    from ..base import parameter_checker, put_err, put_log
 
 statuesQue = Queue()
 Key2Action = namedtuple('Key2Action', ['statue', 'func', 'args', 'kwgs',
@@ -334,6 +334,7 @@ class TaskPool:
             self._thread_result_queue.put((task_name, future.result(),
                                            TaskStatus.SUCCEED))
         except Exception as e:
+            put_err(f'error {e} when get result from queue') 
             self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
             
     def _query_task_queue(self, block: bool = True, timeout: int = 3):
@@ -342,7 +343,7 @@ class TaskPool:
                 _name, result, statue = self._thread_result_queue.get(block, timeout)
                 self.tasks[_name] = (_name, result, statue)
             except Exception as e:
-                put_err(f'error {e} when get result from queue')        
+                put_err(f'error {e} when get result from queue')
         
     def query_task(self, name, block: bool = False, timeout: int = 3):
         # short-cut for not found
@@ -422,12 +423,18 @@ class TaskPool:
         while not condition_func(*args, **kwargs):
             if timeout is not None and time.time() - st > timeout:
                 return False
+            done = self.count_done_tasks()
             if verbose:
-                done = self.count_done_tasks()
                 bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
                 bar.update(self.count_done_tasks() - bar.n)
             time.sleep(wait_each_loop)
         return self
+    
+    def wait_till_tasks_done(self, task_names: List[str],
+                             wait_each_loop: float = 0.5) -> Dict[str, Union[Any, Literal[TaskStatus.NOT_FOUND], Literal[TaskStatus.NOT_FINISHED]]]:
+        self.wait_till(lambda names: names.issubset(set([r[0] for r in self.tasks.values() if r != TaskStatus.NOT_RETURNED])),
+                       wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
+        return {name: self.query_task(name) for name in task_names}
     
     def close(self):
         """close the thread and event loop, join the thread"""
