@@ -1,42 +1,25 @@
 
-from typing import Callable, List, Tuple, Dict, Union
+from typing import Callable, Dict, List, Tuple, Union
 
-import scipy
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy
 
 if __name__ == '__main__':
     from mbapy.base import put_err
     from mbapy.plot import get_palette
+    from mbapy.sci_instrument._utils import \
+        process_label_col as process_file_labels
+    from mbapy.sci_instrument._utils import \
+        process_num_label_col as process_peak_labels
     from mbapy.sci_instrument.hplc._base import HplcData
 else:
     from ...base import put_err
     from ...plot import get_palette
+    from .._utils import process_label_col as process_file_labels
+    from .._utils import process_num_label_col as process_peak_labels
     from ._base import HplcData
     
-    
-def process_file_labels(labels: str, file_col_mode = 'hls'):
-    labels = '' if labels is None else labels
-    file_labels, colors = [], get_palette(len(labels.split(';')), mode = file_col_mode)
-    for idx, i in enumerate(labels.split(';')):
-        if i:
-            pack = i.split(',')
-            label, color = pack[0], pack[1] if len(pack) == 2 else colors[idx]
-            file_labels.append([label, color])
-    return file_labels
-
-def process_peak_labels(labels: str, peak_col_mode = 'hls'):
-    labels = '' if labels is None else labels
-    peak_labels, cols = {}, get_palette(len(labels.split(';')), mode = peak_col_mode)
-    for i, label in enumerate(labels.split(';')):
-        if label:
-            items = label.split(',')
-            if len(items) == 2:
-                (t, label), color = items, cols[i]
-            elif len(items) == 3:
-                t, label, color = items
-            peak_labels[float(t)] = [label, color]
-    return peak_labels
 
 def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
               ax = None, fig_size = (10, 8),
@@ -158,6 +141,8 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
 
 
 __all__ = [
+    'process_file_labels',
+    'process_peak_labels',
     'plot_hplc',
     ]
 

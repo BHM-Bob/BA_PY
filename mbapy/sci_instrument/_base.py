@@ -3,16 +3,20 @@ import os
 from pathlib import Path
 from typing import Dict, List, Union
 
-import scipy
 import numpy as np
 import pandas as pd
+import scipy
 
 if __name__ == '__main__':
-    from mbapy.base import put_err, parameter_checker, check_parameters_path
-    from mbapy.file import decode_bits_to_str, get_paths_with_extension, get_valid_file_path, opts_file, write_sheets
+    from mbapy.base import (check_parameters_path, get_default_for_None,
+                            parameter_checker, put_err)
+    from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
+                            get_valid_file_path, opts_file, write_sheets)
 else:
-    from ..base import put_err, parameter_checker, check_parameters_path
-    from ..file import decode_bits_to_str, get_paths_with_extension, get_valid_file_path, opts_file, write_sheets
+    from ..base import (check_parameters_path, get_default_for_None,
+                        parameter_checker, put_err)
+    from ..file import (decode_bits_to_str, get_paths_with_extension,
+                        get_valid_file_path, opts_file, write_sheets)
     
     
 class SciInstrumentData:
@@ -28,7 +32,9 @@ class SciInstrumentData:
         self.TICKS_IN_MINUTE = None # how many ticks in one minute
         self.SUCCEED_LOADED = False
         
-    def check_processed_data_empty(self):
+    def check_processed_data_empty(self, processed_data = None):
+        """check if processed_data or self.processed_data is empty"""
+        processed_data = get_default_for_None(processed_data, self.processed_data)
         if isinstance(self.processed_data, pd.DataFrame):
             return self.processed_data.empty
         else:
