@@ -22,7 +22,7 @@ else:
     
 
 def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
-              ax = None, fig_size = (10, 8),
+              ax = None, fig_size = (10, 8), y_log_scale: bool = False,
               dfs_refinment_x: Dict[str, float] = {}, dfs_refinment_y: Dict[str, float] = {},
               file_labels: Union[str, Tuple[str, str, str]] = [], file_label_fn: Callable = process_file_labels,
               show_file_legend = True, file_legend_pos = 'upper right', file_legend_bbox = (1.3, 0.75),
@@ -98,7 +98,8 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     lines, scatters, sc_labels = [], [], []
     for label, data_i, data_df_i in zip(file_labels, hplc_data, data_dfs):
         label_string, color = label
-        line = ax.plot(data_df_i[data_i.X_HEADER], data_df_i[data_i.Y_HEADER],
+        line = ax.plot(data_df_i[data_i.X_HEADER],
+                       data_df_i[data_i.Y_HEADER] if not data_i.IS_Y_LOG_PLOT else np.log10(data_df_i[data_i.Y_HEADER]),
                        color = color, label = label_string, linewidth = line_width)[0]
         lines.append(line)
         # 搜索峰值
@@ -122,6 +123,9 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
                 ax.scatter(t+marker_offset[0], a+marker_offset[1], marker=11, s = marker_size, color = col)
             if show_tag_text:
                 ax.text(t+tag_offset[0], a+tag_offset[1], f'{t:.2f}', fontsize=tag_fontsize, color = col)
+    # set y scale
+    if y_log_scale:
+        ax.set_yscale('log')
     # 设置文件标签图例
     _bbox_extra_artists = []
     if show_file_legend:

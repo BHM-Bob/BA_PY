@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-24 22:24:03
+LastEditTime: 2024-05-30 17:36:08
 Description: mbapy.sci_instrument.hplc._base
 '''
 import os
@@ -27,6 +27,7 @@ class HplcData(SciInstrumentData):
         super().__init__(data_file_path)
         self.X_HEADER = 'Time'
         self.Y_HEADER = 'Absorbance'
+        self.IS_Y_LOG_PLOT = False
         self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
         
     def get_abs_data(self, *args, **kwargs):
