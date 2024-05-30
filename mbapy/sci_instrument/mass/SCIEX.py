@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-25 08:38:08
+LastEditTime: 2024-05-26 19:29:07
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
@@ -41,6 +41,7 @@ class SciexPeakListData(MassData):
         if self.SUCCEED_LOADED:
             self.data_df['Mass (charge)'] = self.data_df['Mass (charge)'].str.extract(r'(\d+\.\d+)', expand=False).astype(float)
             self.data_df['Mass/charge (charge)'] = self.data_df['Mass/charge (charge)'].str.extract(r'(\d+\.\d+)', expand=False).astype(float)
+            self.peak_df = self.data_df.copy()
             return self.data_df
 
 
