@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-26 22:44:40
+LastEditTime: 2024-05-31 19:23:24
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -12,22 +12,16 @@ import numpy as np
 import pandas as pd
 import scipy
 
-# if __name__ == '__main__':
+# use multi-process
 from mbapy.base import check_parameters_path, parameter_checker, put_err
 from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
                         get_valid_file_path, opts_file, write_sheets)
 from mbapy.sci_instrument._base import SciInstrumentData
 from mbapy.web import TaskPool
-
-# else:
-#     from ...base import check_parameters_path, parameter_checker, put_err
-#     from ...file import (decode_bits_to_str, get_paths_with_extension,
-#                          get_valid_file_path, opts_file, write_sheets)
-#     from ...web import TaskPool
-#     from .._base import SciInstrumentData
     
     
 class MassData(SciInstrumentData):
+    DATA_FILE_SUFFIX = []
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None

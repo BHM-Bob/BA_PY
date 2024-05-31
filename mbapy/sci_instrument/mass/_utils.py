@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-30 17:20:12
+LastEditTime: 2024-05-30 17:38:51
 Description: 
 '''
 
@@ -29,7 +29,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
               min_height: float = None, min_height_percent: float = 1,
               verbose: bool = True, color: str = 'black',
               labels_eps: float = 0.5, labels: Dict[float, Tuple[str, str]] = {},
-              tag_fontsize: float = 15,
+              tag_fontsize: float = 15, y_log_scale: bool = True,
               **kwargs):
     """
     Parameters
@@ -91,7 +91,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
                            fontsize = legend_fontsize, draggable = True)
         _bbox_extra_artists.append(legend)
     # fix style
-    ax.yscale('log')
+    ax.set_yscale('log')
     # return
     return ax, _bbox_extra_artists
     
