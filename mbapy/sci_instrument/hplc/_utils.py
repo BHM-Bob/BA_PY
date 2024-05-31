@@ -98,8 +98,7 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     lines, scatters, sc_labels = [], [], []
     for label, data_i, data_df_i in zip(file_labels, hplc_data, data_dfs):
         label_string, color = label
-        line = ax.plot(data_df_i[data_i.X_HEADER],
-                       data_df_i[data_i.Y_HEADER] if not data_i.IS_Y_LOG_PLOT else np.log10(data_df_i[data_i.Y_HEADER]),
+        line = ax.plot(data_df_i[data_i.X_HEADER], data_df_i[data_i.Y_HEADER],
                        color = color, label = label_string, linewidth = line_width)[0]
         lines.append(line)
         # 搜索峰值

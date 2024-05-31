@@ -33,7 +33,6 @@ class SciexTicData(HplcData):
         super().__init__(data_file_path)
         self.X_HEADER = 'Time'
         self.Y_HEADER = 'Intensity'
-        self.IS_Y_LOG_PLOT = True
         self.raw_data = self.load_raw_data_file()
         self.processed_data = self.process_raw_data() if self.raw_data else None
         self.tag = self.make_tag() if not self.check_processed_data_empty() else None
