@@ -19,6 +19,14 @@ else:
                         get_valid_file_path, opts_file, write_sheets)
     
     
+def path_param_checker(path: str, suffixs: List[str] = None):
+    """return True means path is valid (None, or a valid path with valid suffixs)"""
+    if path is None:
+        return True
+    else:
+        suffixs = get_default_for_None(suffixs, [])
+        return check_parameters_path(path) and any(path.endswith(suffix) for suffix in suffixs)
+    
 class SciInstrumentData:
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         self.data_file_path = data_file_path if not data_file_path else str(Path(data_file_path).resolve())
@@ -107,6 +115,7 @@ class SciInstrumentData:
     
     
 __all__ = [
+    'path_param_checker',
     'SciInstrumentData',
 ]
     
