@@ -1,13 +1,13 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-31 19:39:49
+LastEditTime: 2024-06-01 16:33:17
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
+from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional, Union
-from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -24,12 +24,15 @@ else:
     
     
 class SciexPeakListData(MassData):
-    DATA_FILE_SUFFIX = ['.txt', '.xlsx']
+    DATA_FILE_SUFFIX: List[str] = ['.txt', '.xlsx']
+    RECOMENDED_DATA_FILE_SUFFIX: str = '.xlsx'
     @parameter_checker(data_file_path=partial(path_param_checker, suffixs=DATA_FILE_SUFFIX))
     def __init__(self, data_file_path: Optional[str] = None) -> None:
         super().__init__(data_file_path)
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
+        self.X_MZ_HEADER = 'Mass/charge (charge)'
+        self.X_M_HEADER = 'Mass (charge)'
         # Mass/Charge	Area	Height	Width	Width at 50%	Resolution	Charge	Monoisotopic	Mass (charge)	Mass/charge (charge)
         self.MULTI_HEADERS = ['Mass/Charge', 'Area', 'Height', 'Width',
                               'Width at 50%', 'Resolution', 'Charge',
@@ -53,12 +56,15 @@ class SciexPeakListData(MassData):
 
 
 class SciexOriData(MassData):
-    DATA_FILE_SUFFIX = ['.txt', '.xlsx']
+    DATA_FILE_SUFFIX: List[str] = ['.txt', '.xlsx']
+    RECOMENDED_DATA_FILE_SUFFIX: str = '.xlsx'
     @parameter_checker(data_file_path=partial(path_param_checker, suffixs=DATA_FILE_SUFFIX))
     def __init__(self, data_file_path: Optional[str] = None) -> None:
         super().__init__(data_file_path)
         self.X_HEADER = 'Mass/Charge'
         self.Y_HEADER = 'Intensity'
+        self.X_MZ_HEADER = 'Mass/Charge'
+        self.X_M_HEADER = None
         self.MULTI_HEADERS = [self.X_HEADER, self.Y_HEADER]
         self.HEADERS_TYPE = {self.X_HEADER:float, self.Y_HEADER:float}
         if self.data_file_path.endswith('.txt'):
