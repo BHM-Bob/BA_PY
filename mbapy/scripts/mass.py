@@ -16,13 +16,15 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import Configs, put_err
 from mbapy.file import get_paths_with_extension, get_valid_file_path
-from mbapy.plot import get_palette, save_show
+from mbapy.plot import get_palette, save_show, PLT_MARKERS
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
 from mbapy.sci_instrument.mass import plot_mass as _plot_mass
 from mbapy.sci_instrument.mass import process_peak_labels
 from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
 from mbapy.web import TaskPool
 
+
+process_peak_labels = partial(process_peak_labels, markers = PLT_MARKERS[1:]) # because the first marker is used for the noraml peak
 
 class plot_mass(Command):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
@@ -148,7 +150,7 @@ class explore_mass(plot_mass):
             ax, self._bbox_extra_artists = _plot_mass(tmp_data, ax = ax, xlim=self.args.xlim,
                                                       labels=self.args.labels, labels_eps=self.args.labels_eps,
                                                       legend_bbox=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2),
-                                                      legend_pos=self.args.legend_pos)
+                                                      legend_pos=self.args.legend_pos, marker_size=self.args.marker_size)
             x_axis_exp = (1-self.args.xaxis_expand, 1+self.args.xaxis_expand)
             y_axis_exp = (1-self.args.yaxis_expand, 1+self.args.yaxis_expand)
             plt.xlim(tmp_data.peak_df[tmp_data.X_HEADER].min() * x_axis_exp[0], tmp_data.peak_df[tmp_data.X_HEADER].max() * x_axis_exp[1])
@@ -187,7 +189,7 @@ class explore_mass(plot_mass):
                             title = '', xlabel = 'Mass/Charge', ylabel = 'Intensity (cps)',
                             xticks_fontsize = 20, yticks_fontsize = 20, tag_fontsize = 15,
                             axis_label_fontsizes = 25, title_fontsize = 25, legend_fontsize = 15,
-                            fig_w = 10, fig_h = 8, dpi = 600, file_name = '',
+                            fig_w = 12, fig_h = 7, dpi = 600, file_name = '',
                             xaxis_expand = 0.2, yaxis_expand = 0.1,
                             legend_pos_bbox1 = 1.0, legend_pos_bbox2 = 1.0, legend_pos = 'upper right',
                             **self.args.__dict__)
@@ -226,6 +228,7 @@ class explore_mass(plot_mass):
                             ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
                             ui.number('axis label fontsize', value=self.args.axis_label_fontsizes, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'axis_label_fontsizes')
                             ui.number('tag fontsize', value=self.args.tag_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'tag_fontsize')
+                            ui.number('marker size', value=self.args.marker_size, min=0, step=10, format='%.1f').bind_value_to(self.args,'marker_size')
                             ui.input('title', value=self.args.title).bind_value_to(self.args, 'title')
                             ui.input('xlabel', value=self.args.xlabel).bind_value_to(self.args, 'xlabel')
                             ui.input('ylabel', value=self.args.ylabel).bind_value_to(self.args, 'ylabel')
@@ -291,6 +294,8 @@ def main(sys_args: List[str] = None):
                                 help='set x-axis limit, input as "200,2000", default is %(default)s')
     plot_mass_args.add_argument('-col', '--color', type = str, default='black',
                                 help='draw color, default is %(default)s')
+    plot_mass_args.add_argument('--marker-size', type = float, default=120,
+                                help='marker size, default is %(default)s')
     plot_mass_args.add_argument('-labels', '--labels', type = str, default='',
                                 help='labels, input as 1000,Pep1,red;1050,Pep2, default is %(default)s')
     plot_mass_args.add_argument('--labels-eps', type = float, default=0.5,
