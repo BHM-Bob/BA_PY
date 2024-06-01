@@ -28,6 +28,8 @@ def path_param_checker(path: str, suffixs: List[str] = None):
         return check_parameters_path(path) and any(path.endswith(suffix) for suffix in suffixs)
     
 class SciInstrumentData:
+    DATA_FILE_SUFFIX: List[str] = []
+    RECOMENDED_DATA_FILE_SUFFIX: str = ''
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         self.data_file_path = data_file_path if not data_file_path else str(Path(data_file_path).resolve())
         self.processed_data = None
@@ -43,10 +45,10 @@ class SciInstrumentData:
     def check_processed_data_empty(self, processed_data = None):
         """check if processed_data or self.processed_data is empty"""
         processed_data = get_default_for_None(processed_data, self.processed_data)
-        if isinstance(self.processed_data, pd.DataFrame):
-            return self.processed_data.empty
+        if isinstance(processed_data, pd.DataFrame):
+            return processed_data.empty
         else:
-            return not bool(self.processed_data)
+            return not bool(processed_data)
         
     def load_raw_data_file(self, raw_data_bytes: bytes = None):
         if raw_data_bytes is None and self.data_file_path:
