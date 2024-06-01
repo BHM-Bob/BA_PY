@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-01 14:39:27
+LastEditTime: 2024-06-01 19:56:09
 Description: 
 '''
 
@@ -14,11 +14,11 @@ import scipy
 if __name__ == '__main__':
     from mbapy.base import get_default_for_None, put_err
     from mbapy.sci_instrument._utils import \
-        process_num_label_col as process_peak_labels
+        process_num_label_col_marker as process_peak_labels
     from mbapy.sci_instrument.mass._base import MassData
 else:
     from ...base import get_default_for_None, put_err
-    from .._utils import process_num_label_col as process_peak_labels
+    from .._utils import process_num_label_col_marker as process_peak_labels
     from ._base import MassData
     
 
@@ -29,25 +29,27 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
               min_height: float = None, min_height_percent: float = 1,
               verbose: bool = True, color: str = 'black',
               labels_eps: float = 0.5, labels: Dict[float, Tuple[str, str]] = {},
-              tag_fontsize: float = 15, y_log_scale: bool = True,
+              tag_fontsize: float = 15, marker_size: float = 120, normal_marker: str = 'o',
               **kwargs):
     """
     Parameters
-        - data: MassData object
-        - ax: matplotlib.pyplot.Axes object, default None
-        - fig_size: tuple, default (10, 8)
+        - data: MassData object, include a data_df and peak_df as attributes
+        - ax: matplotlib.pyplot.Axes object, default None, will create a new one according to fig_size if None
+        - fig_size: tuple, default (10, 8), will be used to create a new matplotlib.pyplot.Axes object if ax is None
         - xlim: tuple, default None, will be set to (data.data_df[data.X_HEADER].min(), data.data_df[data.X_HEADER].max())
-        - show_legend: bool, default True
-        - legend_fontsize: float, default 15
-        - legend_pos: str or int, default 'upper right'
-        - legend_bbox: tuple, default (1.3, 0.75)
-        - min_height: float, default None
-        - min_height_percent: float, default 1
-        - verbose: bool, default True
-        - color: str, default 'black'
-        - labels_eps: float, default 0.5
-        - labels: Dict[float, Tuple[str, str]], default null dict
-        - tag_fontsize: float, default 15
+        - show_legend: bool, default True, will create a legend if there has any label matched
+        - legend_fontsize: float, default 15, matplotlib.pyplot.legend() parameter
+        - legend_pos: str or int, default 'upper right', matplotlib.pyplot.legend() parameter
+        - legend_bbox: tuple, default (1.3, 0.75), matplotlib.pyplot.legend() parameter
+        - min_height: float, default None, will be set to data.peak_df[data.Y_HEADER].min() if None
+        - min_height_percent: float, default 1, will act as a percentage of max height if not None
+        - verbose: bool, default True, FLAG
+        - color: str, default 'black', peak-line color
+        - labels_eps: float, default 0.5, will match labels within labels_eps
+        - labels: Dict[float, Tuple[str, str]], default null dict, key is mass, value is a tuple of (label, text_color, marker)
+        - tag_fontsize: float, default 15, peak-tag font size
+        - maker_size: float, default 80, peak-tag marker size
+        - normal_marker: str, default 'o', not matched peak's peak-tag marker
         - **kwargs: other keyword arguments for matplotlib.pyplot.Axes.vlines()
         
     Returns
@@ -58,9 +60,12 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     if ax is None:
         _, ax = plt.subplots(figsize = fig_size)
     # helper function
-    def _plot_vlines(ax, x, y, col, label = None):
+    def _plot_vlines(ax, x, y, col, label = None, plot_scatter: bool = True,
+                     marker: str = normal_marker, scatter_size: float = marker_size,
+                     scatter_label: str = None):
         ax.vlines(x, 0, y, colors = [col] * len(x), label = label)
-        ax.scatter(x, y, c = col)
+        if plot_scatter:
+            ax.scatter(x, y, c = col, s = scatter_size, marker = marker, label = scatter_label)
     # find peaks
     if data.check_processed_data_empty(data.peak_df):
         data.search_peaks(xlim, min_height, min_height_percent)
@@ -75,19 +80,19 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     if data.check_processed_data_empty(df):
         return put_err('no peaks found, return None')
     # plot
-    _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color)
+    _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color, scatter_size=marker_size//4)
     labels_ms = np.array(list(labels.keys()))
     text_col = color
     has_label_matched = False
     for ms, h in zip(df[data.X_HEADER], df[data.Y_HEADER]):
         matched = np.where(np.abs(labels_ms - ms) < labels_eps)[0]
         if matched.size > 0:
-            label, text_col = labels.get(labels_ms[matched[0]])
-            _plot_vlines(ax, [ms], [h], text_col, label)
+            label, text_col, maker = labels.get(labels_ms[matched[0]])
+            _plot_vlines(ax, [ms], [h], text_col, scatter_label = label, marker = maker, plot_scatter = True, scatter_size=marker_size)
             has_label_matched = True
         else:
             text_col = color
-        ax.text(ms, h, f'* {ms:.2f}', fontsize=tag_fontsize, color = text_col)
+        ax.text(ms, h, f'  {ms:.2f}', fontsize=tag_fontsize, color = text_col)
     # legend
     _bbox_extra_artists = []
     if show_legend and has_label_matched:
