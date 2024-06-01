@@ -34,6 +34,7 @@ else:
 plt.rcParams["font.family"] = 'Times New Roman'
 plt.rcParams['axes.unicode_minus'] = False #用来正常显示负号
 colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+PLT_MARKERS = ('o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd', 'P', 'X')
 
 def rgb2hex(r, g, b):
   return '#'+('{:02X}' * 3).format(r, g, b)
