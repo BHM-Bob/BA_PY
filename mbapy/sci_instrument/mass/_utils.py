@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-30 17:38:51
+LastEditTime: 2024-06-01 14:39:27
 Description: 
 '''
 
@@ -62,31 +62,35 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
         ax.vlines(x, 0, y, colors = [col] * len(x), label = label)
         ax.scatter(x, y, c = col)
     # find peaks
-    xlim = get_default_for_None(xlim, (data.data_df[data.X_HEADER].min(),
-                                       data.data_df[data.X_HEADER].max()))
-    if verbose:
-        print(f'x-axis data limit set to {xlim}')
     if data.check_processed_data_empty(data.peak_df):
         data.search_peaks(xlim, min_height, min_height_percent)
     df = data.peak_df.copy()
+    # set xlim
+    xlim = get_default_for_None(xlim, (data.peak_df[data.X_HEADER].min(),
+                                       data.peak_df[data.X_HEADER].max()))
+    if verbose:
+        print(f'x-axis data limit set to {xlim}')
     df = df[(df[data.X_HEADER] >= xlim[0]) & (df[data.X_HEADER] <= xlim[1])] # repetitive code if data.peak_df is None
+    # check if there has any peak
     if data.check_processed_data_empty(df):
         return put_err('no peaks found, return None')
     # plot
-    _plot_vlines(df['Mass/Charge'], df['Intensity'], color)
+    _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color)
     labels_ms = np.array(list(labels.keys()))
     text_col = color
-    for ms, h in zip(df['Mass/Charge'], df['Intensity']):
+    has_label_matched = False
+    for ms, h in zip(df[data.X_HEADER], df[data.Y_HEADER]):
         matched = np.where(np.abs(labels_ms - ms) < labels_eps)[0]
         if matched.size > 0:
             label, text_col = labels.get(labels_ms[matched[0]])
-            _plot_vlines([ms], [h], text_col, label)
+            _plot_vlines(ax, [ms], [h], text_col, label)
+            has_label_matched = True
         else:
             text_col = color
         ax.text(ms, h, f'* {ms:.2f}', fontsize=tag_fontsize, color = text_col)
     # legend
     _bbox_extra_artists = []
-    if show_legend:
+    if show_legend and has_label_matched:
         legend = ax.legend(loc = legend_pos, bbox_to_anchor = legend_bbox,
                            fontsize = legend_fontsize, draggable = True)
         _bbox_extra_artists.append(legend)
