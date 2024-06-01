@@ -1,7 +1,7 @@
 <!--
  * @Date: 2023-07-29 09:56:37
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-04-22 20:25:08
+ * @LastEditTime: 2024-06-01 20:25:39
  * @Description: 
 -->
 <!-- mkdocs serve -->
@@ -77,7 +77,11 @@ Some pytorch utils and some models.
 Some scientific paper utils, including parsing RIS, downloading pdf by title or doi through sci-hub, search through baidu-xueshu, extract specific section from a sci-paper and so on.  
 1. [parse](sci_utils/paper_parse.md) for parsing pdf and extract specific sections.  
 2. [download](sci_utils/paper_download.md) for downloading pdf by title or doi through sci-hub.  
-3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.
+3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.  
+## sci_instrument
+Some scientific instrument data file utils.  
+1. [HPLC]  
+2. [Mass]  
 ## [scripts](scripts.md)
 Some helpful command line scripts.  
 1. [avif](scripts/avif.md)  
@@ -96,3 +100,6 @@ Some helpful command line scripts.
 14. [scihub_selenium](scripts/scihub_selenium.md)  
 15. [scihub](scripts.md#scihub)  
 16. [video](scripts/video.md)  
+
+# Release History
+- [0.8.0](release_notes/0.8.0.md)  
