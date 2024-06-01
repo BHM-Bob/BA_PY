@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-31 19:23:24
+LastEditTime: 2024-06-01 14:31:00
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -21,26 +21,36 @@ from mbapy.web import TaskPool
     
     
 class MassData(SciInstrumentData):
-    DATA_FILE_SUFFIX = []
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
+        self.X_MZ_HEADER = None
+        self.X_M_HEADER = None
         self.MULTI_HEADERS = [self.X_HEADER, self.Y_HEADER]
         self.HEADERS_TYPE = {self.X_HEADER: float, self.Y_HEADER: float}
         
     @parameter_checker(path=lambda path: path is None or check_parameters_path(path))
     def load_processed_data_file(self, path: str = None, data_bytes: bytes = None):
-        if path is None and data_bytes is None:
-            return put_err('No processed data file specified, return None')
-        elif path is not None and data_bytes is not None:
-            put_err('Both path and data_bytes are specified, only act with path')
-            data_bytes = None
-        self.data_df = pd.read_excel(path or data_bytes, sheet_name='Data')
-        if 'Peak' in pd.ExcelFile(path or data_bytes).sheet_names:
-            self.peak_df = pd.read_excel(path or data_bytes, sheet_name='Peak')
-        return self.data_df
+        try:
+            if path is None and data_bytes is None:
+                path = Path(self.data_file_path).with_suffix('.xlsx')
+                print(f'assuming {path} is the processed data file')
+            elif path is not None and data_bytes is not None:
+                put_err('Both path and data_bytes are specified, only act with path')
+                data_bytes = None
+            self.data_df = pd.read_excel(path or data_bytes, sheet_name='Data')
+            if set(self.data_df.columns) - set(['Unnamed: 0']) == set(self.MULTI_HEADERS):
+                self.data_df = self.data_df.astype(self.HEADERS_TYPE)
+                if 'Peak' in pd.ExcelFile(path or data_bytes).sheet_names:
+                    self.peak_df = pd.read_excel(path or data_bytes, sheet_name='Peak')
+                self.SUCCEED_LOADED = True
+            else:
+                return put_err(f'Invalid file header, expected {self.MULTI_HEADERS}, got {self.data_df.columns}, return None')
+            return self.data_df
+        except:
+            return put_err(f'Failed to load processed data file {path or data_bytes}, return None')
     
     def process_raw_data(self, *args, **kwargs):
         try:
@@ -143,6 +153,7 @@ if __name__ == '__main__':
     data.X_HEADER, data.Y_HEADER = 'Mass/Charge', 'Intensity'
     data.MULTI_HEADERS = [data.X_HEADER, data.Y_HEADER]
     data.HEADERS_TYPE = {data.X_HEADER:float, data.Y_HEADER:float}
+    data.load_processed_data_file()
     data.raw_data = data.load_raw_data_file()
     data.processed_data = data.process_raw_data()
     task_pool = TaskPool('process', 4).run()
