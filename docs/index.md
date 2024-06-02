@@ -1,7 +1,7 @@
 <!--
  * @Date: 2023-07-29 09:56:37
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-06-01 20:25:39
+ * @LastEditTime: 2024-06-02 12:26:08
  * @Description: 
 -->
 <!-- mkdocs serve -->
@@ -103,3 +103,29 @@ Some helpful command line scripts.
 
 # Release History
 - [0.8.0](release_notes/0.8.0.md)  
+- [0.7.4](release_notes/0.7.4.md)  
+- [0.7.3](release_notes/0.7.3.md)  
+- [0.7.2](release_notes/0.7.2.md)  
+- [0.7.1](release_notes/0.7.1.md)  
+- [0.7.1b1](release_notes/0.7.1b1.md)  
+- [0.6.3](release_notes/0.6.3.md)  
+- [0.6.2](release_notes/0.6.2.md)  
+- [0.6.1](release_notes/0.6.1.md)  
+- [0.6.0](release_notes/0.6.0.md)  
+- [0.5.0](release_notes/0.5.0.md)  
+- [0.4.0](release_notes/0.4.0.md)  
+- [0.3.0](release_notes/0.3.0.md)  
+- [0.2.0](release_notes/0.2.0.md)  
+- [0.1.4](release_notes/0.1.4.md)  
+- [0.1.3](release_notes/0.1.3.md)  
+- [0.1.2](release_notes/0.1.2.md)  
+- [0.1.1](release_notes/0.1.1.md)  
+- [0.1.0](release_notes/0.1.0.md)  
+- [0.0.14](release_notes/0.0.14.md) 
+- [0.0.12](release_notes/0.0.12.md) 
+- [0.0.9](release_notes/0.0.9.md) 
+- [0.0.6](release_notes/0.0.6.md) 
+- [0.0.4](release_notes/0.0.4.md) 
+- [0.0.3](release_notes/0.0.3.md)  
+- [0.0.2](release_notes/0.0.2.md)  
+- [0.0.1](release_notes/0.0.1.md)  
