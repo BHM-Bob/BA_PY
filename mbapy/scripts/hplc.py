@@ -2,22 +2,26 @@ import argparse
 import os
 from collections import OrderedDict
 from functools import partial
-from pathlib import Path
-from typing import Dict, List, Union, Tuple, Callable
+from typing import Callable, Dict, List, Tuple, Union
 
-import scipy
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import scipy
+from nicegui import ui
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
-from mbapy.base import put_err
+from mbapy.base import get_storage_path, put_err
+from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
+                        get_valid_file_path)
 from mbapy.plot import get_palette, save_show
-from mbapy.file import decode_bits_to_str, get_paths_with_extension, get_valid_file_path
-from mbapy.sci_instrument.hplc import HplcData, WatersData, SciexData, SciexTicData
-from mbapy.sci_instrument.hplc._utils import plot_hplc as _plot_hplc, process_file_labels, process_peak_labels
-from mbapy.scripts._script_utils_ import clean_path, Command, excute_command
+from mbapy.sci_instrument.hplc import (HplcData, SciexData, SciexTicData,
+                                       WatersData)
+from mbapy.sci_instrument.hplc._utils import plot_hplc as _plot_hplc
+from mbapy.sci_instrument.hplc._utils import (process_file_labels,
+                                              process_peak_labels)
+from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
 
 
 class plot_hplc(Command):
@@ -99,12 +103,11 @@ class plot_hplc(Command):
 
 
 class explore_hplc(plot_hplc):
-    from nicegui import ui
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.now_name = ''
         self.fig = None
-        self.dfs = OrderedDict()
+        self.dfs: Dict[str, HplcData] = OrderedDict()
         self.dfs_checkin = {}
         self.dfs_refinment_x = {}
         self.dfs_refinment_y = {}
@@ -116,6 +119,9 @@ class explore_hplc(plot_hplc):
         self.xlim_number_max = None
         self.xlim_search_number_min = None
         self.xlim_search_number_max = None
+        self.files_peaks_idx = {}
+        self.tag2label = {}
+        self.area_df_panel = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -135,7 +141,6 @@ class explore_hplc(plot_hplc):
         self.data_model = self.sys2model[self.args.system]
         
     async def load_data(self, event):
-        from nicegui import ui
         for name, content in zip(event.names, event.contents):
             if name.endswith(self.sys2suffix[self.args.system]):
                 df = self.data_model()
@@ -166,7 +171,6 @@ class explore_hplc(plot_hplc):
         
     @ui.refreshable
     def make_tabs(self):
-        from nicegui import ui
         with ui.card().classes('h-full'):
             for name in sorted(self.stored_dfs):
                 if name not in self.dfs_checkin:
@@ -176,23 +180,49 @@ class explore_hplc(plot_hplc):
                 
     @ui.refreshable
     def make_fig(self):
-        from nicegui import ui
         plt.close(self.fig)
         with ui.pyplot(figsize=self.args.fig_size, close=False) as fig:
             self.fig = fig.fig
             if self.dfs:
-                ax, self._bbox_extra_artists = _plot_hplc(list(self.dfs.values()), ax = self.fig.gca(),
-                                                          dfs_refinment_x=self.dfs_refinment_x,
-                                                          dfs_refinment_y=self.dfs_refinment_y,
-                                                          file_label_fn=partial(process_file_labels, file_col_mode=self.args.file_col_mode),
-                                                          peak_label_fn=partial(process_peak_labels, peak_col_mode=self.args.peak_col_mode),
-                                                          **self.args.__dict__)
+                ax, self._bbox_extra_artists, self.files_peaks_idx, file_labels = \
+                    _plot_hplc(list(self.dfs.values()), ax = self.fig.gca(),
+                               dfs_refinment_x=self.dfs_refinment_x, dfs_refinment_y=self.dfs_refinment_y,
+                               file_label_fn=partial(process_file_labels, file_col_mode=self.args.file_col_mode),
+                               peak_label_fn=partial(process_peak_labels, peak_col_mode=self.args.peak_col_mode),
+                               **self.args.__dict__)
+                self.tag2label = {d.get_tag():l[0] for d,l in zip(self.dfs.values(), file_labels)}
                 ax.tick_params(axis='both', which='major', labelsize=self.args.axis_ticks_fontsize)
                 ax.set_xlabel(self.args.xlabel, fontsize=self.args.axis_label_fontsize)
                 ax.set_ylabel(self.args.ylabel, fontsize=self.args.axis_label_fontsize)
                 ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
                 ax.set_ylim(bottom=self.args.ylim[0], top=self.args.ylim[1])
                 plt.tight_layout()
+        # re-calcu area df and refreash GUI table
+        with ui.tab_panel(self.area_df_panel):
+            self.make_area_df.refresh()
+                
+    @ui.refreshable
+    def make_area_df(self):
+        if not self.dfs:
+            return
+        # calcu peaks' area into area_df and collect all peaks' idx into all_peaks_idx
+        area_df: Dict[str, Dict[int, float]] = {}
+        all_peaks_idx: Dict[int, bool] = {}
+        for n, peaks_idx in self.files_peaks_idx.items():
+            data = self.dfs[n]
+            peaks_area = data.calcu_peaks_area(peaks_idx)
+            area_df[self.tag2label[n]] = {peaks_area[peak_idx]['time']:peaks_area[peak_idx]['area'] for peak_idx in peaks_area}
+            for idx in area_df[self.tag2label[n]].keys():
+                all_peaks_idx[idx] = True
+        # make big table for all peaks' area for all files
+        all_area_df = pd.DataFrame(columns=['Name'] + sorted(list(all_peaks_idx.keys())))
+        for n, peaks_area in area_df.items():
+            all_area_df.loc[n] = [n] + [area_df[n][idx] if idx in area_df[n] else 0 for idx in all_peaks_idx]
+        # transfer to nicegui table format
+        collums = [{'name': 'Name', 'label': 'Name', 'field': 'Name', 'sortable': True}] +\
+            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in all_area_df.columns[1:]]
+        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.4f}') for k,v in zip(collums, list(line))} for line in all_area_df.values]
+        ui.table(columns=collums, rows=rows)
             
     def _ui_only_one_expansion(self, e):
         if e.value:
@@ -202,7 +232,7 @@ class explore_hplc(plot_hplc):
                     
     @ui.refreshable
     def _ui_refinment_numbers(self):
-        from nicegui import ui
+
         # update dfs_refinment
         self.dfs_refinment_x = {n: (0 if n not in self.dfs_refinment_x else self.dfs_refinment_x[n]) for n in self.dfs}
         self.dfs_refinment_y = {n: (0 if n not in self.dfs_refinment_y else self.dfs_refinment_y[n]) for n in self.dfs}
@@ -225,7 +255,6 @@ class explore_hplc(plot_hplc):
                 self.xlim_number_max.set_value(e.value)
                     
     def save_fig(self):
-        from nicegui import ui
         path = os.path.join('./', self.args.file_name)
         ui.notify(f'saving figure to {path}')
         save_show(path, dpi = self.args.dpi, show = False, bbox_extra_artists = self._bbox_extra_artists)
@@ -236,7 +265,9 @@ class explore_hplc(plot_hplc):
     
     def main_process(self):
         from nicegui import app, ui
+
         from mbapy.game import BaseInfo
+
         # make global settings
         # do not support xlim because it makes confusion with peak searching
         self.args = BaseInfo(file_labels = '', peak_labels = '', merge = False, recursive = False,
@@ -252,6 +283,7 @@ class explore_hplc(plot_hplc):
                              title_fontsize = 25, legend_fontsize = 15, line_width = 2,
                              xlim = [0, None], ylim = [None, None],
                              fig_size = [10, 8], fig = None, dpi = 600, file_name = '',
+                             plot_peaks_line = False, plot_peaks_underline = False, plot_peaks_area = False, peak_area_alpha = 0.3,
                              **self.args.__dict__)
         # load dfs from input dir to stored_dfs
         self.load_data_from_dir()
@@ -336,21 +368,36 @@ class explore_hplc(plot_hplc):
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion5:
                             self._expansion.append(expansion5)
                             with ui.row().classes('w-full'):
+                                ui.checkbox('plot peaks line', value=self.args.plot_peaks_line).bind_value_to(self.args, 'plot_peaks_line').classes('w-2/5')
+                                ui.checkbox('plot peaks underline', value=self.args.plot_peaks_underline).bind_value_to(self.args, 'plot_peaks_underline').classes('w-2/5')
+                            with ui.row().classes('w-full'):
+                                ui.checkbox('plot peaks area', value=self.args.plot_peaks_area).bind_value_to(self.args, 'plot_peaks_area').classes('w-2/5')
+                                ui.number('area alpha', value=self.args.peak_area_alpha, min=0, max=1, step=0.1, format='%.2f').bind_value_to(self.args, 'peak_area_alpha').classes('w-2/5')
+                            with ui.row().classes('w-full'):
                                 self.xlim_number_min = ui.number('xlim-min', value=self.args.xlim[0], step=0.1, format='%.2f', on_change=self._ui_bind_xlim_onchange).on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 0))
                                 self.xlim_number_max = ui.number('xlim-max', value=self.args.xlim[1], step=0.1, format='%.2f', on_change=self._ui_bind_xlim_onchange).on_value_change(lambda e: self._apply_v2list(e.value, self.args.xlim, 1))
                             with ui.row().classes('w-full'):
                                 ui.number('ylim-min', value=self.args.ylim[0], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 0))
                                 ui.number('ylim-max', value=self.args.ylim[1], step=0.01, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.ylim, 1))
-                            ui.number('figure width', value=self.args.fig_size[0], min=1, step=0.5, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.fig_size, 0)).classes('w-2/5')
-                            ui.number('figure height', value=self.args.fig_size[1], min=1, step=0.5, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.fig_size, 1)).classes('w-2/5')
-                            dpi_input = ui.number('DPI', value=self.args.dpi, min=100, step=100, format='%d').bind_value_to(self.args, 'dpi')
-                            ui.select(options=[100, 300, 600], value=dpi_input.value, label='Quick Set DPI').bind_value_to(dpi_input).classes('w-full')
+                            with ui.row().classes('w-full'):
+                                ui.number('figure width', value=self.args.fig_size[0], min=1, step=0.5, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.fig_size, 0)).classes('w-2/5')
+                                ui.number('figure height', value=self.args.fig_size[1], min=1, step=0.5, format='%.2f').on_value_change(lambda e: self._apply_v2list(e.value, self.args.fig_size, 1)).classes('w-2/5')
+                            with ui.row().classes('w-full'):
+                                dpi_input = ui.number('DPI', value=self.args.dpi, min=100, step=100, format='%d').bind_value_to(self.args, 'dpi').classes('w-2/5')
+                                ui.select(options=[100, 300, 600], value=dpi_input.value, label='Quick Set DPI').bind_value_to(dpi_input).classes('w-2/5')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
-                    with ui.card():
-                        ui.label(f'selected {len(self.dfs)} data files').classes('text-h6').bind_text_from(self, 'dfs', lambda dfs: f'selected {len(dfs)} data files')
-                        self.make_fig()
+                    with ui.column().classes('h-full flex flex-grow'):
+                        with ui.tabs().classes('flex flex-grow justify-center') as tabs:
+                            fig_panel = ui.tab('HPLC Figure').props('no-caps')
+                            self.area_df_panel = ui.tab('HPLC Peaks Area DataFrame').props('no-caps')
+                        with ui.tab_panels(tabs, value=fig_panel).classes('flex flex-grow'):
+                            with ui.tab_panel(fig_panel):
+                                self.make_fig()
+                            with ui.tab_panel(self.area_df_panel):
+                                self.make_area_df()
         ## run GUI
-        ui.run(host = self.args.url, port = self.args.port, title = 'HPLC Data Explorer', reload=False)
+        ui.run(host = self.args.url, port = self.args.port, title = 'HPLC Data Explorer',
+               favicon=get_storage_path('icons/scripts-hplc-peak.png'), reload=False)
         
 
 _str2func = {
@@ -369,6 +416,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    # main('explore-hplc -i data_tmp/scripts/mass'.split())
+    # main('explore-hplc -i data_tmp/scripts/hplc'.split())
     
     main()
