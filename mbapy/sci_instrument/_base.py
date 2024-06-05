@@ -31,7 +31,7 @@ class SciInstrumentData:
     DATA_FILE_SUFFIX: List[str] = []
     RECOMENDED_DATA_FILE_SUFFIX: str = ''
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
-        self.data_file_path = data_file_path if not data_file_path else str(Path(data_file_path).resolve())
+        self.data_file_path = data_file_path if not data_file_path else str(Path(data_file_path).resolve()) # None or a absolute path
         self.processed_data = None
         self.tag = None
         self.processed_data_path = None
@@ -100,6 +100,7 @@ class SciInstrumentData:
         return path
     
     def get_tick_by_minute(self, minute: float):
+        """return the nearest tick to the given minute"""
         if self.TICKS_IN_MINUTE is not None:
             return minute * self.TICKS_IN_MINUTE
         else:
