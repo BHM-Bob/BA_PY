@@ -80,3 +80,8 @@ if __name__ == '__main__':
     data = WatersData('data_tmp/scripts/hplc/ORI_DATA5184.arw')
     data.save_processed_data()
     print(data.get_tag())
+    peaks_idx = data.search_peaks(0.1, 0.01)
+    print(peaks_idx)
+    area = data.calcu_peaks_area(peaks_idx)
+    print(area)
+    data.get_area()
