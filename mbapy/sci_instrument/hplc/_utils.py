@@ -28,7 +28,7 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
               plot_peaks_underline: bool = False, plot_peaks_line: bool = False,
               plot_peaks_area: bool = False, peak_area_alpha = 0.3,
               show_tag_legend = True, peak_legend_pos = 'upper right', peak_legend_bbox = (1.3, 1),
-              start_search_time: float = 0, end_search_time = None, labels_eps = 0.1, min_height = 0, min_peak_width = 1,
+              start_search_time: float = 0, end_search_time = None, labels_eps = 0.1, min_height = 0, min_peak_width = 0.1,
               marker_offset = (0, 0.05), marker_size = 80,
               show_tag_text = True, tag_offset = (0.05, 0.05), tag_fontsize = 15,
               dpi = 600, line_width = 2, legend_fontsize = 15, **kwargs) -> Tuple[plt.Axes, List[plt.Artist], Dict[str, np.ndarray]]:
@@ -56,7 +56,7 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
         - end_search_time: end of search time, in minutes
         - labels_eps: eps for matching peak labels
         - min_height: min height for peak detection
-        - min_peak_width: min peak width for peak detection, in minutes
+        - min_peak_width: min peak width for peak detection, in minutes, default is 0.1
         - marker_offset: Tuple[float, float], offset for peak markers
         - marker_size: peak marker size
         - show_tag_text: FLAG, whether to show tag text
@@ -109,12 +109,7 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
                        color = color, label = label_string, linewidth = line_width)[0]
         lines.append(line)
         # search peaks
-        st = data_i.get_tick_by_minute(start_search_time) # start_search_time单位为分钟, st's unit is data tick
-        ed = data_i.get_tick_by_minute(end_search_time) if end_search_time is not None else None
-        peaks_idx = data_i.search_peaks(min_peak_width, min_height, st, ed)
-        peaks_idx = peaks_idx[peaks_idx >= st] # addjust for offset
-        if ed is not None:
-            peaks_idx = peaks_idx[peaks_idx <= ed]
+        peaks_idx = data_i.search_peaks(min_peak_width, min_height, start_search_time, end_search_time)
         if peaks_idx.size > 0:
             files_peaks_idx[data_i.get_tag()] = peaks_idx
         peak_df = data_df_i.iloc[peaks_idx, :]
@@ -179,6 +174,6 @@ __all__ = [
 if __name__ == '__main__':
     from mbapy.sci_instrument.hplc.waters import WatersData
     data = WatersData('data_tmp/scripts/hplc/ORI_DATA5184.arw')
-    plot_hplc(data, dfs_refinment_x={data.get_tag(): -3},
+    plot_hplc(data, start_search_time=4, dfs_refinment_x={data.get_tag(): -3},
               plot_peaks_underline=True, plot_peaks_line=True, plot_peaks_area=True, dpi = 100)
     plt.show()
