@@ -122,6 +122,8 @@ class explore_hplc(plot_hplc):
         self.files_peaks_idx = {}
         self.tag2label = {}
         self.area_df_panel = None
+        self.area_percent_df_panel = None
+        self.all_area_df = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -200,6 +202,8 @@ class explore_hplc(plot_hplc):
         # re-calcu area df and refreash GUI table
         with ui.tab_panel(self.area_df_panel):
             self.make_area_df.refresh()
+        with ui.tab_panel(self.area_percent_df_panel):
+            self.make_area_percent_df.refresh()
                 
     @ui.refreshable
     def make_area_df(self):
@@ -215,13 +219,27 @@ class explore_hplc(plot_hplc):
             for idx in area_df[self.tag2label[n]].keys():
                 all_peaks_idx[idx] = True
         # make big table for all peaks' area for all files
-        all_area_df = pd.DataFrame(columns=['Name'] + sorted(list(all_peaks_idx.keys())))
+        self.all_area_df = pd.DataFrame(columns=['Name'] + sorted(list(all_peaks_idx.keys())))
         for n, peaks_area in area_df.items():
-            all_area_df.loc[n] = [n] + [area_df[n][idx] if idx in area_df[n] else 0 for idx in all_peaks_idx]
+            self.all_area_df.loc[n] = [n] + [area_df[n][idx] if idx in area_df[n] else 0 for idx in all_peaks_idx]
         # transfer to nicegui table format
         collums = [{'name': 'Name', 'label': 'Name', 'field': 'Name', 'sortable': True}] +\
-            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in all_area_df.columns[1:]]
-        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.4f}') for k,v in zip(collums, list(line))} for line in all_area_df.values]
+            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in self.all_area_df.columns[1:]]
+        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.4f}') for k,v in zip(collums, list(line))} for line in self.all_area_df.values]
+        ui.table(columns=collums, rows=rows)
+        
+    @ui.refreshable
+    def make_area_percent_df(self):
+        if not isinstance(self.all_area_df, pd.DataFrame) or self.all_area_df.empty:
+            return
+        # make percent table for all peaks' area for all files
+        self.all_area_percent_df = self.all_area_df.copy()
+        for i in range(self.all_area_percent_df.shape[0]):
+            self.all_area_percent_df.iloc[i, 1:] /= (self.all_area_percent_df.iloc[i, 1:].sum() / 100)
+        # transfer to nicegui table format
+        collums = [{'name': 'Name', 'label': 'Name', 'field': 'Name', 'sortable': True}] +\
+            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in self.all_area_percent_df.columns[1:]]
+        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.3f}%') for k,v in zip(collums, list(line))} for line in self.all_area_percent_df.values]
         ui.table(columns=collums, rows=rows)
             
     def _ui_only_one_expansion(self, e):
@@ -390,11 +408,14 @@ class explore_hplc(plot_hplc):
                         with ui.tabs().classes('flex flex-grow justify-center') as tabs:
                             fig_panel = ui.tab('HPLC Figure').props('no-caps')
                             self.area_df_panel = ui.tab('HPLC Peaks Area DataFrame').props('no-caps')
+                            self.area_percent_df_panel = ui.tab('HPLC Peaks Area Percentage DataFrame').props('no-caps')
                         with ui.tab_panels(tabs, value=fig_panel).classes('flex flex-grow'):
                             with ui.tab_panel(fig_panel):
                                 self.make_fig()
                             with ui.tab_panel(self.area_df_panel):
                                 self.make_area_df()
+                            with ui.tab_panel(self.area_percent_df_panel):
+                                self.make_area_percent_df()
         ## run GUI
         ui.run(host = self.args.url, port = self.args.port, title = 'HPLC Data Explorer',
                favicon=get_storage_path('icons/scripts-hplc-peak.png'), reload=False)
