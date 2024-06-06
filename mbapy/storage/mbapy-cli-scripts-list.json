@@ -99,7 +99,7 @@
         {
             "name": "copy file",
             "script name": "copy_file",
-            "exec_names": ["cp", "copy-file"],
+            "exec_names": ["cp", "copy-file", "copy_file"],
             "brief": "copy files with specific suffix or sub-string in name",
             "detailed":  "The script provided is a Python utility designed to move files with specific suffixes or substrings in their names from a source directory to a destination directory. It uses the `argparse` library to parse command-line arguments and provides a user-friendly interface for file manipulation tasks."
         },
