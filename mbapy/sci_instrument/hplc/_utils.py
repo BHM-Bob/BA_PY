@@ -133,13 +133,15 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
                 ax.text(t+tag_offset[0], a+tag_offset[1], f'{t:.2f}', fontsize=tag_fontsize, color = col)
             # plot peak-line, underline and area
             if any([plot_peaks_line, plot_peaks_underline, plot_peaks_area]):
-                area_info = data_i.get_area(peaks_idx)[peak_idx]
-            if plot_peaks_line:
-                ax.plot(area_info['underline-x'], area_info['peak-line-y'], color = col, linewidth = line_width)
-            if plot_peaks_underline:
-                ax.plot(area_info['underline-x'], area_info['underline-y'], color = col, linewidth = line_width)
-            if plot_peaks_area:
-                ax.fill_between(area_info['underline-x'], area_info['peak-line-y'], area_info['underline-y'],
+                areas_info = data_i.get_area(peaks_idx)
+                if peak_idx in areas_info: # check if peak is not filtered by start_search_time and end_search_time
+                    area_info = areas_info[peak_idx]
+                    if plot_peaks_line:
+                        ax.plot(area_info['underline-x'], area_info['peak-line-y'], color = col, linewidth = line_width)
+                    if plot_peaks_underline:
+                        ax.plot(area_info['underline-x'], area_info['underline-y'], color = col, linewidth = line_width)
+                    if plot_peaks_area:
+                        ax.fill_between(area_info['underline-x'], area_info['peak-line-y'], area_info['underline-y'],
                                 color = col, alpha = peak_area_alpha)
                 
     # set y scale
