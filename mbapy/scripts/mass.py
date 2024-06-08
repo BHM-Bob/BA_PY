@@ -4,7 +4,7 @@ import os
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +25,39 @@ from mbapy.web import TaskPool
 
 
 process_peak_labels = partial(process_peak_labels, markers = PLT_MARKERS[1:]) # because the first marker is used for the noraml peak
+
+def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[str, MassData]):
+    path_obj = Path(path)
+    if path_obj.stem in dfs_name:
+        print(f'{path} already loaded, skip')
+        return None
+    for n, model in support_sys.items():
+        if path_obj.suffix in model.DATA_FILE_SUFFIX:
+            tmp_err_warning_level = Configs.err_warning_level
+            Configs.err_warning_level = 1
+            data = model(path)
+            Configs.err_warning_level = tmp_err_warning_level
+            if data.SUCCEED_LOADED:
+                print(f'loaded {path} as {n} data type')
+                return data
+    return None
+
+def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig):
+    name = data.get_tag()
+    # save processed data
+    data.save_processed_data()
+    print(f'{name}: processed data saved to {data.processed_data_path}')
+    # style adjust and save
+    ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
+                                   labels_eps=labels_eps, legend_bbox = (1, 1))
+    plt.xticks(size = 20);plt.yticks(size = 20)
+    plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
+    plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.2)
+    png_path = Path(data.data_file_path).with_suffix('.png')
+    save_show(png_path, dpi = 600, show = show_fig, bbox_extra_artists = extra_artists)
+    print(f'{name}: plot saved to {png_path}')
+    plt.close(ax.figure)
+    
 
 class plot_mass(Command):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
@@ -60,21 +93,19 @@ class plot_mass(Command):
         return df
     
     def load_suffix_data(self, dir: str, suffix: List[str], recursive):
-        for path in get_paths_with_extension(dir, suffix, recursive):
-            path_obj = Path(path)
-            if path_obj.stem in self.dfs:
-                print(f'{path} already loaded as {type(self.dfs[path_obj.stem])} data type, skip')
-                continue
-            for n, model in self.SUPPORT_SYS.items():
-                if path_obj.suffix in model.DATA_FILE_SUFFIX:
-                    tmp_err_warning_level = Configs.err_warning_level
-                    Configs.err_warning_level = 1
-                    data = model(path)
-                    Configs.err_warning_level = tmp_err_warning_level
-                    if data.SUCCEED_LOADED:
-                        print(f'loaded {path} as {n} data type')
-                        self.dfs[data.get_tag()] = data
-                        break
+        paths = get_paths_with_extension(dir, suffix, recursive)
+        if self.task_pool is not None:
+            for path in paths:
+                self.task_pool.add_task(path, load_single_mass_data_file, path, set(self.dfs.keys()), self.SUPPORT_SYS)
+            for path in paths:
+                data = self.task_pool.query_task(path, block=True, timeout=999)
+                if data is not None:
+                    self.dfs[data.get_tag()] = data
+        else:
+            for path in paths:
+                data = load_single_mass_data_file(path, self.dfs.keys(), self.SUPPORT_SYS)
+                if data is not None:
+                    self.dfs[data.get_tag()] = data
             
     def load_data(self, dir: str, recursive: bool):
         suffixs_r = list(set([model.RECOMENDED_DATA_FILE_SUFFIX for model in self.SUPPORT_SYS.values()]))
@@ -86,26 +117,32 @@ class plot_mass(Command):
         return self.dfs
     
     def main_process(self):
-        self.load_data(self.args.dir, self.args.recursive)
         if self.args.multi_process > 1:
             self.task_pool = TaskPool('process', self.args.multi_process).run()
             print(f'created task pool with {self.args.multi_process} processes')
-        # show data general info and output peak list DataFrame
+        self.load_data(self.args.dir, self.args.recursive)
+        # show data general info, output peak list DataFrame, plot and save figure
         for n, data in self.dfs.items():
+            # search peaks
             if data.peak_df is None or data.check_processed_data_empty(data.peak_df):
                 print(f'{n}: search peaks...')
                 data.search_peaks(self.args.xlim, self.args.min_peak_width,
                                   self.task_pool, self.args.multi_process)
                 data.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
-            data.save_processed_data()
-            print(f'{n}: processed data saved to {data.processed_data_path}')
-            _plot_mass(data, xlim=self.args.xlim, labels=self.args.labels, labels_eps=self.args.labels_eps)
-            # style adjust and save
-            plt.xticks(size = 20);plt.yticks(size = 20)
-            png_path = Path(data.data_file_path).with_suffix('.png')
-            save_show(png_path, dpi = 600, show = self.args.show_fig)
-            print(f'{n}: plot saved to {png_path}')
-        self.task_pool.close()
+            # choose mass data
+            if self.args.mass and data.X_M_HEADER is not None:
+                data.X_HEADER = data.X_M_HEADER
+                data.CHARGE_HEADER = None
+            elif not self.args.mass:
+                data.X_HEADER = data.X_MZ_HEADER
+            # save processed data
+            if self.task_pool is not None:
+                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig)
+            else:
+                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig)
+        if self.task_pool is not None:
+            self.task_pool.wait_till_tasks_done(self.dfs.keys())
+            self.task_pool.close()
 
 
 class explore_mass(plot_mass):
