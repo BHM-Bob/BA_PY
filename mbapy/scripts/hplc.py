@@ -82,7 +82,7 @@ class plot_hplc(Command):
 
     def main_process(self):
         def _save_fig(root, name, dpi, show, bbox_extra_artists):
-            path = get_valid_file_path(os.path.join(root, f"{name.replace('/', '-')}.png"))
+            path = get_valid_file_path(os.path.join(root, name))
             print(f'saving plot to {path}')
             save_show(path, dpi, show=show, bbox_extra_artists = bbox_extra_artists)
         # load origin dfs from data file
@@ -92,14 +92,17 @@ class plot_hplc(Command):
         # show data general info and output peak list DataFrame
         if self.args.merge:
             dfs = list(self.dfs.values())
-            ax, legends = _plot_hplc(dfs, **self.args.__dict__)
-            _save_fig(self.args.output, "merge.png", self.args.dpi, self.args.show, legends)
+            ax, extra_artists, _, _ = _plot_hplc(dfs, **self.args.__dict__)
+            _save_fig(self.args.output, "merge.png", self.args.dpi, self.args.show, extra_artists)
         else:
-            for tag, data in self.dfs.items():
+            all_file_labels = self.args.file_labels
+            delattr(self.args, 'file_labels')
+            for i, (tag, data) in enumerate(self.dfs.items()):
                 print(f'plotting data for {tag}')
                 data.save_processed_data()
-                ax, legends = _plot_hplc(data, **self.args.__dict__)
-                _save_fig(self.args.output, f"{tag.replace('/', '-')}.png", self.args.dpi, self.args.show, legends)
+                ax, extra_artists, _, _ = _plot_hplc(data, file_labels = [all_file_labels[i]], **self.args.__dict__)
+                _save_fig(self.args.output, f"{tag.replace('/', '-')}.png", self.args.dpi, self.args.show, extra_artists)
+                plt.close(ax.figure)
 
 
 class explore_hplc(plot_hplc):
