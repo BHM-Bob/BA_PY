@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-01 14:31:00
+LastEditTime: 2024-06-08 09:21:53
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -26,6 +26,7 @@ class MassData(SciInstrumentData):
         self.peak_df = None
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
+        self.CHARGE_HEADER = None
         self.X_MZ_HEADER = None
         self.X_M_HEADER = None
         self.MULTI_HEADERS = [self.X_HEADER, self.Y_HEADER]
