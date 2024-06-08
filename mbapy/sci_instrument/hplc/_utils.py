@@ -20,7 +20,7 @@ else:
     
 
 def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
-              ax = None, fig_size = (10, 8), y_log_scale: bool = False,
+              ax = None, fig_size = (12, 7), y_log_scale: bool = False,
               dfs_refinment_x: Dict[str, float] = {}, dfs_refinment_y: Dict[str, float] = {},
               file_labels: Union[str, Tuple[str, str, str]] = [], file_label_fn: Callable = process_file_labels,
               show_file_legend = True, file_legend_pos = 'upper right', file_legend_bbox = (1.3, 0.75),
