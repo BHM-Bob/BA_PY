@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-01 19:56:09
+LastEditTime: 2024-06-08 10:43:15
 Description: 
 '''
 
@@ -22,7 +22,7 @@ else:
     from ._base import MassData
     
 
-def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float] = (10, 8),
+def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float] = (12, 7),
               xlim: Tuple[float, float] = None,
               show_legend: bool = True, legend_fontsize: float = 15,
               legend_pos: Union[str, int] = 'upper right', legend_bbox: Tuple[float, float] = (1.3, 0.75),
@@ -58,7 +58,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     """
     # check ax
     if ax is None:
-        _, ax = plt.subplots(figsize = fig_size)
+        fig, ax = plt.subplots(figsize = fig_size)
     # helper function
     def _plot_vlines(ax, x, y, col, label = None, plot_scatter: bool = True,
                      marker: str = normal_marker, scatter_size: float = marker_size,
@@ -84,7 +84,8 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     labels_ms = np.array(list(labels.keys()))
     text_col = color
     has_label_matched = False
-    for ms, h in zip(df[data.X_HEADER], df[data.Y_HEADER]):
+    charges = df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(df)
+    for ms, h, charge in zip(df[data.X_HEADER], df[data.Y_HEADER], charges):
         matched = np.where(np.abs(labels_ms - ms) < labels_eps)[0]
         if matched.size > 0:
             label, text_col, maker = labels.get(labels_ms[matched[0]])
@@ -92,7 +93,8 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
             has_label_matched = True
         else:
             text_col = color
-        ax.text(ms, h, f'  {ms:.2f}', fontsize=tag_fontsize, color = text_col)
+        charge_str = f'({charge})' if charge is not None else ''
+        ax.text(ms, h, f'  {ms:.2f}{charge_str}', fontsize=tag_fontsize, color = text_col)
     # legend
     _bbox_extra_artists = []
     if show_legend and has_label_matched:
