@@ -31,6 +31,7 @@ class SciexPeakListData(MassData):
         super().__init__(data_file_path)
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
+        self.CHARGE_HEADER = 'Charge'
         self.X_MZ_HEADER = 'Mass/charge (charge)'
         self.X_M_HEADER = 'Mass (charge)'
         # Mass/Charge	Area	Height	Width	Width at 50%	Resolution	Charge	Monoisotopic	Mass (charge)	Mass/charge (charge)
