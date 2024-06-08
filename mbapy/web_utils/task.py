@@ -230,6 +230,7 @@ class TaskStatus(Enum):
     NOT_FINISHED = 2
     NOT_SUCCEEDED = 3
     NOT_RETURNED = 4
+    TIME_OUT = 5
 
 class TaskPool:
     """
@@ -273,6 +274,7 @@ class TaskPool:
         self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
         self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
+        self.TIME_OUT = TaskStatus.TIME_OUT
 
     def _run_async_loop(self):
         asyncio.set_event_loop(self._async_loop)
@@ -347,19 +349,27 @@ class TaskPool:
         
     def query_task(self, name, block: bool = False, timeout: int = 3):
         # short-cut for not found
+        st_tick = time.time()
         if name not in self.tasks:
             return self.TASK_NOT_FOUND
         # retrive finished results
         self._query_task_queue(block=block, timeout=timeout)
         # check if not return, succeed, or not succeed
         if self.tasks[name] == TaskStatus.NOT_RETURNED:
-            return self.TASK_NOT_FINISHED
-        else:
-            _name, result, statue = self.tasks[name]
-            del self.tasks[name]
-            if statue == TaskStatus.NOT_SUCCEEDED:
-                put_err(f'Task {name} failed with {result}, return {result}')
-            return result
+            if block and time.time() - st_tick < timeout:
+                is_retuened = False
+                while not is_retuened:
+                    self._query_task_queue(block=block, timeout=timeout)
+                    is_retuened = self.tasks[name] != TaskStatus.NOT_RETURNED
+                    if time.time() - st_tick > timeout:
+                        return self.TIME_OUT
+            else:
+                return self.TASK_NOT_FINISHED
+        _name, result, statue = self.tasks[name]
+        del self.tasks[name]
+        if statue == TaskStatus.NOT_SUCCEEDED:
+            put_err(f'Task {name} failed with {result}, return {result}')
+        return result
     
     def count_waiting_tasks(self):
         """
