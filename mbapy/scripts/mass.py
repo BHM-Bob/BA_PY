@@ -7,24 +7,22 @@ from pathlib import Path
 from typing import Dict, List, Set
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import scipy
+from nicegui import app, ui
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import Configs, put_err
 from mbapy.file import get_paths_with_extension, get_valid_file_path
-from mbapy.plot import get_palette, save_show, PLT_MARKERS
+from mbapy.plot import PLT_MARKERS, get_palette, save_show
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
 from mbapy.sci_instrument.mass import plot_mass as _plot_mass
 from mbapy.sci_instrument.mass import process_peak_labels
 from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
 from mbapy.web import TaskPool
 
-
-process_peak_labels = partial(process_peak_labels, markers = PLT_MARKERS[1:]) # because the first marker is used for the noraml peak
+process_peak_labels = partial(process_peak_labels, markers = PLT_MARKERS[1:]) # because the first marker is used for the normal peak
 
 def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[str, MassData]):
     path_obj = Path(path)
@@ -146,7 +144,6 @@ class plot_mass(Command):
 
 
 class explore_mass(plot_mass):
-    from nicegui import ui
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.labels_string = args.labels
@@ -162,7 +159,6 @@ class explore_mass(plot_mass):
         
     @ui.refreshable
     def make_fig(self):
-        from nicegui import ui
         plt.close(self.fig)
         with ui.pyplot(figsize=(self.args.fig_w, self.args.fig_h), close = False) as fig:
             # process args
@@ -200,13 +196,11 @@ class explore_mass(plot_mass):
             self.fig = fig.fig
         
     def save_fig(self):
-        from nicegui import ui
         png_path = Path(self.args.dfs[self.args.now_name].data_file_path).with_suffix('.png')
         ui.notify(f'saving figure to {png_path}')
         save_show(png_path, dpi = self.args.dpi, show = self.args.show_fig)
         
     def main_process(self):
-        from nicegui import app, ui
 
         from mbapy.game import BaseInfo
 
