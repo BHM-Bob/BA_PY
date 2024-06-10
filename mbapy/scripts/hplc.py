@@ -51,9 +51,9 @@ class plot_hplc(Command):
                           help='set x-axis limit, input as "0,15", default is %(default)s.')
         args.add_argument('-flabels', '--file-labels', type = str, default='',
                           help='labels, input as 228,blue;304,red, default is %(default)s.')
-        args.add_argument('-lpos', '--file-legend-pos', type = str, default='upper center',
+        args.add_argument('-lpos', '--file-legend-pos', type = str, default='upper right',
                           help='legend position, can be string as "upper center", default is %(default)s')
-        args.add_argument('-lposbbox', '--file-legend-bbox', type = str, default='1.3,0.5',
+        args.add_argument('-lposbbox', '--file-legend-bbox', type = str, default='1,1',
                           help='legend position bbox 1 to anchor, default is %(default)s')
         args.add_argument('-dpi', type = int, default=600,
                           help='set dpi of output image, default is %(default)s.')
@@ -95,6 +95,9 @@ class plot_hplc(Command):
             ax, extra_artists, _, _ = _plot_hplc(dfs, **self.args.__dict__)
             _save_fig(self.args.output, "merge.png", self.args.dpi, self.args.show, extra_artists)
         else:
+            # make file labels again if no file labels given
+            if not self.args.file_labels:
+                self.args.file_labels = [[n, 'black'] for n in self.dfs]
             all_file_labels = self.args.file_labels
             delattr(self.args, 'file_labels')
             for i, (tag, data) in enumerate(self.dfs.items()):
