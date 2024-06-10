@@ -159,8 +159,8 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
         _bbox_extra_artists.append(peak_legend)
     # recover x, y offset
     for data in hplc_data:
-        data.get_abs_data()[data.X_HEADER] -= dfs_refinment_x.get(data.get_tag(), 0)
-        data.get_abs_data()[data.Y_HEADER] -= dfs_refinment_y.get(data.get_tag(), 0)
+        data.get_abs_data()[data.X_HEADER] += dfs_refinment_x.get(data.get_tag(), 0)
+        data.get_abs_data()[data.Y_HEADER] += dfs_refinment_y.get(data.get_tag(), 0)
     return ax, _bbox_extra_artists, files_peaks_idx, file_labels
 
 
