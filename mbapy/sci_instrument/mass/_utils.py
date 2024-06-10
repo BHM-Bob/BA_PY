@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-08 10:43:15
+LastEditTime: 2024-06-08 17:24:52
 Description: 
 '''
 
@@ -111,3 +111,10 @@ __all__ = [
     'plot_mass',
     'process_peak_labels',
 ]
+
+
+if __name__ == '__main__':
+    from mbapy.sci_instrument.mass.SCIEX import SciexPeakListData
+    data = SciexPeakListData(r'data_tmp\scripts\mass\B4 pl.txt')
+    labels = {453: ('M+H', 'blue', 'x'),}
+    plot_mass(data, labels=labels)
