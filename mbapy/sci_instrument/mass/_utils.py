@@ -1,15 +1,15 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-08 17:24:52
+LastEditTime: 2024-06-12 10:29:09
 Description: 
 '''
 
 from typing import Callable, Dict, List, Tuple, Union
 
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 import numpy as np
-import scipy
 
 if __name__ == '__main__':
     from mbapy.base import get_default_for_None, put_err
@@ -30,6 +30,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
               verbose: bool = True, color: str = 'black',
               labels_eps: float = 0.5, labels: Dict[float, Tuple[str, str]] = {},
               tag_fontsize: float = 15, marker_size: float = 120, normal_marker: str = 'o',
+              is_y_log: bool = True,
               **kwargs):
     """
     Parameters
@@ -50,6 +51,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
         - tag_fontsize: float, default 15, peak-tag font size
         - maker_size: float, default 80, peak-tag marker size
         - normal_marker: str, default 'o', not matched peak's peak-tag marker
+        - is_y_log: bool, default True, will set y-axis scale to log if True
         - **kwargs: other keyword arguments for matplotlib.pyplot.Axes.vlines()
         
     Returns
@@ -102,7 +104,8 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
                            fontsize = legend_fontsize, draggable = True)
         _bbox_extra_artists.append(legend)
     # fix style
-    ax.set_yscale('log')
+    if is_y_log:
+        ax.set_yscale('log')
     # return
     return ax, _bbox_extra_artists
     

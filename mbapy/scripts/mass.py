@@ -223,6 +223,7 @@ class explore_mass(plot_mass):
                             fig_w = 12, fig_h = 7, dpi = 600, file_name = '',
                             xaxis_expand = 0.2, yaxis_expand = 0.1,
                             legend_pos_bbox1 = 1.0, legend_pos_bbox2 = 1.0, legend_pos = 'upper right',
+                            is_y_log = True,
                             **self.args.__dict__)
         # GUI
         with ui.header(elevated=True).style('background-color: #3874c8'):
@@ -276,6 +277,7 @@ class explore_mass(plot_mass):
                         # configs for saving
                         with ui.expansion('Configs for Saving', icon='save', on_value_change=self._ui_only_one_expansion) as expansion4:
                             self._expansion.append(expansion4)
+                            ui.checkbox('is y log', value=self.args.is_y_log).bind_value_to(self.args, 'is_y_log')
                             ui.checkbox('show figure', value=self.args.show_fig).bind_value_to(self.args,'show_fig')
                             with ui.row().classes('w-full'):
                                 ui.number('x axis expand', value=self.args.xaxis_expand, min=0, max=1, step=0.01, format='%.3f').classes('w-2/5').bind_value_to(self.args, 'xaxis_expand')
