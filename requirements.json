@@ -20,7 +20,8 @@
         "PyPDF2",
         "rispy",
         "lxml",
-        "crossref_commons"
+        "crossref_commons",
+        "tqdm"
     ],
     "bio":
     [
