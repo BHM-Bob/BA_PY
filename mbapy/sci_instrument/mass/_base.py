@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-08 09:21:53
+LastEditTime: 2024-06-12 22:09:01
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -21,6 +21,18 @@ from mbapy.web import TaskPool
     
     
 class MassData(SciInstrumentData):
+    ESI_IRON_MODE = {
+        '[M+H]+': dict(m = 1, iron = 'H', im = 1, c = 1),
+        '[M+Na]+': dict(m = 1, iron = 'Na', im = 23, c = 1),
+        '[M+K]+': dict(m = 1, iron = 'K', im = 39, c = 1),
+        '[M+Li]+': dict(m = 1, iron = 'Li', im = 10, c = 1),
+        '[M+NH4]+': dict(m = 1, iron = 'NH4', im = 18, c = 1),
+        '[M+ACN+H]+': dict(m = 1, iron = 'ACN', im = 42, c = 1),
+        '[2M+H]+': dict(m = 2, iron = 'H', im = 1, c = 1),
+        '[2M+Na]+': dict(m = 2, iron = 'Na', im = 23, c = 1),
+        '[2M+K]+': dict(m = 2, iron = 'K', im = 39, c = 1),
+        '[M]+': dict(m = 1, iron = '', im = 0, c = 1),
+        }
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None
@@ -111,14 +123,14 @@ class MassData(SciInstrumentData):
         # 2. find peaks using scipy.signal.find_peaks_cwt with min_width parameter
         if parallel is not None:
             y_list = np.array_split(np.array(y), n_parallel)
-            y_list = [np.concatenate([y_list[i], y_list[i+1][:min_width]]) for i in range(n_parallel-1)] + [y_list[-1]]
+            y_list = [np.concatenate([y_list[i], y_list[i+1][:min_width]]) for i in range(n_parallel-1)] + [y_list[-1]] # add min_width at right edge
             names = [parallel.add_task(None, scipy.signal.find_peaks_cwt, y_i, min_width) for y_i in y_list]
             y_list_r = list(parallel.wait_till_tasks_done(names).values())
             size = 0
             for i, r_i in enumerate(y_list_r):
                 r_i += size
-                size += y_list[i].size
-            peaks_idx = np.concatenate(y_list_r)
+                size += (y_list[i].size - min_width) # minus back min_width at right edge
+            peaks_idx = np.unique(np.concatenate(y_list_r)) # remove duplicates
         else:
             peaks_idx = scipy.signal.find_peaks_cwt(y, min_width)
         if peaks_idx.size == 0:
@@ -150,11 +162,11 @@ __all__ = [
 ]
     
 if __name__ == '__main__':
-    data = MassData('data_tmp/scripts/mass/d.txt')
+    data = MassData('data_tmp/scripts/mass/d CK.txt')
     data.X_HEADER, data.Y_HEADER = 'Mass/Charge', 'Intensity'
     data.MULTI_HEADERS = [data.X_HEADER, data.Y_HEADER]
     data.HEADERS_TYPE = {data.X_HEADER:float, data.Y_HEADER:float}
-    data.load_processed_data_file()
+    # data.load_processed_data_file()
     data.raw_data = data.load_raw_data_file()
     data.processed_data = data.process_raw_data()
     task_pool = TaskPool('process', 4).run()
