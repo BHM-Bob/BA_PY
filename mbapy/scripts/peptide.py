@@ -1,10 +1,10 @@
 import argparse
 import itertools
 import os
-import math
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 from typing import Dict, List
 
@@ -14,17 +14,14 @@ from tqdm import tqdm
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 
-# if __name__ == '__main__':
-from mbapy.base import put_err, split_list
+from mbapy.base import put_err, put_log, split_list
 from mbapy.bio.peptide import AnimoAcid, Peptide
-from mbapy.file import opts_file, get_valid_file_path
+from mbapy.file import get_paths_with_extension, get_valid_file_path, opts_file
+from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
+from mbapy.scripts._script_utils_ import (Command, _print, clean_path,
+                                          excute_command, show_args)
+from mbapy.scripts.mass import load_single_mass_data_file, plot_mass
 from mbapy.web import TaskPool
-from mbapy.scripts._script_utils_ import clean_path, show_args
-# else:
-#     from ..base import put_err
-#     from ..file import opts_file, get_valid_file_path
-#     from ._script_utils_ import clean_path, show_args
-#     from ..bio.peptide import AnimoAcid, Peptide
 
 
 def calcu_substitution_value(args: argparse.Namespace):
@@ -325,30 +322,8 @@ class MutationTree:
             self.opts = MutationOpts(AA_repeat = max_repeat)
             return True
         return False
-        
-def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
-    """
-    Parameters:
-        - mutations: Tree object, store all mutations and there relationship.
-        - max_repeat: int
-    """
-    # perofrm ONE mutation
-    tree = tree.opts.perform_one(tree, args)
-    # if NO mutaion can be done, 
-    if tree.mutate is None and tree.remain is None:
-        # try move current AA in this tree to next AA
-        if tree.move_to_next(args.max_repeat):
-            # move success, go on
-            mutate_peptide(tree, args)
-        else:
-            # it is the end, return tree
-            return tree
-    else: # go on with two branches
-        mutate_peptide(tree.mutate, args)
-        mutate_peptide(tree.remain, args)
-    return tree
 
-def calcu_mutations_mw(seqs: List[Peptide], mass: bool = False, verbose: bool = True):
+def calcu_mutations_mw_batch(seqs: List[Peptide], mass: bool = False, verbose: bool = True):
     peps, mw2pep = {}, {}
     for pep in tqdm(seqs,
                     desc='Gathering mutations and Calculating molecular weight',
@@ -370,7 +345,8 @@ def calcu_mutations_mw(seqs: List[Peptide], mass: bool = False, verbose: bool = 
                     mw2pep[mw] = [full_pep]
     return peps, mw2pep
 
-def calcu_mw_of_mutations(args: argparse.Namespace):
+
+class mutation_weight(Command):
     """
     Calculates the molecular weight of mutations based on the given arguments.
 
@@ -399,71 +375,258 @@ def calcu_mw_of_mutations(args: argparse.Namespace):
     Finally, the function prints the number of mutations found and the details of each mutation, along with their respective indices.
     If an output file was specified, it is closed at the end.
     """
-    # set _print
-    def _print(content: str, f, verbose = True):
-        if f is not None:
-            f.write(content+'\n')
-        if verbose:
-            print(content)
-    if args.out is not None:
-        args.out = clean_path(args.out)
-        if os.path.isdir(args.out):
-            file_name = get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
-            args.out = os.path.join(args.out, file_name)
-        f = open(args.out, 'w')
-    else:
-        f = None
-    # show args
-    verbose = not args.disable_verbose
-    show_args(args, ['seq', 'weight', 'max_repeat', 'disable_aa_deletion',
-                     'out', 'mass', 'disable_verbose', 'multi_process'],
-              printf = lambda x : _print(x, f))
-    # show mother peptide info
-    peptide, expand_mw_dict = calcu_mw(args, _print = lambda x : _print(x, f))
-    # calcu mutations
-    seq, mw2pep, peps = [], {}, {}
-    for aa in tqdm(peptide.AAs, desc='Mutating peptide'):
-        pep = Peptide(None)
-        pep.AAs = [aa.copy()]
-        aa_mutations = MutationTree(peptide=pep, seq=pep.copy(),
-                                    opts=MutationOpts(AA_repeat=args.max_repeat),
-                                    pos=[0, 0, 1])
-        aa_mutations = mutate_peptide(aa_mutations, args)
-        seq.append(aa_mutations.extract_mutations())
-    # gather mutations, calcu mw and store in dict
-    seqs = list(itertools.product(*seq))
-    if args.multi_process == 1:
-        peps, mw2pep = calcu_mutations_mw(seqs, mass=args.mass, verbose=True)
-    else:
-        print('Gathering mutations and Calculating molecular weight...')
-        peps, mw2pep = {}, {}
-        pool = TaskPool('process', args.multi_process)
-        for i, batch in enumerate(split_list(seqs, args.process_batch)):
-            pool.add_task(f'{i}', calcu_mutations_mw, batch, args.mass, False)
-        pool.run()
-        pool.wait_till(lambda : pool.count_done_tasks() == len(pool.tasks), verbose=True)
-        for (_, (peps_i, mw2pep_i), _) in pool.tasks.values():
-            peps.update(peps_i)
-            for i in mw2pep_i:
-                if i in mw2pep:
-                    mw2pep[i].extend(mw2pep_i[i])
-                else:
-                    mw2pep[i] = mw2pep_i[i]
-    # output info
-    _print(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n', f)
-    if verbose:
-        idx, weigth_type = 0, 'Exact Mass' if args.mass else 'MW'
-        for i, mw in enumerate(sorted(mw2pep)):
-            _print(f'\n{weigth_type}: {mw:10.5f}', f, verbose)
-            for j, pep in enumerate(mw2pep[mw]):
-                mf = f'({pep.get_molecular_formula()})' if args.mass else ''
-                _print(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', f, verbose)
-                idx += 1
-    # handle f-print
-    if f is not None:
-        f.close()
-        # save mw2pep and peps
-        opts_file(str(args.out)+'.pkl', 'wb', data = {'mw2pep':mw2pep, 'peps':peps}, way = 'pkl')
+    def __init__(self, args: argparse.Namespace, printf=print) -> None:
+        super().__init__(args, printf)
+        self.verbose = True
+        
+    @staticmethod
+    def make_args(args: argparse.ArgumentParser):
+        args.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
+                        help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
+        args.add_argument('-w', '--weight', type = str, default = '',
+                        help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+        args.add_argument('--max-repeat', type = int, default = 1,
+                        help='max times for repeat a AA in sequence')
+        args.add_argument('--disable-aa-deletion', action='store_true', default=False,
+                        help='disable AA deletion in mutations.')
+        args.add_argument('-o', '--out', type = str, default = None,
+                        help='save results to output file/dir. Defaults None, do not save.')
+        args.add_argument('-m', '--mass', action='store_true', default=False,
+                        help='calcu Exact Mass instead of Molecular Weight.')
+        args.add_argument('--disable-verbose', action='store_true', default=False,
+                        help='disable verbose output to console.')
+        args.add_argument('--multi-process', type = int, default = 1,
+                        help='number of multi-process to use. Defaults 1, no multi-process.')
+        args.add_argument('--batch-size', type = int, default = 500000,
+                        help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
+        return args
+    
+    def process_args(self):
+        if self.args.out is not None:
+            self.args.out = clean_path(self.args.out)
+            if os.path.isdir(self.args.out):
+                file_name = get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
+                self.args.out = os.path.join(self.args.out, file_name)
+            self.f = open(self.args.out, 'w')
+        else:
+            self.f = None
+        self.printf = partial(_print, f = self.f)
+        self.verbose = not self.args.disable_verbose
+        
+    @staticmethod
+    def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
+        """
+        Parameters:
+            - mutations: Tree object, store all mutations and there relationship.
+            - max_repeat: int
+        """
+        # perofrm ONE mutation
+        tree = tree.opts.perform_one(tree, args)
+        # if NO mutaion can be done, 
+        if tree.mutate is None and tree.remain is None:
+            # try move current AA in this tree to next AA
+            if tree.move_to_next(args.max_repeat):
+                # move success, go on
+                mutation_weight.mutate_peptide(tree, args)
+            else:
+                # it is the end, return tree
+                return tree
+        else: # go on with two branches
+            mutation_weight.mutate_peptide(tree.mutate, args)
+            mutation_weight.mutate_peptide(tree.remain, args)
+        return tree
+    
+    @staticmethod
+    def generate_mutate_peps(peptide: Peptide, args: argparse.Namespace):
+        """
+        gernerate all possible mutations of a peptide.
+        
+        Parameters:
+            - peptide: Peptide object, the mother peptide.
+            - args: argparse.Namespace, the input arguments, must contain 'max_repeat', 'disable_aa_deletion', 
+        
+        Returns:
+            - all_mutations: list of Peptide objects, all possible mutations of the mother peptide.
+        """
+        seq = []
+        for aa in tqdm(peptide.AAs, desc='Mutating peptide'):
+            pep = Peptide(None)
+            pep.AAs = [aa.copy()]
+            aa_mutations = MutationTree(peptide=pep, seq=pep.copy(),
+                                        opts=MutationOpts(AA_repeat=args.max_repeat),
+                                        pos=[0, 0, 1])
+            aa_mutations = mutation_weight.mutate_peptide(aa_mutations, args)
+            seq.append(aa_mutations.extract_mutations())
+        return list(itertools.product(*seq))
+    
+    @staticmethod
+    def calcu_mutations_mw(seqs: List[Peptide], mass: bool = False,
+                           multi_process: int = 1, batch_size: int = 500000):
+        if multi_process == 1:
+            return calcu_mutations_mw_batch(seqs, mass=mass, verbose=True)
+        else:
+            print('Gathering mutations and Calculating molecular weight...')
+            peps, mw2pep = {}, {}
+            pool = TaskPool('process', multi_process)
+            for i, batch in enumerate(split_list(seqs, batch_size)):
+                pool.add_task(f'{i}', calcu_mutations_mw_batch, batch, mass, False)
+            pool.run()
+            pool.wait_till(lambda : pool.count_done_tasks() == len(pool.tasks), verbose=True)
+            for (_, (peps_i, mw2pep_i), _) in pool.tasks.values():
+                peps.update(peps_i)
+                for i in mw2pep_i:
+                    if i in mw2pep:
+                        mw2pep[i].extend(mw2pep_i[i])
+                    else:
+                        mw2pep[i] = mw2pep_i[i]
+            return peps, mw2pep
+        
+    def main_process(self):
+        # show mother peptide info
+        peptide, expand_mw_dict = calcu_mw(self.args, _print = self.printf)
+        # calcu mutations
+        seqs = mutation_weight.generate_mutate_peps(peptide, self.args)
+        # gather mutations, calcu mw and store in dict
+        peps, mw2pep = self.calcu_mutations_mw(seqs, self.args.mass, self.args.multi_process, self.args.batch_size)
+        # output info
+        self.printf(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n')
+        if self.verbose:
+            idx, weigth_type = 0, 'Exact Mass' if self.args.mass else 'MW'
+            for i, mw in enumerate(sorted(mw2pep)):
+                self.printf(f'\n{weigth_type}: {mw:10.5f}', verbose = self.verbose)
+                for j, pep in enumerate(mw2pep[mw]):
+                    mf = f'({pep.get_molecular_formula()})' if self.args.mass else ''
+                    self.printf(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', verbose = self.verbose)
+                    idx += 1
+        # handle f-print
+        if self.f is not None:
+            self.f.close()
+            # save mw2pep and peps
+            opts_file(str(self.args.out)+'.mbapy.mmw.pkl', 'wb', data = {'mw2pep':mw2pep, 'peps':peps}, way = 'pkl')
+        
+
+class cycmmw(Command):
+    def __init__(self, args: argparse.Namespace, printf=print) -> None:
+        super().__init__(args, printf)
+        
+
+class fit_mass(Command):
+    def __init__(self, args: argparse.Namespace, printf=print) -> None:
+        super().__init__(args, printf)
+        self.task_pool: TaskPool = None
+        self.mw2pep: Dict[int, List[Peptide]] = {}
+        self.mass_dfs: Dict[str, MassData] = None
+        
+    @staticmethod
+    def make_args(args: argparse.ArgumentParser):
+        args.add_argument('-s', '--seq', type = str, default='.',
+                          help='input file/dir or peptide 3 letter seqeunce, default is %(default)s')
+        args.add_argument('-m', '--mass-file', type=str, default='.',
+                          help='input file/dir or peptide mass file, default is %(default)s')
+        args.add_argument('-sys', '--mass-system', type=str, choices=list(plot_mass.SUPPORT_SYS.keys())+['ALL'], default='ALL',
+                          help='mass system, default is %(default)s')
+        args.add_argument('-r', '--recursive', action='store_true', default=False,
+                          help='recursive search for seq file and mass files in dir, default is %(default)s')
+        args.add_argument('-o', '--output', type=str, default='.',
+                          help='output dir, default is %(default)s')
+        args.add_argument('--max-repeat', type = int, default = 1,
+                          help='max times for repeat a AA in sequence')
+        args.add_argument('--disable-aa-deletion', action='store_true', default=False,
+                          help='disable AA deletion in mutations.')
+        args.add_argument('--multi-process', type = int, default = 4,
+                          help='number of multi-process to use. Defaults 1, no multi-process.')
+        args.add_argument('--batch-size', type = int, default = 500000,
+                          help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
+        args.add_argument('-eps', '--error-tolerance', type = float, default = 0.1,
+                          help='error tolerance for fitting mass data, default is %(default)s.')
+        args.add_argument('-min', '--min-height', type = int, default=0,
+                          help='filter data with min height in peak list plot, default is %(default)s')
+        args.add_argument('-minp', '--min-height-percent', type = float, default=1,
+                          help='filter data with min height percent to hightest in mass/charge plot, default is %(default)s')
+        args.add_argument('--min-peak-width', type = float, default=4,
+                          help='filter peaks with min width in Mass/Charge plot, default is %(default)s')
+        args.add_argument('-xlim', type = str, default=None,
+                          help='x-axis data limit for pre-filter of mass data, input as "200,2000", default is %(default)s')
+        args.add_argument('--ms-lim', type = str, default=None,
+                          help='mass limit for second-filter of transfered mass data, input as "200,2000", default is %(default)s')
+        return args
+        
+    def process_args(self):
+        show_args(self.args, list(self.args.__dict__.keys()), self.printf)
+        self.printf('processing arguments...\n')
+        self.args.xlim = eval(f'({self.args.xlim})') if self.args.xlim is not None else None
+        self.args.ms_lim = eval(f'({self.args.ms_lim})') if self.args.ms_lim is not None else None
+        # set task pool
+        if self.args.multi_process > 1:
+            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.printf(f'task pool created with {self.args.multi_process} processes')
+        # process argument: seq
+        if os.path.isfile(clean_path(self.args.seq)) and self.args.seq.endswith('mbapy.mmw.pkl'):
+            self.mw2pep = opts_file(self.args.seq, mode = 'rb', way='pkl')['mw2pep']
+            self.printf(f'load mw2pep from {self.args.seq}')
+        elif os.path.isdir(clean_path(self.args.seq)):
+            for path in get_paths_with_extension(self.args.seq, ['mbapy.mmw.pkl'], self.args.recursive):
+                mw2pep = opts_file(path, mode = 'rb', way='pkl')['mw2pep']
+                self.printf(f'load mw2pep from {path}')
+                for i in mw2pep:
+                    if i in self.mw2pep:
+                        self.mw2pep[i].extend(mw2pep[i])
+                    else:
+                        self.mw2pep[i] = mw2pep[i]
+            if not self.mw2pep:
+                return put_err(f'no valid peptide found in {self.args.seq}, return None')
+        else:
+            seq = Peptide(self.args.seq)
+            # calcu mutations
+            seqs = mutation_weight.generate_mutate_peps(seq, self.args)
+            # gather mutations, calcu mw and store in dict
+            _, self.mw2pep = mutation_weight.calcu_mutations_mw(seqs, self.args.mass, self.args.multi_process, self.args.batch_size)
+        self.printf(f'{len(self.mw2pep)} peptides loaded')
+        # process argument: mass_file
+        mass_manager = plot_mass(self.args)
+        if os.path.isfile(self.args.mass_file):
+            mass_data = load_single_mass_data_file(self.args.mass_file, set(), plot_mass.SUPPORT_SYS)
+            if not mass_data:
+                put_err(f'failed to load mass data from {self.args.mass_file}, support systems: {list(plot_mass.SUPPORT_SYS.keys())}')
+                exit()
+            self.mass_dfs = {mass_data.get_tag(): mass_data}
+        elif os.path.isdir(self.args.mass_file):
+            self.mass_dfs = mass_manager.load_data(self.args.mass_file, self.args.recursive)
+        else:
+            return put_err(f'error: mass_file {self.args.mass_file} not found')
+        # set output file
+        self.args.output = clean_path(self.args.output)
+
+    def main_process(self):
+        candidates = np.array(list(self.mw2pep.keys()))
+        for n, mass_df in self.mass_dfs.items():
+            print(f'fitting {n} now...')
+            # make peaks df
+            if mass_df.peak_df is None or mass_df.check_processed_data_empty(mass_df.peak_df):
+                mass_df.search_peaks(self.args.xlim, self.args.min_peak_width, self.task_pool, self.args.multi_process)
+            mass_df.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
+            # set charge column
+            if mass_df.CHARGE_HEADER is None:
+                put_log(f'{n} has no charge header, assuming charge 1')
+                charges = [1]*len(mass_df.peak_df)
+            else:
+                charges = mass_df.peak_df[mass_df.CHARGE_HEADER].values
+            # match and set match column
+            for i, (ms, charge) in enumerate(zip(mass_df.peak_df[mass_df.X_HEADER], charges)):
+                for mode, iron in MassData.ESI_IRON_MODE.items():
+                    transfered_ms = (ms*charge-iron['im'])/iron['m']
+                    if self.args.ms_lim is None or (transfered_ms > self.args.ms_lim[0] and transfered_ms < self.args.ms_lim[1]):
+                        matched = np.where(np.abs(candidates - transfered_ms) < self.args.error_tolerance)[0]
+                        if matched.size > 0:
+                            all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
+                            mass_df.peak_df.loc[i, f'match {mode}'] = ' | '.join(pep[0].repr() for pep in all_matched_peps)
+                            self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
+                            for i, (pep, pep_mass) in enumerate(all_matched_peps):
+                                self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep}')
+                            self.printf('\n\n')
+            # save result
+            mass_df.peak_df.to_excel(os.path.join(self.args.output, f'{n}.mbapy.fit-mass.xlsx'))
+
         
 def transfer_letters(args):
     # show args
@@ -497,9 +660,14 @@ _str2func = {
     'molecularweight': calcu_mw,
     'molecular-weight': calcu_mw,
     
-    'mmw': calcu_mw_of_mutations,
-    'mutationweight': calcu_mw_of_mutations,
-    'mutation-weight': calcu_mw_of_mutations,
+    'mmw': mutation_weight,
+    'mutationweight': mutation_weight,
+    'mutation-weight': mutation_weight,
+    
+    # 'cycmmw': None,
+    # 'cyclic-mutation-weight': None,
+    
+    'fit-mass': fit_mass,
     
     'letters': transfer_letters,
     'transfer-letters': transfer_letters,
@@ -526,25 +694,9 @@ def main(sys_args: List[str] = None):
     molecularweight.add_argument('-m', '--mass', action='store_true', default=False,
                                  help='calcu Exact Mass instead of Molecular Weight.')
     
-    mutationweight = subparsers.add_parser('mutationweight', aliases = ['mutation-weight', 'mmw'], description='calcu MW of each peptide mutations syn by SPPS.')
-    mutationweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
-                                help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-    mutationweight.add_argument('-w', '--weight', type = str, default = '',
-                                help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
-    mutationweight.add_argument('--max-repeat', type = int, default = 1,
-                                help='max times for repeat a AA in sequence')
-    mutationweight.add_argument('--disable-aa-deletion', action='store_true', default=False,
-                                help='disable AA deletion in mutations.')
-    mutationweight.add_argument('-o', '--out', type = str, default = None,
-                                help='save results to output file/dir. Defaults None, do not save.')
-    mutationweight.add_argument('-m', '--mass', action='store_true', default=False,
-                                help='calcu Exact Mass instead of Molecular Weight.')
-    mutationweight.add_argument('--disable-verbose', action='store_true', default=False,
-                                help='disable verbose output to console.')
-    mutationweight.add_argument('--multi-process', type = int, default = 1,
-                                help='number of multi-process to use. Defaults 1, no multi-process.')
-    mutationweight.add_argument('--process-batch', type = int, default = 500000,
-                                help='number of peptides to process in each batch. Defaults %(default)% in a batch.')
+    mutationweight_args = mutation_weight.make_args(subparsers.add_parser('mutationweight', aliases = ['mutation-weight', 'mmw'], description='calcu MW of each peptide mutations syn by SPPS.'))
+    
+    fit_mass_args = fit_mass.make_args(subparsers.add_parser('fit-mass', description='fit peptide mutation and mass iron exact mass for mass data'))
     
     letters = subparsers.add_parser('letters', aliases = ['transfer-letters'], description='transfer AnimoAcid repr letters width.')
     letters.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, default='',
@@ -562,23 +714,12 @@ def main(sys_args: List[str] = None):
     letters.add_argument('-o', '--out', type = str, default = None,
                                 help='save results to output file/dir. Defaults None, do not save.')
     
-    args = args_paser.parse_args(sys_args)
-    
-    if args.sub_command in _str2func:
-        print(f'excuting command: {args.sub_command}')
-        _str2func[args.sub_command](args)
-    else:
-        put_err(f'no such sub commmand: {args.sub_command}')
+    if __name__ in ['__main__', 'mbapy.scripts.peptide']:
+        excute_command(args_paser, sys_args, _str2func)
 
-if __name__ == "__main__":
+if __name__ in {"__main__", "__mp_main__"}:
     # dev code. MUST BE COMMENTED OUT WHEN PUBLISHING
-    # from mbapy.base import TimeCosts
-    # @TimeCosts(5)
-    # def func(idx, mp):
-    # main(f'mmw -s Fmoc-Cys(Acm)-Val-Asn(Trt)-Cys(Acm)-Val-Asn(Trt) -m --multi-process 2 --process-batch 1000'.split())
-    # # func(mp = 1) # func used     33.542s in total,      6.708s by mean (release run)
-    # # func(mp = 3) # func used     74.241s in total,     14.848s by mean (release run)
-    # # func(mp = 4) # func used     73.012s in total,     14.602s by mean (release run)
+    # main('fit-mass -s data_tmp/scripts/peptide/C.mbapy.mmw.pkl -m data_tmp/scripts/mass/pl.txt'.split())
     
     # release code
     main()
