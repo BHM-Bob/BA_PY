@@ -15,6 +15,7 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import Configs, put_err
 from mbapy.file import get_paths_with_extension, get_valid_file_path
+from mbapy.game import BaseInfo
 from mbapy.plot import PLT_MARKERS, get_palette, save_show
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
 from mbapy.sci_instrument.mass import plot_mass as _plot_mass
@@ -58,11 +59,11 @@ def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig):
     
 
 class plot_mass(Command):
+    SUPPORT_SYS: Dict[str, MassData] = {'SCIEX-PeakList': SciexPeakListData, 'SCIEX-Ori': SciexOriData}
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.task_pool: TaskPool = None
         self.dfs: Dict[str, MassData] = {}
-        self.SUPPORT_SYS: Dict[str, MassData] = {'SCIEX-PeakList': SciexPeakListData, 'SCIEX-Ori': SciexOriData}
     
     def process_args(self):
         # process input and output args
@@ -201,13 +202,10 @@ class explore_mass(plot_mass):
         save_show(png_path, dpi = self.args.dpi, show = self.args.show_fig)
         
     def main_process(self):
-
-        from mbapy.game import BaseInfo
-
         # set task pool
         if self.args.multi_process > 1:
             self.task_pool = TaskPool('process', self.args.multi_process).run()
-            print(f'created task pool with {self.args.multi_process} processes')
+            print(f'task pool created with {self.args.multi_process} processes')
         # process args and load data
         self.load_data(self.args.dir, self.args.recursive)
         self.dfs = {data.data_file_path:data for data in self.dfs.values()}
