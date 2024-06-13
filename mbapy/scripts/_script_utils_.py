@@ -19,6 +19,12 @@ else:
 def clean_path(path: str):
     return Path(path.replace('"', '').replace("'", '')).resolve()
 
+def _print(content: str, f, verbose = True):
+    if f is not None:
+        f.write(content+'\n')
+    if verbose:
+        print(content)
+
 def show_args(args, args_name: List[str], printf = print):
     printf('')
     for arg_name in args_name:
