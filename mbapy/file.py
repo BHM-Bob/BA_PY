@@ -2,10 +2,11 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-21 18:54:51
+LastEditTime: 2024-06-12 10:59:37
 Description: 
 '''
 import collections
+import gzip
 import os
 import pickle
 import platform
@@ -227,6 +228,8 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 import yaml
                 return yaml.load(f, **kwgs)
             elif way == 'pkl':
+                if kwargs.get('gzip', False):
+                    f = gzip.GzipFile(fileobj=f)
                 return pickle.load(f, **kwgs)
             elif way == 'csv':
                 return pd.read_csv(f, **kwgs)
@@ -242,7 +245,11 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             if way == 'json':
                 return f.write(json.dumps(data, **kwgs))
             elif way == 'pkl':
-                return pickle.dump(data, f, **kwgs)
+                data = pickle.dumps(data, **kwgs)
+                if kwargs.get('gzip', False):
+                    data = gzip.compress(data)
+                f.write(data)
+                return data
             elif way in ['yml', 'yaml']:
                 import yaml
                 return yaml.dump(data, f, **kwgs)
