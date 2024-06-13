@@ -184,7 +184,8 @@ class explore_mass(plot_mass):
             ax, self._bbox_extra_artists = _plot_mass(tmp_data, ax = ax, xlim=self.args.xlim,
                                                       labels=self.args.labels, labels_eps=self.args.labels_eps,
                                                       legend_bbox=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2),
-                                                      legend_pos=self.args.legend_pos, marker_size=self.args.marker_size)
+                                                      legend_pos=self.args.legend_pos, marker_size=self.args.marker_size,
+                                                      is_y_log=self.args.is_y_log)
             x_axis_exp = (1-self.args.xaxis_expand, 1+self.args.xaxis_expand)
             y_axis_exp = (1-self.args.yaxis_expand, 1+self.args.yaxis_expand)
             plt.xlim(tmp_data.peak_df[tmp_data.X_HEADER].min() * x_axis_exp[0], tmp_data.peak_df[tmp_data.X_HEADER].max() * x_axis_exp[1])

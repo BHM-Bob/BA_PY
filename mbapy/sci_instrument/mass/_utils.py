@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-12 10:29:09
+LastEditTime: 2024-06-13 10:48:30
 Description: 
 '''
 
@@ -106,6 +106,8 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     # fix style
     if is_y_log:
         ax.set_yscale('log')
+    else:
+        ax.set_yscale('linear')
     # return
     return ax, _bbox_extra_artists
     
