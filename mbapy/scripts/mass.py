@@ -1,9 +1,11 @@
 import argparse
 import itertools
 import os
+import time
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
+from threading import Thread
 from typing import Dict, List, Set
 
 import matplotlib.pyplot as plt
@@ -25,6 +27,7 @@ from mbapy.web import TaskPool
 
 process_peak_labels = partial(process_peak_labels, markers = PLT_MARKERS[1:]) # because the first marker is used for the normal peak
 
+
 def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[str, MassData]):
     path_obj = Path(path)
     if path_obj.stem in dfs_name:
@@ -40,6 +43,7 @@ def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[
                 print(f'loaded {path} as {n} data type')
                 return data
     return None
+
 
 def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig):
     name = data.get_tag()
@@ -96,10 +100,14 @@ class plot_mass(Command):
         if self.task_pool is not None:
             for path in paths:
                 self.task_pool.add_task(path, load_single_mass_data_file, path, set(self.dfs.keys()), self.SUPPORT_SYS)
-            for path in paths:
-                data = self.task_pool.query_task(path, block=True, timeout=999)
-                if data is not None:
+            all_done = False
+            while not all_done:
+                data = self.task_pool.query_single_task_from_tasks(paths, block=True, timeout=999)
+                if data == self.task_pool.NO_TASK_LEFT:
+                    all_done = True
+                elif data != self.task_pool.TASK_NOT_FINISHED and data is not None:
                     self.dfs[data.get_tag()] = data
+                time.sleep(0.2)
         else:
             for path in paths:
                 data = load_single_mass_data_file(path, self.dfs.keys(), self.SUPPORT_SYS)
@@ -112,7 +120,8 @@ class plot_mass(Command):
         self.load_suffix_data(dir, suffixs_r, recursive)
         self.load_suffix_data(dir, suffixs, recursive)
         if not self.dfs:
-            raise FileNotFoundError(f'can not find txt files in {dir}')
+            raise FileNotFoundError(f'can not find data files in {dir}')
+        print(f'all data files loaded, total {len(self.dfs)}')
         return self.dfs
     
     def main_process(self):
@@ -149,8 +158,20 @@ class explore_mass(plot_mass):
         super().__init__(args, printf)
         self.labels_string = args.labels
         self.fig = None
+        self.data_loader: Thread = None
         self._expansion = []
         self._bbox_extra_artists = None
+        
+    @ui.refreshable
+    def _ui_make_dfs_tabs(self):
+        with ui.tabs(value = self.args.now_name).props('vertical').classes('w-full h-full') as tabs:
+            df_tabs = [ui.tab(n).props('no-caps').classes('w-full') for n in self.dfs]
+        tabs.bind_value_to(self.args, 'now_name')
+        return tabs
+        
+    def update_dfs_from_dataloader(self):
+        if self.data_loader.is_alive():
+            self._ui_make_dfs_tabs.refresh()
         
     def _ui_only_one_expansion(self, e):
         if e.value:
@@ -207,11 +228,12 @@ class explore_mass(plot_mass):
         if self.args.multi_process > 1:
             self.task_pool = TaskPool('process', self.args.multi_process).run()
             print(f'task pool created with {self.args.multi_process} processes')
-        # process args and load data
-        self.load_data(self.args.dir, self.args.recursive)
-        self.dfs = {data.data_file_path:data for data in self.dfs.values()}
-        if not self.dfs:
-            raise FileNotFoundError(f'can not find peak-list or mass-charge txt files in {self.args.dir}')
+        # process args and load data asynchronously
+        self.data_loader = Thread(name='data loader', target=self.load_data, args=(self.args.dir, self.args.recursive), daemon=True)
+        self.data_loader.start()
+        ui.timer(1, self.update_dfs_from_dataloader)
+        while not self.dfs:
+            time.sleep(0.5)
         # make global settings
         self.args = BaseInfo(now_name = list(self.dfs.keys())[0], dfs = self.dfs,
                             #  instance_refresh = False, # instance refresh not implemented yet
@@ -235,11 +257,11 @@ class explore_mass(plot_mass):
             ui.button('Exit', on_click=app.shutdown, icon='power')
         with ui.splitter(value = 15).classes('w-full h-full h-56') as splitter:
             with splitter.before:
-                df_short_names = [n.replace(os.path.join(self.args.dir, ''), '') for n in self.dfs]
-                with ui.tabs(value = df_short_names[0]).props('vertical').classes('w-full h-full') as tabs:
-                    df_tabs = [ui.tab(n).props('no-caps').classes('w-full') for n in df_short_names]
-                tabs.bind_value_to(self.args, 'now_name', lambda short_name: os.path.join(self.args.dir, short_name))
-                # tabs.on_value_change(self.make_fig) # instance refresh not implemented yet
+                with ui.column().classes('w-full'):
+                    with ui.row().classes('w-full'):
+                        ui.label('Loading data').bind_visibility_from(self, 'data_loader', backward=lambda x: x.is_alive()).classes('no-caps w-2/5')
+                        ui.spinner(size='lg').bind_visibility_from(self, 'data_loader', backward=lambda x: x.is_alive()).classes('w-2/5')
+                    tabs = self._ui_make_dfs_tabs()
             with splitter.after:
                 with ui.row().classes('w-full h-full'):
                     with ui.column().classes('h-full'):
@@ -286,7 +308,7 @@ class explore_mass(plot_mass):
                             ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
-                        ui.label(f'{df_short_names[0]}').classes('text-h6').bind_text_from(tabs, 'value')
+                        ui.label(self.args.now_name).classes('text-h6').bind_text_from(tabs, 'value')
                         self.make_fig()
         ## run GUI
         ui.run(host = 'localhost', port = 8010, title = 'Mass Data Explorer', reload=False)
