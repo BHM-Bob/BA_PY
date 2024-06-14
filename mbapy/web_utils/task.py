@@ -231,6 +231,7 @@ class TaskStatus(Enum):
     NOT_SUCCEEDED = 3
     NOT_RETURNED = 4
     TIME_OUT = 5
+    ZERO_LEFT = 6
 
 class TaskPool:
     """
@@ -275,6 +276,7 @@ class TaskPool:
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
         self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
         self.TIME_OUT = TaskStatus.TIME_OUT
+        self.NO_TASK_LEFT = TaskStatus.ZERO_LEFT
 
     def _run_async_loop(self):
         asyncio.set_event_loop(self._async_loop)
@@ -313,12 +315,10 @@ class TaskPool:
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
         future.add_done_callback(partial(self._query_async_task_callback, task_name=name))
-        self.tasks[name] = TaskStatus.NOT_RETURNED
         return name
     
     def _add_task_thread(self, name: str, func, *args, **kwargs):
         self._thread_task_queue.put((name, func, args, kwargs))
-        self.tasks[name] = TaskStatus.NOT_RETURNED
         return name
     
     def add_task(self, name: str, coro_func, *args, **kwargs):
@@ -329,6 +329,7 @@ class TaskPool:
             put_err(f'Task {name} already exists, replace it with the new one')
         # map mode to function
         mode = 'async' if self.MODE == 'async' else 'thread'
+        self.tasks[name] = TaskStatus.NOT_RETURNED
         return getattr(self, f'_add_task_{mode}')(name, coro_func, *args, **kwargs)
 
     def _query_async_task_callback(self, future: asyncio.Future, task_name: str):
@@ -347,7 +348,19 @@ class TaskPool:
             except Exception as e:
                 put_err(f'error {e} when get result from queue')
         
-    def query_task(self, name, block: bool = False, timeout: int = 3):
+    def query_task(self, name: str, block: bool = False, timeout: int = 3):
+        """
+        Parameters:
+            - name (str): task name.
+            - block (bool, default=False): when is true, block until get result or timeout.
+            - timeout (int, default=3): timeout in seconds.
+            
+        Returns:
+            - Case 1: task not found, return TaskStatus.NOT_FOUND.
+            - Case 2: task not finished and block is Flase, return TaskStatus.NOT_FINISHED.
+            - Case 3: task not finished and block is True, wait for timeout seconds, return TaskStatus.TIME_OUT.
+            - Case 4: task finished with succeed or failed, not block or block but return in time, return the result.
+        """
         # short-cut for not found
         st_tick = time.time()
         if name not in self.tasks:
@@ -370,6 +383,38 @@ class TaskPool:
         if statue == TaskStatus.NOT_SUCCEEDED:
             put_err(f'Task {name} failed with {result}, return {result}')
         return result
+    
+    def query_single_task_from_tasks(self, tasks_name: List[str], block: bool = False, timeout: int = 3):
+        """
+        Parameters:
+            - tasks_name (List[str]): task names. If any task not found, ignore it.
+            - block (bool, default=False): when is true, block until get result or timeout.
+            - timeout (int, default=3): timeout in seconds.
+            
+        Returns:
+            - Case 1: all tasks not found or finished, return TaskStatus.ZERO_LEFT.
+            - Case 2: all tasks not returned and timeput with block option, return TaskStatus.TIME_OUT.
+            - Case 3: all tasks not returned and block is False, return TaskStatus.NOT_FINISHED.
+            - Case 4: one or more tasks finished with succeed or failed, return one result.
+        """
+        st_tick = time.time()
+        # Case 1 return
+        if all(name not in self.tasks for name in tasks_name):
+            return self.NO_TASK_LEFT
+        # Case 2 return
+        self._query_task_queue(block=block, timeout=timeout)
+        if time.time() - st_tick > timeout:
+            return self.TIME_OUT
+        # Case 4 return
+        for name in tasks_name:
+            if name in self.tasks and self.tasks[name] != TaskStatus.NOT_RETURNED:
+                _name, result, statue = self.tasks[name]
+                del self.tasks[name]
+                if statue == TaskStatus.NOT_SUCCEEDED:
+                    put_err(f'Task {name} failed with {result}, return {result}')
+                return result
+        # Case 3 return
+        return self.TASK_NOT_FINISHED
     
     def count_waiting_tasks(self):
         """
