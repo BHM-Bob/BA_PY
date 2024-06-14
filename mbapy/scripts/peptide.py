@@ -523,6 +523,8 @@ class fit_mass(Command):
                           help='input file/dir or peptide 3 letter seqeunce, default is %(default)s')
         args.add_argument('-m', '--mass-file', type=str, default='.',
                           help='input file/dir or peptide mass file, default is %(default)s')
+        args.add_argument('--mass', type=bool, default=True,
+                          help='calcu Exact Mass instead of Molecular Weight, default is %(default)s')
         args.add_argument('-sys', '--mass-system', type=str, choices=list(plot_mass.SUPPORT_SYS.keys())+['ALL'], default='ALL',
                           help='mass system, default is %(default)s')
         args.add_argument('-r', '--recursive', action='store_true', default=False,
