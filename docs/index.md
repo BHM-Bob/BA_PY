@@ -1,7 +1,7 @@
 <!--
  * @Date: 2023-07-29 09:56:37
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-06-13 10:33:19
+ * @LastEditTime: 2024-06-14 16:57:32
  * @Description: 
 -->
 <!-- mkdocs serve -->
@@ -80,8 +80,18 @@ Some scientific paper utils, including parsing RIS, downloading pdf by title or 
 3. [search](sci_utils/paper_search.md) for searching through baidu-xueshu, pubmed and wos.  
 ## sci_instrument
 Some scientific instrument data file utils.  
+- [_base](sci_instrument/_base.md)  
+- [_utils](sci_instrument/_utils.md)  
+
 1. [HPLC]  
-2. [Mass]  
+- [_base](sci_instrument/hplc/_base.md)  
+- [_utils](sci_instrument/hplc/_utils.md)  
+- [SCIEX](sci_instrument/hplc/sciex.md)  
+- [waters](sci_instrument/hplc/waters.md)  
+1. [Mass]  
+- [_base](sci_instrument/mass/_base.md)  
+- [_utils](sci_instrument/mass/_utils.md)  
+- [SCIEX](sci_instrument/mass/sciex.md)  
 ## [scripts](scripts.md)
 Some helpful command line scripts.  
 1. [avif](scripts/avif.md)  
