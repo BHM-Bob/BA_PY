@@ -572,7 +572,8 @@ class fit_mass(Command):
                 self.printf(f'load mw2pep from {path}')
                 for i in mw2pep:
                     if i in self.mw2pep:
-                        self.mw2pep[i].extend(mw2pep[i])
+                        extend = [pep for pep in mw2pep[i] if pep not in self.mw2pep[i]]
+                        self.mw2pep[i].extend(extend)
                     else:
                         self.mw2pep[i] = mw2pep[i]
             if not self.mw2pep:
