@@ -124,6 +124,8 @@ class AnimoAcid:
                     self.R_protect = parts[1][4:-1]
             else:
                 self.R_protect = 'H'
+        else:
+            self.N_protect, self.animo_acid, self.R_protect, self.C_protect = None, None, None, None
               
     @staticmethod  
     def check_is_aa(aa: str):
@@ -157,6 +159,9 @@ class AnimoAcid:
     
     def __repr__(self) -> str:
         return self.make_pep_repr(True, True)
+    
+    def __eq__(self, other: 'AnimoAcid') -> bool:
+        return self.N_protect == other.N_protect and self.animo_acid == other.animo_acid and self.C_protect == other.C_protect and self.R_protect == other.R_protect
     
     def calcu_mw(self, expand_mw_dict: Dict[str, float] = None):
         """
@@ -343,6 +348,9 @@ class Peptide:
         
     def __repr__(self) -> str:
         return self.repr(3, True, True)
+    
+    def __eq__(self, other: 'Peptide') -> bool:
+        return all([aa1 == aa2 for aa1, aa2 in zip(self.AAs, other.AAs)])
     
     def get_molecular_formula_dict(self):
         """
