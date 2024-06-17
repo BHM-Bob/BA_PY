@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-12 22:09:01
+LastEditTime: 2024-06-17 15:49:16
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -36,6 +36,7 @@ class MassData(SciInstrumentData):
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None
+        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'mode', 'substance'])
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = None
@@ -58,6 +59,8 @@ class MassData(SciInstrumentData):
                 self.data_df = self.data_df.astype(self.HEADERS_TYPE)
                 if 'Peak' in pd.ExcelFile(path or data_bytes).sheet_names:
                     self.peak_df = pd.read_excel(path or data_bytes, sheet_name='Peak')
+                if 'Match' in pd.ExcelFile(path or data_bytes).sheet_names:
+                    self.match_df = pd.read_excel(path or data_bytes, sheet_name='Match')
                 self.SUCCEED_LOADED = True
             else:
                 return put_err(f'Invalid file header, expected {self.MULTI_HEADERS}, got {self.data_df.columns}, return None')
@@ -86,10 +89,10 @@ class MassData(SciInstrumentData):
             self.process_raw_data()
         if path is None:
             path = self.processed_data_path = Path(self.data_file_path).with_suffix('.xlsx')
+        dict4save = {'Data': self.data_df, 'Match': self.match_df}
         if self.peak_df is not None:
-            write_sheets(path, {'Data': self.data_df, 'Peak': self.peak_df})
-        else:
-            write_sheets(path, {'Data': self.data_df})
+            dict4save.update({'Peak': self.peak_df})
+        write_sheets(path, dict4save)
         return path
     
     @staticmethod
@@ -155,6 +158,12 @@ class MassData(SciInstrumentData):
                                         (self.peak_df[self.X_HEADER] <= xlim[1]) &\
                                             (self.peak_df[self.Y_HEADER] >= min_height)].copy()
         return self.peak_df.reset_index(drop=True)
+    
+    def add_match_record(self, x: float, y: float, mode: str, substance: str,
+                         x_header: str = None, y_header: str = None):
+        x_header, y_header = x_header or self.X_HEADER, y_header or self.Y_HEADER
+        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, mode, substance]
+        return self.match_df
     
     
 __all__ = [
