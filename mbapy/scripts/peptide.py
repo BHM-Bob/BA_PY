@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -323,7 +323,7 @@ class MutationTree:
             return True
         return False
 
-def calcu_mutations_mw_batch(seqs: List[Peptide], mass: bool = False, verbose: bool = True):
+def calcu_mutations_mw_batch(seqs: List[Peptide], mass: bool = False, verbose: bool = True) -> Tuple[Dict[str, int], Dict[float, List[Peptide]]]:
     peps, mw2pep = {}, {}
     for pep in tqdm(seqs,
                     desc='Gathering mutations and Calculating molecular weight',
@@ -615,20 +615,21 @@ class fit_mass(Command):
             else:
                 charges = mass_df.peak_df[mass_df.CHARGE_HEADER].values
             # match and set match column
-            for i, (ms, charge) in enumerate(zip(mass_df.peak_df[mass_df.X_HEADER], charges)):
+            monoisotopic_df = mass_df.data_df[mass_df.data_df['Monoisotopic']]
+            for i, (ms, h, charge) in enumerate(zip(monoisotopic_df[mass_df.X_HEADER], monoisotopic_df[mass_df.Y_HEADER], charges)):
                 for mode, iron in MassData.ESI_IRON_MODE.items():
                     transfered_ms = (ms*charge-iron['im'])/iron['m']
                     if self.args.ms_lim is None or (transfered_ms > self.args.ms_lim[0] and transfered_ms < self.args.ms_lim[1]):
                         matched = np.where(np.abs(candidates - transfered_ms) < self.args.error_tolerance)[0]
                         if matched.size > 0:
                             all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
-                            mass_df.peak_df.loc[i, f'match {mode}'] = ' | '.join(pep[0].repr() for pep in all_matched_peps)
+                            mass_df.add_match_record(ms, h, mode, ' | '.join(pep[0].repr() for pep in all_matched_peps))
                             self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
                             for i, (pep, pep_mass) in enumerate(all_matched_peps):
                                 self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep}')
                             self.printf('\n\n')
             # save result
-            mass_df.peak_df.to_excel(os.path.join(self.args.output, f'{n}.mbapy.fit-mass.xlsx'))
+            mass_df.save_processed_data()
 
         
 def transfer_letters(args):
