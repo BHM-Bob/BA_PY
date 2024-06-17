@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-01 16:33:17
+LastEditTime: 2024-06-17 15:35:50
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
@@ -52,6 +52,7 @@ class SciexPeakListData(MassData):
         if self.SUCCEED_LOADED:
             self.data_df['Mass (charge)'] = self.data_df['Mass (charge)'].str.extract(r'(\d+\.\d+)', expand=False).astype(float)
             self.data_df['Mass/charge (charge)'] = self.data_df['Mass/charge (charge)'].str.extract(r'(\d+\.\d+)', expand=False).astype(float)
+            self.data_df['Monoisotopic'] = (self.data_df['Monoisotopic'] == 'Yes').astype(bool)
             self.peak_df = self.data_df.copy()
             return self.data_df
 
@@ -83,7 +84,7 @@ __all__ = [
 
 
 if __name__ == '__main__':
-    pl = SciexPeakListData('data_tmp/scripts/mass/d.xlsx')
+    pl = SciexPeakListData('data_tmp/scripts/mass/pl.txt')
     print(pl.processed_data.head)
     
     ori = SciexOriData('data_tmp/scripts/mass/d.txt')
