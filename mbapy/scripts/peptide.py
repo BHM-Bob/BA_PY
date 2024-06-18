@@ -569,13 +569,16 @@ class fit_mass(Command):
         elif os.path.isdir(clean_path(self.args.seq)):
             for path in get_paths_with_extension(self.args.seq, ['mbapy.mmw.pkl'], self.args.recursive):
                 mw2pep = opts_file(path, mode = 'rb', way='pkl')['mw2pep']
-                self.printf(f'load mw2pep from {path}')
+                load_count = 0
                 for i in mw2pep:
                     if i in self.mw2pep:
                         extend = [pep for pep in mw2pep[i] if pep not in self.mw2pep[i]]
                         self.mw2pep[i].extend(extend)
+                        load_count += 1
                     else:
                         self.mw2pep[i] = mw2pep[i]
+                        load_count += 1
+                self.printf(f'load {load_count} peptide(s) from {path} (contains {len(mw2pep)})')
             if not self.mw2pep:
                 return put_err(f'no valid peptide found in {self.args.seq}, return None')
         else:
@@ -602,34 +605,37 @@ class fit_mass(Command):
 
     def main_process(self):
         candidates = np.array(list(self.mw2pep.keys()))
-        for n, mass_df in self.mass_dfs.items():
+        for n, data_i in self.mass_dfs.items():
             print(f'fitting {n} now...')
             # make peaks df
-            if mass_df.peak_df is None or mass_df.check_processed_data_empty(mass_df.peak_df):
-                mass_df.search_peaks(self.args.xlim, self.args.min_peak_width, self.task_pool, self.args.multi_process)
-            mass_df.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
-            # set charge column
-            if mass_df.CHARGE_HEADER is None:
-                put_log(f'{n} has no charge header, assuming charge 1')
-                charges = [1]*len(mass_df.peak_df)
-            else:
-                charges = mass_df.peak_df[mass_df.CHARGE_HEADER].values
+            if data_i.peak_df is None or data_i.check_processed_data_empty(data_i.peak_df):
+                data_i.search_peaks(self.args.xlim, self.args.min_peak_width, self.task_pool, self.args.multi_process)
+            data_i.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
             # match and set match column
-            monoisotopic_df = mass_df.data_df[mass_df.data_df['Monoisotopic']]
-            for i, (ms, h, charge) in enumerate(zip(monoisotopic_df[mass_df.X_HEADER], monoisotopic_df[mass_df.Y_HEADER], charges)):
+            monoisotopic_df = data_i.peak_df[data_i.peak_df['Monoisotopic']]
+            ## set charge column
+            if data_i.CHARGE_HEADER is None:
+                put_log(f'{n} has no charge header, assuming charge 1')
+                charges = [1]*len(monoisotopic_df)
+            else:
+                charges = monoisotopic_df[data_i.CHARGE_HEADER].values
+            ## match
+            for i, (ms, h, charge) in enumerate(zip(monoisotopic_df[data_i.X_HEADER], monoisotopic_df[data_i.Y_HEADER], charges)):
                 for mode, iron in MassData.ESI_IRON_MODE.items():
+                    if iron['c'] != charge:
+                        continue
                     transfered_ms = (ms*charge-iron['im'])/iron['m']
                     if self.args.ms_lim is None or (transfered_ms > self.args.ms_lim[0] and transfered_ms < self.args.ms_lim[1]):
                         matched = np.where(np.abs(candidates - transfered_ms) < self.args.error_tolerance)[0]
                         if matched.size > 0:
                             all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
-                            mass_df.add_match_record(ms, h, mode, ' | '.join(pep[0].repr() for pep in all_matched_peps))
+                            data_i.add_match_record(ms, h, charge, mode, ' | '.join(pep[0].repr() for pep in all_matched_peps))
                             self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
                             for i, (pep, pep_mass) in enumerate(all_matched_peps):
                                 self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep}')
                             self.printf('\n\n')
             # save result
-            mass_df.save_processed_data()
+            data_i.save_processed_data()
 
         
 def transfer_letters(args):
