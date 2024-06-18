@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-12 10:59:37
+LastEditTime: 2024-06-18 09:46:43
 Description: 
 '''
 import collections
@@ -453,20 +453,22 @@ def read_excel(path:str, sheet_name:Union[None, str, List[str]] = None, ignore_f
             return df.iloc[int(ignore_first_row):, int(ignore_first_col):]
     return invalid_path_return
 
-def write_sheets(path:str, sheets:Dict[str, pd.DataFrame]):
+def write_sheets(path:str, sheets:Dict[str, pd.DataFrame], writer_kwgs = {}, **kwargs):
     """
     Write multiple sheets to an Excel file.
 
     Args:
-        path (str): The path to the Excel file.
-        sheets (Dict[str, pd.DataFrame]): A dictionary mapping sheet names to dataframes.
+        - path (str): The path to the Excel file.
+        - sheets (Dict[str, pd.DataFrame]): A dictionary mapping sheet names to dataframes.
+        - writer_kwgs (dict): Additional keyword arguments to be passed to the ExcelWriter.
+        - kwargs (dict): Additional keyword arguments to be passed to the to_excel() method of pandas.
 
     Returns:
         None
     """
-    with pd.ExcelWriter(path) as writer:
+    with pd.ExcelWriter(path, **writer_kwgs) as writer:
         for sheet_name, df in sheets.items():
-            df.to_excel(writer, sheet_name=sheet_name)
+            df.to_excel(writer, sheet_name=sheet_name, **kwargs)
 
 def update_excel(path:str, sheets:Dict[str, pd.DataFrame] = None):
     """
