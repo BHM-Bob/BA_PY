@@ -66,7 +66,7 @@ class WatersData(HplcData):
             self.process_raw_data()
         if path is None:
             path = self.processed_data_path = Path(self.data_file_path).with_suffix('.xlsx')
-        write_sheets(path, {'Info': self.info_df, 'Data': self.data_df})
+        write_sheets(path, {'Info': self.info_df, 'Data': self.data_df}, index = False)
         return path
 
 
