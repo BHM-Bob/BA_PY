@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-13 10:48:30
+LastEditTime: 2024-06-17 18:23:32
 Description: 
 '''
 
@@ -10,17 +10,72 @@ from typing import Callable, Dict, List, Tuple, Union
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 import numpy as np
+import pandas as pd
 
 if __name__ == '__main__':
     from mbapy.base import get_default_for_None, put_err
+    from mbapy.plot import get_palette, PLT_MARKERS
     from mbapy.sci_instrument._utils import \
         process_num_label_col_marker as process_peak_labels
     from mbapy.sci_instrument.mass._base import MassData
 else:
     from ...base import get_default_for_None, put_err
+    from ...plot import get_palette, PLT_MARKERS
     from .._utils import process_num_label_col_marker as process_peak_labels
     from ._base import MassData
     
+    
+def _plot_vlines(ax, x, y, col, label = None, plot_scatter: bool = True,
+                 marker: str = 'o', scatter_size: float = 120,
+                 scatter_label: str = None):
+    ax.vlines(x, 0, y, colors = [col] * len(x), label = label)
+    if plot_scatter:
+        ax.scatter(x, y, c = col, s = scatter_size, marker = marker, label = scatter_label)
+    
+def _plot_tag_by_string_label(ax: plt.Axes, df: pd.DataFrame, data: MassData,
+                              labels_eps: float, labels: Dict[str, str],
+                              color: str = 'black', tag_fontsize: int  = 15,
+                              marker_size: int = 120):
+    labels_ms = np.array(list(labels.keys()))
+    text_col = color
+    has_label_matched = False
+    charges = df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(df)
+    for ms, h, charge in zip(df[data.X_HEADER], df[data.Y_HEADER], charges):
+        matched = np.where(np.abs(labels_ms - ms) < labels_eps)[0]
+        if matched.size > 0:
+            label, text_col, maker = labels.get(labels_ms[matched[0]])
+            _plot_vlines(ax, [ms], [h], text_col, scatter_label = label, marker = maker, plot_scatter = True, scatter_size=marker_size)
+            has_label_matched = True
+        else:
+            text_col = color
+        charge_str = f'({charge})' if charge is not None else ''
+        ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = text_col,
+                horizontalalignment='left', verticalalignment='center')
+    return has_label_matched
+
+def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
+                          color: str = 'black', tag_fontsize: int  = 15, marker_size: int = 120):
+    if 'color' not in df.columns:
+        df['color'] = get_palette(len(data.match_df), 'hls')
+    if 'marker' not in df.columns:
+        df['marker'] = PLT_MARKERS[1:len(data.match_df)+1]
+    match_df = data.match_df
+    # plot normal
+    charges = data.peak_df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(data.peak_df)
+    for ms, h, charge in zip(data.peak_df[data.X_HEADER], data.peak_df[data.Y_HEADER], charges):
+        if ms not in match_df['x']:
+            charge_str = f'({charge})' if charge is not None else ''
+            ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = color,
+                    horizontalalignment='left', verticalalignment='center')
+    # plot match
+    for x, y, charge, mode, substance, col, marker in zip(match_df['x'], match_df['y'], match_df['c'], match_df['mode'], match_df['substance'], match_df['color'], match_df['marker']):
+        _plot_vlines(ax, [x], [y], col, marker=marker,
+                     scatter_label=f'{x:.3f}: {substance}{mode}',
+                     plot_scatter=True, scatter_size=marker_size)
+        charge_str = f'({charge})' if charge is not None else ''
+        ax.text(x, y, f'{x:.3f}{charge_str}\n{mode}', fontsize=tag_fontsize, color = color,
+                horizontalalignment='center', verticalalignment='bottom')
+    return True
 
 def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float] = (12, 7),
               xlim: Tuple[float, float] = None,
@@ -28,7 +83,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
               legend_pos: Union[str, int] = 'upper right', legend_bbox: Tuple[float, float] = (1.3, 0.75),
               min_height: float = None, min_height_percent: float = 1,
               verbose: bool = True, color: str = 'black',
-              labels_eps: float = 0.5, labels: Dict[float, Tuple[str, str]] = {},
+              labels_eps: float = 0.5, labels: Dict[float, Tuple[str, str]] = {}, use_match_as_label: bool = True,
               tag_fontsize: float = 15, marker_size: float = 120, normal_marker: str = 'o',
               is_y_log: bool = True,
               **kwargs):
@@ -61,13 +116,6 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     # check ax
     if ax is None:
         fig, ax = plt.subplots(figsize = fig_size)
-    # helper function
-    def _plot_vlines(ax, x, y, col, label = None, plot_scatter: bool = True,
-                     marker: str = normal_marker, scatter_size: float = marker_size,
-                     scatter_label: str = None):
-        ax.vlines(x, 0, y, colors = [col] * len(x), label = label)
-        if plot_scatter:
-            ax.scatter(x, y, c = col, s = scatter_size, marker = marker, label = scatter_label)
     # find peaks
     if data.check_processed_data_empty(data.peak_df):
         data.search_peaks(xlim, min_height, min_height_percent)
@@ -82,21 +130,12 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     if data.check_processed_data_empty(df):
         return put_err('no peaks found, return None')
     # plot
-    _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color, scatter_size=marker_size//4)
-    labels_ms = np.array(list(labels.keys()))
-    text_col = color
-    has_label_matched = False
-    charges = df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(df)
-    for ms, h, charge in zip(df[data.X_HEADER], df[data.Y_HEADER], charges):
-        matched = np.where(np.abs(labels_ms - ms) < labels_eps)[0]
-        if matched.size > 0:
-            label, text_col, maker = labels.get(labels_ms[matched[0]])
-            _plot_vlines(ax, [ms], [h], text_col, scatter_label = label, marker = maker, plot_scatter = True, scatter_size=marker_size)
-            has_label_matched = True
-        else:
-            text_col = color
-        charge_str = f'({charge})' if charge is not None else ''
-        ax.text(ms, h, f'  {ms:.2f}{charge_str}', fontsize=tag_fontsize, color = text_col)
+    _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color, scatter_size=marker_size//4, marker=normal_marker)
+    # plot labels tag
+    if use_match_as_label and len(data.match_df) > 0:
+        has_label_matched = _plot_tag_by_match_df(ax, data.match_df, data, color, tag_fontsize, marker_size)
+    else:
+        has_label_matched = _plot_tag_by_string_label(ax, df, data, labels_eps, labels, color, tag_fontsize, marker_size)
     # legend
     _bbox_extra_artists = []
     if show_legend and has_label_matched:
@@ -119,7 +158,9 @@ __all__ = [
 
 
 if __name__ == '__main__':
+    from mbapy.plot import save_show
     from mbapy.sci_instrument.mass.SCIEX import SciexPeakListData
-    data = SciexPeakListData(r'data_tmp\scripts\mass\B4 pl.txt')
-    labels = {453: ('M+H', 'blue', 'x'),}
-    plot_mass(data, labels=labels)
+    data = SciexPeakListData(r'data_tmp\scripts\mass\pl.xlsx')
+    labels = {362: ('M+H', 'blue', 'x'),}
+    ax, bbox = plot_mass(data)
+    save_show(r'data_tmp\scripts\mass\pl.png', bbox_extra_artists = bbox)
