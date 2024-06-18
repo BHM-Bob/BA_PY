@@ -96,7 +96,7 @@ class SciInstrumentData:
             self.process_raw_data()
         if path is None:
             path = self.processed_data_path = Path(self.data_file_path).with_suffix('.xlsx')
-        write_sheets(path, {'Data': self.data_df})
+        write_sheets(path, {'Data': self.data_df}, index = False)
         return path
     
     def get_tick_by_minute(self, minute: float):
