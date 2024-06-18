@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-17 15:49:16
+LastEditTime: 2024-06-18 09:47:51
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -23,6 +23,8 @@ from mbapy.web import TaskPool
 class MassData(SciInstrumentData):
     ESI_IRON_MODE = {
         '[M+H]+': dict(m = 1, iron = 'H', im = 1, c = 1),
+        '[M+2H]2+': dict(m=1, iron='H', im=2, c=2),
+        '[M+3H]3+': dict(m=1, iron='H', im=3, c=3),
         '[M+Na]+': dict(m = 1, iron = 'Na', im = 23, c = 1),
         '[M+K]+': dict(m = 1, iron = 'K', im = 39, c = 1),
         '[M+Li]+': dict(m = 1, iron = 'Li', im = 10, c = 1),
@@ -36,7 +38,7 @@ class MassData(SciInstrumentData):
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None
-        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'mode', 'substance'])
+        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER', 'mode', 'substance'])
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = None
@@ -92,7 +94,7 @@ class MassData(SciInstrumentData):
         dict4save = {'Data': self.data_df, 'Match': self.match_df}
         if self.peak_df is not None:
             dict4save.update({'Peak': self.peak_df})
-        write_sheets(path, dict4save)
+        write_sheets(path, dict4save, index = False)
         return path
     
     @staticmethod
@@ -159,10 +161,11 @@ class MassData(SciInstrumentData):
                                             (self.peak_df[self.Y_HEADER] >= min_height)].copy()
         return self.peak_df.reset_index(drop=True)
     
-    def add_match_record(self, x: float, y: float, mode: str, substance: str,
-                         x_header: str = None, y_header: str = None):
+    def add_match_record(self, x: float, y: float, c: float, mode: str, substance: str,
+                         x_header: str = None, y_header: str = None, charge_header: str = None):
         x_header, y_header = x_header or self.X_HEADER, y_header or self.Y_HEADER
-        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, mode, substance]
+        charge_header = self.CHARGE_HEADER or ''
+        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, c, charge_header, mode, substance]
         return self.match_df
     
     
