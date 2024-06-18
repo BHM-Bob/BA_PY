@@ -45,17 +45,17 @@ def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[
     return None
 
 
-def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig):
+def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox):
     name = data.get_tag()
     # save processed data
     data.save_processed_data()
     print(f'{name}: processed data saved to {data.processed_data_path}')
     # style adjust and save
     ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
-                                   labels_eps=labels_eps, legend_bbox = (1, 1))
+                                   labels_eps=labels_eps, legend_bbox = legend_bbox)
     plt.xticks(size = 20);plt.yticks(size = 20)
     plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
-    plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.2)
+    plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.5)
     png_path = Path(data.data_file_path).with_suffix('.png')
     save_show(png_path, dpi = 600, show = show_fig, bbox_extra_artists = extra_artists)
     print(f'{name}: plot saved to {png_path}')
@@ -84,6 +84,7 @@ class plot_mass(Command):
         # process others
         self.args.labels = process_peak_labels(self.args.labels)
         self.args.xlim = eval(f'[{self.args.xlim}]') if self.args.xlim else None
+        self.args.legend_bbox = eval(f'({self.args.legend_bbox})') # NOTE: can be invoked
         
     @staticmethod
     def filter_peaklist_data(df: pd.DataFrame, args):
@@ -145,9 +146,9 @@ class plot_mass(Command):
                 data.X_HEADER = data.X_MZ_HEADER
             # save processed data
             if self.task_pool is not None:
-                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig)
+                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox)
             else:
-                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig)
+                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox)
         if self.task_pool is not None:
             self.task_pool.wait_till_tasks_done(self.dfs.keys())
             self.task_pool.close()
@@ -356,6 +357,8 @@ def main(sys_args: List[str] = None):
                                 help='eps to recognize labels, default is %(default)s')
     plot_mass_args.add_argument('-sf', '--show-fig', action='store_true', default=False,
                                 help='automatically show figure, default is %(default)s')
+    plot_mass_args.add_argument('-lposbbox', '--legend-bbox', type = str, default='1,1',
+                                help='legend position bbox 1 to anchor, default is %(default)s')
     plot_mass_args.add_argument('-mp', '--multi-process', type = int, default=4,
                                 help='multi-process to speed up plot, default is %(default)s')
 
