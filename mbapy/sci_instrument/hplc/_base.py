@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-05 22:09:46
+LastEditTime: 2024-06-19 14:25:44
 Description: mbapy.sci_instrument.hplc._base
 '''
 from typing import Dict, List, Union
@@ -13,10 +13,10 @@ import scipy.integrate
 import scipy.signal
 
 if __name__ == '__main__':
-    from mbapy.base import put_err
+    from mbapy.base import put_err, get_default_call_for_None
     from mbapy.sci_instrument._base import SciInstrumentData
 else:
-    from ...base import put_err
+    from ...base import put_err, get_default_call_for_None
     from .._base import SciInstrumentData
     
     
@@ -26,10 +26,13 @@ class HplcData(SciInstrumentData):
         self.X_HEADER = 'Time'
         self.Y_HEADER = 'Absorbance'
         self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
+        self.refined_abs_data: pd.DataFrame = None
         self.area: Dict[int, Dict[str, Union[float, int, np.ndarray]]] = {} # the area and underline of peaks
         self.peak_idx: np.ndarray = None # the index of peaks in the data, in tick.
         
-    def get_abs_data(self, *args, **kwargs):
+    def get_abs_data(self, origin_data: bool = False, *args, **kwargs) -> pd.DataFrame:
+        if self.refined_abs_data is not None and not origin_data:
+            return self.refined_abs_data
         return self.processed_data if not self.check_processed_data_empty() else self.process_raw_data()
     
     def search_peaks(self, peak_width_threshold: float, peak_height_threshold: float,
@@ -59,6 +62,32 @@ class HplcData(SciInstrumentData):
             self.peak_idx = peaks_idx[peaks_idx <= ed]
         return self.peak_idx
     
+    def calcu_single_peak_area(self, st_tick: int, ed_tick: int, abs_data: pd.DataFrame = None)\
+        -> tuple[float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Parameters:
+            - st_tick: int, start tick of the peak.
+            - ed_tick: int, end tick of the peak.
+            - abs_data: pd.DataFrame, the absorbance data, default is None. will use self.get_abs_data().copy() if None.
+            
+        Returns:
+            - st_minute: float, the start time of the peak, in minutes.
+            - ed_minute: float, the end time of the peak, in minutes.
+            - area: float, the area of the peak.
+            - y: np.ndarray, the y-axis data of the peak.
+            - underline_x: np.ndarray, the x-axis data of the underline.
+            - underline_y: np.ndarray, the y-axis data of the underline.
+            - refined_y: np.ndarray, the refined y-axis data of the peak, it's underline is y=0, for calculating area.
+        """
+        abs_data = get_default_call_for_None(abs_data, self.get_abs_data)
+        st_minute, ed_minute = abs_data[self.X_HEADER][st_tick], abs_data[self.X_HEADER][ed_tick]
+        y = abs_data[self.Y_HEADER][(abs_data[self.X_HEADER] >= st_minute) & (abs_data[self.X_HEADER] <= ed_minute)]
+        underline_x = abs_data[self.X_HEADER][(abs_data[self.X_HEADER] >= st_minute) & (abs_data[self.X_HEADER] <= ed_minute)]
+        underline_y = np.linspace(abs_data[self.Y_HEADER][st_tick], abs_data[self.Y_HEADER][ed_tick], len(y))
+        refined_y = y - underline_y
+        return st_minute, ed_minute, scipy.integrate.simps(refined_y, underline_x), y, underline_x, underline_y, refined_y
+        
+    
     def calcu_peaks_area(self, peaks_idx: np.ndarray, rel_height: float = 1,
                          allow_overlap: bool = False) -> Dict[int, Dict[str, Union[float, int, np.ndarray]]]:
         """
@@ -83,7 +112,7 @@ class HplcData(SciInstrumentData):
                 - 'width': float, the width of the peak(in ticks).
                 - 'height': float, the height of the peak.
         """
-        abs_data = self.get_abs_data().copy()
+        abs_data = self.get_abs_data()
         widths, width_heights, left, right = scipy.signal.peak_widths(abs_data[self.Y_HEADER], peaks_idx, rel_height = rel_height)
         self.area, self.peak_idx = {}, peaks_idx
         for i, peak_tick in enumerate(peaks_idx):
@@ -97,14 +126,10 @@ class HplcData(SciInstrumentData):
                     right[i] = right[i] = left[i+1]
             # calcu underline and peak area
             st_tick, ed_tick = round(left[i]), round(right[i])
-            st_minute, ed_minute = abs_data[self.X_HEADER][round(left[i])], abs_data[self.X_HEADER][round(right[i])]
-            y = abs_data[self.Y_HEADER][(abs_data[self.X_HEADER] >= st_minute) & (abs_data[self.X_HEADER] <= ed_minute)]
-            underline_x = abs_data[self.X_HEADER][(abs_data[self.X_HEADER] >= st_minute) & (abs_data[self.X_HEADER] <= ed_minute)]
-            underline_y = np.linspace(abs_data[self.Y_HEADER][st_tick], abs_data[self.Y_HEADER][ed_tick], len(y))
-            refined_y = y - underline_y
+            st_minute, ed_minute, area, y, underline_x, underline_y, refined_y = self.calcu_single_peak_area(st_tick, ed_tick, abs_data)
             time = abs_data[self.X_HEADER][peak_tick]
             self.area[peak_tick] = {'peak_idx': peak_tick, 'time': time,
-                                    'area': scipy.integrate.simps(refined_y, underline_x),
+                                    'area': area,
                                     'underline-x': np.array(underline_x), 'underline-y': underline_y,
                                     'peak-line-y': abs_data[self.Y_HEADER][(abs_data[self.X_HEADER] >= st_minute) & (abs_data[self.X_HEADER] <= ed_minute)],
                                     'left-tick': st_tick, 'right-tick': ed_tick,
