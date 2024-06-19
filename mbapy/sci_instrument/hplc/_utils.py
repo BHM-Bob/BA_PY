@@ -81,8 +81,8 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     for data in hplc_data:
         names.append(data.get_tag())
         data.refined_abs_data = data.get_abs_data(True).copy()
-        data.refined_abs_data[data.X_HEADER] -= dfs_refinment_x.get(data.get_tag(), 0)
-        data.refined_abs_data[data.Y_HEADER] -= dfs_refinment_y.get(data.get_tag(), 0)
+        data.refined_abs_data[data.X_HEADER] += dfs_refinment_x.get(data.get_tag(), 0)
+        data.refined_abs_data[data.Y_HEADER] += dfs_refinment_y.get(data.get_tag(), 0)
         data_dfs.append(data.get_abs_data(False))
     # return if no data
     if len(data_dfs) == 0:
