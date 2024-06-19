@@ -3,12 +3,13 @@ import os
 from collections import OrderedDict
 from functools import partial
 from typing import Callable, Dict, List, Tuple, Union
+from uuid import uuid4
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import scipy
-from nicegui import ui
+from nicegui import app, ui
+
+from mbapy.game import BaseInfo
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
@@ -130,6 +131,9 @@ class explore_hplc(plot_hplc):
         self.area_df_panel = None
         self.area_percent_df_panel = None
         self.all_area_df = None
+        self.hc_names: List[str] = []
+        self.manual_peaks: Dict[str, List[str, Tuple[float, float], float]] = {} # Dict[uuid: List[tag, point_st(min, abs unit), point_middle, point_ed, area]]
+        self.manual_peak_st: List[str, int] = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -210,6 +214,80 @@ class explore_hplc(plot_hplc):
             self.make_area_df.refresh()
         with ui.tab_panel(self.area_percent_df_panel):
             self.make_area_percent_df.refresh()
+            
+    def _ui_transfer_df_to_table(self, df: pd.DataFrame, classes: str = 'w-full'):
+        """first column is the name(str), others are time(float), transfer df to nicegui table format"""
+        collums = [{'name': 'Name', 'label': 'Name', 'field': 'Name', 'sortable': True}] +\
+            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in df.columns[1:]]
+        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.4f}') for k,v in zip(collums, list(line))} for line in df.values]
+        ui.table(columns=collums, rows=rows).classes(classes)
+            
+    def _ui_handle_hc_click(self, e):
+        """add or pop one manual peak for self.manual_peaks, call self.make_highcharts_fig to refresh"""
+        name = self.hc_names[e.series_index]
+        if self.manual_peak_st is None or self.manual_peak_st[0] != name:
+            if name in self.manual_peaks:
+                ui.notify(f'clear manual peaks for {name}')
+                del self.manual_peaks[name]
+            else:
+                self.manual_peak_st = [name, e.point_index]
+                ui.notify(f'add manual peak start at idx={e.point_index} for {name}\nclick middle point to remove', multi_line = True)
+                return # wait for next click
+        else:
+            # check if st > ed, if ture, swap
+            if e.point_index <= self.manual_peak_st[1]:
+                e.point_index, self.manual_peak_st[1] = self.manual_peak_st[1], e.point_index
+            data = self.dfs[name]
+            st, ed, area, _, _, underline_y, _ = data.calcu_single_peak_area(self.manual_peak_st[1], e.point_index)
+            ui.notify(f'peak area: {area:.4f} ({st:.2f} ~ {ed:.2f}) for {name}')
+            st_tick, ed_tick = self.manual_peak_st[1], e.point_index
+            self.manual_peak_st = None
+            peak_data = [name, (st, data.get_abs_data()[data.Y_HEADER][st_tick]),
+                         ((st+ed)/2, underline_y[underline_y.size//2]),
+                         (ed, data.get_abs_data()[data.Y_HEADER][ed_tick]), area]
+            self.manual_peaks[uuid4().hex] = peak_data
+        self.make_highcharts_fig.refresh()
+        
+    @ui.refreshable
+    def make_highcharts_fig(self):
+        if self.dfs:
+            # draw highcharts
+            self.hc_names = list(self.dfs.keys()) + list(self.manual_peaks.keys())
+            ui.highchart({
+                'title': False,
+                'chart': {'zooming': {'type': 'xy'},},
+                'tooltip': {'enabled': False},
+                'series': [{'name': n,
+                            'data': list(zip(i.get_abs_data()[i.X_HEADER], i.get_abs_data()[i.Y_HEADER]))}\
+                                for n, i in self.dfs.items()] +\
+                        [{'name': f'{n} manual', 'showInLegend': False, 'color': 'black',
+                          'data': i[1:4]}\
+                              for n, i in self.manual_peaks.items()],
+                'xAxis': {'title': {'text': self.args.xlabel},},
+                'yAxis': {'title': {'text': self.args.ylabel},},
+                },
+                         on_point_click=self._ui_handle_hc_click).classes('w-full h-full')
+            # gather peaks' area and make table for all peaks' area for all files
+            if self.manual_peaks:
+                all_area_df = pd.DataFrame()
+                # gather
+                for tag, st, mid, ed, area in self.manual_peaks.values():
+                    # Dict[uuid: List[tag, point_st(min, abs unit), point_middle, point_ed, area]]
+                    all_area_df.loc[self.tag2label[tag], mid[0]] = area
+                all_area_df = all_area_df.reset_index(drop=False) # so the index column is the first column
+                all_area_df.rename(columns={'index': 'Name'}, inplace=True)
+                # sort by peak time
+                name_col = all_area_df.pop('Name')
+                peak_cols = all_area_df.sort_index(axis=1)
+                all_area_df = pd.concat([name_col, peak_cols], axis=1)
+                # area table
+                ui.label(f'All peaks\' area for all files').classes('no-caps')
+                self._ui_transfer_df_to_table(all_area_df, classes='w-full')
+                # normalize
+                ui.label(f'All peaks\' area for all files (normalized)').classes('no-caps')
+                for i in range(all_area_df.shape[0]):
+                    all_area_df.iloc[i, 1:] /= (all_area_df.iloc[i, 1:].sum() / 100)
+                self._ui_transfer_df_to_table(all_area_df, classes='w-full')
                 
     @ui.refreshable
     def make_area_df(self):
@@ -228,11 +306,7 @@ class explore_hplc(plot_hplc):
         self.all_area_df = pd.DataFrame(columns=['Name'] + sorted(list(all_peaks_idx.keys())))
         for n, peaks_area in area_df.items():
             self.all_area_df.loc[n] = [n] + [area_df[n][idx] if idx in area_df[n] else 0 for idx in all_peaks_idx]
-        # transfer to nicegui table format
-        collums = [{'name': 'Name', 'label': 'Name', 'field': 'Name', 'sortable': True}] +\
-            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in self.all_area_df.columns[1:]]
-        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.4f}') for k,v in zip(collums, list(line))} for line in self.all_area_df.values]
-        ui.table(columns=collums, rows=rows)
+        self._ui_transfer_df_to_table(self.all_area_df, classes='w-full h-full')
         
     @ui.refreshable
     def make_area_percent_df(self):
@@ -243,10 +317,7 @@ class explore_hplc(plot_hplc):
         for i in range(self.all_area_percent_df.shape[0]):
             self.all_area_percent_df.iloc[i, 1:] /= (self.all_area_percent_df.iloc[i, 1:].sum() / 100)
         # transfer to nicegui table format
-        collums = [{'name': 'Name', 'label': 'Name', 'field': 'Name', 'sortable': True}] +\
-            [{'name': f'{n:.4f}', 'label': f'{n:.4f}', 'field': f'{n:.4f}', 'sortable': True} for n in self.all_area_percent_df.columns[1:]]
-        rows = [{k['field']:(v if isinstance(v, str) else f'{v:.3f}%') for k,v in zip(collums, list(line))} for line in self.all_area_percent_df.values]
-        ui.table(columns=collums, rows=rows)
+        self._ui_transfer_df_to_table(self.all_area_percent_df, classes='w-full h-full')
             
     def _ui_only_one_expansion(self, e):
         if e.value:
@@ -288,12 +359,7 @@ class explore_hplc(plot_hplc):
         lst[idx] = v
     
     def main_process(self):
-        from nicegui import app, ui
-
-        from mbapy.game import BaseInfo
-
         # make global settings
-        # do not support xlim because it makes confusion with peak searching
         self.args = BaseInfo(file_labels = '', peak_labels = '', merge = False, recursive = False,
                              min_peak_width = 0.1, min_height = 0.01, start_search_time = 0, end_search_time = None,
                              show_tag_text = True, labels_eps = 0.1,
@@ -317,7 +383,7 @@ class explore_hplc(plot_hplc):
             ui.space()
             ui.checkbox('bind lim', value=self.is_bind_lim).bind_value_to(self, 'is_bind_lim').tooltip('bind value of search-lim and plot-lim')
             ui.checkbox('merge', value=self.args.merge).bind_value_to(self.args,'merge').bind_value_from(self, 'dfs', lambda dfs: len(dfs) > 1)
-            ui.button('Plot', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
+            ui.button('Plot', on_click=self.make_fig.refresh, icon='refresh').on_click(self.make_highcharts_fig.refresh).props('no-caps')
             ui.button('Save', on_click=self.save_fig, icon='save').props('no-caps')
             ui.button('Show', on_click=plt.show, icon='open_in_new').props('no-caps')
             ui.button('Exit', on_click=app.shutdown, icon='power')
@@ -412,15 +478,18 @@ class explore_hplc(plot_hplc):
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.column().classes('h-full flex flex-grow'):
                         with ui.tabs().classes('flex flex-grow justify-center') as tabs:
-                            fig_panel = ui.tab('HPLC Figure').props('no-caps')
-                            self.area_df_panel = ui.tab('HPLC Peaks Area DataFrame').props('no-caps')
-                            self.area_percent_df_panel = ui.tab('HPLC Peaks Area Percentage DataFrame').props('no-caps')
+                            fig_panel = ui.tab('HPLC Figure').props('no-caps').classes('flex flex-grow')
+                            highcharts_fig_panel = ui.tab('HPLC Manual Peaking Figure').props('no-caps').classes('flex flex-grow')
+                            self.area_df_panel = ui.tab('HPLC Peaks Area DataFrame').props('no-caps').classes('flex flex-grow')
+                            self.area_percent_df_panel = ui.tab('HPLC Peaks Area Percentage DataFrame').props('no-caps').classes('flex flex-grow')
                         with ui.tab_panels(tabs, value=fig_panel).classes('flex flex-grow'):
-                            with ui.tab_panel(fig_panel):
+                            with ui.tab_panel(fig_panel).classes('flex flex-grow'):
                                 self.make_fig()
-                            with ui.tab_panel(self.area_df_panel):
+                            with ui.tab_panel(highcharts_fig_panel).classes('flex flex-grow'):
+                                self.make_highcharts_fig()
+                            with ui.tab_panel(self.area_df_panel).classes('flex flex-grow'):
                                 self.make_area_df()
-                            with ui.tab_panel(self.area_percent_df_panel):
+                            with ui.tab_panel(self.area_percent_df_panel).classes('flex flex-grow'):
                                 self.make_area_percent_df()
         ## run GUI
         ui.run(host = self.args.url, port = self.args.port, title = 'HPLC Data Explorer',
