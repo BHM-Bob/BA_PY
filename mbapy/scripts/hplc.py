@@ -209,6 +209,8 @@ class explore_hplc(plot_hplc):
                 ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
                 ax.set_ylim(bottom=self.args.ylim[0], top=self.args.ylim[1])
                 plt.tight_layout()
+        # update tag2label related ui elements
+        self._ui_refinment_numbers.refresh()
         # re-calcu area df and refreash GUI table
         with ui.tab_panel(self.area_df_panel):
             self.make_area_df.refresh()
@@ -327,13 +329,12 @@ class explore_hplc(plot_hplc):
                     
     @ui.refreshable
     def _ui_refinment_numbers(self):
-
         # update dfs_refinment
-        self.dfs_refinment_x = {n: (0 if n not in self.dfs_refinment_x else self.dfs_refinment_x[n]) for n in self.dfs}
-        self.dfs_refinment_y = {n: (0 if n not in self.dfs_refinment_y else self.dfs_refinment_y[n]) for n in self.dfs}
+        self.dfs_refinment_x = {n: self.dfs_refinment_x.get(n, 0) for n in self.dfs}
+        self.dfs_refinment_y = {n: self.dfs_refinment_y.get(n, 0) for n in self.dfs}
         # update refinment numbers GUI
         for (n, x), (_, y) in zip(self.dfs_refinment_x.items(), self.dfs_refinment_y.items()):
-            ui.label(n).tooltip(n)
+            ui.label(self.tag2label.get(n, n)).tooltip(n)
             with ui.row():
                 ui.number(label='x', value=x, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_x, n).classes('w-2/5')
                 ui.number(label='y', value=y, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_y, n).classes('w-2/5')
