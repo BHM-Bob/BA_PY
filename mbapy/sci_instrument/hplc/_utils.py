@@ -80,9 +80,10 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     # apply x, y offset
     for data in hplc_data:
         names.append(data.get_tag())
-        data.get_abs_data()[data.X_HEADER] -= dfs_refinment_x.get(data.get_tag(), 0)
-        data.get_abs_data()[data.Y_HEADER] -= dfs_refinment_y.get(data.get_tag(), 0)
-        data_dfs.append(data.get_abs_data())
+        data.refined_abs_data = data.get_abs_data(True).copy()
+        data.refined_abs_data[data.X_HEADER] -= dfs_refinment_x.get(data.get_tag(), 0)
+        data.refined_abs_data[data.Y_HEADER] -= dfs_refinment_y.get(data.get_tag(), 0)
+        data_dfs.append(data.get_abs_data(False))
     # return if no data
     if len(data_dfs) == 0:
         return put_err('no data to plot, return None')
@@ -157,10 +158,6 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
                                  bbox_to_anchor = peak_legend_bbox, draggable = True)
         ax.add_artist(peak_legend)
         _bbox_extra_artists.append(peak_legend)
-    # recover x, y offset
-    for data in hplc_data:
-        data.get_abs_data()[data.X_HEADER] += dfs_refinment_x.get(data.get_tag(), 0)
-        data.get_abs_data()[data.Y_HEADER] += dfs_refinment_y.get(data.get_tag(), 0)
     return ax, _bbox_extra_artists, files_peaks_idx, file_labels
 
 
