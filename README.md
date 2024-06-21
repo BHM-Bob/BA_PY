@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-06-19 09:14:06
+ * @LastEditTime: 2024-06-21 15:20:00
  * @Description: 
 -->
 
@@ -157,6 +157,7 @@ launch by `python -m mbapy.scripts.XXX` or `mbapy-cli XXX`.
 ### Requirements
 1. mbapy requires python 3.7~3.11 because of the use of type hint, and the developer do not test it on other python version.  
 2. mbapy only requires a part of third-party packages in a specific version. This is because the developer do not want to make a big change during the installation. Bellow are the specific requirements:  
-- matplotlib>=3.7.5: HPLC and Mass data visualization need set legend `draggable`, this is only supported in 3.7+  
-- seaborn>=0.13.0: plot_utils.bar_utils.plot_bar need set seaborn stripplot `native_scale`, this is only supported in 0.13+  
-- torch any: though dl_torch is important for mbapy, but the developer kowns torch is a big package, and do not has a specific function requirement.  
+- `matplotlib>=3.7.5`: HPLC and Mass data visualization need set legend `draggable`, this is only supported in 3.7+  
+- `seaborn>=0.13.0`: plot_utils.bar_utils.plot_bar need set seaborn stripplot `native_scale`, this is only supported in 0.13+  
+- `nicegui[highcharts]`: scripts/hplc: explore-hplc need a highcharts as interactive plot for manual peaking.  
+- `torch any`: though dl_torch is important for mbapy, but the developer kowns torch is a big package, and do not has a specific function requirement.  
