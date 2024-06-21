@@ -340,11 +340,18 @@ class Peptide:
         assert repr_w in [1, 3], "repr_w must be 1 or 3"
         seq = self.flatten(inplace=False)
         dash = "-" if include_dash else ""
-        return dash.join([aa.make_pep_repr(is_N_terminal=(i==0),
-                                           is_C_terminal=(i==len(seq)-1),
-                                           repr_w = repr_w,
-                                           include_pg = include_pg) \
-                                               for i, aa in enumerate(seq)])
+        repr_str = dash.join([aa.make_pep_repr(is_N_terminal=(i==0),
+                                                is_C_terminal=(i==len(seq)-1),
+                                                repr_w = repr_w,
+                                                include_pg = include_pg) \
+                                                    for i, aa in enumerate(seq)])
+        # handle terminal Acid with no pg
+        if not include_dash:
+            if seq[0].N_protect == 'H' and repr_str[:2] == 'H-':                
+                repr_str = repr_str[2:]
+            if seq[-1].C_protect == 'OH' and repr_str[-3:] == '-OH':
+                repr_str = repr_str[:-3]
+        return repr_str
         
     def __repr__(self) -> str:
         return self.repr(3, True, True)
