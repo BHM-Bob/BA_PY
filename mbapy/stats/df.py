@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-09 14:03:21
+LastEditTime: 2024-06-21 15:12:36
 Description: pd.dataFrame utils
 '''
 import itertools
@@ -44,7 +44,7 @@ def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     # pro
     if len(tags) == 0:
         tags = list(df.columns)[len(factors):]
-    factor_contents:list[list[str]] = [ df[f].unique().tolist() for f in factors ]
+    factor_contents:List[List[str]] = [ df[f].unique().tolist() for f in factors ]
     ndf = [factors.copy()]
     for tag in tags:
         ndf[0] += [tag, tag+'_SE', tag+'_N']
@@ -121,10 +121,10 @@ def get_df_data(factors:Dict[str, List[str]], tags:List[str], df:pd.DataFrame,
     Return a subset of the input DataFrame, filtered by the given factors and tags.
 
     Args:
-        factors (dict[str, list[str]]): A dictionary containing the factors to filter by.
+        factors (dict[str, List[str]]): A dictionary containing the factors to filter by.
             The keys are column names in the DataFrame and the values are lists of values
             to filter by in that column.
-        tags (list[str]): A list of column names to include in the output DataFrame.
+        tags (List[str]): A list of column names to include in the output DataFrame.
         df (pd.DataFrame): The input DataFrame to filter.
         include_factors (bool, optional): Whether to include the factors in the output DataFrame.
             Defaults to True.

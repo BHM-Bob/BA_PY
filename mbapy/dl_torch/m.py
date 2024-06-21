@@ -2,13 +2,13 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-31 09:48:23
+LastEditTime: 2024-06-21 15:10:30
 Description: Model, most of models outputs [b, c', w', h'] or [b, l', c'] or [b, D]\n
 you can add tail_trans as normal transformer or out_transformer in LayerCfg of model.__init__()
 '''
 
 import math
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -68,7 +68,7 @@ class LayerCfg:
     def __str__(self):
         return self._str_
     
-def calcu_q_len(input_size:int, cfg:list[LayerCfg], dims:int = 1):
+def calcu_q_len(input_size:int, cfg:List[LayerCfg], dims:int = 1):
     """
     calcu q_len for Conv model
     strides: list of each layers' stride
@@ -209,14 +209,14 @@ str2net = {
 
 class MATTPBase(nn.Module):#MA TT with permute
     """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l]"""
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAlayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:MAlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__()
         self.args = args
         self.cfg = cfg
         self.tail_trans_cfg = tail_trans_cfg
-        args.mp.mprint('cfg:list[LayerCfg] =\n',
+        args.mp.mprint('cfg:List[LayerCfg] =\n',
                        "\n".join([f'LAYER {i:d}: '+str(c) for i, c in enumerate(cfg)]))
         self.main_layers = nn.ModuleList([ layer(c) for c in self.cfg ])
         if self.tail_trans_cfg is not None:
@@ -235,25 +235,25 @@ class MATTPBase(nn.Module):#MA TT with permute
         return x
 
 class COneD(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:COneDLayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:COneDLayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c', l] or [b, D]"""
         super(COneD, self).__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
     
 class MATTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAlayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:MAlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MAvTTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:MAvlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
          
 class MATTPE(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:MAvlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
@@ -274,13 +274,13 @@ class MATTPE(MATTPBase):#MA TT with permute
         return x
     
 class SCANNTTP(MATTPBase):#MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:SCANlayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:SCANlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)
         
 class MATTP_ViT(MATTPBase):  # MA TT with permute
-    def __init__(self, args: GlobalSettings, cfg:list[LayerCfg], layer:MAvlayer,
+    def __init__(self, args: GlobalSettings, cfg:List[LayerCfg], layer:MAvlayer,
                  tail_trans_cfg:TransCfg = None, **kwargs):
         """ x: [b, c, w, h] => [b, c', w', h'] or [b, c', l] or [b, D]"""
         super().__init__(args, cfg, layer, tail_trans_cfg, **kwargs)

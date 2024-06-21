@@ -1,12 +1,13 @@
 '''
 Date: 2023-06-06 23:35:10
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-07 11:36:12
+LastEditTime: 2024-06-21 15:13:23
 FilePath: \BA_PY\mbapy\dl_torch\arch\CL\builder.py
 Description: 
 '''
 
 import copy
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -100,14 +101,14 @@ class MoCo(nn.Module):
         self._dequeue_and_enqueue(z2_)
         return logits
         
-    def loss_fn(self, logits:tuple[torch.Tensor]):
+    def loss_fn(self, logits:Tuple[torch.Tensor]):
         # z: [b, D]
         logits = F.normalize(torch.cat(logits, dim = 0), dim=-1, p=2)
         z2, z1_, z1, z2_ = logits.split(logits.shape[0]//4, dim = 0)
         return (4 - 2 * (z2*z1_.detach()).sum(dim=-1) - 2 * (z1*z2_.detach()).sum(dim=-1)).mean()
     
     @torch.no_grad()
-    def acc(self, logits:tuple[torch.Tensor], topk: list[int] = (1, 5)):
+    def acc(self, logits:Tuple[torch.Tensor], topk: List[int] = (1, 5)):
         """
         logits: [b, 1+k]
         label: [b, ]
@@ -118,7 +119,7 @@ class MoCo(nn.Module):
         return [correct[:, :k].float().sum().mul_(100.0 / logits.shape[0]).item() for k in topk]
     
 @torch.jit.script
-def calcu_acc(mat:torch.Tensor, mat_label:torch.Tensor, topk: list[int]):
+def calcu_acc(mat:torch.Tensor, mat_label:torch.Tensor, topk: List[int]):
     """
     mat: [b, b], one of BYOL sub mat
     mat_label: [b, ]
@@ -148,13 +149,13 @@ class Twins(nn.Module):
         logits = z1.matmul(z2.T) #[b, c] @ [c, b] => [b, b]
         return logits
         
-    def loss_fn(self, logits:tuple[torch.Tensor]):
+    def loss_fn(self, logits:Tuple[torch.Tensor]):
         # z: [b, b]
         return self.criterion(logits, self.label)
     
     @torch.no_grad()
     def acc(self, logits:torch.Tensor,
-            acc_label:torch.Tensor = None, topk: list[int] = (1, 5)):
+            acc_label:torch.Tensor = None, topk: List[int] = (1, 5)):
         """
         acc_label: [2*b, 1]
         Computes the accuracy over the k top predictions for the specified values of k
@@ -185,15 +186,15 @@ class PTwins(nn.Module):
         z2, z2_ = self.model(seq2, update_encoder_k = False) # queries: bxD
         return z2, z1_, z1, z2_
         
-    def loss_fn(self, logits:tuple[torch.Tensor]):
+    def loss_fn(self, logits:Tuple[torch.Tensor]):
         # z: [b, D]
         logits = F.normalize(torch.cat(logits, dim = 0), dim=-1, p=2)
         z2, z1_, z1, z2_ = logits.split(logits.shape[0]//4, dim = 0)
         return (4 - 2 * (z2*z1_.detach_()).sum(dim=-1) - 2 * (z1*z2_.detach_()).sum(dim=-1)).mean()
     
     @torch.no_grad()
-    def acc(self, logits:tuple[torch.Tensor],
-            acc_label:torch.Tensor = None, topk: list[int] = (1, 5)):
+    def acc(self, logits:Tuple[torch.Tensor],
+            acc_label:torch.Tensor = None, topk: List[int] = (1, 5)):
         """
         acc_label: [2*b, 1]
         Computes the accuracy over the k top predictions for the specified values of k"""
@@ -254,7 +255,7 @@ class PTwinsQ(PTwins):
     
     @torch.no_grad()
     def acc(self, logits:torch.Tensor,
-            acc_label:torch.Tensor = None, topk: list[int] = (1, 5)):
+            acc_label:torch.Tensor = None, topk: List[int] = (1, 5)):
         """
         Computes the accuracy over the k top predictions for the specified values of k\n
         logits: [2*b, b+k]
@@ -292,7 +293,7 @@ class PTwinsM(PTwins):
     
     @torch.no_grad()
     def acc(self, logits:torch.Tensor,
-            acc_label:torch.Tensor = None, topk: list[int] = (1, 5)):
+            acc_label:torch.Tensor = None, topk: List[int] = (1, 5)):
         """
         Computes the accuracy over the k top predictions for the specified values of k\n
         logits: [2*b, 2*b]
@@ -355,7 +356,7 @@ class PTwinsMQ(PTwinsM):
     
     @torch.no_grad()
     def acc(self, logits:torch.Tensor,
-            acc_label:torch.Tensor = None, topk: list[int] = (1, 5)):
+            acc_label:torch.Tensor = None, topk: List[int] = (1, 5)):
         """
         Computes the accuracy over the k top predictions for the specified values of k
         # logits: [2N, 2N+k],  labelAcc: [4N, 2]

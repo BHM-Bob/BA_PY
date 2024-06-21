@@ -1,10 +1,10 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-19 14:25:44
+LastEditTime: 2024-06-21 15:16:06
 Description: mbapy.sci_instrument.hplc._base
 '''
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -13,10 +13,10 @@ import scipy.integrate
 import scipy.signal
 
 if __name__ == '__main__':
-    from mbapy.base import put_err, get_default_call_for_None
+    from mbapy.base import get_default_call_for_None, put_err
     from mbapy.sci_instrument._base import SciInstrumentData
 else:
-    from ...base import put_err, get_default_call_for_None
+    from ...base import get_default_call_for_None, put_err
     from .._base import SciInstrumentData
     
     
@@ -63,7 +63,7 @@ class HplcData(SciInstrumentData):
         return self.peak_idx
     
     def calcu_single_peak_area(self, st_tick: int, ed_tick: int, abs_data: pd.DataFrame = None)\
-        -> tuple[float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        -> Tuple[float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Parameters:
             - st_tick: int, start tick of the peak.

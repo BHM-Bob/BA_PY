@@ -1,13 +1,16 @@
 '''
 Date: 2024-02-14 16:08:08
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-14 21:04:03
+LastEditTime: 2024-06-21 15:14:19
 Description: 
 '''
 import os
 import random
 import tkinter as tk
+from typing import Dict, List, Tuple
+
 from PIL import Image, ImageTk
+
 
 class ImageMagnet(tk.Tk):
     def __init__(self, image_dir, window_size, min_image_size, scroll_direction):
@@ -71,9 +74,10 @@ class ImageMagnet(tk.Tk):
 #     app.mainloop()
 import numpy as np
 
+
 class Box:
     def __init__(self, x: int = -1, y: int = -1,
-                 w: int = 0, h: int = 0, boundarys: dict[str, bool] = None) -> None:
+                 w: int = 0, h: int = 0, boundarys: Dict[str, bool] = None) -> None:
         self.x = x
         self.y = y
         self.w = w
@@ -95,7 +99,7 @@ class Box:
         return isinstance(__value, Box) and self.area() < __value.area()
 
 class BoxStatue:
-    def __init__(self, big_box: Box, small_boxes: list[Box],
+    def __init__(self, big_box: Box, small_boxes: List[Box],
                  big_statue: np.ndarray[int],
                  small_statues: np.ndarray[bool]) -> None:
         """
@@ -110,13 +114,13 @@ class BoxStatue:
         self.big_statue = big_statue
         self.small_statues = small_statues
         
-    def _get_candidate_boxes(self) -> list[Box]:
+    def _get_candidate_boxes(self) -> List[Box]:
         if self.small_statues.sum() == 0:
             return self.small_boxes
         idx = self.small_statues.argmax()
         return self.small_boxes[idx:]
     
-    def _is_putable(self, box: Box, put_pos: tuple[int, int]) -> bool:
+    def _is_putable(self, box: Box, put_pos: Tuple[int, int]) -> bool:
         space = self.big_statue[put_pos[1]:put_pos[1]+box.h, put_pos[0]:put_pos[0]+box.w]
         if space.sum() == 0:
             if box.w < space.shape[1] and box.h < space.shape[0]:

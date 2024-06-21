@@ -2,9 +2,11 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-06-29 23:13:23
+LastEditTime: 2024-06-21 15:09:52
 Description: 
 '''
+from typing import List
+
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
@@ -135,7 +137,7 @@ class DataSetRAM():
     def _check_list(self, x):
         return [x] if not isinstance(x, list) else x
 
-    def split(self, divide:list[float],
+    def split(self, divide:List[float],
               x_transformer:list = None, y_transformer:list = None, dataset = SubDataSet):
         """divide : [0, 0.7, 0.9, 1] => train_70% val_20% test_10%"""
         ret = []
