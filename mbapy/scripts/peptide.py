@@ -551,10 +551,14 @@ class fit_mass(Command):
                           help='x-axis data limit for pre-filter of mass data, input as "200,2000", default is %(default)s')
         args.add_argument('--ms-lim', type = str, default=None,
                           help='mass limit for second-filter of transfered mass data, input as "200,2000", default is %(default)s')
+        args.add_argument('--repr-w', type = int, default=3,
+                          help = 'width of peptide animo acid representation in output, default is %(default)s')
+        args.add_argument('--disable-repr-dash', default=False, action='store_true',
+                          help = 'dash option of peptide animo acid representation in output, default is %(default)s')
         return args
         
     def process_args(self):
-        show_args(self.args, list(self.args.__dict__.keys()), self.printf)
+        show_args(self.args, ['seq'], self.printf)
         self.printf('processing arguments...\n')
         self.args.xlim = eval(f'({self.args.xlim})') if self.args.xlim is not None else None
         self.args.ms_lim = eval(f'({self.args.ms_lim})') if self.args.ms_lim is not None else None
@@ -629,10 +633,10 @@ class fit_mass(Command):
                         matched = np.where(np.abs(candidates - transfered_ms) < self.args.error_tolerance)[0]
                         if matched.size > 0:
                             all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
-                            data_i.add_match_record(ms, h, charge, mode, ' | '.join(pep[0].repr() for pep in all_matched_peps))
+                            data_i.add_match_record(ms, h, charge, mode, ' | '.join(pep[0].repr(self.args.repr_w, True, not self.args.disable_repr_dash) for pep in all_matched_peps))
                             self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
                             for i, (pep, pep_mass) in enumerate(all_matched_peps):
-                                self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep}')
+                                self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)}')
                             self.printf('\n\n')
             # save result
             data_i.save_processed_data()
