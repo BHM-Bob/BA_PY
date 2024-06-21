@@ -1,3 +1,9 @@
+'''
+Date: 2024-06-18 16:25:14
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-06-19 21:57:51
+Description: 
+'''
 import os
 from pathlib import Path
 from typing import Dict, List, Union
@@ -46,7 +52,7 @@ class WatersData(HplcData):
             tag = self.tag = join_str.join([info_df.loc[0, t].strip('"') for t in tags])
         return tag
     
-    def process_raw_data(self, *args, **kwargs):
+    def process_raw_data(self):
         try:
             lines = self.raw_data.splitlines()
             info_df = pd.DataFrame([lines[1].split('\t')], columns = lines[0].split('\t'))
@@ -58,10 +64,12 @@ class WatersData(HplcData):
         except:
             return put_err('Failed to process raw data, return None')
     
-    def get_abs_data(self, *args, **kwargs):
+    def get_abs_data(self, origin_data: bool = False) -> pd.DataFrame:
+        if self.refined_abs_data is not None and not origin_data:
+            return self.refined_abs_data
         return self.processed_data[1] if self.processed_data else self.process_raw_data()[1]
     
-    def save_processed_data(self, path: str = None, *args, **kwargs):
+    def save_processed_data(self, path: str = None):
         if not self.processed_data:
             self.process_raw_data()
         if path is None:
