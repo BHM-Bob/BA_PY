@@ -29,7 +29,7 @@
         "pdfplumber",
         "pyteomics",
         "pygame",
-        "nicegui"
+        "nicegui[highcharts]"
     ],
     "game":
     [
@@ -51,6 +51,6 @@
         "moviepy",
         "pygame",
         "easyocr",
-        "nicegui"
+        "nicegui[highcharts]"
     ]
 }
