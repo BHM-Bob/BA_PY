@@ -52,7 +52,7 @@ def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, le
     print(f'{name}: processed data saved to {data.processed_data_path}')
     # style adjust and save
     ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
-                                   labels_eps=labels_eps, legend_bbox = legend_bbox)
+                                   labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox)
     plt.xticks(size = 20);plt.yticks(size = 20)
     plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
     plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.5)
