@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-15 21:01:33
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-15 23:02:22
+LastEditTime: 2024-06-27 22:05:26
 Description: 
 '''
 
@@ -81,7 +81,7 @@ def main(sys_args: List[str] = None):
     # print result
     for file_type, size, count in type_info:
         print(f'{file_type:10s}: {format_file_size(size):15s} ({size:10d} bytes) ({size/total_size:6.2%} of total size) ({count:10d} files) ({count/total_file:6.2%} of total files)')
-    print(f'\ntotal types: {len(type_size)}\ntotal files: {total_file}\ntotal size: {format_file_size(total_size)} ({size} bytes)')
+    print(f'\ntotal types: {len(type_size)}\ntotal files: {total_file}\ntotal size: {format_file_size(total_size)} ({total_size} bytes)')
         
     return paths, type_size
     
