@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-28 21:26:05
+LastEditTime: 2024-06-28 21:40:00
 Description: mbapy.sci_instrument.hplc._base
 '''
 from typing import Dict, List, Tuple, Union
@@ -28,7 +28,7 @@ class HplcData(SciInstrumentData):
         self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
         self.refined_abs_data: pd.DataFrame = None
         self.area: Dict[int, Dict[str, Union[float, int, np.ndarray]]] = {} # the area and underline of peaks
-        self.peak_idx: np.ndarray = None # the index of peaks in the data, in tick.
+        self.peaks_idx: np.ndarray = None # the index of peaks in the data, in tick.
         
     def get_abs_data(self, origin_data: bool = False, *args, **kwargs) -> pd.DataFrame:
         if self.refined_abs_data is not None and not origin_data:
@@ -58,10 +58,10 @@ class HplcData(SciInstrumentData):
         peaks_idx, peak_props = scipy.signal.find_peaks(df[self.Y_HEADER], rel_height = peak_height_rel,
                                                         prominence = peak_height_threshold, width = width)
         # filter peaks by start_search_time and end_search_time
-        self.peak_idx = peaks_idx[peaks_idx >= st]
+        self.peaks_idx = peaks_idx[peaks_idx >= st]
         if ed is not None:
-            self.peak_idx = peaks_idx[peaks_idx <= ed]
-        return self.peak_idx
+            self.peaks_idx = self.peaks_idx[peaks_idx <= ed]
+        return self.peaks_idx
     
     def calcu_single_peak_area(self, st_tick: int, ed_tick: int, abs_data: pd.DataFrame = None)\
         -> Tuple[float, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -115,7 +115,7 @@ class HplcData(SciInstrumentData):
         """
         abs_data = self.get_abs_data()
         widths, width_heights, left, right = scipy.signal.peak_widths(abs_data[self.Y_HEADER], peaks_idx, rel_height = rel_height)
-        self.area, self.peak_idx = {}, peaks_idx
+        self.area, self.peaks_idx = {}, peaks_idx
         for i, peak_tick in enumerate(peaks_idx):
             # adjust curruent peak's boundary if not allow overlap
             if not allow_overlap:
@@ -157,7 +157,7 @@ class HplcData(SciInstrumentData):
                 - 'width': float, the width of the peak(in ticks).
                 - 'height': float, the height of the peak.
         """
-        if isinstance(peaks_idx, np.ndarray) and np.array_equal(peaks_idx, self.peak_idx):
+        if isinstance(peaks_idx, np.ndarray) and np.array_equal(peaks_idx, self.peaks_idx):
             return self.calcu_peaks_area(peaks_idx, rel_height, allow_overlap)
         elif self.area:
             return self.area
