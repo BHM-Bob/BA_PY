@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-28 21:44:31
+LastEditTime: 2024-06-28 21:48:46
 Description: mbapy.sci_instrument.hplc._base
 '''
 from typing import Dict, List, Tuple, Union
