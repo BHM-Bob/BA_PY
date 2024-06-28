@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-21 15:16:06
+LastEditTime: 2024-06-28 21:26:05
 Description: mbapy.sci_instrument.hplc._base
 '''
 from typing import Dict, List, Tuple, Union
@@ -51,8 +51,9 @@ class HplcData(SciInstrumentData):
         """
         # prepare prams and search peaks
         df = self.get_abs_data()
-        st = self.get_tick_by_minute(start_search_time) # start_search_time单位为分钟, st's unit is data tick
-        ed = self.get_tick_by_minute(end_search_time) if end_search_time is not None else None
+        t0 = self.get_tick_by_minute(self.get_abs_data()[self.X_HEADER][0]) # for refine x-axis data
+        st = self.get_tick_by_minute(start_search_time) - t0 # start_search_time单位为分钟, st's unit is data tick
+        ed = self.get_tick_by_minute(end_search_time) - t0 if end_search_time is not None else None
         width = self.get_tick_by_minute(peak_width_threshold)
         peaks_idx, peak_props = scipy.signal.find_peaks(df[self.Y_HEADER], rel_height = peak_height_rel,
                                                         prominence = peak_height_threshold, width = width)
