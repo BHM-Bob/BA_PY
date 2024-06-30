@@ -19,7 +19,7 @@ from mbapy.base import Configs, put_err
 from mbapy.file import get_paths_with_extension, get_valid_file_path
 from mbapy.game import BaseInfo
 from mbapy.plot import PLT_MARKERS, get_palette, save_show
-from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
+from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData, SciexMZMine
 from mbapy.sci_instrument.mass import plot_mass as _plot_mass
 from mbapy.sci_instrument.mass import process_peak_labels
 from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
@@ -71,7 +71,7 @@ def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, le
     
 
 class plot_mass(Command):
-    SUPPORT_SYS: Dict[str, MassData] = {'SCIEX-PeakList': SciexPeakListData, 'SCIEX-Ori': SciexOriData}
+    SUPPORT_SYS: Dict[str, MassData] = {'SCIEX-PeakList': SciexPeakListData, 'SCIEX-Ori': SciexOriData, 'SCIEX-MZMine': SciexMZMine}
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.task_pool: TaskPool = None
