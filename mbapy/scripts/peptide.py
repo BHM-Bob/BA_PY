@@ -555,6 +555,8 @@ class fit_mass(Command):
                           help = 'width of peptide animo acid representation in output, default is %(default)s')
         args.add_argument('--disable-repr-dash', default=False, action='store_true',
                           help = 'dash option of peptide animo acid representation in output, default is %(default)s')
+        args.add_argument('--remain-old-match', default=False, action='store_true',
+                          help='keep old match record in mass data, default is %(default)s')
         return args
         
     def process_args(self):
@@ -624,6 +626,8 @@ class fit_mass(Command):
             else:
                 charges = monoisotopic_df[data_i.CHARGE_HEADER].values
             ## match
+            if not self.args.remain_old_match:
+                data_i.match_df = data_i.match_df.iloc[0:0]
             for i, (ms, h, charge) in enumerate(zip(monoisotopic_df[data_i.X_HEADER], monoisotopic_df[data_i.Y_HEADER], charges)):
                 for mode, iron in MassData.ESI_IRON_MODE.items():
                     if iron['c'] != charge:
