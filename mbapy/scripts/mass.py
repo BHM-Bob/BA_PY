@@ -62,6 +62,8 @@ def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, le
             ax.figure.set_size_inches(max(fig_size[0], legend_size[0]), fig_size[1] + legend_size[1])
     # style fix and save
     plt.xticks(size = 20);plt.yticks(size = 20)
+    plt.ylabel(f'{data.Y_HEADER}', fontdict={'size': 25})
+    plt.xlabel(f'{data.X_HEADER}', fontdict={'size': 25})
     plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
     plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.5)
     png_path = Path(data.data_file_path).with_suffix('.png')
