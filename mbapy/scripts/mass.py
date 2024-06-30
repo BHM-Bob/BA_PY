@@ -145,7 +145,7 @@ class plot_mass(Command):
                 print(f'{n}: search peaks...')
                 data.search_peaks(self.args.xlim, self.args.min_peak_width,
                                   self.task_pool, self.args.multi_process)
-                data.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
+            data.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
             # choose mass data
             if self.args.mass and data.X_M_HEADER is not None:
                 data.X_HEADER = data.X_M_HEADER
