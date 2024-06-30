@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-30 16:57:26
+LastEditTime: 2024-06-30 17:05:47
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
@@ -90,8 +90,10 @@ class SciexMZMine(SciexOriData):
         if re.match(r'Scan #\d+', df.columns[0]) and df.columns[1] == 'Unnamed: 1':
             # original data format: head: col1='Scan #1397', col2='Unnamed: 1'
             self.peak_df = self.processed_data = pd.DataFrame(df.iloc[1:, :].values, columns=self.MULTI_HEADERS)
+            self.SUCCEED_LOADED = True
         elif self.MULTI_HEADERS == list(df.columns):
             self.peak_df = self.processed_data = df
+            self.SUCCEED_LOADED = True
         else:
             self.processed_data = None
             self.SUCCEED_LOADED = False
