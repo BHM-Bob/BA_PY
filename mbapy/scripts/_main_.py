@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-06 11:25:29
+LastEditTime: 2024-06-28 13:35:17
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -12,7 +12,7 @@ import sys
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 
-from mbapy.base import get_storage_path
+from mbapy.base import get_fmt_time, get_storage_path
 from mbapy.file import opts_file
 
 scripts_info = opts_file(get_storage_path('mbapy-cli-scripts-list.json'), way = 'json')
@@ -80,6 +80,11 @@ def main():
         elif sys.argv[1] in exec2script:
             # exec scripts with only ZERO arg
             exec_scripts()
+        elif os.path.exists(sys.argv[1]) and sys.argv[1].endswith('.mpss'):
+            from mbapy.scripts._script_utils_ import Command
+            print(f'loading session from file: {sys.argv[1]}')
+            Command(None).exec_from_session(sys.argv[1])
+            os.system('pause') # avoid cmd window close immediately
         else:
             _handle_unkown()
     else:
@@ -88,9 +93,8 @@ def main():
             exec_scripts()
         else:
             _handle_unkown()
-            
-    # print a '\n' in the end
-    print('')
+    # exit
+    print(f'\nmbapy-cli: exit at {get_fmt_time()}')
             
 
 if __name__ == '__main__':
