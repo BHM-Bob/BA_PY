@@ -1,19 +1,21 @@
 '''
 Date: 2024-01-12 16:06:35
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-02 21:29:19
+LastEditTime: 2024-06-30 17:21:31
 FilePath: \BA_PY\mbapy\scripts\_script_utils_.py
 Description: 
 '''
 import argparse
-from typing import List, Dict
+import os
 from pathlib import Path
-
+from typing import Any, Dict, List, Union
 
 if __name__ == '__main__':
-    from mbapy.base import put_err
+    from mbapy.base import check_parameters_path, parameter_checker, put_err
+    from mbapy.file import opts_file
 else:
-    from ..base import put_err
+    from ..base import check_parameters_path, parameter_checker, put_err
+    from ..file import opts_file
 
 
 def clean_path(path: str):
@@ -52,11 +54,14 @@ def excute_command(args_paser: argparse.ArgumentParser, sys_args: List[str],
     args = args_paser.parse_args(sys_args)
     
     if args.sub_command in _str2func:
-        print(f'excuting command: {args.sub_command}')
-        if issubclass(_str2func[args.sub_command], Command):
-            _str2func[args.sub_command](args).excute()
-        else:
-            _str2func[args.sub_command](args)
+        try:
+            if issubclass(_str2func[args.sub_command], Command):
+                _str2func[args.sub_command](args).excute()
+            else:
+                _str2func[args.sub_command](args)
+        except:
+            if callable(_str2func[args.sub_command]):
+                _str2func[args.sub_command](args)
     else:
         put_err(f'no such sub commmand: {args.sub_command}')
         
