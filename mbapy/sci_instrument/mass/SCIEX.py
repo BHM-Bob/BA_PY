@@ -1,12 +1,13 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-17 15:35:50
+LastEditTime: 2024-06-30 16:57:26
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
 from functools import partial
 from pathlib import Path
+import re
 from typing import Dict, List, Optional, Union
 
 import numpy as np
@@ -75,11 +76,32 @@ class SciexOriData(MassData):
         elif self.data_file_path.endswith('.xlsx'):
             self.processed_data = self.load_processed_data_file(data_file_path) # return data_df
         self.tag = self.make_tag() if not self.check_processed_data_empty() else None
+        
+
+class SciexMZMine(SciexOriData):
+    DATA_FILE_SUFFIX: List[str] = ['.xlsx']
+    RECOMENDED_DATA_FILE_SUFFIX: str = '.xlsx'
+    @parameter_checker(data_file_path=partial(path_param_checker, suffixs=DATA_FILE_SUFFIX))
+    def __init__(self, data_file_path: Optional[str] = None) -> None:
+        super().__init__(data_file_path)
     
+    def load_processed_data_file(self, path: str = None, data_bytes: bytes = None):
+        df = pd.read_excel(self.data_file_path or path or data_bytes)
+        if re.match(r'Scan #\d+', df.columns[0]) and df.columns[1] == 'Unnamed: 1':
+            # original data format: head: col1='Scan #1397', col2='Unnamed: 1'
+            self.peak_df = self.processed_data = pd.DataFrame(df.iloc[1:, :].values, columns=self.MULTI_HEADERS)
+        elif self.MULTI_HEADERS == list(df.columns):
+            self.peak_df = self.processed_data = df
+        else:
+            self.processed_data = None
+            self.SUCCEED_LOADED = False
+        return self.processed_data
+
 
 __all__ = [
     'SciexPeakListData',
     'SciexOriData',
+    'SciexMZMine'
 ]
 
 
