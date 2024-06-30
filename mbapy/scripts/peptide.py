@@ -618,7 +618,12 @@ class fit_mass(Command):
                 data_i.search_peaks(self.args.xlim, self.args.min_peak_width, self.task_pool, self.args.multi_process)
             data_i.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
             # match and set match column
-            monoisotopic_df = data_i.peak_df[data_i.peak_df['Monoisotopic']]
+            ## set monoisotopic df
+            if 'Monoisotopic' in data_i.peak_df.columns:
+                monoisotopic_df = data_i.peak_df[data_i.peak_df['Monoisotopic']]
+            else:
+                put_log(f'{n} has no "Monoisotopic" column, using all peaks')
+                monoisotopic_df = data_i.peak_df.copy(True)
             ## set charge column
             if data_i.CHARGE_HEADER is None:
                 put_log(f'{n} has no charge header, assuming charge 1')
