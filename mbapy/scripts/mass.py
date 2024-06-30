@@ -50,9 +50,17 @@ def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, le
     # save processed data
     data.save_processed_data()
     print(f'{name}: processed data saved to {data.processed_data_path}')
-    # style adjust and save
+    # plot
     ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
                                    labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox)
+    # change fig size if legend size is over fig size
+    if extra_artists:
+        legend_size = extra_artists[0].get_window_extent()
+        legend_size = (legend_size.width / ax.figure.dpi, legend_size.height / ax.figure.dpi)
+        fig_size = ax.figure.get_size_inches()
+        if legend_size[0] > fig_size[0] or legend_size[1] > fig_size[1]/4:
+            ax.figure.set_size_inches(max(fig_size[0], legend_size[0]), fig_size[1] + legend_size[1])
+    # style fix and save
     plt.xticks(size = 20);plt.yticks(size = 20)
     plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
     plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.5)
