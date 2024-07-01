@@ -362,6 +362,9 @@ class Peptide:
     def __eq__(self, other: 'Peptide') -> bool:
         return all([aa1 == aa2 for aa1, aa2 in zip(self.AAs, other.AAs)])
     
+    def __hash__(self) -> int:
+        return hash(self.repr(1, True, False))
+    
     def get_molecular_formula_dict(self):
         """
         Calculates the molecular formula of the protein by summing the molecular formula of each amino acid.
