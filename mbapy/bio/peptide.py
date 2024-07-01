@@ -163,6 +163,9 @@ class AnimoAcid:
     def __eq__(self, other: 'AnimoAcid') -> bool:
         return self.N_protect == other.N_protect and self.animo_acid == other.animo_acid and self.C_protect == other.C_protect and self.R_protect == other.R_protect
     
+    def __hash__(self) -> int:
+        return hash(self.N_protect + self.animo_acid + self.C_protect + self.R_protect)
+    
     def calcu_mw(self, expand_mw_dict: Dict[str, float] = None):
         """
         Calculate the molecular weight of the peptide sequence.
