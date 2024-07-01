@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-17 18:23:32
+LastEditTime: 2024-06-30 21:09:45
 Description: 
 '''
 
@@ -69,6 +69,9 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
                     horizontalalignment='left', verticalalignment='center')
     # plot match
     for x, y, charge, mode, substance, col, marker in zip(match_df['x'], match_df['y'], match_df['c'], match_df['mode'], match_df['substance'], match_df['color'], match_df['marker']):
+        if data.X_HEADER == data.X_M_HEADER:
+            esi_mode = data.ESI_IRON_MODE[mode]
+            x = (x*charge-esi_mode['im'])/esi_mode['m']
         _plot_vlines(ax, [x], [y], col, marker=marker,
                      scatter_label=f'{x:.3f}: {substance}{mode}',
                      plot_scatter=True, scatter_size=marker_size)
