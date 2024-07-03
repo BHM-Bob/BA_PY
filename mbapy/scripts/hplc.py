@@ -18,7 +18,7 @@ from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
                         get_valid_file_path)
 from mbapy.plot import get_palette, save_show
 from mbapy.sci_instrument.hplc import (HplcData, SciexData, SciexTicData,
-                                       WatersData)
+                                       WatersData, EasychromData)
 from mbapy.sci_instrument.hplc._utils import plot_hplc as _plot_hplc
 from mbapy.sci_instrument.hplc._utils import (process_file_labels,
                                               process_peak_labels)
@@ -26,12 +26,12 @@ from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
 
 
 class plot_hplc(Command):
-    SUPPORT_SYSTEMS = {'waters', 'SCIEX', 'SCIEX-TIC'}
+    SUPPORT_SYSTEMS = {'waters', 'SCIEX', 'SCIEX-TIC', 'EasyChrom'}
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.dfs = {}
-        self.sys2suffix = {'waters': 'arw', 'SCIEX': 'txt', 'SCIEX-TIC': 'txt'}
-        self.sys2model: Dict[str, HplcData] = {'waters': WatersData, 'SCIEX': SciexData, 'SCIEX-TIC': SciexTicData}
+        self.sys2suffix = {'waters': 'arw', 'SCIEX': 'txt', 'SCIEX-TIC': 'txt', 'EasyChrom': 'txt'}
+        self.sys2model: Dict[str, HplcData] = {'waters': WatersData, 'SCIEX': SciexData, 'SCIEX-TIC': SciexTicData, 'EasyChrom': EasychromData}
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
