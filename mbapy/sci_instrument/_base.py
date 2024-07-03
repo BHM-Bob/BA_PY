@@ -75,13 +75,14 @@ class SciInstrumentData:
             tag = self.tag = Path(self.data_file_path).stem
         return tag
     
-    def process_raw_data(self, *args, **kwargs):
+    def process_raw_data(self, y_scale: float = 1, **kwargs):
         try:
             lines = self.raw_data.splitlines()
             header = lines[0].split('\t')
             if header[0] == self.X_HEADER and header[1] == self.Y_HEADER:
                 data_df = pd.DataFrame([line.split('\t') for line in lines[1:]],
                                        columns = [self.X_HEADER, self.Y_HEADER]).astype({self.X_HEADER: float, self.Y_HEADER: float})
+                data_df[self.Y_HEADER] *= y_scale
                 self.SUCCEED_LOADED = True
                 self.data_df = data_df
                 return data_df
