@@ -38,7 +38,7 @@ class plot_hplc(Command):
         args.add_argument('-i', '--input', type = str, default='.',
                           help="data file directory, default is %(default)s.")
         args.add_argument('-s', '--system', type = str, default='waters',
-                          help=f"HPLC system. Default is %(default)s, those systems are supported: {plot_hplc.SUPPORT_SYSTEMS}")
+                          help=f"HPLC system. Default is %(default)s, those systems are supported: {', '.join(list(plot_hplc.SUPPORT_SYSTEMS))}")
         args.add_argument('-r', '--recursive', action='store_true', default=False,
                           help='search input directory recursively, default is %(default)s.')
         args.add_argument('-merge', action='store_true', default=False,
@@ -142,7 +142,7 @@ class explore_hplc(plot_hplc):
         args.add_argument('-i', '--input', type = str, default='.',
                           help="data file directory, default is %(default)s.")
         args.add_argument('-s', '--system', type = str, default='waters',
-                          help="HPLC system. Default is %(default)s, those systems are supported: {plot_hplc.SUPPORT_SYSTEMS}")
+                          help=f"HPLC system. Default is %(default)s, those systems are supported: {', '.join(list(plot_hplc.SUPPORT_SYSTEMS))}")
         args.add_argument('-url', '--url', type = str, default='localhost',
                           help="url to connect to, default is %(default)s.")
         args.add_argument('-port', '--port', type = int, default=8011,
