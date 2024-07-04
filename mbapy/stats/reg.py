@@ -2,24 +2,53 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-06 20:44:44
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-23 10:28:57
+LastEditTime: 2024-07-04 22:54:27
 Description: 
 '''
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
-import scipy
+import statsmodels.api as sm
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 
-if __name__ == '__main__':
-    # dev mode
-    from mbapy.stats.cluster import (KBayesian, KMeans, cluster,
-                                     cluster_support_methods)
-else:
-    # release mode
-    from .cluster import KBayesian, KMeans, cluster, cluster_support_methods
+
+def linea_reg_OLS(x: Union[str, List[str]], y:str, df:pd.DataFrame):
+    """
+    Perform ordinary least squares regression on the given DataFrame.
+
+    Parameters:
+        - x (str | List[str]): The column name for the independent variable, can be a list of column names for multiple independent variables.
+        - y (str): The column name for the dependent variable.
+        - df (pd.DataFrame): The DataFrame containing the data.
+
+    Returns:
+        - dict: A dictionary containing the regression model, coefficients, intercept, and R-squared value.
+            - 'regressor' (OLS): The fitted regression model.
+            - 'coef' (np.ndarray): The coefficients of the regression model.
+            - 'intercept' (float): The intercept of the regression model.
+            - 'r2' (float): The R-squared value of the regression.
+            - 'p' (float): The p-value of the regression.
+    """
+    y = df[y]
+    if isinstance(x, str):
+        x = [x]
+    X = sm.add_constant(df[x])
+    results = sm.OLS(y, X).fit()
+    # 从结果中提取斜率（系数）和截距
+    a = results.params[x] if isinstance(x, str) else results.params  # 斜率
+    b = results.params['const']  # 截距，'const'是添加的截距项的默认列名
+    r2 = results.rsquared
+    p = results.pvalues[0]
+    return {
+       'results':results,
+        'a': a,
+        'b': b,
+        'r2': r2,
+        'p': p,
+    }
+
 
 def linear_reg(x:str, y:str, df:pd.DataFrame):
     """
@@ -105,4 +134,6 @@ def quadratic_reg(x_str: str, y_str: str, df: pd.DataFrame):
 
 if __name__ == '__main__':
     # dev code
-    pass
+    data = pd.read_excel('data/plot.xlsx', sheet_name='MWM')
+    print(linea_reg_OLS('Duration', 'First Entry Speed', data))
+    print(linear_reg('Duration', 'First Entry Speed', data))
