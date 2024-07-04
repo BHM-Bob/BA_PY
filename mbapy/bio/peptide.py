@@ -1,5 +1,6 @@
 import re
 from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Dict, List
 
 
@@ -462,9 +463,247 @@ class Peptide:
         return cp
     
 
+@dataclass
+class MutationOpts:
+    AA_deletion: bool = True # whether delete AA can be performed
+    AA_repeat: int = 1 # AA repeat times of AA
+    AA_replace: bool = False # whether replace AA can be performed
+    AA_replace_AAs: List[AnimoAcid] = field(default_factory=list) # AA replace AAs of AA
+    N_protect_deletion: bool = True # whether delete N-terminal protect group can be performed
+    C_protect_deletion: bool = True # whether delete C-terminal protect group can be performed
+    R_protect_deletion: bool = True # whether delete R-terminal protect group can be performed
+    
+    def copy(self):
+        return MutationOpts(self.AA_deletion, self.AA_repeat,
+                            self.AA_replace, [aa.copy() for aa in self.AA_replace_AAs],
+                            self.N_protect_deletion, self.C_protect_deletion, self.R_protect_deletion)
+    
+    def check_empty(self, _pos: List[int], seq: Peptide):
+        """
+        return list of signals which is able to opt, if empty, the lis is also empty.
+        """
+        pos, repeat_pos, sum_repeat = _pos
+        able = []
+        if pos >= len(seq.AAs):
+            return []
+        if sum_repeat == 1:
+            # this AA has not been repeated yet, make all options
+            if self.AA_deletion:
+                able.append('AA_deletion')
+            if self.AA_replace and self.AA_replace_AAs:
+                able.append('AA_replace')
+            if self.AA_repeat > 0:
+                able.append('AA_repeat')
+            if seq.AAs[pos].N_protect != 'H' and self.N_protect_deletion:
+                able.append('N_protect_deletion')
+            if seq.AAs[pos].C_protect != 'OH' and self.C_protect_deletion:
+                able.append('C_protect_deletion')
+            if seq.AAs[pos].R_protect != 'H' and self.R_protect_deletion:
+                able.append('R_protect_deletion')
+        else:
+            # this AA has been repeated, make only deprotection options
+            if seq.AAs[pos][repeat_pos].N_protect != 'H' and self.N_protect_deletion:
+                able.append('N_protect_deletion')
+            if seq.AAs[pos][repeat_pos].C_protect != 'OH' and self.C_protect_deletion:
+                able.append('C_protect_deletion')
+            if seq.AAs[pos][repeat_pos].R_protect != 'H' and self.R_protect_deletion:
+                able.append('R_protect_deletion')
+        return able
+                
+    def delete_AA(self, tree: 'MutationTree'):
+        """
+        perform delete_AA mutation in tree.mutate branch, trun off the tree.branches.opt.AA_deletion.
+            - THE AA CAN NOT BE REPEATED.
+            
+        Params:
+            - tree: MutationTree, tree to opt.
+        """
+        pos, repeat_pos, sum_repeat = tree.pos
+        # perform delete_AA mutation in tree.mutate branch
+        tree.mutate.seq.AAs[pos] = []
+        # mutate branch MOVE TO NEXT NEW AA, this also means trun off the delete AA opt in mutate branch
+        tree.mutate.pos[0] += 1
+        if len(tree.OPTS) > tree.mutate.pos[0]:
+            tree.mutate.opt = tree.OPTS[tree.mutate.pos[0]].copy()
+        # trun off the delete AA opt in remain branch
+        tree.remain.opt.AA_deletion = False
+        return tree
+    
+    def repeat_AA(self, tree: 'MutationTree'):
+        """
+        perform delete_AA mutation in tree.mutate branch, trun off the tree.branches.opt.AA_deletion.
+            - THE AA CAN NOT BE REPEATED.
+            
+        Params:
+            - tree: MutationTree, tree to opt.
+        """
+        pos, repeat_pos, sum_repeat = tree.pos
+        # perform repeat_AA mutation in tree.mutate branch
+        tree.mutate.seq.AAs[pos] = [tree.mutate.seq.AAs[pos].copy() \
+            for _ in range(tree.opt.AA_repeat + 1)]
+        # change repeated AAs' N/C protect group if needed
+        if pos == 0 and tree.PEPTIDE.AAs[pos].N_protect != 'H':
+            for aa in tree.mutate.seq.AAs[pos][1:]:
+                aa.N_protect = 'H'
+        elif pos == len(tree.PEPTIDE.AAs)-1 and tree.PEPTIDE.AAs[pos].C_protect != 'OH':
+            for aa in tree.mutate.seq.AAs[pos][:-1]:
+                aa.C_protect = 'OH'
+        # change mutate branch 's pos 's sum_repeat to tree.opt.repeat_AA + 1
+        tree.mutate.pos[2] = tree.opt.AA_repeat + 1
+        # trun off the repeat AA opt in mutate branches
+        tree.mutate.opt.AA_repeat = 0
+        # decrease the repeat AA opt in remain branches
+        tree.remain.opt.AA_repeat -= 1
+        return tree
+    
+    def replace_AA(self, tree: 'MutationTree'):
+        """
+        perform replace_AA mutation in tree.mutate branch, trun off the tree.branches.opt.AA_replace.
+        
+        Params:
+            - tree: MutationTree, tree to opt.
+        """
+        pos, repeat_pos, sum_repeat = tree.pos
+        # perform replace_AA mutation in tree.mutate branch
+        tree.mutate.seq.AAs[pos] = self.AA_replace_AAs[0]
+        # trun off the replace AA opt in two branches
+        tree.mutate.opt.AA_replace_AAs.pop(0)
+        tree.remain.opt.AA_replace_AAs.pop(0)
+        return tree
+
+    def delete_NCR(self, tree: 'MutationTree', NCR: str):
+        """
+        perform delete_NCR mutation in tree.mutate branch, trun off the tree.branches.opt.X_protect_deletion
+        Params:
+            - tree: MutationTree, tree to opt.
+            - NCR: str, N or C or R.
+        """
+        pos, repeat_pos, sum_repeat = tree.pos
+        null_pg = 'H' if NCR in ['N', 'R'] else 'OH'
+        # delete X-terminal protect group
+        if sum_repeat == 1 and getattr(tree.mutate.seq.AAs[pos], f'{NCR}_protect') != null_pg:
+            setattr(tree.mutate.seq.AAs[pos], f'{NCR}_protect', null_pg)
+        elif sum_repeat > 1 and getattr(tree.mutate.seq.AAs[pos][repeat_pos], f'{NCR}_protect') != null_pg:
+            setattr(tree.mutate.seq.AAs[pos][repeat_pos], f'{NCR}_protect', null_pg)
+        # trun off the opt in two branches
+        setattr(tree.mutate.opt, f'{NCR}_protect_deletion', False)
+        setattr(tree.remain.opt, f'{NCR}_protect_deletion', False)
+        return tree
+                
+    def perform_one(self, tree: 'MutationTree'):
+        """
+        Perform ONE mutation opt left in tree.opt, return this tree. Also check if it is a repeated AA.
+        If it is a repeated AA depend on tree.pos[2], skip AA deletion and AA repeat.
+            - If no opt left to do:
+                - let two brance still be None.
+                - return the tree.
+            - IF HAS:
+                - generate two branch, change branches' father
+                - perform mutation in mutate branch
+                - trun off opt in two branches
+                - move pos ONLY in mutate branch.
+                - DO NOT CHECK IF MEETS END in both this dot and two branches.
+                - return the tree.
+        """
+        able = tree.opt.check_empty(tree.pos, tree.seq)
+        if able:
+            # generate two branch and set seq to None to free memory
+            tree.generate_two_branch()
+            # perform mutation
+            if 'AA_deletion' in able:
+                tree = self.delete_AA(tree)
+            elif 'AA_replace' in able:
+                tree = self.replace_AA(tree)
+            elif 'AA_repeat' in able:
+                tree = self.repeat_AA(tree)
+            elif 'N_protect_deletion' in able:
+                tree = self.delete_NCR(tree, 'N')
+            elif 'C_protect_deletion' in able:
+                tree = self.delete_NCR(tree, 'C')
+            elif 'R_protect_deletion' in able:
+                tree = self.delete_NCR(tree, 'R')
+            else:
+                raise ValueError('error when check empty with MutationOpts')
+        # return tree
+        return tree
+    
+    
+@dataclass
+class MutationTree:
+    PEPTIDE: Peptide # mother peptide, READ ONLY, remians unchanged
+    OPTS: List[MutationOpts] # each AAs' opt to perform, READ-ONLY, remains unchanged
+    seq: Peptide # current dot's peptide seqeunce to perform mutate
+    opt: MutationOpts # current dot's opt to perform
+    # [current AA pos, current repeat pos, sum repeat in this AA in seq], if last number is 1, means no repeat in this AA
+    pos: List[int] = field(default_factory = lambda: [0, 0, 1])
+    father: 'MutationTree' = None # father dot
+    remain: 'MutationTree' = None # father dot
+    mutate: 'MutationTree' = None # father dot
+    
+    def copy(self, father: 'MutationTree' = None, remain: 'MutationTree' = None,
+             mutate: 'MutationTree' = None):
+        """
+        """
+        cp = MutationTree(self.PEPTIDE, self.OPTS, self.seq.copy(), self.opt.copy(), [i for i in self.pos])
+        cp.father = father
+        cp.remain = remain
+        cp.mutate = mutate
+        return cp
+    
+    def extract_mutations(self, flatten: bool = True):
+        """
+        extract all terminal dots from mutations(Tree)
+            - flatten==True:  will CHANGE it's peptide.AAs, return the flattened peptide.
+            - flatten==False: will simply return all leaves of MutationTree.
+        """
+        if self.mutate is None and self.remain is None:
+            if flatten:
+                self.seq.flatten(inplace=True)
+                return [self.seq]
+            else:
+                return [self]
+        else:
+            final_seq = []
+            final_seq.extend(self.remain.extract_mutations(flatten))
+            final_seq.extend(self.mutate.extract_mutations(flatten))
+            return final_seq
+    
+    def check_is_end_pos(self):
+        """check if current AA is the last AA whether in repeat or mother peptide"""
+        if self.pos[0] >= len(self.PEPTIDE.AAs) - 1 and self.pos[1] >= self.pos[2] - 1:
+            return True
+        return False
+        
+    def generate_two_branch(self):
+        """Generate two branch with all None remian and mutate branch, return itself."""
+        self.remain = self.copy(father=self)
+        self.mutate = self.copy(father=self)
+        return self
+        
+    def move_to_next(self):
+        """
+        move current AA pos to next repeat AA or next NEW AA
+            - return True is moved, else False when is end."""
+        if not self.check_is_end_pos():
+            if self.pos[1] == self.pos[2] - 1:
+                # repeat idx meets end or do not have a repeat, move to next NEW AA
+                self.pos[0] += 1
+                self.pos[1] = 0
+                self.pos[2] = 1
+            else:
+                # move to next repeat AA
+                self.pos[1] += 1
+            # copy next original opt to current opt
+            self.opt = self.OPTS[self.pos[0]].copy()
+            return True
+        return False
+    
+
 __all__ = [
     'AnimoAcid',
     'Peptide',
+    'MutationOpts',
+    'MutationTree'
 ]
 
 
