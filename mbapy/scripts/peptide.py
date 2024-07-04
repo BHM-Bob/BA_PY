@@ -15,7 +15,8 @@ os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import put_err, put_log, split_list
-from mbapy.bio.peptide import AnimoAcid, Peptide
+from mbapy.bio.peptide import AnimoAcid, Peptide, MutationOpts
+from mbapy.bio.high_level import calcu_peptide_mutations
 from mbapy.file import get_paths_with_extension, get_valid_file_path, opts_file
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
 from mbapy.scripts._script_utils_ import (Command, _print, clean_path,
@@ -101,249 +102,6 @@ def calcu_mw(args: argparse.Namespace, _print = print):
     if args.mass:
         _print(f'Chemical Formular: {peptide.get_molecular_formula()}, Exact Mass: {peptide.calcu_mass()}')
     return peptide, expand_mw_dict
-    
-    
-@dataclass
-class MutationOpts:
-    AA_deletion: bool = True # whether delete AA can be performed
-    AA_repeat: int = 1 # AA repeat times of AA
-    N_protect_deletion: bool = True # whether delete N-terminal protect group can be performed
-    C_protect_deletion: bool = True # whether delete C-terminal protect group can be performed
-    R_protect_deletion: bool = True # whether delete R-terminal protect group can be performed
-    
-    def copy(self):
-        return MutationOpts(self.AA_deletion, self.AA_repeat, self.N_protect_deletion,
-                            self.C_protect_deletion, self.R_protect_deletion)
-    
-    def check_empty(self, _pos: List[int], seq: Peptide, args: argparse.Namespace):
-        """
-        return list of signals which is able to opt, if empty, the lis is also empty.
-        """
-        pos, repeat_pos, sum_repeat = _pos
-        able = []
-        if pos >= len(seq.AAs):
-            return []
-        if sum_repeat == 1:
-            if self.AA_deletion and not args.disable_aa_deletion:
-                able.append('AA_deletion')
-            if self.AA_repeat > 0:
-                able.append('AA_repeat')
-            if seq.AAs[pos].N_protect != 'H' and self.N_protect_deletion:
-                able.append('N_protect_deletion')
-            if seq.AAs[pos].C_protect != 'OH' and self.C_protect_deletion:
-                able.append('C_protect_deletion')
-            if seq.AAs[pos].R_protect != 'H' and self.R_protect_deletion:
-                able.append('R_protect_deletion')
-        else:
-            if seq.AAs[pos][repeat_pos].N_protect != 'H' and self.N_protect_deletion:
-                able.append('N_protect_deletion')
-            if seq.AAs[pos][repeat_pos].C_protect != 'OH' and self.C_protect_deletion:
-                able.append('C_protect_deletion')
-            if seq.AAs[pos][repeat_pos].R_protect != 'H' and self.R_protect_deletion:
-                able.append('R_protect_deletion')
-        return able
-                
-    def delete_AA(self, tree: 'MutationTree', max_repeat: int):
-        """
-        perform delete_AA mutation in tree.mutate branch, trun off the tree.branches.opt.AA_deletion.
-            - THE AA CAN NOT BE REPEATED.
-            
-        Params:
-            - tree: MutationTree, tree to opt.
-        """
-        pos, repeat_pos, sum_repeat = tree.pos
-        # perform delete_AA mutation in tree.mutate branch
-        tree.mutate.seq.AAs[pos] = []
-        #  mutate branch MOVE TO NEXT NEW AA
-        tree.mutate.pos[0] += 1
-        tree.mutate.opts = MutationOpts(AA_repeat=max_repeat)
-        # trun off the delete AA opt in remain branch
-        tree.remain.opts.AA_deletion = False
-        return tree
-    
-    def repeat_AA(self, tree: 'MutationTree'):
-        """
-        perform delete_AA mutation in tree.mutate branch, trun off the tree.branches.opt.AA_deletion.
-            - THE AA CAN NOT BE REPEATED.
-            
-        Params:
-            - tree: MutationTree, tree to opt.
-        """
-        pos, repeat_pos, sum_repeat = tree.pos
-        # perform repeat_AA mutation in tree.mutate branch
-        tree.mutate.seq.AAs[pos] = [tree.mutate.seq.AAs[pos].copy() \
-            for _ in range(tree.opts.AA_repeat + 1)]
-        # change repeated AAs' N/C protect group if needed
-        if pos == 0 and tree.peptide.AAs[pos].N_protect != 'H':
-            for aa in tree.mutate.seq.AAs[pos][1:]:
-                aa.N_protect = 'H'
-        elif pos == len(tree.peptide.AAs)-1 and tree.peptide.AAs[pos].C_protect != 'OH':
-            for aa in tree.mutate.seq.AAs[pos][:-1]:
-                aa.C_protect = 'OH'
-        # change mutate branch 's pos 's sum_repeat to tree.opts.repeat_AA + 1
-        tree.mutate.pos[2] = tree.opts.AA_repeat + 1
-        # trun off the repeat AA opts in mutate branches
-        tree.mutate.opts = MutationOpts(AA_repeat=0)
-        # decrease the repeat AA opts in remain branches
-        tree.remain.opts.AA_repeat -= 1
-        return tree        
-
-    def delete_NCR(self, tree: 'MutationTree', NCR: str):
-        """
-        perform delete_NCR mutation in tree.mutate branch, trun off the tree.branches.opt.X_protect_deletion
-        Params:
-            - tree: MutationTree, tree to opt.
-            - NCR: str, N or C or R.
-        """
-        pos, repeat_pos, sum_repeat = tree.pos
-        null_pg = 'H' if NCR in ['N', 'R'] else 'OH'
-        # delete X-terminal protect group
-        if sum_repeat == 1 and getattr(tree.mutate.seq.AAs[pos], f'{NCR}_protect') != null_pg:
-            setattr(tree.mutate.seq.AAs[pos], f'{NCR}_protect', null_pg)
-        elif sum_repeat > 1 and getattr(tree.mutate.seq.AAs[pos][repeat_pos], f'{NCR}_protect') != null_pg:
-            setattr(tree.mutate.seq.AAs[pos][repeat_pos], f'{NCR}_protect', null_pg)
-        # trun off the opts in two branches
-        setattr(tree.mutate.opts, f'{NCR}_protect_deletion', False)
-        setattr(tree.remain.opts, f'{NCR}_protect_deletion', False)
-        return tree
-                
-    def perform_one(self, tree: 'MutationTree', args: argparse.Namespace):
-        """
-        Perform ONE mutation opt left in tree.opts, return this tree. Also check if it is a repeated AA.
-        If it is a repeated AA depend on tree.pos[2], skip AA deletion and AA repeat.
-            - If no opts left to do:
-                - let two brance still be None.
-                - return the tree.
-            - IF HAS:
-                - generate two branch, change branches' father
-                - perform mutation in mutate branch
-                - trun off opts in two branches
-                - move pos ONLY in mutate branch.
-                - DO NOT CHECK IF MEETS END in both this dot and two branches.
-                - return the tree.
-        """
-        able = tree.opts.check_empty(tree.pos, tree.seq, args)
-        if able:
-            # generate two branch and set seq to None to free memory
-            tree.generate_two_branch()
-            # perform mutation
-            if 'AA_deletion' in able:
-                tree = self.delete_AA(tree, args.max_repeat)
-            elif 'AA_repeat' in able:
-                tree = self.repeat_AA(tree)
-            elif 'N_protect_deletion' in able:
-                tree = self.delete_NCR(tree, 'N')
-            elif 'C_protect_deletion' in able:
-                tree = self.delete_NCR(tree, 'C')
-            elif 'R_protect_deletion' in able:
-                tree = self.delete_NCR(tree, 'R')
-            else:
-                raise ValueError('error when check empty with MutationOpts')
-        # return tree
-        return tree
-    
-@dataclass
-class MutationTree:
-    peptide: Peptide # mother peptide, READ ONLY, remians unchanged
-    seq: Peptide # this dot's peptide seqeunce to perform mutate
-    opts: MutationOpts # opts left to perform
-    # [current AA pos, current repeat pos, sum repeat in this AA in seq], if last number is 1, means no repeat in this AA
-    pos: List[int] = field(default_factory = lambda: [0, 0, 1])
-    father: 'MutationTree' = None # father dot
-    remain: 'MutationTree' = None # father dot
-    mutate: 'MutationTree' = None # father dot
-    
-    def copy(self, copy_peptide: bool = False, copy_branch: bool = False,
-             father: 'MutationTree' = None, remain: 'MutationTree' = None,
-             mutate: 'MutationTree' = None):
-        """
-        Params:
-            - copy_peptide: bool, whether to copy mother peptide.
-            - copy_branch: bool, whether to copy father, remain, mutate branch via deepcopy. If False, leave it None.
-        """
-        if copy_peptide:
-            cp = MutationTree(self.peptide.copy(), self.seq.copy(), self.opts.copy(), [i for i in self.pos])
-        else:
-            cp = MutationTree(self.peptide, self.seq.copy(), self.opts.copy(), [i for i in self.pos])
-        if copy_branch:
-            cp.father = deepcopy(self.father)
-            cp.remain = deepcopy(self.remain)
-            cp.mutate = deepcopy(self.mutate)
-        else:
-            cp.father = father
-            cp.remain = remain
-            cp.mutate = mutate
-        return cp
-    
-    def extract_mutations(self, flatten: bool = True):
-        """
-        extract all terminal dots from mutations(Tree)
-            - flatten==True:  will CHANGE it's peptide.AAs, return the flattened peptide.
-            - flatten==False: will simply return all leaves of MutationTree.
-        """
-        if self.mutate is None and self.remain is None:
-            if flatten:
-                self.seq.flatten(inplace=True)
-                return [self.seq]
-            else:
-                return [self]
-        else:
-            final_seq = []
-            final_seq.extend(self.remain.extract_mutations(flatten))
-            final_seq.extend(self.mutate.extract_mutations(flatten))
-            return final_seq
-    
-    def check_is_end_pos(self):
-        """check if current AA is the last AA whether in repeat or mother peptide"""
-        if self.pos[0] >= len(self.peptide.AAs) - 1 and self.pos[1] >= self.pos[2] - 1:
-            return True
-        return False
-        
-    def generate_two_branch(self):
-        """Generate two branch with all None remian and mutate branch, return itself."""
-        self.remain = self.copy(father=self)
-        self.mutate = self.copy(father=self)
-        return self
-        
-    def move_to_next(self, max_repeat: int):
-        """
-        move current AA pos to next repeat AA or next NEW AA
-            - return True is moved, else False when is end."""
-        if not self.check_is_end_pos():
-            if self.pos[1] == self.pos[2] - 1:
-                # repeat idx meets end or do not have a repeat, move to next NEW AA
-                self.pos[0] += 1
-                self.pos[1] = 0
-                self.pos[2] = 1
-            else:
-                # move to next repeat AA
-                self.pos[1] += 1
-            # reset opts to full
-            self.opts = MutationOpts(AA_repeat = max_repeat)
-            return True
-        return False
-
-def calcu_mutations_mw_batch(seqs: List[Peptide], mass: bool = False, verbose: bool = True) -> Tuple[Dict[str, int], Dict[float, List[Peptide]]]:
-    peps, mw2pep = {}, {}
-    for pep in tqdm(seqs,
-                    desc='Gathering mutations and Calculating molecular weight',
-                    disable=not verbose):
-        full_pep = Peptide(None)
-        full_pep.AAs.extend(aa.AAs for aa in pep)
-        full_pep.flatten(inplace = True)
-        if len(full_pep.AAs):
-            pep_repr = str(full_pep)
-            if pep_repr not in peps:
-                peps[pep_repr] = len(peps)
-                if mass:
-                    mw = full_pep.calcu_mass()
-                else:
-                    mw = full_pep.calcu_mw()
-                if mw in mw2pep:
-                    mw2pep[mw].append(full_pep)
-                else:
-                    mw2pep[mw] = [full_pep]
-    return peps, mw2pep
 
 
 class mutation_weight(Command):
@@ -377,28 +135,48 @@ class mutation_weight(Command):
     """
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
+        self.seq: Peptide = None
         self.verbose = True
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
         args.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
-                        help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
+                          help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
         args.add_argument('-w', '--weight', type = str, default = '',
-                        help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
-        args.add_argument('--max-repeat', type = int, default = 1,
-                        help='max times for repeat a AA in sequence')
-        args.add_argument('--disable-aa-deletion', action='store_true', default=False,
-                        help='disable AA deletion in mutations.')
+                          help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+        
+        args.add_argument('--max-repeat', type = int, default = 0,
+                          help='max times for repeat any AA in sequence at all, default is %(default)s.')
+        args.add_argument('--each-repeat', type=str, default='',
+                          help='each repeat times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
+        
+        args.add_argument('--replace-aa', type=str, default='',
+                          help='AAs to replace, input as "Cys(Acm),Trt", default is no AA to replace.')
+        args.add_argument('--max-replace', type=int, default=0,
+                          help='max times for any AA replacement in sequence at all, 0 for no replacement, default is %(default)s.')
+        args.add_argument('--each-replace', type=str, default='',
+                          help='each replacement times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-replace.')
+        
+        args.add_argument('--max-deletion', type = int, default=None,
+                          help='max times for any AA deletion in sequence at all, 0 for no deletion, None means seq len, default is %(default)s.')
+        args.add_argument('--each-deletion', type=str, default='',
+                          help='each deletion times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deletion.')
+        
+        args.add_argument('--max-deprotection', type=int, default=None,
+                          help='max times for deprotect any AA in sequence at all, 0 for no deprotection, None means seq len, default is %(default)s.')
+        args.add_argument('--each-deprotection', type=str, default='',
+                          help='each deprotection times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deprotection.')
+        
         args.add_argument('-o', '--out', type = str, default = None,
-                        help='save results to output file/dir. Defaults None, do not save.')
+                          help='save results to output file/dir. Defaults None, do not save.')
         args.add_argument('-m', '--mass', action='store_true', default=False,
-                        help='calcu Exact Mass instead of Molecular Weight.')
+                          help='calcu Exact Mass instead of Molecular Weight.')
         args.add_argument('--disable-verbose', action='store_true', default=False,
-                        help='disable verbose output to console.')
+                          help='disable verbose output to console.')
         args.add_argument('--multi-process', type = int, default = 1,
-                        help='number of multi-process to use. Defaults 1, no multi-process.')
+                          help='number of multi-process to use. Defaults 1, no multi-process.')
         args.add_argument('--batch-size', type = int, default = 500000,
-                        help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
+                          help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
         return args
     
     def process_args(self):
@@ -412,82 +190,49 @@ class mutation_weight(Command):
             self.f = None
         self.printf = partial(_print, f = self.f)
         self.verbose = not self.args.disable_verbose
-        
-    @staticmethod
-    def mutate_peptide(tree: MutationTree, args: argparse.Namespace):
-        """
-        Parameters:
-            - mutations: Tree object, store all mutations and there relationship.
-            - max_repeat: int
-        """
-        # perofrm ONE mutation
-        tree = tree.opts.perform_one(tree, args)
-        # if NO mutaion can be done, 
-        if tree.mutate is None and tree.remain is None:
-            # try move current AA in this tree to next AA
-            if tree.move_to_next(args.max_repeat):
-                # move success, go on
-                mutation_weight.mutate_peptide(tree, args)
-            else:
-                # it is the end, return tree
-                return tree
-        else: # go on with two branches
-            mutation_weight.mutate_peptide(tree.mutate, args)
-            mutation_weight.mutate_peptide(tree.remain, args)
-        return tree
-    
-    @staticmethod
-    def generate_mutate_peps(peptide: Peptide, args: argparse.Namespace):
-        """
-        gernerate all possible mutations of a peptide.
-        
-        Parameters:
-            - peptide: Peptide object, the mother peptide.
-            - args: argparse.Namespace, the input arguments, must contain 'max_repeat', 'disable_aa_deletion', 
-        
-        Returns:
-            - all_mutations: list of Peptide objects, all possible mutations of the mother peptide.
-        """
-        seq = []
-        for aa in tqdm(peptide.AAs, desc='Mutating peptide'):
-            pep = Peptide(None)
-            pep.AAs = [aa.copy()]
-            aa_mutations = MutationTree(peptide=pep, seq=pep.copy(),
-                                        opts=MutationOpts(AA_repeat=args.max_repeat),
-                                        pos=[0, 0, 1])
-            aa_mutations = mutation_weight.mutate_peptide(aa_mutations, args)
-            seq.append(aa_mutations.extract_mutations())
-        return list(itertools.product(*seq))
-    
-    @staticmethod
-    def calcu_mutations_mw(seqs: List[Peptide], mass: bool = False,
-                           multi_process: int = 1, batch_size: int = 500000):
-        if multi_process == 1:
-            return calcu_mutations_mw_batch(seqs, mass=mass, verbose=True)
+        # task pool
+        if self.args.multi_process > 1:
+            self.task_pool = TaskPool('process', self.args.multi_process).run()
         else:
-            print('Gathering mutations and Calculating molecular weight...')
-            peps, mw2pep = {}, {}
-            pool = TaskPool('process', multi_process)
-            for i, batch in enumerate(split_list(seqs, batch_size)):
-                pool.add_task(f'{i}', calcu_mutations_mw_batch, batch, mass, False)
-            pool.run()
-            pool.wait_till(lambda : pool.count_done_tasks() == len(pool.tasks), verbose=True)
-            for (_, (peps_i, mw2pep_i), _) in pool.tasks.values():
-                peps.update(peps_i)
-                for i in mw2pep_i:
-                    if i in mw2pep:
-                        mw2pep[i].extend(mw2pep_i[i])
-                    else:
-                        mw2pep[i] = mw2pep_i[i]
-            return peps, mw2pep
+            self.task_pool = None
+        # mutation controls
+        self.seq = Peptide(self.args.seq)
+        def _strvec2intvec(args: argparse.Namespace, vec_name: str):
+            each_name, max_name = f'each_{vec_name}', f'max_{vec_name}'
+            if getattr(args, each_name):
+                intvec = [int(i) for i in getattr(args, each_name).split(',')]
+                if len(intvec) != len(self.seq.AAs):
+                    raise ValueError(f'--{each_name} must have the same length as the peptide sequence.')
+                return intvec
+            else:
+                max_value = getattr(args, max_name)
+                return [max_value if max_value is not None else 1] * len(self.seq.AAs) # None means seq len, that is 1 for each aa
+        self.args.each_repeat = _strvec2intvec(self.args, 'repeat')
+        self.args.each_replace = _strvec2intvec(self.args, 'replace')
+        self.args.each_deletion = _strvec2intvec(self.args, 'deletion')
+        self.args.each_deprotection = _strvec2intvec(self.args, 'deprotection')
+        self.args.max_deletion = self.args.max_deletion or len(self.seq.AAs)
+        self.args.max_deprotection = self.args.max_deprotection or len(self.seq.AAs)
+        if self.args.each_replace or self.args.max_replace:
+            if self.args.replace_aa:
+                self.args.replace_aa = [AnimoAcid(aa) for aa in self.args.replace_aa.split(',')]
+            else:
+                put_log(f'--repeat-aa not set, use all AAs in sequence to repeat.')
+                self.args.replace_aa = list(set(self.seq.AAs))
         
     def main_process(self):
         # show mother peptide info
         peptide, expand_mw_dict = calcu_mw(self.args, _print = self.printf)
-        # calcu mutations
-        seqs = mutation_weight.generate_mutate_peps(peptide, self.args)
-        # gather mutations, calcu mw and store in dict
-        peps, mw2pep = self.calcu_mutations_mw(seqs, self.args.mass, self.args.multi_process, self.args.batch_size)
+        # make mutation opts
+        opts = []
+        for i in range(len(self.args.each_repeat)):
+            opts.append(MutationOpts(self.args.each_deletion[i], self.args.each_repeat[i], self.args.each_replace[i],
+                                     self.args.replace_aa, self.args.each_deprotection[i],
+                                     self.args.each_deprotection[i], self.args.each_deprotection[i]))
+        # calcu mutations, gather mutations, calcu mw and store in dict
+        peps, mw2pep = calcu_peptide_mutations(self.seq, opts, self.args.mass,
+                                               self.task_pool, self.args.batch_size,
+                                               self.args.out if self.args.out is None else str(self.args.out)+'.mbapy.mmw.pkl')
         # output info
         self.printf(f'\n{len(peps)-1} mutations found, followings include one original peptide seqeunce:\n')
         if self.verbose:
@@ -498,12 +243,7 @@ class mutation_weight(Command):
                     mf = f'({pep.get_molecular_formula()})' if self.args.mass else ''
                     self.printf(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', verbose = self.verbose)
                     idx += 1
-        # handle f-print
-        if self.f is not None:
-            self.f.close()
-            # save mw2pep and peps
-            opts_file(str(self.args.out)+'.mbapy.mmw.pkl', 'wb', data = {'mw2pep':mw2pep, 'peps':peps}, way = 'pkl')
-        
+
 
 class cycmmw(Command):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
@@ -743,6 +483,7 @@ def main(sys_args: List[str] = None):
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code. MUST BE COMMENTED OUT WHEN PUBLISHING
     # main('fit-mass -s data_tmp/scripts/peptide/C.mbapy.mmw.pkl -m data_tmp/scripts/mass/pl.txt'.split())
+    main('mmw -s Boc-Asn(Trt)-Asp(OtBu)-Glu(OtBu)-Cys(Trt)-Glu(OtBu)-Leu-OH -m --max-repeat 0 --max-deletion 0 --max-replace 0'.split())
     
     # release code
     main()
