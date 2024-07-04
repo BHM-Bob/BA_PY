@@ -365,6 +365,9 @@ class Peptide:
     def __hash__(self) -> int:
         return hash(self.repr(1, True, False))
     
+    def __len__(self) -> int:
+        return len(self.AAs)
+    
     def get_molecular_formula_dict(self):
         """
         Calculates the molecular formula of the protein by summing the molecular formula of each amino acid.
