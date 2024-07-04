@@ -342,6 +342,8 @@ class Peptide:
         """
         assert repr_w in [1, 3], "repr_w must be 1 or 3"
         seq = self.flatten(inplace=False)
+        if not seq:
+            return ''
         dash = "-" if include_dash else ""
         repr_str = dash.join([aa.make_pep_repr(is_N_terminal=(i==0),
                                                 is_C_terminal=(i==len(seq)-1),
