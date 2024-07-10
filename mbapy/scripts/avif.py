@@ -1,22 +1,24 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-10 09:55:14
+LastEditTime: 2024-07-10 11:05:42
 Description: convert jpeg to avif
 '''
 import argparse
 import os
-import time
+import platform
 import shutil
-from typing import Dict, List
-from pathlib import Path
+import time
 from multiprocessing import Manager, Pool
+from pathlib import Path
+from typing import Dict, List
 
-from tqdm import tqdm
-from mbapy.base import put_err, split_list
-from mbapy.file import get_paths_with_extension, opts_file, format_file_size
 from PIL import Image
 from pillow_heif import register_avif_opener, register_heif_opener
+from tqdm import tqdm
+
+from mbapy.base import put_err, split_list
+from mbapy.file import format_file_size, get_paths_with_extension, opts_file
 
 if __name__ == '__main__':
     from mbapy.scripts._script_utils_ import clean_path, show_args
@@ -52,7 +54,10 @@ def transfer_img(args, paths: List[str], file_size: Dict[str, int]):
             except:
                 shutil.copy(path, output_path)
             if args.remove_origin:
-                os.system(f'attrib -r "{path}"')
+                if platform.system().lower() == 'windows':
+                    os.system(f'attrib -r "{path}"')
+                elif platform.system().lower() == 'linux':
+                    os.system(f'chmod 666 "{path}"')
                 os.remove(path)
         after_size += os.path.getsize(output_path)
     # update file size and return

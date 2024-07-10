@@ -1,15 +1,17 @@
 '''
 Date: 2024-02-05 15:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-10 10:50:58
+LastEditTime: 2024-07-10 11:04:24
 Description: 
 '''
 
 import argparse
 import os
+import platform
 from typing import Dict, List
 
 from tqdm import tqdm
+
 from mbapy.base import put_err
 from mbapy.file import get_paths_with_extension
 
@@ -46,7 +48,10 @@ def main(sys_args: List[str] = None):
     # delete files
     for path in tqdm(paths):
         try:
-            os.system(f'attrib -r "{path}"')
+            if platform.system().lower() == 'windows':
+                os.system(f'attrib -r "{path}"')
+            elif platform.system().lower() == 'linux':
+                os.system(f'chmod 666 "{path}"')
             os.remove(path)
         except Exception as e:
             put_err(f'Error: {e}. Can not delete {path}, skip')

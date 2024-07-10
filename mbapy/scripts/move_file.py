@@ -1,10 +1,18 @@
+'''
+Date: 2024-06-15 12:08:22
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-07-10 11:04:07
+Description: 
+'''
 
 import argparse
 import os
+import platform
 import shutil
 from typing import Dict, List
 
 from tqdm import tqdm
+
 from mbapy.base import put_err
 from mbapy.file import get_paths_with_extension
 
@@ -48,12 +56,16 @@ def main(sys_args: List[str] = None):
     for path in tqdm(paths):
         try:
             sub_path = path[len(str(args.input)):]
-            if sub_path.startswith(os.path.sep):
+            if platform.startswith(os.path.sep):
                 sub_path = sub_path[len(os.path.sep):]
             output_path = os.path.join(args.output, sub_path)
             output_dir = os.path.dirname(output_path)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            if platform.system().lower() == 'windows':
+                os.system(f'attrib -r "{path}"')
+            elif platform.system().lower() == 'linux':
+                os.system(f'chmod 666 "{path}"')
             shutil.move(path, output_path)
         except:
             put_err(f'can not move {path}, skip')
