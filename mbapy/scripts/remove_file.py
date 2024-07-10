@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-05 15:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-20 10:01:09
+LastEditTime: 2024-07-10 10:50:58
 Description: 
 '''
 
@@ -46,6 +46,7 @@ def main(sys_args: List[str] = None):
     # delete files
     for path in tqdm(paths):
         try:
+            os.system(f'attrib -r "{path}"')
             os.remove(path)
         except Exception as e:
             put_err(f'Error: {e}. Can not delete {path}, skip')
