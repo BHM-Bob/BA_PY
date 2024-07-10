@@ -51,6 +51,15 @@ class SciInstrumentData:
             return not bool(processed_data)
         
     def load_raw_data_file(self, raw_data_bytes: bytes = None):
+        """
+        Load the raw data file and return the decoded string
+        
+        Parameters:
+            - raw_data_bytes (bytes): The raw data bytes. Defaults to None.
+
+        Returns:
+            - The decoded string from the raw data bytes.
+        """
         if raw_data_bytes is None and self.data_file_path:
             raw_data_bytes = opts_file(self.data_file_path, 'rb')
         elif raw_data_bytes is None and not self.data_file_path:
@@ -62,6 +71,16 @@ class SciInstrumentData:
     
     @parameter_checker(path=lambda path: path is None or check_parameters_path(path))
     def load_processed_data_file(self, path: str = None, data_bytes: bytes = None):
+        """
+        Load processed data from a file or a byte string
+
+        Parameters:
+            - path (str): The path to the file. Defaults to None.
+            - data_bytes (bytes): The byte string containing the data. Defaults to None.
+
+        Return:
+            - The processed data in a DataFrame object.
+        """
         if path is None and data_bytes is None:
             return put_err('No processed data file specified, return None')
         elif path is not None and data_bytes is not None:
@@ -76,6 +95,20 @@ class SciInstrumentData:
         return tag
     
     def process_raw_data(self, y_scale: float = 1, **kwargs):
+        """
+        Process raw data, split the data into a list, and create a DataFrame from it, sorted in ascending order of the x-axis, multiplied by the y-axis scaling factor
+
+        Parameters:
+            - y_scale (float): The scaling factor for the y-axis. Default is 1.
+            - **kwargs: Additional keyword arguments.
+
+        Return:
+            - The processed data in a DataFrame object.
+
+        Raises:
+            - Invalid file header: If the file header is invalid, an error message will be returned
+            - Exception: If there is an error in the data processing process, an error message will be returned
+        """
         try:
             lines = self.raw_data.splitlines()
             header = lines[0].split('\t')
@@ -92,7 +125,19 @@ class SciInstrumentData:
             put_err('Failed to process raw data, return None')
             return None
     
-    def save_processed_data(self, path: str = None, *args, **kwargs):
+    def save_processed_data(self, path: str = None):
+        """
+        Save the processed data to a file.
+
+        Parameters:
+            - path (str): The path of the file to be saved. If not provided, the function will use the original data file path with a different suffix.
+
+        Return:
+            - str: The path of the saved file.
+
+        Side effects:
+            - This function will save the processed data to the specified file path. If the file exists, it will be overwritten.
+        """
         if self.check_processed_data_empty():
             self.process_raw_data()
         if path is None:
