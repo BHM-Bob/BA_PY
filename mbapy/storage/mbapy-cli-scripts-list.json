@@ -82,7 +82,7 @@
     "rm":
         {
             "name": "remove file",
-            "script name": "remove_files",
+            "script name": "remove_file",
             "exec_names": ["rm", "remove-file", "remove_file"],
             "brief": "delete files with specific suffix or sub-string in name",
             "detailed":  "This utility command is designed to delete files with specific suffixes or substrings in their names. It provides options to specify file types, substrings in file names, the input directory, and whether to perform a recursive search within the directory."
