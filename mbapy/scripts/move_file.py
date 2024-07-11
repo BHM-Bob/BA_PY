@@ -1,7 +1,7 @@
 '''
 Date: 2024-06-15 12:08:22
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-10 11:04:07
+LastEditTime: 2024-07-11 07:50:41
 Description: 
 '''
 
@@ -56,7 +56,7 @@ def main(sys_args: List[str] = None):
     for path in tqdm(paths):
         try:
             sub_path = path[len(str(args.input)):]
-            if platform.startswith(os.path.sep):
+            if sub_path.startswith(os.path.sep):
                 sub_path = sub_path[len(os.path.sep):]
             output_path = os.path.join(args.output, sub_path)
             output_dir = os.path.dirname(output_path)
@@ -67,8 +67,8 @@ def main(sys_args: List[str] = None):
             elif platform.system().lower() == 'linux':
                 os.system(f'chmod 666 "{path}"')
             shutil.move(path, output_path)
-        except:
-            put_err(f'can not move {path}, skip')
+        except Exception as e:
+            put_err(f'can not move {path} with error {e}, skip')
     return paths
     
     
