@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-18 09:46:43
+LastEditTime: 2024-07-12 12:06:14
 Description: 
 '''
 import collections
@@ -92,6 +92,17 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
     return file_paths
 
 def format_file_size(size_bits: int, return_str: bool = True):
+    """
+    Formats a file size in bits to a human-readable format.
+    
+    Parameters:
+        - size_bits (int): The size of the file in bits.
+        - return_str (bool, optional): Whether to return the size as a string or as a tuple of size and unit. Defaults to True.
+
+    Returns:
+        - If return_str is True, returns a string of the size and unit.
+        - If return_str is False, returns a tuple of the size and unit.
+    """
     n = 0
     units = {0: '', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB', 5: 'PB', 6: 'EB', 7: 'ZB', 8: 'YB'}
     
@@ -315,6 +326,15 @@ def decode_bits_to_str(bits:bytes):
     return true_text   
 
 def is_jsonable(data):
+    """
+    Check if the given data can be serialized as JSON.
+
+    Parameters:
+        - data: The data to be checked.
+
+    Returns:
+        - bool: True if the data can be serialized as JSON, False otherwise.
+    """
     if isinstance(data, str) or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool) or data is None:
         return True
     elif isinstance(data, collections.abc.Mapping):
