@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-10 11:05:42
+LastEditTime: 2024-07-13 13:45:27
 Description: convert jpeg to avif
 '''
 import argparse
@@ -94,7 +94,7 @@ def main(sys_args: List[str] = None):
     args.output = clean_path(args.output)
     args.input_format = args.input_format.split(',')
     show_args(args, ['to', 'input', 'output', 'quality', 'remove_origin',
-                     'input_format', 'multi_process', 'recursive'])
+                     'input_format', 'multi_process', 'batch', 'recursive'])
     
     paths = get_paths_with_extension(args.input, args.input_format,
                                      args.recursive)
