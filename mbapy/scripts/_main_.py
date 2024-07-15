@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-28 13:35:17
+LastEditTime: 2024-07-15 14:57:00
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -39,11 +39,17 @@ def print_scripts_info():
 def exec_scripts():
     import mbapy
     
-    # NOTE: DO NOT use exec
-    # check and exec scripts
+    # check --pause-after-exec argumet
+    pause_after_exec = '--pause-after-exec' in sys.argv
+    if pause_after_exec:
+        sys.argv.remove('--pause-after-exec')
+    # check and exec scripts NOTE: DO NOT use exec
     script_name = exec2script[sys.argv[1]]
     script = importlib.import_module(f'.{script_name}', 'mbapy.scripts')
     script.main(sys.argv[2:])
+    # pause if --pause-after-exec
+    if pause_after_exec:
+        os.system('pause') # avoid cmd window close immediately
     
 def main():  
     def _handle_unkown():
