@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-13 13:45:27
+LastEditTime: 2024-07-15 23:30:08
 Description: convert jpeg to avif
 '''
 import argparse
@@ -9,7 +9,7 @@ import os
 import platform
 import shutil
 import time
-from multiprocessing import Manager, Pool
+from multiprocessing import Manager
 from pathlib import Path
 from typing import Dict, List
 
@@ -103,18 +103,16 @@ def main(sys_args: List[str] = None):
     if args.multi_process == 1:
         file_size = transfer_img(args, paths, dict(before=0, after=0))
     elif args.multi_process > 1:
+        from mbapy.web import TaskPool
         with Manager() as manager:
             file_size = manager.dict(before=0, after=0)
-            pool = Pool(args.multi_process)
+            pool, tasks_name = TaskPool('process', args.multi_process).run(), []
             for path_batch in tqdm(split_list(paths, args.batch)):
-                pool.apply_async(func=transfer_img,
-                                 args=(args, path_batch, file_size))
-                while len(pool._cache) == args.multi_process:
-                    time.sleep(1)
+                tasks_name.append(pool.add_task(None, transfer_img, args, path_batch, file_size))
+            pool.wait_till_tasks_done(tasks_name)
             file_size = dict(**file_size)
             
         pool.close()
-        pool.join()
         
     print(f'before: {format_file_size(file_size["before"])}')
     print(f'after: {format_file_size(file_size["after"])}')
