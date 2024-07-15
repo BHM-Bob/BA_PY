@@ -321,7 +321,7 @@ class TaskPool:
         self._thread_task_queue.put((name, func, args, kwargs))
         return name
     
-    def add_task(self, name: str, coro_func, *args, **kwargs):
+    def add_task(self, name: str, coro_func, *args, **kwargs) -> str:
         # check name
         if name == '' or name is None:
             name = f'{coro_func.__name__}-{uuid4()}'
