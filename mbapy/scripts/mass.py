@@ -262,7 +262,7 @@ class explore_mass(plot_mass):
             ui.label('mbapy-cli mass | Mass Data Explorer').classes('text-h4')
             ui.space()
             # ui.checkbox('Instance refresh', value=self.args.instance_refresh).bind_value_to(self.args, 'instance_refresh')
-            ui.button('Refresh', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
+            ui.button('Plot', on_click=self.make_fig.refresh, icon='refresh').props('no-caps')
             ui.button('Save', on_click=self.save_fig, icon='save').props('no-caps')
             ui.button('Show', on_click=plt.show, icon='open_in_new').props('no-caps')
             ui.button('Exit', on_click=app.shutdown, icon='power')
@@ -279,7 +279,6 @@ class explore_mass(plot_mass):
                         # data filtering configs
                         with ui.expansion('Data Filtering', icon='filter_alt', value=True, on_value_change=self._ui_only_one_expansion) as expansion1:
                             self._expansion.append(expansion1)
-                            ui.checkbox('use peaks cache', value=self.args.use_peaks_cache).bind_value_to(self.args, 'use_peaks_cache')
                             ui.checkbox('filter by mass', value=self.args.mass).bind_value_to(self.args, 'mass')
                             ui.number('min height', value=self.args.min_height, min = 0).bind_value_to(self.args, 'min_height')
                             ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent').classes('w-full')
@@ -345,8 +344,6 @@ def main(sys_args: List[str] = None):
     plot_mass_args.add_argument("-o", "--output", type = str, default=None,
                                 help="output file dir or path, default is %(default)s, means same as input dir")
     # set draw argument
-    plot_mass_args.add_argument('--use-peaks-cache', action='store_true', default=False,
-                                help='use peaks cache to speed up plot, default is %(default)s')
     plot_mass_args.add_argument('-m', '--mass', action='store_true', default=False,
                                 help='draw Mass instead of Mass/charge which is Mass+z, default is %(default)s')
     plot_mass_args.add_argument('-min', '--min-height', type = int, default=0,
