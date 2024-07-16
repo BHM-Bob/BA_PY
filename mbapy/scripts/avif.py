@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-16 13:14:45
+LastEditTime: 2024-07-16 13:36:12
 Description: convert jpeg to avif
 '''
 import argparse
@@ -106,12 +106,22 @@ def main(sys_args: List[str] = None):
         from mbapy.web import TaskPool
         with Manager() as manager:
             file_size = manager.dict(before=0, after=0)
-            pool, tasks_name = TaskPool('process', args.multi_process).run(), []
-            for path_batch in tqdm(split_list(paths, args.batch)):
-                tasks_name.append(pool.add_task(None, transfer_img, args, path_batch, file_size))
-                while pool.count_waiting_tasks() > 0:
-                    time.sleep(0.2) # make sure progress bar update for done(and in-doing) tasks, not added tasks.
-            pool.wait_till_tasks_done(tasks_name)
+            pool, batches_name = TaskPool('process', args.multi_process).run(), []
+            batches = split_list(paths, args.batch)
+            # add tasks to pool
+            for batch in tqdm(batches, desc='adding batches'):
+                batches_name.append(pool.add_task(None, transfer_img, args, batch, file_size))
+            # wait for tasks done
+            last_done = pool.count_done_tasks()
+            bar = tqdm(total=len(batches), position=last_done, desc='processing batches')
+            while last_done < len(batches_name):
+                 # make sure progress bar update for done tasks, not added or in-progress tasks.
+                now_done = pool.count_done_tasks()
+                bar.update(now_done - last_done)
+                last_done = now_done
+                time.sleep(0.2)
+            pool.wait_till_tasks_done(batches_name)
+            # update file size
             file_size = dict(**file_size)
             
         pool.close()
