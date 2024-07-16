@@ -142,5 +142,13 @@
             "exec_names": ["hplc"],
             "brief": "HPLC tools",
             "detailed":  "The `plot-hplc` command is a Python script designed to process and visualize high-performance liquid chromatography (HPLC) data. It is capable of reading data files, typically in the ARW format exported by Waters systems, and generating plots of the absorbance over time."
-        }
+        },
+    "find-file":
+            {
+                "name": "find-file",
+                "script name": "find_file",
+                "exec_names": ["find-file", "find_file"],
+                "brief": "find files with specific suffix or sub-string in name",
+                "detailed":  "This Python script utilizes the `argparse` library to parse command-line arguments and find file based on specific criteria."
+            }
 }
