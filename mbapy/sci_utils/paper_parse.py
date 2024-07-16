@@ -1,7 +1,7 @@
 '''
 Date: 2023-07-17 20:41:42
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-11-24 10:06:09
+LastEditTime: 2024-07-16 08:05:36
 FilePath: \BA_PY\mbapy\sci_utils\paper_pdf.py
 Description: 
 '''
@@ -398,7 +398,6 @@ def parse_grobid(xml_path: str, encoding = 'utf-8'):
     for author in article_authors:
         author_name = author.find('persName')
         if author_name:
-            author_name = author_name
             authors[author_name] = {'email': author.find('email')}
             for i, aff in enumerate(author.findAll('affiliation')):
                 has_org, has_add =  aff.find('orgName'), aff.find('address')
