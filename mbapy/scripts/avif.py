@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-15 23:30:08
+LastEditTime: 2024-07-16 13:14:45
 Description: convert jpeg to avif
 '''
 import argparse
@@ -109,6 +109,8 @@ def main(sys_args: List[str] = None):
             pool, tasks_name = TaskPool('process', args.multi_process).run(), []
             for path_batch in tqdm(split_list(paths, args.batch)):
                 tasks_name.append(pool.add_task(None, transfer_img, args, path_batch, file_size))
+                while pool.count_waiting_tasks() > 0:
+                    time.sleep(0.2) # make sure progress bar update for done(and in-doing) tasks, not added tasks.
             pool.wait_till_tasks_done(tasks_name)
             file_size = dict(**file_size)
             
