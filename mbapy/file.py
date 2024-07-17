@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-12 12:06:14
+LastEditTime: 2024-07-17 11:27:03
 Description: 
 '''
 import collections
@@ -67,7 +67,8 @@ else:
         __all__extend__ = []
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
-                             recursive: bool = True, name_substr: str = '') -> List[str]:
+                             recursive: bool = True, name_substr: str = '',
+                             search_name_in_dir: bool = False) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
@@ -77,6 +78,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
             If it is empty, accept all extensions.
         - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
         - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
+        - search_name_in_dir (bool, optional): Whether to search file names in directory. Defaults to False.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
@@ -87,8 +89,10 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
             if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
                 file_paths.append(path)
+        elif search_name_in_dir and os.path.isdir(path) and name_substr in path:
+            file_paths.append(path)
         if recursive and os.path.isdir(path):
-            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr))
+            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr, search_name_in_dir))
     return file_paths
 
 def format_file_size(size_bits: int, return_str: bool = True):
