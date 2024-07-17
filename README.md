@@ -2,14 +2,14 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-06-21 15:20:00
+ * @LastEditTime: 2024-07-17 09:41:16
  * @Description: 
 -->
 
 <h1 style="text-align:center;">BA_PY: Optimize Your Workflow with Python!</h1>
 
 <p style="text-align:center;">
-<img src="https://static.pepy.tech/badge/mbapy" alt="Downloads" style="display:inline-block; margin-left:auto; margin-right:auto;" />
+<a href="https://www.pepy.tech/projects/mbapy"><img src="https://static.pepy.tech/badge/mbapy" alt="Downloads" style="display:inline-block; margin-left:auto; margin-right:auto;" /></a>
 <img src="https://img.shields.io/pypi/dm/mbapy" alt="Downloads" style="display:inline-block; margin-left:auto; margin-right:auto;" />
 <img src="https://img.shields.io/github/downloads/BHM-Bob/BA_PY/total?label=GitHub%20all%20releases%20downloads" alt="Downloads" style="display:inline-block; margin-left:auto; margin-right:auto;" />
 </p>
@@ -81,23 +81,23 @@ The documentation for mbapy can be found on [read the docs](https://ba-py.readth
 
 <h2 style="text-align:center;">Contents</h2>
 
-## mbapy python package  
-#### \_\_version\_\_  
+# mbapy python package  
+### \_\_version\_\_  
 *some version info*  
 
-#### base  
+### base  
 *some utils for easier coding*
 
-#### file
+### file
 ##### image
 *imgae utils*, including reading, saving and process a image into a feature tensor via pytorch.  
 ##### video
 *video utils*, including extract frames or unique frames from a video.  
 
-#### plot
+### plot
 *pandas.dataFrame utils for plot and some simple plot based on plt*  
 
-#### web
+### web
 *utils for web-crawler*  
 ##### request
 *get a web hyml page or a selenium browser warpper for easier usage*.  
@@ -108,7 +108,7 @@ The documentation for mbapy can be found on [read the docs](https://ba-py.readth
 ##### spider
 *a light-weight web spider architecture*  
 
-#### stats
+### stats
 ##### cluster
 *BAKmeans, KOptim, KBayesian from KMeans, and a func for many cluster*  
 ##### df
@@ -118,7 +118,7 @@ The documentation for mbapy can be found on [read the docs](https://ba-py.readth
 ##### test
 *some test func(using scipy and mostly give a support for mbapy-style data input)*  
 
-#### dl-torch
+### dl-torch
 *pytorch utils for deeplearning*  
 ##### bb
 *basic blocks : tiny network structures*  
@@ -133,7 +133,7 @@ The documentation for mbapy can be found on [read the docs](https://ba-py.readth
 ##### optim
 *learning rate scheduler*
 
-#### paper
+### paper
 *sci-paper utils, contains paper searching, downloading and parsing*  
 ##### paper_search
 *search papers via pubmed, baidu xueshu, wos*  
@@ -141,6 +141,18 @@ The documentation for mbapy can be found on [read the docs](https://ba-py.readth
 *download papers via scihub*  
 ##### paper_parse
 *parse paper from a pdf file into a dict of each sections* 
+
+### bio
+##### peptide
+*class and funcs to calcu peptide MW, mutations*
+##### high_level
+*some high-level utils for bio*
+
+### sci_instrument
+##### hplc
+*HPLC instrument data processing and visualization*
+##### mass
+*mass spectrometry instrument data processing and visualization*
 
 #### scripts
 *some useful scripts for command user*  
