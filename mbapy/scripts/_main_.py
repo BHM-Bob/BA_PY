@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-15 14:57:00
+LastEditTime: 2024-07-20 20:36:54
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
@@ -19,6 +19,28 @@ scripts_info = opts_file(get_storage_path('mbapy-cli-scripts-list.json'), way = 
 exec2script = {exec_name: script_info['script name'] for script_info in scripts_info.values() for exec_name in script_info['exec_names']}
 
 
+def print_version_info():
+    import mbapy
+    print('mbapy python package command-line tools')
+    print('mbapy version: ', mbapy.__version__, ', build: ', mbapy.__build__)
+    print('mbapy author: ', mbapy.__author__, ', email: ', mbapy.__author_email__)
+    print('mbapy url: ', mbapy.__url__, ', license: ', mbapy.__license__)
+    
+def print_help_info():
+    help_info = """
+            usage-1: mbapy-cli [-h] [-l | -i]
+            options:
+            -h, --help  show this help message and exit
+            -l, --list  print scripts list
+            -i, --info  print scripts info
+            usage-2: mbapy-cli [sub-scripts-name] [args] [-h]
+            options:
+            sub-scripts-name  name of scripts in mbapy.scripts
+            args  args for sub-scripts
+            -h, --help  show this help message and exit
+            """
+    print(help_info)
+    
 def print_scripts_list():
     for idx, script in enumerate(scripts_info):
         print(f'scripts {idx:3d}: {scripts_info[script]["name"]}')
@@ -38,7 +60,7 @@ def print_scripts_info():
         
 def exec_scripts():
     import mbapy
-    
+
     # check --pause-after-exec argumet
     pause_after_exec = '--pause-after-exec' in sys.argv
     if pause_after_exec:
@@ -58,35 +80,19 @@ def main():
         print_scripts_list()
         
     if len(sys.argv) == 1:
-        import mbapy
-        print('mbapy python package command-line tools')
-        print('mbapy version: ', mbapy.__version__, ', build: ', mbapy.__build__)
-        print('mbapy author: ', mbapy.__author__, ', email: ', mbapy.__author_email__)
-        print('mbapy url: ', mbapy.__url__, ', license: ', mbapy.__license__)
+        print_version_info()
     elif len(sys.argv) == 2:
         if sys.argv[1] in ['-l', '--list']:
             print_scripts_list()
         elif sys.argv[1] in ['-i', '--info']:
             print_scripts_info()
         elif sys.argv[1] in ['-h', '--help']:
-            help_info = """
-            usage-1: mbapy-cli [-h] [-l | -i]
-            options:
-            -h, --help  show this help message and exit
-            -l, --list  print scripts list
-            -i, --info  print scripts info
-            
-            usage-2: mbapy-cli [sub-scripts-name] [args] [-h]
-            options:
-            sub-scripts-name  name of scripts in mbapy.scripts
-            args  args for sub-scripts
-            -h, --help  show this help message and exit
-            """
-            print(help_info)
+            print_help_info()
         elif sys.argv[1] in exec2script:
             # exec scripts with only ZERO arg
             exec_scripts()
         elif os.path.exists(sys.argv[1]) and sys.argv[1].endswith('.mpss'):
+            # load MbaPy Script Session file and exec
             from mbapy.scripts._script_utils_ import Command
             print(f'loading session from file: {sys.argv[1]}')
             Command(None).exec_from_session(sys.argv[1])
