@@ -93,6 +93,18 @@ class Mprint:
             
     def __str__(self):
         return f'path={self.path:s}, mode={self.mode:s}, top_string={self.top_string:s}'
+    
+def set_random_seed(seed: int):
+    import random
+    torch.manual_seed(seed)  # 设置PyTorch的随机种子，用于生成随机数，确保结果的可重复性。
+    torch.cuda.manual_seed(seed)  # 设置PyTorch的CUDA随机种子，用于在GPU上生成随机数，确保结果的可重复性。
+    torch.cuda.manual_seed_all(seed)  # 如果使用多个GPU，设置所有GPU的随机种子，确保结果的可重复性。
+    np.random.seed(seed)  # 设置NumPy的随机种子，用于生成NumPy模块中的随机数，确保结果的可重复性。
+    random.seed(seed)  # 设置Python标准库中random模块的随机种子，用于生成Python中的随机数，确保结果的可重复性。
+    torch.manual_seed(seed)  # 再次设置PyTorch的随机种子，确保在后续代码中生成的随机数仍然是基于相同的种子。
+    torch.backends.cudnn.benchmark = False  # 禁用cuDNN的自动寻找最适合当前配置的高效算法，以确保结果的可重复性。
+    torch.backends.cudnn.deterministic = True  # 设置cuDNN的随机数生成策略为确定性模式，以确保结果的可重复性。
+    
             
 class GlobalSettings(MyArgs):
     def __init__(self, mp:Mprint, model_root:str, seed: int = 777, benchmark = True):
@@ -130,15 +142,8 @@ class GlobalSettings(MyArgs):
         # other
         self.mp = mp#Mp        
         if self.seed is not None:
-            import random
-            torch.manual_seed(self.seed)  # 设置PyTorch的随机种子，用于生成随机数，确保结果的可重复性。
-            torch.cuda.manual_seed(self.seed)  # 设置PyTorch的CUDA随机种子，用于在GPU上生成随机数，确保结果的可重复性。
-            torch.cuda.manual_seed_all(self.seed)  # 如果使用多个GPU，设置所有GPU的随机种子，确保结果的可重复性。
-            np.random.seed(self.seed)  # 设置NumPy的随机种子，用于生成NumPy模块中的随机数，确保结果的可重复性。
-            random.seed(self.seed)  # 设置Python标准库中random模块的随机种子，用于生成Python中的随机数，确保结果的可重复性。
-            torch.manual_seed(self.seed)  # 再次设置PyTorch的随机种子，确保在后续代码中生成的随机数仍然是基于相同的种子。
-            torch.backends.cudnn.benchmark = False  # 禁用cuDNN的自动寻找最适合当前配置的高效算法，以确保结果的可重复性。
-            torch.backends.cudnn.deterministic = True  # 设置cuDNN的随机数生成策略为确定性模式，以确保结果的可重复性。
+            set_random_seed(self.seed)
+            
     def add_epoch(self, addon: int = 1) -> bool:
         """
         return True if self.now_epoch > self.epochs
@@ -146,6 +151,7 @@ class GlobalSettings(MyArgs):
         self.now_epoch += 1
         self.left_epochs -= 1
         return self.now_epoch > self.epochs
+    
     def to_dict(self, printOut = False, mp = None):
         dic = {}
         for attr in vars(self):
@@ -155,6 +161,7 @@ class GlobalSettings(MyArgs):
         elif printOut:
             [ print(attr,' : ',dic[attr]) for attr in dic.keys()]
         return dic
+    
     def set_resume(self):
         self.resume_paths = glob.glob(os.path.join(self.model_root,'*.tar'))
         self.resume = self.resume_paths[0] if len(self.resume_paths) > 0 else 'None'
