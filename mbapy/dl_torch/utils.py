@@ -193,6 +193,8 @@ def init_model_parameter(model):
                 nn.init.xavier_normal_(m.weight_ih_l0)
             if m.weight_hh_l0 is not None:
                 nn.init.xavier_normal_(m.weight_hh_l0)
+        elif isinstance(m, nn.Embedding):
+            nn.init.xavier_normal_(m.weight)
     return model
 
 def adjust_learning_rate(optimizer, now_epoch, args):
