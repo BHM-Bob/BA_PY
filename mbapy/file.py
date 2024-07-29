@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-29 17:21:31
+LastEditTime: 2024-07-29 21:46:39
 Description: 
 '''
 import collections
@@ -199,7 +199,7 @@ def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
     return path if not return_Path else Path(path)
 
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
-              way:str = 'str', data = None, kwgs: Dict = {}, **kwargs):
+              way:str = 'str', data = None, kwgs: Dict = None, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
@@ -229,8 +229,12 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
         - return None if the path is not a valid file path for read.
         - return None if the mode or way is not valid.
     """
+    # check kwgs
+    kwgs = {} if kwgs is None else kwgs
+    # check mode
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
+    # perform read or write
     with open(path, mode, **kwargs) as f:
         if 'r' in mode and os.path.isfile(path):
             if way == 'lines':
