@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-17 11:27:03
+LastEditTime: 2024-07-29 17:21:31
 Description: 
 '''
 import collections
@@ -241,6 +241,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return json.loads(f.read(), **kwgs)
             elif way in ['yml', 'yaml']:
                 import yaml
+                kwgs['Loader'] = kwgs.get('Loader', yaml.FullLoader)
                 return yaml.load(f, **kwgs)
             elif way == 'pkl':
                 if kwargs.get('gzip', False):
