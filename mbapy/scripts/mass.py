@@ -318,7 +318,7 @@ class explore_mass(plot_mass):
                             ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
-                        ui.label(self.args.now_name).classes('text-h6').bind_text_from(tabs, 'value')
+                        ui.label(self.args.now_name).classes('text-h6').bind_text_from(self.args, 'now_name')
                         self.make_fig()
         ## run GUI
         ui.run(host = 'localhost', port = 8010, title = 'Mass Data Explorer', reload=False)
