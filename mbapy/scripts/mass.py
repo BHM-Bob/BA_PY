@@ -230,7 +230,7 @@ class explore_mass(plot_mass):
             self.fig = fig.fig
         
     def save_fig(self):
-        png_path = Path(self.args.dfs[self.args.now_name].data_file_path).with_suffix('.png')
+        png_path = (Path(self.args.dfs[self.args.now_name].data_file_path).parent / f'{self.args.file_name}').with_suffix('.png')
         ui.notify(f'saving figure to {png_path}')
         save_show(png_path, dpi = self.args.dpi, show = self.args.show_fig)
         
