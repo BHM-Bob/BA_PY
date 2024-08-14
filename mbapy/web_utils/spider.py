@@ -330,8 +330,8 @@ class DownloadPage(PagePage):
                     file_path = os.path.join(page_folder, os.path.basename(url))
                 else:
                     file_path = os.path.join(page_folder, self.item_file_name[page_idx][url_idx])
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 file_path = get_valid_file_path(file_path)
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 # skip if skip_downloaded is True and file exists.
                 if os.path.exists(file_path) and self.skip_downloaded:
                     self._records[url] = False
