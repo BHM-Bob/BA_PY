@@ -106,7 +106,7 @@ def main(sys_args: List[str] = None):
         from mbapy.web import TaskPool
         with Manager() as manager:
             file_size = manager.dict(before=0, after=0)
-            pool, batches_name = TaskPool('process', args.multi_process).run(), []
+            pool, batches_name = TaskPool('process', args.multi_process).start(), []
             batches = split_list(paths, args.batch)
             # add tasks to pool
             for batch in tqdm(batches, desc='adding batches'):

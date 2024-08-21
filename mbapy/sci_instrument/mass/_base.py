@@ -181,7 +181,7 @@ if __name__ == '__main__':
     # data.load_processed_data_file()
     data.raw_data = data.load_raw_data_file()
     data.processed_data = data.process_raw_data()
-    task_pool = TaskPool('process', 4).run()
+    task_pool = TaskPool('process', 4).start()
     peak_df_4 = data.search_peaks(parallel=task_pool).copy()
     peak_df_1 = data.search_peaks().copy()
     print(peak_df_4.equals(peak_df_1))

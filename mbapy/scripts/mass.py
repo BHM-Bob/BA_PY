@@ -137,7 +137,7 @@ class plot_mass(Command):
     
     def main_process(self):
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
             print(f'created task pool with {self.args.multi_process} processes')
         self.load_data(self.args.dir, self.args.recursive)
         # show data general info, output peak list DataFrame, plot and save figure
@@ -237,7 +237,7 @@ class explore_mass(plot_mass):
     def main_process(self):
         # set task pool
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
             print(f'task pool created with {self.args.multi_process} processes')
         # process args and load data asynchronously
         self.data_loader = Thread(name='data loader', target=self.load_data, args=(self.args.dir, self.args.recursive), daemon=True)

@@ -192,7 +192,7 @@ class mutation_weight(Command):
         self.verbose = not self.args.disable_verbose
         # task pool
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
         else:
             self.task_pool = None
         # mutation controls
@@ -306,7 +306,7 @@ class fit_mass(Command):
         self.args.ms_lim = eval(f'({self.args.ms_lim})') if self.args.ms_lim is not None else None
         # set task pool
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
             self.printf(f'task pool created with {self.args.multi_process} processes')
         # process argument: seq
         if os.path.isfile(clean_path(self.args.seq)) and self.args.seq.endswith('mbapy.mmw.pkl'):

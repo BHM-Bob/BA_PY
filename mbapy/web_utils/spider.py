@@ -603,7 +603,7 @@ class Actions(BaseInfo):
         if self.use_thread_listen:
             launch_sub_thread(key2action=self.k2a)
         # prepare async task pool
-        self._task_pool.run()
+        self._task_pool.start()
         self.results = {}
         self.results = _perform(self.pages, self.results, *args, **kwargs)
         return self.results

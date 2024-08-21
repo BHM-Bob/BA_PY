@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-24 11:11:58
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-01 18:45:06
+LastEditTime: 2024-08-21 15:49:18
 Description: 
 '''
 import asyncio
@@ -20,7 +20,7 @@ class TaskPoolCorutineTest(unittest.TestCase):
             print(f"Coroutine {name} finished after {seconds} seconds")
             return f"Coroutine {name} result"
 
-        pool = TaskPool().run()
+        pool = TaskPool().start()
         pool.add_task("task1", example_coroutine, "task1", 2)
         pool.add_task("task2", example_coroutine, "task2", 4)
         
@@ -63,7 +63,7 @@ class TaskPoolThreadTest(unittest.TestCase):
             print(f"Thread {name} finished after {seconds} seconds")
             return f'Thread {name} result'
         
-        pool = TaskPool('thread').run()
+        pool = TaskPool('thread').start()
         pool.add_task("task1", example_function, "task1", 2)
         pool.add_task("task2", example_function, "task2", 4)
 
@@ -83,7 +83,7 @@ class TaskPoolThreadTest(unittest.TestCase):
             print(f"Thread {name} finished after {seconds} seconds")
             return f'Thread {name} result'
         
-        pool = TaskPool('thread').run()
+        pool = TaskPool('thread').start()
         pool.add_task('', example_function, "task1", 2)
         pool.add_task('', example_function, "task2", 4)
         
@@ -107,7 +107,7 @@ class TaskPoolThreadsTest(unittest.TestCase):
             return f'Threads {name} result'
         
         n_woker = 4
-        pool = TaskPool('threads', n_woker).run()
+        pool = TaskPool('threads', n_woker).start()
         for i in range(n_woker):
             pool.add_task(f"task{i+1}", example_function, f"task{i+1}", 3)
 
@@ -132,7 +132,7 @@ def TaskPoolProcessTest_example_function(name, seconds):
 class TaskPoolProcessTest(unittest.TestCase):
     def test_n_worker_4(self):
         n_worker = 4
-        pool = TaskPool('process', n_worker).run()
+        pool = TaskPool('process', n_worker).start()
         for i in range(n_worker):
             pool.add_task(f"task{i+1}", TaskPoolProcessTest_example_function, f"task{i+1}", 3)
 
