@@ -12,6 +12,7 @@ from queue import Queue
 from typing import Any, Callable, Dict, List, Literal, Set, Tuple, Union
 from uuid import uuid4
 
+from deprecated import deprecated
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -433,8 +434,12 @@ class TaskPool:
         in_dict = len([None for task in self.tasks.values() if task != TaskStatus.NOT_RETURNED])
         return in_que + in_dict
 
+    @deprecated("This method will be deprecated, use start method instead.")
     def run(self):
-        """launch the thread and event loop"""
+        return self.start()
+    
+    def start(self):
+        """start the thread and event loop"""
         if self.MODE == 'async':
             self._async_loop = asyncio.new_event_loop()
         if self.MODE == 'threads':
@@ -528,6 +533,6 @@ if __name__ == '__main__':
         print(f"Coroutine {name} finished after {seconds} seconds")
         return f"Coroutine {name} result"
 
-    pool = TaskPool().run()
+    pool = TaskPool().start()
     pool.add_task("task1", example_coroutine, "task1", 2)
     pool.add_task("task2", example_coroutine, "task2", 4)
