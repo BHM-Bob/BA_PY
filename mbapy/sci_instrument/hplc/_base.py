@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-28 21:48:46
+LastEditTime: 2024-08-24 22:43:33
 Description: mbapy.sci_instrument.hplc._base
 '''
 from typing import Dict, List, Tuple, Union
@@ -26,6 +26,7 @@ class HplcData(SciInstrumentData):
         self.X_HEADER = 'Time'
         self.Y_HEADER = 'Absorbance'
         self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
+        self.IS_PDA = False
         self.refined_abs_data: pd.DataFrame = None
         self.area: Dict[int, Dict[str, Union[float, int, np.ndarray]]] = {} # the area and underline of peaks
         self.peaks_idx: np.ndarray = None # the index of peaks in the data, in tick.
