@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-30 17:51:43
+LastEditTime: 2024-08-29 21:25:19
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
@@ -33,6 +33,7 @@ class SciexPeakListData(MassData):
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = 'Charge'
+        self.MONOISOTOPIC_HEADER = 'Monoisotopic'
         self.X_MZ_HEADER = 'Mass/charge (charge)'
         self.X_M_HEADER = 'Mass (charge)'
         # Mass/Charge	Area	Height	Width	Width at 50%	Resolution	Charge	Monoisotopic	Mass (charge)	Mass/charge (charge)

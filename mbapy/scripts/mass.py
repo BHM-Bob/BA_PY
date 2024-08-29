@@ -45,14 +45,15 @@ def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[
     return None
 
 
-def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox):
+def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox, tag_monoisotopic_only):
     name = data.get_tag()
     # save processed data
     data.save_processed_data()
     print(f'{name}: processed data saved to {data.processed_data_path}')
     # plot
     ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
-                                   labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox)
+                                   labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox,
+                                   tag_monoisotopic_only=tag_monoisotopic_only)
     # change fig size if legend size is over fig size
     if extra_artists:
         legend_size = extra_artists[0].get_window_extent()
@@ -156,9 +157,9 @@ class plot_mass(Command):
                 data.X_HEADER = data.X_MZ_HEADER
             # save processed data
             if self.task_pool is not None:
-                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox)
+                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox, self.tag_monoisotopic_only)
             else:
-                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox)
+                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox, self.tag_monoisotopic_only)
         if self.task_pool is not None:
             self.task_pool.wait_till_tasks_done(self.dfs.keys())
             self.task_pool.close()
@@ -217,7 +218,7 @@ class explore_mass(plot_mass):
                                                       labels=self.args.labels, labels_eps=self.args.labels_eps,
                                                       legend_bbox=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2),
                                                       legend_pos=self.args.legend_pos, marker_size=self.args.marker_size,
-                                                      is_y_log=self.args.is_y_log)
+                                                      is_y_log=self.args.is_y_log, tag_monoisotopic_only=self.args.tag_monoisotopic_only)
             x_axis_exp = (1-self.args.xaxis_expand, 1+self.args.xaxis_expand)
             y_axis_exp = (1-self.args.yaxis_expand, 1+self.args.yaxis_expand)
             plt.xlim(tmp_data.peak_df[tmp_data.X_HEADER].min() * x_axis_exp[0], tmp_data.peak_df[tmp_data.X_HEADER].max() * x_axis_exp[1])
@@ -286,6 +287,7 @@ class explore_mass(plot_mass):
                         # configs for fontsize
                         with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)
+                            ui.checkbox('tag monoisotopic only', value=self.args.tag_monoisotopic_only).bind_value_to(self.args, 'tag_monoisotopic_only')
                             ui.number('xticks fontsize', value=self.args.xticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'xticks_fontsize')
                             ui.number('yticks fontsize', value=self.args.yticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'yticks_fontsize')
                             ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
@@ -362,6 +364,8 @@ def main(sys_args: List[str] = None):
                                 help='labels, input as 1000,Pep1,red;1050,Pep2, default is %(default)s')
     plot_mass_args.add_argument('--labels-eps', type = float, default=0.5,
                                 help='eps to recognize labels, default is %(default)s')
+    plot_mass_args.add_argument('--tag-monoisotopic-only', action='store_true', default=False,
+                                help='only tag for monoisotopic peaks, default is %(default)s')
     plot_mass_args.add_argument('-sf', '--show-fig', action='store_true', default=False,
                                 help='automatically show figure, default is %(default)s')
     plot_mass_args.add_argument('-lposbbox', '--legend-bbox', type = str, default='1,1',
