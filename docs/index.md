@@ -1,7 +1,7 @@
 <!--
  * @Date: 2023-07-29 09:56:37
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-07-16 07:49:22
+ * @LastEditTime: 2024-08-29 22:13:11
  * @Description: 
 -->
 <!-- mkdocs serve -->
@@ -112,6 +112,7 @@ Some helpful command line scripts.
 16. [video](scripts/video.md)  
 
 # Release History
+- [0.9.0](release_notes/0.9.0.md)
 - [0.8.9](release_notes/0.8.9.md)
 - [0.8.8](release_notes/0.8.8.md)  
 - [0.8.7](release_notes/0.8.7.md)  
