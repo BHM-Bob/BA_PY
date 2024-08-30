@@ -22,7 +22,8 @@
         "rispy",
         "lxml",
         "crossref_commons",
-        "tqdm"
+        "tqdm",
+        "deprecated"
     ],
     "bio":
     [
