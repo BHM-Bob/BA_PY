@@ -157,9 +157,12 @@ class plot_mass(Command):
                 data.X_HEADER = data.X_MZ_HEADER
             # save processed data
             if self.task_pool is not None:
-                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox, self.tag_monoisotopic_only)
+                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim,
+                                        self.args.labels, self.args.labels_eps, self.args.show_fig,
+                                        self.args.legend_bbox, self.args.tag_monoisotopic_only)
             else:
-                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox, self.tag_monoisotopic_only)
+                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps,
+                                      self.args.show_fig, self.args.legend_bbox, self.args.tag_monoisotopic_only)
         if self.task_pool is not None:
             self.task_pool.wait_till_tasks_done(self.dfs.keys())
             self.task_pool.close()
