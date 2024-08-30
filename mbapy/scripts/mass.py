@@ -16,7 +16,7 @@ os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import Configs, put_err
-from mbapy.file import get_paths_with_extension, get_valid_file_path
+from mbapy.file import get_paths_with_extension, get_valid_file_path, opts_file
 from mbapy.game import BaseInfo
 from mbapy.plot import PLT_MARKERS, get_palette, save_show
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData, SciexMZMine
@@ -93,6 +93,8 @@ class plot_mass(Command):
             self.args.output = None
         self.use_recursive_output = self.args.recursive and self.args.output is None
         # process others
+        if os.path.exists(self.args.labels):
+            self.args.labels = opts_file(self.args.labels)
         self.args.labels = process_peak_labels(self.args.labels)
         self.args.xlim = eval(f'[{self.args.xlim}]') if self.args.xlim else None
         self.args.legend_bbox = eval(f'({self.args.legend_bbox})') # NOTE: can be invoked
@@ -364,7 +366,7 @@ def main(sys_args: List[str] = None):
     plot_mass_args.add_argument('--marker-size', type = float, default=120,
                                 help='marker size, default is %(default)s')
     plot_mass_args.add_argument('-labels', '--labels', type = str, default='',
-                                help='labels, input as 1000,Pep1,red;1050,Pep2, default is %(default)s')
+                                help='labels, input as 1000,Pep1,red;1050,Pep2, or is a text file path, default is %(default)s')
     plot_mass_args.add_argument('--labels-eps', type = float, default=0.5,
                                 help='eps to recognize labels, default is %(default)s')
     plot_mass_args.add_argument('--tag-monoisotopic-only', action='store_true', default=False,
