@@ -1,6 +1,7 @@
 from itertools import chain, combinations
 from typing import Callable, Dict, List, Tuple, Union, Optional
 
+from matplotlib.colors import ListedColormap
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -77,6 +78,16 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
     if return_n and ret is not None:
         ret = ret[:n]
     return ret
+    
+    
+def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int):
+    cmap = plt.get_cmap(cmap)
+    max_len = vmax - v0
+    assert max_len > 0, 'vmax <= v0'
+    min_len = v0 - vmin
+    assert min_len > 0, 'vmin >= v0'
+    new_colors = cmap(np.linspace(0, 1, 2*max_len))
+    return ListedColormap(np.concatenate((new_colors[:max_len:max_len//min_len], new_colors[max_len:])))
     
 
 def calcu_swarm_pos(x: float, y: np.ndarray, width: float, d: Optional[float] = None):
