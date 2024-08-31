@@ -81,6 +81,22 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
     
     
 def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int):
+    """
+    Adjusts the `center point` of the color map, the color range could be scaled.
+
+    Parameters:
+        cmap (str): Name of the color map to be adjusted, passed to plt.get_cmap()
+        vmin (int): Minimum value of the value-mapping
+        v0 (int): New center point value of the value-mapping
+        vmax (int): Maximum value of the original value-mapping
+
+    Returns:
+        ListedColormap: A new color map object with the adjusted center point
+
+    Raises:
+        AssertionError: If vmax is less than or equal to v0, an AssertionError is raised with the message 'vmax <= v0'
+        AssertionError: If vmin is greater than or equal to v0, an AssertionError is raised with the message 'vmin >= v0'
+    """
     cmap = plt.get_cmap(cmap)
     max_len = vmax - v0
     assert max_len > 0, 'vmax <= v0'
@@ -240,6 +256,7 @@ __all__ = [
     'hex2rgb',
     'rgbs2hexs',
     'get_palette',
+    'adjust_cmap_midpoint',
     'calcu_swarm_pos',
     'qqplot',
     'save_show',
