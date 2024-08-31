@@ -310,9 +310,11 @@ class fit_mass(Command):
             self.printf(f'task pool created with {self.args.multi_process} processes')
         # process argument: seq
         if os.path.isfile(clean_path(self.args.seq)) and self.args.seq.endswith('mbapy.mmw.pkl'):
+            self.args.seq = str(clean_path(self.args.seq))
             self.mw2pep = opts_file(self.args.seq, mode = 'rb', way='pkl')['mw2pep']
             self.printf(f'load mw2pep from {self.args.seq}')
         elif os.path.isdir(clean_path(self.args.seq)):
+            self.args.seq = str(clean_path(self.args.seq))
             for path in get_paths_with_extension(self.args.seq, ['mbapy.mmw.pkl'], self.args.recursive):
                 mw2pep = opts_file(path, mode = 'rb', way='pkl')['mw2pep']
                 load_count = 0
