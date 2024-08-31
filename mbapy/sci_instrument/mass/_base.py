@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-29 21:24:44
+LastEditTime: 2024-08-31 10:52:57
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -38,7 +38,8 @@ class MassData(SciInstrumentData):
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None
-        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER', 'mode', 'substance'])
+        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER',
+                                              'Monoisotopic', 'mode', 'substance'])
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = None
@@ -162,11 +163,11 @@ class MassData(SciInstrumentData):
                                             (self.peak_df[self.Y_HEADER] >= min_height)].copy()
         return self.peak_df.reset_index(drop=True)
     
-    def add_match_record(self, x: float, y: float, c: float, mode: str, substance: str,
+    def add_match_record(self, x: float, y: float, c: float, monoisotopic: bool, mode: str, substance: str,
                          x_header: str = None, y_header: str = None, charge_header: str = None):
         x_header, y_header = x_header or self.X_HEADER, y_header or self.Y_HEADER
         charge_header = self.CHARGE_HEADER or ''
-        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, c, charge_header, mode, substance]
+        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, c, charge_header, monoisotopic, mode, substance]
         return self.match_df
     
     
