@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-31 16:19:39
+LastEditTime: 2024-08-31 16:35:15
 Description: 
 '''
 
@@ -58,6 +58,8 @@ def _plot_tag_by_string_label(ax: plt.Axes, df: pd.DataFrame, data: MassData,
 def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
                           color: str = 'black', tag_fontsize: int  = 15, marker_size: int = 120,
                           tag_monoisotopic_only: bool = False):
+    _check_monoisotopic = lambda is_mono: (tag_monoisotopic_only and is_mono) or (not tag_monoisotopic_only)
+    # get color and marker
     if 'color' not in df.columns:
         df['color'] = get_palette(len(data.match_df), 'hls')
     if 'marker' not in df.columns:
@@ -67,7 +69,7 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
     charges = data.peak_df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(data.peak_df)
     is_monoisotopic = data.peak_df[data.MONOISOTOPIC_HEADER] if data.MONOISOTOPIC_HEADER is not None else [True]*len(data.peak_df)
     for ms, h, charge, is_mono in zip(data.peak_df[data.X_HEADER], data.peak_df[data.Y_HEADER], charges, is_monoisotopic):
-        if ms not in match_df['x']:
+        if ms not in match_df['x'] and _check_monoisotopic(is_mono):
             charge_str = f'({charge})' if charge is not None else ''
             ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = color,
                     horizontalalignment='left', verticalalignment='center')
@@ -80,7 +82,7 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
                      scatter_label=f'{x:.3f}: {substance}{mode}',
                      plot_scatter=True, scatter_size=marker_size)
         charge_str = f'({charge})' if charge is not None else ''
-        if (tag_monoisotopic_only and is_mono) or (not tag_monoisotopic_only):
+        if _check_monoisotopic(is_mono):
             ax.text(x, y, f'{x:.3f}{charge_str}\n{mode}', fontsize=tag_fontsize, color = color,
                     horizontalalignment='center', verticalalignment='bottom')
     return True
