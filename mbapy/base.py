@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-25 22:58:26
+LastEditTime: 2024-08-31 22:32:48
 Description: 
 '''
 import ctypes
@@ -372,11 +372,15 @@ def parameter_checker(*arg_checkers, raise_err = True, **kwarg_checkers):
         def wrapper(*args, **kwargs):
             info_string = f"Parameter checker for {func.__code__.co_name} : Invalid value for argument "
             def check_arg(checker, arg_name: str, arg_value):
+                if isinstance(checker, tuple):
+                    checker, tmp_info_string = checker[0], checker[1]
+                else:
+                    tmp_info_string = info_string
                 if not checker(arg_value):
                     if raise_err:
-                        raise ValueError(info_string+arg_name)
+                        raise ValueError(tmp_info_string+arg_name)
                     else:
-                        return put_err(info_string+arg_name, False)
+                        return put_err(tmp_info_string+arg_name, False)
                 return True
             # args_name will exclude *args and **kwargs with name of args and kwargs
             args_name = list(func.__code__.co_varnames)[:func.__code__.co_argcount+
