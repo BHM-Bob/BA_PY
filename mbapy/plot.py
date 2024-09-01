@@ -1,7 +1,6 @@
-from itertools import chain, combinations
-from typing import Callable, Dict, List, Tuple, Union, Optional
+from itertools import combinations
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from matplotlib.colors import ListedColormap
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -9,27 +8,32 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
+from matplotlib.colors import ListedColormap
 
 if __name__ == '__main__':
     # dev mode
     import mbapy.stats.test as mst
+    # Assembly of functions
+    from mbapy.plot_utils.bar_utils import (AxisLable, plot_bar,
+                                            plot_positional_hue, pro_bar_data)
+    from mbapy.plot_utils.line_utils import *
+    from mbapy.plot_utils.scatter_utils import (add_scatter_legend, plot_reg,
+                                                plot_scatter)
     from mbapy.stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
                                 sort_df_factors)
     from mbapy.stats.test import p_value_to_stars
-    # Assembly of functions
-    from mbapy.plot_utils.bar_utils import AxisLable, pro_bar_data, plot_bar, plot_positional_hue
-    from mbapy.plot_utils.line_utils import *
-    from mbapy.plot_utils.scatter_utils import plot_reg, plot_scatter, add_scatter_legend
 else:
     # release mode
+    # Assembly of functions
+    from .plot_utils.bar_utils import (AxisLable, plot_bar,
+                                       plot_positional_hue, pro_bar_data)
+    from .plot_utils.line_utils import *
+    from .plot_utils.scatter_utils import (add_scatter_legend, plot_reg,
+                                           plot_scatter)
     from .stats import test as mst
     from .stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
                            sort_df_factors)
     from .stats.test import p_value_to_stars
-    # Assembly of functions
-    from .plot_utils.bar_utils import AxisLable, pro_bar_data, plot_bar, plot_positional_hue
-    from .plot_utils.line_utils import *
-    from .plot_utils.scatter_utils import plot_reg, plot_scatter, add_scatter_legend
 
 # plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文
 plt.rcParams["font.family"] = 'Times New Roman'
