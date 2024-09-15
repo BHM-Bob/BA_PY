@@ -267,6 +267,7 @@ class TaskPool:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
         self.N_WORKER = n_worker
+        self.IS_STARTED = False
         self._async_loop: asyncio.AbstractEventLoop = None
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
@@ -450,6 +451,7 @@ class TaskPool:
         else: # async, thread and process only need one thread
             self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
             self.thread.start()
+        self.IS_STARTED = True
         return self
     
     def check_empty(self):
@@ -508,6 +510,8 @@ class TaskPool:
             self.thread.join()
         elif self.MODE == 'threads':
             [t.join() for t in self.thread]
+        # deactive IS_STARTED Flag
+        self.IS_STARTED = False
 
 
 __all__ = [
