@@ -547,6 +547,17 @@ class Browser:
     def find_elements(self, element: str, by: str = 'xpath'):
         by = self._get_by(by)
         return self.browser.find_elements(by, element)
+    
+    def wait_element(self, element: Union[str, List[str]], by: str = 'xpath',
+                     timeout: int = 600):
+        """return True if all elements are found in time, False if timeout exceeded"""
+        st = time.time()
+        element = [element] if isinstance(element, str) else element
+        while not all(self.find_elements(e, by) for e in element):
+            random_sleep(3)
+            if time.time() - st > timeout:
+                return False
+        return True
         
     def execute_script(self, script: str, *args):
         return self.browser.execute_script(script, *args)
