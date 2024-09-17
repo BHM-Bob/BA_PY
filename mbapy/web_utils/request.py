@@ -398,7 +398,7 @@ def download_streamly(url: str, path: str, session):
             bar.update(size)
 
 
-ElementType = NewType('ElementType', selenium.webdriver.remote.webelement.WebElement)
+ElementType = selenium.webdriver.remote.webelement.WebElement
 
 
 def BrowserActionWarpper(func):
@@ -462,8 +462,8 @@ def BrowserElementActionWarpper(func):
         - TimeoutException: If the element is not found within the specified time out.
     """
     @wraps(func)
-    def core_wrapper(self, element: Union[None, str, ElementType], by: str = 'xpath',
-                     executor: str = 'JS', *args, time_out: int = 5,
+    def core_wrapper(self, *args, element: Union[None, str, ElementType], by: str = 'xpath',
+                     executor: str = 'JS', time_out: int = 5,
                      multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None,
                      sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1), **kwargs):
         if element is None:
