@@ -5,7 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from functools import wraps
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, NewType
 
 import numpy as np
 import requests
@@ -396,9 +396,10 @@ def download_streamly(url: str, path: str, session):
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
             bar.update(size)
-            
-            
-ElementType = selenium.webdriver.remote.webelement.WebElement
+
+
+ElementType = NewType('ElementType', selenium.webdriver.remote.webelement.WebElement)
+
 
 def BrowserActionWarpper(func):
     """
