@@ -1,7 +1,7 @@
 '''
 Date: 2024-09-06 20:52:53
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-09-06 23:08:24
+LastEditTime: 2024-09-12 23:00:53
 Description: 
 '''
 import argparse
@@ -23,7 +23,7 @@ from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
 class SysInfo:
     def __init__(self, update_interval: float = 1.0) -> None:
         self._update_interval = update_interval
-        self._info = {'CPU': [0], 'Mem': -1., 'GPU': [0], 'Disk': {}}
+        self._info = {'CPU': [0], 'RAM': -1., 'GPU': [0], 'Disk': {}}
         self._cache = self._info.copy()
         self._que = Queue()
         self.host = Thread(target=self._run, name='sys_info_host')
@@ -34,7 +34,7 @@ class SysInfo:
         while True:
             # get info
             self._info['CPU'] = psutil.cpu_percent(interval=self._update_interval, percpu=True)
-            self._info['Mem'] = psutil.virtual_memory().percent
+            self._info['RAM'] = psutil.virtual_memory().percent
             self._info['Disk'] = {}
             for disk in psutil.disk_partitions():
                 if disk.opts == 'cdrom':
@@ -66,6 +66,7 @@ class cmd_runner(Command):
         tik = time.time()
         self.sys_info_record = {tik-i: self.sys_info.get_info() for i in range(3 * 60)}  # remain 3 min records
         self.ui_cpu_chart = None
+        self.ui_ram_chart = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -81,15 +82,17 @@ class cmd_runner(Command):
         if name == 'CPU':
             return [{'name': f'CPU {i}', 'data': list(zip(range(len(self.sys_info_record)), usage))}\
                 for i, usage in enumerate(zip(*_get_item_info('CPU')))]
+        elif name == 'RAM':
+            return [{'name': f'RAM', 'data': list(zip(range(len(self.sys_info_record)), _get_item_info('RAM')))}]
     
     def _update_gui(self):
         # if 
         if time.time() - max(self.sys_info_record.keys()) >= 1:
             del self.sys_info_record[min(self.sys_info_record.keys())]
             self.sys_info_record[time.time()] = self.sys_info.get_info()
-            # update CPU chart
-            self.ui_cpu_chart.options['series'] = self._get_sys_info_chart_data('CPU')
-            self.ui_cpu_chart.update()
+            for chart, item in zip([self.ui_cpu_chart, self.ui_ram_chart], ['CPU', 'RAM']):
+                chart.options['series'] = self._get_sys_info_chart_data(item)
+                chart.update()
     
     def _build_new_task_gui(self):
         pass
@@ -102,11 +105,12 @@ class cmd_runner(Command):
             with ui.row().classes('w-full h-1/2'):
                 # CPU
                 with ui.card().classes('w-2/5 h-full'):
-                    self.ui_cpu_chart = ui.highchart({'title': 'CPU Usage', 'animation': True, 'marker': {'enable': False},
+                    self.ui_cpu_chart = ui.highchart({'title': 'CPU Usage', 'animation': False, 'marker': {'enable': False},
                                                       'series': self._get_sys_info_chart_data('CPU')}).classes('flex flex-grow')
-                # Memory
+                # RAM
                 with ui.card().classes('w-2/5 h-full'):
-                    pass
+                    self.ui_ram_chart = ui.highchart({'title': 'RAM Usage', 'animation': False, 'marker': {'enable': False},
+                                                      'series': self._get_sys_info_chart_data('RAM')}).classes('flex flex-grow')
             with ui.row().classes('w-full h-1/2'):
                 # GPU
                 with ui.card().classes('w-2/5 h-full'):
