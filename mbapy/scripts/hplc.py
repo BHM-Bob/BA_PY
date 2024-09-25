@@ -109,7 +109,8 @@ class plot_hplc(Command):
                 print(f'plotting data for {tag}')
                 data.save_processed_data()
                 ax, extra_artists, _, _ = _plot_hplc(data, file_labels = [all_file_labels[i]], **self.args.__dict__)
-                _save_fig(self.args.output, f"{tag.replace('/', '-')}.png", self.args.dpi, self.args.show, extra_artists)
+                data_dir = os.path.dirname(data.data_file_path)
+                _save_fig(data_dir, f"{tag.replace('/', '-')}.png", self.args.dpi, self.args.show, extra_artists)
                 plt.close(ax.figure)
 
 
