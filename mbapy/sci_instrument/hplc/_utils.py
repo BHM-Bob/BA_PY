@@ -80,10 +80,10 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     # apply x, y offset
     for data in hplc_data:
         names.append(data.get_tag())
-        data.refined_abs_data = data.get_abs_data(True).copy()
+        data.refined_abs_data = data.get_abs_data(origin_data=True).copy()
         data.refined_abs_data[data.X_HEADER] += dfs_refinment_x.get(data.get_tag(), 0)
         data.refined_abs_data[data.Y_HEADER] += dfs_refinment_y.get(data.get_tag(), 0)
-        data_dfs.append(data.get_abs_data(False))
+        data_dfs.append(data.get_abs_data(origin_data=False))
     # return if no data
     if len(data_dfs) == 0:
         return put_err('no data to plot, return None')
@@ -169,8 +169,9 @@ __all__ = [
 
 
 if __name__ == '__main__':
-    from mbapy.sci_instrument.hplc.waters import WatersData
-    data = WatersData('data_tmp/scripts/hplc/ORI_DATA5184.arw')
+    from mbapy.sci_instrument.hplc.waters import WatersPdaData
+    data = WatersPdaData('data_tmp/scripts/hplc/WatersPDA.arw')
+    data.set_opt_wave_length(228)
     plot_hplc(data, start_search_time=4, dfs_refinment_x={data.get_tag(): -3},
               plot_peaks_underline=True, plot_peaks_line=True, plot_peaks_area=True, dpi = 100)
     plt.show()
