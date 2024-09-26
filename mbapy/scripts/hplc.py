@@ -27,12 +27,14 @@ from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
 
 
 class plot_hplc(Command):
-    SUPPORT_SYSTEMS = {'waters', 'SCIEX', 'SCIEX-TIC', 'EasyChrom'}
+    SUPPORT_SYSTEMS = {'waters', 'SCIEX', 'SCIEX-TIC', 'EasyChrom', 'WatersPDA'}
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.dfs = {}
-        self.sys2suffix = {'waters': 'arw', 'SCIEX': 'txt', 'SCIEX-TIC': 'txt', 'EasyChrom': 'txt'}
-        self.sys2model: Dict[str, HplcData] = {'waters': WatersData, 'SCIEX': SciexData, 'SCIEX-TIC': SciexTicData, 'EasyChrom': EasychromData}
+        self.sys2suffix = {'waters': 'arw', 'SCIEX': 'txt', 'SCIEX-TIC': 'txt', 'EasyChrom': 'txt', 'WatersPDA': 'arw'}
+        self.sys2model: Dict[str, HplcData] = {'waters': WatersData, 'WatersPDA': WatersPdaData,
+                                               'SCIEX': SciexData, 'SCIEX-TIC': SciexTicData,
+                                               'EasyChrom': EasychromData}
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -47,6 +49,8 @@ class plot_hplc(Command):
         args.add_argument('-o', '--output', type = str, default=None,
                           help="output file dir or path. Default is %(default)s, means same as input dir")
         # set draw argument
+        args.add_argument('--pda-wave-length', type=float, default=228,
+                          help='set pda wave length, default is %(default)s.')
         args.add_argument('--min-peak-width', type = float, default=4,
                           help='filter peaks with min width in hplc/Charge plot, default is %(default)s.')
         args.add_argument('-xlim', type = str, default='0,None',
@@ -108,6 +112,8 @@ class plot_hplc(Command):
             for i, (tag, data) in enumerate(self.dfs.items()):
                 print(f'plotting data for {tag}')
                 data.save_processed_data()
+                if data.IS_PDA:
+                    data.set_opt_wave_length(self.args.pda_wave_length)
                 ax, extra_artists, _, _ = _plot_hplc(data, file_labels = [all_file_labels[i]], **self.args.__dict__)
                 data_dir = os.path.dirname(data.data_file_path)
                 _save_fig(data_dir, f"{tag.replace('/', '-')}.png", self.args.dpi, self.args.show, extra_artists)
