@@ -118,10 +118,10 @@ class WatersPdaData(WatersData):
             if nearst_idx == 0 or nearst_idx == len(self.wave_length)-1:
                 abs_data = data[self.wave_length[nearst_idx]]
             else:
-                wave_range = self.wave_length[nearst_idx] - self.wave_length[nearst_idx-1]
-                abs1 = data[self.wave_length[nearst_idx-1]] * (wave_length - self.wave_length[nearst_idx-1]) / wave_range
-                abs2 = data[self.wave_length[nearst_idx]] * (self.wave_length[nearst_idx+1] - wave_length) / wave_range
-                abs_data = abs1 + abs2
+                # linear interpolation
+                delta_wave = self.wave_length[nearst_idx+1] - self.wave_length[nearst_idx-1]
+                abs1, abs2 = data[self.wave_length[nearst_idx-1]], data[self.wave_length[nearst_idx+1]]
+                abs_data = (wave_length - self.wave_length[nearst_idx-1]) * (abs2 - abs1) / delta_wave + abs1
         else:
             abs_data = data[wave_length]
         return pd.DataFrame({self.X_HEADER: data[self.X_HEADER], self.Y_HEADER: abs_data})
