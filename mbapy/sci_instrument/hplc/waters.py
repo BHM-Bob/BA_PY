@@ -1,7 +1,7 @@
 '''
 Date: 2024-06-18 16:25:14
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-24 22:49:28
+LastEditTime: 2024-09-26 11:25:26
 Description: 
 '''
 import os
@@ -108,7 +108,9 @@ class WatersPdaData(WatersData):
                 raise ValueError('No wave_length specified, please specify one')
             wave_length = self.opt_wave_length
         # get full data
-        data = super().get_abs_data(origin_data)
+        data = super().get_abs_data(origin_data=origin_data)
+        if not origin_data:
+            return data
         # get specific wave_length data
         if wave_length not in self.wave_length:
             diff = np.abs(np.array(self.wave_length)-wave_length)
@@ -150,7 +152,8 @@ if __name__ == '__main__':
     # WatersPdaData
     data = WatersPdaData('data_tmp/scripts/hplc/WatersPDA.arw')
     data.set_opt_wave_length(228)
-    data.get_abs_data()
+    data.refined_abs_data = data.get_abs_data(origin_data=True).copy()
+    data.get_abs_data(origin_data=False)
     peaks_idx = data.search_peaks(0.1, 0.01)
     print(peaks_idx)
     area = data.calcu_peaks_area(peaks_idx)
