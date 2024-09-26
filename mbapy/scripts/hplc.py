@@ -212,6 +212,9 @@ class explore_hplc(plot_hplc):
     def make_fig(self):
         plt.close(self.fig)
         if self.dfs:
+            for data in self.dfs.values():
+                if data.IS_PDA:
+                    data.set_opt_wave_length(self.args.pda_wave_length)
             with ui.pyplot(figsize=self.args.fig_size, close=False) as fig:
                 self.fig = fig.fig
                 ax, self._bbox_extra_artists, self.files_peaks_idx, file_labels = \
@@ -413,6 +416,7 @@ class explore_hplc(plot_hplc):
                         with ui.expansion('Data Filtering', icon='filter_alt', value=True, on_value_change=self._ui_only_one_expansion) as expansion1:
                             self._expansion.append(expansion1)
                             ui.select(sorted(list(self.SUPPORT_SYSTEMS)), label='HPLC System', value=self.args.system).bind_value_to(self.args,'system').bind_value_to(self, 'data_model', lambda s: self.sys2model[s]).on_value_change(self.load_data_from_dir).classes('w-full')
+                            ui.number('PDA wave length', value=self.args.pda_wave_length, step=0.1, format='%.1f').bind_value_to(self.args, 'pda_wave_length').classes('w-full')
                             ui.number('min peak width', value=self.args.min_peak_width, min = 0, step = 0.10).bind_value_to(self.args,'min_peak_width').tooltip('in minutes')
                             ui.number('min height', value=self.args.min_height, min = 0, step=0.01).bind_value_to(self.args, 'min_height')
                             ui.number('labels eps', value=self.args.labels_eps, min=0, format='%.2f').bind_value_to(self.args, 'labels_eps')
@@ -513,6 +517,7 @@ class explore_hplc(plot_hplc):
     def main_process(self):
         # make global settings
         self.args = BaseInfo(file_labels = '', peak_labels = '', merge = False, recursive = False,
+                             pda_wave_length = 228,
                              min_peak_width = 0.1, min_height = 0.01, start_search_time = 0, end_search_time = None,
                              show_tag_text = True, labels_eps = 0.1,
                              file_legend_pos = 'upper right', file_legend_bbox = [1.3, 0.75],
