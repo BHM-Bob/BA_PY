@@ -1,7 +1,7 @@
 '''
 Date: 2024-06-18 16:25:14
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-09-26 11:25:26
+LastEditTime: 2024-09-26 16:15:33
 Description: 
 '''
 import os
@@ -96,7 +96,11 @@ class WatersPdaData(WatersData):
             data_df = pd.DataFrame([list(map(lambda x : float(x.strip()), line.split('\t'))) for line in lines[4:]],
                                    columns = [self.X_HEADER] + self.wave_length)
             self.data_df, self.info_df = data_df, info_df
-            self.SUCCEED_LOADED = True
+            if len(self.data_df.columns) == 2:
+                put_err(f'only one wave length found in {self.data_file_path}, {self.wave_length}, assume not PDA data')
+                self.SUCCEED_LOADED = False
+            else:
+                self.SUCCEED_LOADED = True
             return info_df, data_df
         except:
             return put_err('Failed to process raw data, return None')
