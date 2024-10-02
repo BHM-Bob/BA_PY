@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-17 11:27:03
+LastEditTime: 2024-07-29 21:46:39
 Description: 
 '''
 import collections
@@ -93,6 +93,55 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
             file_paths.append(path)
         if recursive and os.path.isdir(path):
             file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr, search_name_in_dir))
+    return file_paths
+
+def get_dir(root: str, min_item_num: int = 0, max_item_num: int = None,
+            file_extensions: List[str] = [],
+            recursive: bool = True,
+            dir_name_substr: str = '', item_name_substr: str = '',) -> List[str]:
+    """
+    Returns a list of file paths within a given folder that have a specified extension.
+
+    Args:
+        - root (str): The root directory path.
+        - min_item_num (int, optional): The minimum number of items in a directory to be included. Defaults to 0.
+        - max_item_num (int, optional): The maximum number of items in a directory to be included. Defaults to None, means no limit.
+        - file_extensions (list[str]): specific file types string (without '.'), if None or [], means all types.
+        - recursive (bool, optional): Whether to recursively search subdirectories. Defaults to True.
+        - dir_name_substr (str): Sub-string in directory name.
+        - item_name_substr (str): Sub-string in file name.
+
+    Returns:
+        List[str]: A list of file paths that match the specified file extensions.
+    """
+    file_paths = []
+    for name in os.listdir(root): # do not use os.walk() to avoid FXXK files updates
+        path = os.path.join(root, name)
+        # check is dir
+        if not os.path.isdir(path):
+            continue
+        items = os.listdir(path)
+        items_num = len(items)
+        # recursive search before skip 
+        if os.path.isdir(path) and recursive and any(os.path.isdir(os.path.join(path, item)) for item in items):
+            file_paths.extend(get_dir(path, min_item_num, max_item_num,
+                                      file_extensions, recursive,
+                                      dir_name_substr, item_name_substr))
+        # check dir's name sub-string
+        if dir_name_substr not in name:
+            continue
+        # check items num
+        if items_num < min_item_num or (max_item_num is not None and items_num > max_item_num):
+            continue
+        # check items' name sub-string
+        if item_name_substr and not any(item_name_substr in item for item in items):
+            continue
+        # check files' type
+        if file_extensions and not any(any(filename.endswith(extension) for extension in file_extensions) \
+            for filename in items if os.path.isfile(os.path.join(path, filename))):
+                continue
+        # add dir path to result
+        file_paths.append(path)
     return file_paths
 
 def format_file_size(size_bits: int, return_str: bool = True):
@@ -199,7 +248,7 @@ def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
     return path if not return_Path else Path(path)
 
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
-              way:str = 'str', data = None, kwgs: Dict = {}, **kwargs):
+              way:str = 'str', data = None, kwgs: Dict = None, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
@@ -229,8 +278,12 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
         - return None if the path is not a valid file path for read.
         - return None if the mode or way is not valid.
     """
+    # check kwgs
+    kwgs = {} if kwgs is None else kwgs
+    # check mode
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
+    # perform read or write
     with open(path, mode, **kwargs) as f:
         if 'r' in mode and os.path.isfile(path):
             if way == 'lines':
@@ -241,6 +294,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return json.loads(f.read(), **kwgs)
             elif way in ['yml', 'yaml']:
                 import yaml
+                kwgs['Loader'] = kwgs.get('Loader', yaml.FullLoader)
                 return yaml.load(f, **kwgs)
             elif way == 'pkl':
                 if kwargs.get('gzip', False):
@@ -557,6 +611,7 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
     
 __all__ = [
     'get_paths_with_extention',
+    'get_dir',
     'format_file_size',
     'extract_files_from_dir',
     'replace_invalid_path_chr',
@@ -580,4 +635,5 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code        
+    dirs = get_dir('.', min_item_num=10, dir_name_substr='scripts', recursive=True)
     convert_pdf_to_txt(r'./data_tmp\papers\A review of the clinical efficacy of linaclotide in irritable bowel syndrome with constipation.pdf')

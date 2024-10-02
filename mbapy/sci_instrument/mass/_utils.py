@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-30 21:09:45
+LastEditTime: 2024-08-31 16:35:15
 Description: 
 '''
 
@@ -35,12 +35,13 @@ def _plot_vlines(ax, x, y, col, label = None, plot_scatter: bool = True,
 def _plot_tag_by_string_label(ax: plt.Axes, df: pd.DataFrame, data: MassData,
                               labels_eps: float, labels: Dict[str, str],
                               color: str = 'black', tag_fontsize: int  = 15,
-                              marker_size: int = 120):
+                              marker_size: int = 120, tag_monoisotopic_only: bool = False):
     labels_ms = np.array(list(labels.keys()))
     text_col = color
     has_label_matched = False
     charges = df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(df)
-    for ms, h, charge in zip(df[data.X_HEADER], df[data.Y_HEADER], charges):
+    is_monoisotopic = df[data.MONOISOTOPIC_HEADER] if data.MONOISOTOPIC_HEADER is not None else [True]*len(df)
+    for ms, h, charge, is_mono in zip(df[data.X_HEADER], df[data.Y_HEADER], charges, is_monoisotopic):
         matched = np.where(np.abs(labels_ms - ms) < labels_eps)[0]
         if matched.size > 0:
             label, text_col, maker = labels.get(labels_ms[matched[0]])
@@ -49,12 +50,16 @@ def _plot_tag_by_string_label(ax: plt.Axes, df: pd.DataFrame, data: MassData,
         else:
             text_col = color
         charge_str = f'({charge})' if charge is not None else ''
-        ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = text_col,
-                horizontalalignment='left', verticalalignment='center')
+        if (tag_monoisotopic_only and is_mono) or (not tag_monoisotopic_only):
+            ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = text_col,
+                    horizontalalignment='left', verticalalignment='center')
     return has_label_matched
 
 def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
-                          color: str = 'black', tag_fontsize: int  = 15, marker_size: int = 120):
+                          color: str = 'black', tag_fontsize: int  = 15, marker_size: int = 120,
+                          tag_monoisotopic_only: bool = False):
+    _check_monoisotopic = lambda is_mono: (tag_monoisotopic_only and is_mono) or (not tag_monoisotopic_only)
+    # get color and marker
     if 'color' not in df.columns:
         df['color'] = get_palette(len(data.match_df), 'hls')
     if 'marker' not in df.columns:
@@ -62,8 +67,9 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
     match_df = data.match_df
     # plot normal
     charges = data.peak_df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(data.peak_df)
-    for ms, h, charge in zip(data.peak_df[data.X_HEADER], data.peak_df[data.Y_HEADER], charges):
-        if ms not in match_df['x']:
+    is_monoisotopic = data.peak_df[data.MONOISOTOPIC_HEADER] if data.MONOISOTOPIC_HEADER is not None else [True]*len(data.peak_df)
+    for ms, h, charge, is_mono in zip(data.peak_df[data.X_HEADER], data.peak_df[data.Y_HEADER], charges, is_monoisotopic):
+        if ms not in match_df['x'] and _check_monoisotopic(is_mono):
             charge_str = f'({charge})' if charge is not None else ''
             ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = color,
                     horizontalalignment='left', verticalalignment='center')
@@ -76,8 +82,9 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
                      scatter_label=f'{x:.3f}: {substance}{mode}',
                      plot_scatter=True, scatter_size=marker_size)
         charge_str = f'({charge})' if charge is not None else ''
-        ax.text(x, y, f'{x:.3f}{charge_str}\n{mode}', fontsize=tag_fontsize, color = color,
-                horizontalalignment='center', verticalalignment='bottom')
+        if _check_monoisotopic(is_mono):
+            ax.text(x, y, f'{x:.3f}{charge_str}\n{mode}', fontsize=tag_fontsize, color = color,
+                    horizontalalignment='center', verticalalignment='bottom')
     return True
 
 def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float] = (12, 7),
@@ -88,7 +95,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
               verbose: bool = True, color: str = 'black',
               labels_eps: float = 0.5, labels: Dict[float, Tuple[str, str]] = {}, use_match_as_label: bool = True,
               tag_fontsize: float = 15, marker_size: float = 120, normal_marker: str = 'o',
-              is_y_log: bool = True,
+              is_y_log: bool = True, tag_monoisotopic_only: bool = False,
               **kwargs):
     """
     Parameters
@@ -110,6 +117,7 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
         - maker_size: float, default 80, peak-tag marker size
         - normal_marker: str, default 'o', not matched peak's peak-tag marker
         - is_y_log: bool, default True, will set y-axis scale to log if True
+        - tag_monoisotopic_only: bool, default False, True will only plot tag for monoisotopic peak
         - **kwargs: other keyword arguments for matplotlib.pyplot.Axes.vlines()
         
     Returns
@@ -136,9 +144,9 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color, scatter_size=marker_size//4, marker=normal_marker)
     # plot labels tag
     if use_match_as_label and len(data.match_df) > 0:
-        has_label_matched = _plot_tag_by_match_df(ax, data.match_df, data, color, tag_fontsize, marker_size)
+        has_label_matched = _plot_tag_by_match_df(ax, data.match_df, data, color, tag_fontsize, marker_size, tag_monoisotopic_only)
     else:
-        has_label_matched = _plot_tag_by_string_label(ax, df, data, labels_eps, labels, color, tag_fontsize, marker_size)
+        has_label_matched = _plot_tag_by_string_label(ax, df, data, labels_eps, labels, color, tag_fontsize, marker_size, tag_monoisotopic_only)
     # legend
     _bbox_extra_artists = []
     if show_legend and has_label_matched:
@@ -165,5 +173,5 @@ if __name__ == '__main__':
     from mbapy.sci_instrument.mass.SCIEX import SciexPeakListData
     data = SciexPeakListData(r'data_tmp\scripts\mass\pl.xlsx')
     labels = {362: ('M+H', 'blue', 'x'),}
-    ax, bbox = plot_mass(data)
+    ax, bbox = plot_mass(data, labels = labels, tag_monoisotopic_only = True)
     save_show(r'data_tmp\scripts\mass\pl.png', bbox_extra_artists = bbox)

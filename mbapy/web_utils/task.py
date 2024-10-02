@@ -12,6 +12,7 @@ from queue import Queue
 from typing import Any, Callable, Dict, List, Literal, Set, Tuple, Union
 from uuid import uuid4
 
+from deprecated import deprecated
 from tqdm import tqdm
 
 if __name__ == '__main__':
@@ -266,6 +267,7 @@ class TaskPool:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
         self.N_WORKER = n_worker
+        self.IS_STARTED = False
         self._async_loop: asyncio.AbstractEventLoop = None
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
@@ -433,8 +435,12 @@ class TaskPool:
         in_dict = len([None for task in self.tasks.values() if task != TaskStatus.NOT_RETURNED])
         return in_que + in_dict
 
+    @deprecated("This method will be deprecated, use start method instead.")
     def run(self):
-        """launch the thread and event loop"""
+        return self.start()
+    
+    def start(self):
+        """start the thread and event loop"""
         if self.MODE == 'async':
             self._async_loop = asyncio.new_event_loop()
         if self.MODE == 'threads':
@@ -445,6 +451,7 @@ class TaskPool:
         else: # async, thread and process only need one thread
             self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
             self.thread.start()
+        self.IS_STARTED = True
         return self
     
     def check_empty(self):
@@ -503,6 +510,8 @@ class TaskPool:
             self.thread.join()
         elif self.MODE == 'threads':
             [t.join() for t in self.thread]
+        # deactive IS_STARTED Flag
+        self.IS_STARTED = False
 
 
 __all__ = [
@@ -528,6 +537,6 @@ if __name__ == '__main__':
         print(f"Coroutine {name} finished after {seconds} seconds")
         return f"Coroutine {name} result"
 
-    pool = TaskPool().run()
+    pool = TaskPool().start()
     pool.add_task("task1", example_coroutine, "task1", 2)
     pool.add_task("task2", example_coroutine, "task2", 4)

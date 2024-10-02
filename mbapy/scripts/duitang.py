@@ -59,7 +59,7 @@ def main(sys_args: List[str] = None):
                 use_undetected=args.undetected_chromedriver)
     
     # setup coroutine pool
-    pool = TaskPool().run()
+    pool = TaskPool().start()
     
     # get base page and search
     base_url = 'https://www.duitang.com/'

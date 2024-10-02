@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-18 09:47:51
+LastEditTime: 2024-08-31 10:52:57
 Description: mbapy.sci_instrument.mass._base
 '''
 import os
@@ -38,10 +38,12 @@ class MassData(SciInstrumentData):
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
         super().__init__(data_file_path)
         self.peak_df = None
-        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER', 'mode', 'substance'])
+        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER',
+                                              'Monoisotopic', 'mode', 'substance'])
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = None
+        self.MONOISOTOPIC_HEADER = None
         self.X_MZ_HEADER = None
         self.X_M_HEADER = None
         self.MULTI_HEADERS = [self.X_HEADER, self.Y_HEADER]
@@ -161,11 +163,11 @@ class MassData(SciInstrumentData):
                                             (self.peak_df[self.Y_HEADER] >= min_height)].copy()
         return self.peak_df.reset_index(drop=True)
     
-    def add_match_record(self, x: float, y: float, c: float, mode: str, substance: str,
+    def add_match_record(self, x: float, y: float, c: float, monoisotopic: bool, mode: str, substance: str,
                          x_header: str = None, y_header: str = None, charge_header: str = None):
         x_header, y_header = x_header or self.X_HEADER, y_header or self.Y_HEADER
         charge_header = self.CHARGE_HEADER or ''
-        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, c, charge_header, mode, substance]
+        self.match_df.loc[len(self.match_df)+1] = [x, x_header, y, y_header, c, charge_header, monoisotopic, mode, substance]
         return self.match_df
     
     
@@ -181,7 +183,7 @@ if __name__ == '__main__':
     # data.load_processed_data_file()
     data.raw_data = data.load_raw_data_file()
     data.processed_data = data.process_raw_data()
-    task_pool = TaskPool('process', 4).run()
+    task_pool = TaskPool('process', 4).start()
     peak_df_4 = data.search_peaks(parallel=task_pool).copy()
     peak_df_1 = data.search_peaks().copy()
     print(peak_df_4.equals(peak_df_1))

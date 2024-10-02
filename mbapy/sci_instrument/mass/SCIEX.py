@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-30 17:51:43
+LastEditTime: 2024-08-31 10:54:49
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
@@ -33,6 +33,7 @@ class SciexPeakListData(MassData):
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = 'Charge'
+        self.MONOISOTOPIC_HEADER = 'Monoisotopic'
         self.X_MZ_HEADER = 'Mass/charge (charge)'
         self.X_M_HEADER = 'Mass (charge)'
         # Mass/Charge	Area	Height	Width	Width at 50%	Resolution	Charge	Monoisotopic	Mass (charge)	Mass/charge (charge)
@@ -41,6 +42,8 @@ class SciexPeakListData(MassData):
                               'Monoisotopic', 'Mass (charge)', 'Mass/charge (charge)']
         self.HEADERS_TYPE = {'Mass/Charge':float, 'Height':float, 'Charge':int,
                             'Monoisotopic':str, 'Mass (charge)':str, 'Mass/charge (charge)':str}
+        self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER',
+                                              self.MONOISOTOPIC_HEADER, 'mode', 'substance'])
         if self.data_file_path.endswith('.txt'):
             self.raw_data = self.load_raw_data_file()
             self.processed_data = self.process_raw_data() if self.raw_data else None # return data_df or None

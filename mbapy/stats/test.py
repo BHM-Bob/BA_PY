@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-04-05 18:19:53
+LastEditTime: 2024-08-02 19:11:11
 Description: 
 '''
 from itertools import combinations
@@ -116,10 +116,7 @@ def pearsonr(x1 = None, x2 = None,
              factors:Dict[str, List[str]] = None, tags:List[str] = None, df:pd.DataFrame = None, **kwargs):
     """
     pearsonr相关系数:检验两个样本是否有线性关系\n
-    p > 0.05 为独立(不相关)\n
-    mbapy-style数据输入:\n
-    提取多列tag的x1和x2，factors仅作筛选作用
-    tags为x1和x2...的tag
+    该皮尔逊相关系数取值在-1和+1之间，为0时表示没有相关性。 -1或+1的相关性表示存在明确的线性关系。 正相关表示，随着x的增加，y也随之增加。 负相关性表示随着x增加，y减小。
     """
     x1, x2 = _get_x1_x2_R(x1, x2, factors, tags, df)
     return scipy.stats.pearsonr(x1, x2, **kwargs)

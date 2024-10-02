@@ -5,7 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from functools import wraps
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, NewType
 
 import numpy as np
 import requests
@@ -396,9 +396,10 @@ def download_streamly(url: str, path: str, session):
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
             bar.update(size)
-            
-            
+
+
 ElementType = selenium.webdriver.remote.webelement.WebElement
+
 
 def BrowserActionWarpper(func):
     """
@@ -467,9 +468,9 @@ def BrowserElementActionWarpper(func):
                      sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1), **kwargs):
         if element is None:
             element = 'document.body'
-        elif element == 'window':
+        elif element == 'window' or isinstance(element, ElementType):
             pass
-        else:
+        elif isinstance(element, str):
             by = self._get_by(by)
             try:
                 WebDriverWait(self.browser, time_out).until(
@@ -481,6 +482,9 @@ def BrowserElementActionWarpper(func):
                 else:
                     return put_err(f'{func.__name__} can not find element with expression: {element},\
                         do nothing and return None')
+        else:
+            return put_err(f'element should be None, str, or ElementType, but got {type(element)},\
+                do nothing and return None')
         if sleep_before is not None:
             if isinstance(sleep_before, int) or isinstance(sleep_before, float):
                 random_sleep(sleep_before+1, sleep_before-1)
@@ -543,6 +547,17 @@ class Browser:
     def find_elements(self, element: str, by: str = 'xpath'):
         by = self._get_by(by)
         return self.browser.find_elements(by, element)
+    
+    def wait_element(self, element: Union[str, List[str]], by: str = 'xpath',
+                     timeout: int = 600):
+        """return True if all elements are found in time, False if timeout exceeded"""
+        st = time.time()
+        element = [element] if isinstance(element, str) else element
+        while not all(self.find_elements(e, by) for e in element):
+            random_sleep(3)
+            if time.time() - st > timeout:
+                return False
+        return True
         
     def execute_script(self, script: str, *args):
         return self.browser.execute_script(script, *args)
@@ -690,6 +705,8 @@ __all__ = [
 if __name__ == '__main__':
     b = Browser(options=['--no-sandbox'], use_undetected= True, driver_path=Configs.web.chrome_driver_path)
     b.get('https://sci-hub.ren/', sleep_after=3)
+    ele = b.find_elements('//*[@id="info"]')
+    b.click(element=ele[0])
     b.scroll_percent(0, 0.5, 5, element='//*[@id="info"]')
     b.send_key('mRNA Vaccine', element = '//*[@id="request"]')
     b.click(element = '//*[@id="enter"]/button')

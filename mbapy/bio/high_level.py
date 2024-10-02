@@ -127,7 +127,7 @@ def calcu_peptide_mutations(peptide: Peptide, mutate_opts: List[MutationOpts],
         peps, mw2pep = {}, {}
         for i, batch in enumerate(split_list(seqs, batch_size)):
             task_pool.add_task(f'{i}', calcu_mutations_mw_in_batch, batch, mass, False)
-        task_pool.run().wait_till(lambda : task_pool.count_done_tasks() == len(task_pool.tasks), verbose=True)
+        task_pool.start().wait_till(lambda : task_pool.count_done_tasks() == len(task_pool.tasks), verbose=True)
         for (_, (peps_i, mw2pep_i), _) in task_pool.tasks.values():
             peps.update(peps_i)
             for i in mw2pep_i:

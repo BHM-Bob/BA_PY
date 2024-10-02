@@ -1,5 +1,5 @@
-from itertools import chain, combinations
-from typing import Callable, Dict, List, Tuple, Union, Optional
+from itertools import combinations
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -8,27 +8,32 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
+from matplotlib.colors import ListedColormap
 
 if __name__ == '__main__':
     # dev mode
     import mbapy.stats.test as mst
+    # Assembly of functions
+    from mbapy.plot_utils.bar_utils import (AxisLable, plot_bar,
+                                            plot_positional_hue, pro_bar_data)
+    from mbapy.plot_utils.line_utils import *
+    from mbapy.plot_utils.scatter_utils import (add_scatter_legend, plot_reg,
+                                                plot_scatter)
     from mbapy.stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
                                 sort_df_factors)
     from mbapy.stats.test import p_value_to_stars
-    # Assembly of functions
-    from mbapy.plot_utils.bar_utils import AxisLable, pro_bar_data, plot_bar, plot_positional_hue
-    from mbapy.plot_utils.line_utils import *
-    from mbapy.plot_utils.scatter_utils import plot_reg, plot_scatter, add_scatter_legend
 else:
     # release mode
+    # Assembly of functions
+    from .plot_utils.bar_utils import (AxisLable, plot_bar,
+                                       plot_positional_hue, pro_bar_data)
+    from .plot_utils.line_utils import *
+    from .plot_utils.scatter_utils import (add_scatter_legend, plot_reg,
+                                           plot_scatter)
     from .stats import test as mst
     from .stats.df import (get_df_data, pro_bar_data, pro_bar_data_R,
                            sort_df_factors)
     from .stats.test import p_value_to_stars
-    # Assembly of functions
-    from .plot_utils.bar_utils import AxisLable, pro_bar_data, plot_bar, plot_positional_hue
-    from .plot_utils.line_utils import *
-    from .plot_utils.scatter_utils import plot_reg, plot_scatter, add_scatter_legend
 
 # plt.rcParams['font.sans-serif'] = ['SimHei'] #用来正常显示中文
 plt.rcParams["font.family"] = 'Times New Roman'
@@ -77,6 +82,60 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
     if return_n and ret is not None:
         ret = ret[:n]
     return ret
+    
+    
+def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int):
+    """
+    Adjusts the `center point` of the color map, the color range could be scaled.
+
+    Parameters:
+        cmap (str): Name of the color map to be adjusted, passed to plt.get_cmap()
+        vmin (int): Minimum value of the value-mapping
+        v0 (int): New center point value of the value-mapping
+        vmax (int): Maximum value of the original value-mapping
+
+    Returns:
+        ListedColormap: A new color map object with the adjusted center point
+
+    Raises:
+        AssertionError: If vmax is less than or equal to v0, an AssertionError is raised with the message 'vmax <= v0'
+        AssertionError: If vmin is greater than or equal to v0, an AssertionError is raised with the message 'vmin >= v0'
+    """
+    cmap = plt.get_cmap(cmap)
+    vmin, v0, vmax = int(vmin), int(v0), int(vmax)
+    max_len = vmax - v0
+    assert max_len > 0, 'vmax <= v0'
+    min_len = v0 - vmin
+    assert min_len > 0, 'vmin >= v0'
+    new_colors = cmap(np.linspace(0, 1, 2*max_len))
+    return ListedColormap(np.concatenate((new_colors[:max_len:max_len//min_len], new_colors[max_len:])))
+
+
+def sub_cmap(cmap: str, vmin: int, v0: int, vmax: int):
+    """
+    set v0 as center point of the color map, and cut the color map by vmin and vmax
+    
+    Parameters:
+        cmap (str): Name of the color map to be adjusted, passed to plt.get_cmap()
+        vmin (int): Minimum value of the value-mapping
+        v0 (int): New center point value of the value-mapping
+        vmax (int): Maximum value of the original value-mapping
+
+    Returns:
+        ListedColormap: A new color map object with the adjusted center point and cut by vmin and vmax.
+        
+    Raises:
+        AssertionError: If vmax is less than or equal to v0, an AssertionError is raised with the message 'vmax <= v0'
+        AssertionError: If vmin is greater than or equal to v0, an AssertionError is raised with the message 'vmin >= v0'
+    """
+    cmap = plt.get_cmap(cmap)
+    vmin, v0, vmax = int(vmin), int(v0), int(vmax)
+    max_len = vmax - v0
+    assert max_len > 0, 'vmax <= v0'
+    min_len = v0 - vmin
+    assert min_len > 0, 'vmin >= v0'
+    new_colors = cmap(np.linspace(0, 1, 2*max_len))
+    return ListedColormap(new_colors[max_len-min_len:])
     
 
 def calcu_swarm_pos(x: float, y: np.ndarray, width: float, d: Optional[float] = None):
@@ -229,6 +288,9 @@ __all__ = [
     'hex2rgb',
     'rgbs2hexs',
     'get_palette',
+    'adjust_cmap_midpoint',
+    'sub_cmap',
+    
     'calcu_swarm_pos',
     'qqplot',
     'save_show',

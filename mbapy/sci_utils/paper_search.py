@@ -160,6 +160,7 @@ def search_by_pubmed(query:str, email:str = None, limit:int = 1):
 
     results = []
     for pubmed_id in pubmed_ids:
+        # https://www.ncbi.nlm.nih.gov/books/NBK25499/table/chapter4.T._valid_values_of__retmode_and/?report=objectonly
         handle = Entrez.efetch(db='pubmed', id=pubmed_id, retmode='xml')
         record = Entrez.read(handle)
         handle.close()
@@ -171,7 +172,7 @@ def search_by_pubmed(query:str, email:str = None, limit:int = 1):
             doi = str(article['ELocationID'][0]) if 'ELocationID' in article else ''
             abstract = '.\n'.join([str(element) for element in article['Abstract']['AbstractText']]) if 'Abstract' in article else ''
             journal = str(article['Journal']['Title']) if 'Journal' in article else ''
-            keywords = article_info['KeywordList'][0] if 'KeywordList' in article_info else []
+            keywords = article_info['KeywordList'][0] if (('KeywordList' in article_info) and article_info['KeywordList']) else []
             keywords = [str(keyword) for keyword in keywords]
             results.append({'title': title, 'abstract': abstract, 'doi': doi, 'journal': journal, 'keywords': keywords})
 
@@ -328,6 +329,6 @@ if __name__ == '__main__':
     from mbapy.file import read_json
 
     # search
-    search_result_bd = search_by_baidu('linaclotide', 11, use_browser=True, use_undetected=True)
+    # search_result_bd = search_by_baidu('linaclotide', 11, use_browser=True, use_undetected=True)
     search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
     search_result_wos = search_by_wos("linaclotide", 61, browser_driver_path=web.CHROMEDRIVERPATH)

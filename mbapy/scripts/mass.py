@@ -16,7 +16,7 @@ os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import Configs, put_err
-from mbapy.file import get_paths_with_extension, get_valid_file_path
+from mbapy.file import get_paths_with_extension, get_valid_file_path, opts_file
 from mbapy.game import BaseInfo
 from mbapy.plot import PLT_MARKERS, get_palette, save_show
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData, SciexMZMine
@@ -45,14 +45,15 @@ def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[
     return None
 
 
-def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox):
+def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox, tag_monoisotopic_only):
     name = data.get_tag()
     # save processed data
     data.save_processed_data()
     print(f'{name}: processed data saved to {data.processed_data_path}')
     # plot
     ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
-                                   labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox)
+                                   labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox,
+                                   tag_monoisotopic_only=tag_monoisotopic_only)
     # change fig size if legend size is over fig size
     if extra_artists:
         legend_size = extra_artists[0].get_window_extent()
@@ -92,6 +93,8 @@ class plot_mass(Command):
             self.args.output = None
         self.use_recursive_output = self.args.recursive and self.args.output is None
         # process others
+        if os.path.exists(self.args.labels):
+            self.args.labels = opts_file(self.args.labels)
         self.args.labels = process_peak_labels(self.args.labels)
         self.args.xlim = eval(f'[{self.args.xlim}]') if self.args.xlim else None
         self.args.legend_bbox = eval(f'({self.args.legend_bbox})') # NOTE: can be invoked
@@ -137,7 +140,7 @@ class plot_mass(Command):
     
     def main_process(self):
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
             print(f'created task pool with {self.args.multi_process} processes')
         self.load_data(self.args.dir, self.args.recursive)
         # show data general info, output peak list DataFrame, plot and save figure
@@ -156,9 +159,12 @@ class plot_mass(Command):
                 data.X_HEADER = data.X_MZ_HEADER
             # save processed data
             if self.task_pool is not None:
-                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox)
+                self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim,
+                                        self.args.labels, self.args.labels_eps, self.args.show_fig,
+                                        self.args.legend_bbox, self.args.tag_monoisotopic_only)
             else:
-                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps, self.args.show_fig, self.args.legend_bbox)
+                plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps,
+                                      self.args.show_fig, self.args.legend_bbox, self.args.tag_monoisotopic_only)
         if self.task_pool is not None:
             self.task_pool.wait_till_tasks_done(self.dfs.keys())
             self.task_pool.close()
@@ -217,7 +223,7 @@ class explore_mass(plot_mass):
                                                       labels=self.args.labels, labels_eps=self.args.labels_eps,
                                                       legend_bbox=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2),
                                                       legend_pos=self.args.legend_pos, marker_size=self.args.marker_size,
-                                                      is_y_log=self.args.is_y_log)
+                                                      is_y_log=self.args.is_y_log, tag_monoisotopic_only=self.args.tag_monoisotopic_only)
             x_axis_exp = (1-self.args.xaxis_expand, 1+self.args.xaxis_expand)
             y_axis_exp = (1-self.args.yaxis_expand, 1+self.args.yaxis_expand)
             plt.xlim(tmp_data.peak_df[tmp_data.X_HEADER].min() * x_axis_exp[0], tmp_data.peak_df[tmp_data.X_HEADER].max() * x_axis_exp[1])
@@ -230,14 +236,14 @@ class explore_mass(plot_mass):
             self.fig = fig.fig
         
     def save_fig(self):
-        png_path = Path(self.args.dfs[self.args.now_name].data_file_path).with_suffix('.png')
+        png_path = (Path(self.args.dfs[self.args.now_name].data_file_path).parent / f'{self.args.file_name}').with_suffix('.png')
         ui.notify(f'saving figure to {png_path}')
         save_show(png_path, dpi = self.args.dpi, show = self.args.show_fig)
         
     def main_process(self):
         # set task pool
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
             print(f'task pool created with {self.args.multi_process} processes')
         # process args and load data asynchronously
         self.data_loader = Thread(name='data loader', target=self.load_data, args=(self.args.dir, self.args.recursive), daemon=True)
@@ -286,6 +292,7 @@ class explore_mass(plot_mass):
                         # configs for fontsize
                         with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)
+                            ui.checkbox('tag monoisotopic only', value=self.args.tag_monoisotopic_only).bind_value_to(self.args, 'tag_monoisotopic_only')
                             ui.number('xticks fontsize', value=self.args.xticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'xticks_fontsize')
                             ui.number('yticks fontsize', value=self.args.yticks_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'yticks_fontsize')
                             ui.number('title fontsize', value=self.args.title_fontsize, min=0, step=0.5, format='%.1f').bind_value_to(self.args, 'title_fontsize')
@@ -318,7 +325,7 @@ class explore_mass(plot_mass):
                             ui.number('DPI', value=self.args.dpi, min=1, step=1, format='%d').bind_value_to(self.args, 'dpi')
                             ui.input('figure file name', value=self.args.file_name).bind_value_to(self.args, 'file_name')
                     with ui.card():
-                        ui.label(self.args.now_name).classes('text-h6').bind_text_from(tabs, 'value')
+                        ui.label(self.args.now_name).classes('text-h6').bind_text_from(self.args, 'now_name')
                         self.make_fig()
         ## run GUI
         ui.run(host = 'localhost', port = 8010, title = 'Mass Data Explorer', reload=False)
@@ -359,9 +366,11 @@ def main(sys_args: List[str] = None):
     plot_mass_args.add_argument('--marker-size', type = float, default=120,
                                 help='marker size, default is %(default)s')
     plot_mass_args.add_argument('-labels', '--labels', type = str, default='',
-                                help='labels, input as 1000,Pep1,red;1050,Pep2, default is %(default)s')
+                                help='labels, input as 1000,Pep1,red;1050,Pep2, or is a text file path, default is %(default)s')
     plot_mass_args.add_argument('--labels-eps', type = float, default=0.5,
                                 help='eps to recognize labels, default is %(default)s')
+    plot_mass_args.add_argument('--tag-monoisotopic-only', action='store_true', default=False,
+                                help='only tag for monoisotopic peaks, default is %(default)s')
     plot_mass_args.add_argument('-sf', '--show-fig', action='store_true', default=False,
                                 help='automatically show figure, default is %(default)s')
     plot_mass_args.add_argument('-lposbbox', '--legend-bbox', type = str, default='1,1',

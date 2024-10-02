@@ -192,7 +192,7 @@ class mutation_weight(Command):
         self.verbose = not self.args.disable_verbose
         # task pool
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
         else:
             self.task_pool = None
         # mutation controls
@@ -306,13 +306,15 @@ class fit_mass(Command):
         self.args.ms_lim = eval(f'({self.args.ms_lim})') if self.args.ms_lim is not None else None
         # set task pool
         if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).run()
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
             self.printf(f'task pool created with {self.args.multi_process} processes')
         # process argument: seq
         if os.path.isfile(clean_path(self.args.seq)) and self.args.seq.endswith('mbapy.mmw.pkl'):
+            self.args.seq = str(clean_path(self.args.seq))
             self.mw2pep = opts_file(self.args.seq, mode = 'rb', way='pkl')['mw2pep']
             self.printf(f'load mw2pep from {self.args.seq}')
         elif os.path.isdir(clean_path(self.args.seq)):
+            self.args.seq = str(clean_path(self.args.seq))
             for path in get_paths_with_extension(self.args.seq, ['mbapy.mmw.pkl'], self.args.recursive):
                 mw2pep = opts_file(path, mode = 'rb', way='pkl')['mw2pep']
                 load_count = 0
@@ -367,13 +369,18 @@ class fit_mass(Command):
             ## set charge column
             if data_i.CHARGE_HEADER is None:
                 put_log(f'{n} has no charge header, assuming charge 1')
-                charges = [1]*len(monoisotopic_df)
+                charges = [1] * len(monoisotopic_df)
             else:
                 charges = monoisotopic_df[data_i.CHARGE_HEADER].values
+            ## get monoisotopic flag
+            if 'Monoisotopic' in data_i.peak_df.columns:
+                monoisotopic = monoisotopic_df['Monoisotopic']
+            else:
+                monoisotopic = [True] * len(monoisotopic_df)
             ## match
             if not self.args.remain_old_match:
                 data_i.match_df = data_i.match_df.iloc[0:0]
-            for i, (ms, h, charge) in enumerate(zip(monoisotopic_df[data_i.X_HEADER], monoisotopic_df[data_i.Y_HEADER], charges)):
+            for i, (ms, h, charge, mono) in enumerate(zip(monoisotopic_df[data_i.X_HEADER], monoisotopic_df[data_i.Y_HEADER], charges, monoisotopic)):
                 for mode, iron in MassData.ESI_IRON_MODE.items():
                     if iron['c'] != charge:
                         continue
@@ -382,7 +389,7 @@ class fit_mass(Command):
                         matched = np.where(np.abs(candidates - transfered_ms) < self.args.error_tolerance)[0]
                         if matched.size > 0:
                             all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
-                            data_i.add_match_record(ms, h, charge, mode, ' | '.join(pep[0].repr(self.args.repr_w, True, not self.args.disable_repr_dash) for pep in all_matched_peps))
+                            data_i.add_match_record(ms, h, charge, mono, mode, ' | '.join(pep[0].repr(self.args.repr_w, True, not self.args.disable_repr_dash) for pep in all_matched_peps))
                             self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
                             for i, (pep, pep_mass) in enumerate(all_matched_peps):
                                 self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)}')

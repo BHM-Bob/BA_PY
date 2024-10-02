@@ -9,11 +9,12 @@ from ._base import HplcData
 from ._utils import plot_hplc, process_file_labels, process_peak_labels
 from .SCIEX import SciexData, SciexTicData
 from .Easychrom import EasychromData
-from .waters import WatersData
+from .waters import WatersData, WatersPdaData
 
 __all__ = [
     'HplcData',
     'WatersData',
+    'WatersPdaData',
     'EasychromData',
     'SciexTicData',
     'SciexData',
