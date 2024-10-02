@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-09-06 09:51:43
+LastEditTime: 2024-10-02 18:17:27
 Description: Basic Blocks
 '''
 
@@ -263,9 +263,8 @@ class FastMultiHeadAttentionLayer(nn.Module):
     """wrapper for FlashAttention, just import flash_attn and adjust dtype"""
     def __init__(self, hid_dim, n_heads, dropout, device = 'cuda', **kwargs):
         super().__init__()
-        assert paper.bb.FlashMHA is not None, 'paper.bb.FlashMHA is None'
-        self.net = paper.bb.FlashMHA(hid_dim, n_heads,
-                                     device=device, dtype = torch.float16)
+        assert paper.bb.flash_attn_func is not None, 'mbapy::import-error: paper.bb.flash_attn_func is None'
+        raise NotImplementedError
     def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
         ori_type = query.dtype
         query = query.to(dtype = torch.float16)

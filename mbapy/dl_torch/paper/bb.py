@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-22 16:47:41
+LastEditTime: 2024-07-17 09:14:33
 Description: some Basic Blocks implements for some paper
 '''
 
@@ -44,9 +44,9 @@ class NonLocalBlock(nn.Module):
         return self.o(attention.matmul(V).permute(0, 2, 1).reshape(*shape))
     
 try:
-    from flash_attn.flash_attention import FlashMHA
+    from flash_attn import flash_attn_func
 except ImportError:
-    FlashMHA = None
+    flash_attn_func = None
 """
 FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
 Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, Christopher Ré
