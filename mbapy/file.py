@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-29 21:46:39
+LastEditTime: 2024-10-10 19:11:07
 Description: 
 '''
 import collections
@@ -11,6 +11,8 @@ import os
 import pickle
 import platform
 import shutil
+import tempfile
+from zipfile import ZipFile 
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -247,6 +249,13 @@ def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
         path = path[:valid_len] + suffix
     return path if not return_Path else Path(path)
 
+
+_filetype2opts_ = {
+    'txt': {'mode': 'r', 'way': 'str', 'encoding': 'utf-8'},
+    'pdb': {'mode': 'r', 'way': 'str', 'encoding': 'utf-8'},
+}
+
+
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
               way:str = 'str', data = None, kwgs: Dict = None, **kwargs):
     """
@@ -267,6 +276,8 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             - 'pkl': Read/write the data as a Python object (using pickle).
             - 'csv': Read/write the data as a CSV file.
             - 'excel' or 'xlsx' or 'xls': Read/write the data as an Excel file.
+            - 'zip': Read/write the data as a ZIP file, return dict: key is file path in zip, value is the data in the file.
+            - '__auto__': Automatically determine the way based on the file extension, support in _filetype2opts_.
         - data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
         - kwgs (dict): Additional keyword arguments to be passed to the third-party read/write function.
         - kwargs (dict): Additional arguments to be passed to the open() function.
@@ -283,8 +294,20 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
     # check mode
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
+    # set open_fn depend on way
+    if way == 'zip':
+        open_fn = ZipFile
+        del kwargs['encoding']
+    else:
+        open_fn = open
+    if way == '__auto__':
+        opts_kwgs = _filetype2opts_.get(path.split('.')[-1],
+                                        {'mode': 'rb', 'way': 'str', 'encoding': None})
+        mode, way, encoding = opts_kwgs['mode'], opts_kwgs['way'], opts_kwgs['encoding']
+        if opts_kwgs['encoding'] is None:
+            del kwargs['encoding']
     # perform read or write
-    with open(path, mode, **kwargs) as f:
+    with open_fn(path, mode, **kwargs) as f:
         if 'r' in mode and os.path.isfile(path):
             if way == 'lines':
                 return f.readlines()
@@ -304,6 +327,14 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return pd.read_csv(f, **kwgs)
             elif way in ['excel', 'xlsx', 'xls']:
                 return pd.read_excel(f, **kwgs)
+            elif way == 'zip':
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    f.extractall(tmpdirname)
+                    files = {}
+                    for path in get_paths_with_extension(tmpdirname, []):
+                        sub_kwgs = kwgs.get(Path(path).suffix, {'way': '__auto__'})
+                        files[path[len(tmpdirname)+1:]] = opts_file(path, **sub_kwgs)
+                    return files
         elif ('w' in mode or 'a' in mode) and data is not None\
                 and way in ['lines','str']: 
             if way == 'lines':
@@ -634,6 +665,7 @@ __all__ = [
     
 
 if __name__ == '__main__':
-    # dev code        
+    # dev code
+    contents = opts_file('data_tmp/files/result.zip', way='zip')
     dirs = get_dir('.', min_item_num=10, dir_name_substr='scripts', recursive=True)
     convert_pdf_to_txt(r'./data_tmp\papers\A review of the clinical efficacy of linaclotide in irritable bowel syndrome with constipation.pdf')
