@@ -297,7 +297,8 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
     # set open_fn depend on way
     if way == 'zip':
         open_fn = ZipFile
-        del kwargs['encoding']
+        if 'encoding' in kwargs:
+            del kwargs['encoding']
     else:
         open_fn = open
     if way == '__auto__':
