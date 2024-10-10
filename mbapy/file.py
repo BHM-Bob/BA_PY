@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-10 19:11:07
+LastEditTime: 2024-10-10 20:20:43
 Description: 
 '''
 import collections
@@ -251,8 +251,12 @@ def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
 
 
 _filetype2opts_ = {
-    'txt': {'mode': 'r', 'way': 'str', 'encoding': 'utf-8'},
-    'pdb': {'mode': 'r', 'way': 'str', 'encoding': 'utf-8'},
+    'txt': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
+    'pdb': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
+    'json': {'mode': '', 'way': 'json', 'encoding': 'utf-8'},
+    'yml': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
+    'yaml': {'mode': '', 'way': 'yaml', 'encoding': 'utf-8'},
+    'pkl': {'mode': 'b', 'way': 'pkl', 'encoding': None},
 }
 
 
@@ -303,8 +307,8 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
         open_fn = open
     if way == '__auto__':
         opts_kwgs = _filetype2opts_.get(path.split('.')[-1],
-                                        {'mode': 'rb', 'way': 'str', 'encoding': None})
-        mode, way, encoding = opts_kwgs['mode'], opts_kwgs['way'], opts_kwgs['encoding']
+                                        {'mode': 'b', 'way': 'str', 'encoding': None})
+        mode, way, encoding = mode + opts_kwgs['mode'], opts_kwgs['way'], opts_kwgs['encoding']
         if opts_kwgs['encoding'] is None:
             del kwargs['encoding']
     # perform read or write
