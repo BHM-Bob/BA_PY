@@ -141,7 +141,7 @@ def get_url_page_se(browser, url:str, return_html_text:bool = False, debug = Fal
 
 def get_browser(browser:str, browser_driver_path:str = None,
                 options =['--no-sandbox', '--headless', f"--user-agent={Configs.web.chrome_driver_path:s}"],
-                use_undetected:bool = False):
+                use_undetected:bool = False, download_path: str = None):
     """
     Initializes and returns a Selenium browser instance based on the specified browser name and driver path.
 
@@ -172,6 +172,9 @@ def get_browser(browser:str, browser_driver_path:str = None,
     opts = Options()
     for option in options:
         opts.add_argument(option)
+    if download_path is not None:
+        opts.add_experimental_option('prefs', {'profile.default_content_settings.popups': 0,
+                                               'download.default_directory': download_path})
     # set Browser kwargs
     kwargs = {'options': opts}
     if browser_driver_path is not None:
@@ -524,12 +527,14 @@ class Browser:
     def __init__(self, browser_name: str = 'Chrome',
                  options: List[str] = ['--no-sandbox', '--headless',
                                        f"--user-agent={Configs.web.chrome_driver_path:s}"],
-                 use_undetected = False, driver_path = None) -> None:
+                 use_undetected = False, driver_path = None,
+                 download_path: str = None) -> None:
         self.browser_name = browser_name
         self.options = options
         self.use_undetected = use_undetected
         
-        self.browser = get_browser(browser_name, driver_path, options, use_undetected)
+        self.browser = get_browser(browser_name, driver_path, options,
+                                   use_undetected, download_path=download_path)
         
     def _get_by(self, by: str):
         if by in ['xpath', 'css', 'class']:
