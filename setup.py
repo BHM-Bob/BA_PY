@@ -109,4 +109,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.9.3.tar.gz
+# twine upload dist/mbapy-0.9.4.tar.gz
