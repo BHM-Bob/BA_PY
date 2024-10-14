@@ -82,11 +82,108 @@ class VideoFile:
     def close(self):
         self.cv2_video.release()
         
+
+def plot_result_bar_fig(result: Dict):
+    for group in result['ana_datas']:
+        sums = result['ana_datas'][group]['sums']
+        df = pd.DataFrame(data=sums)
+        zeros = np.zeros((len(df), len(sums.keys())))
+        max_idx = np.argmax(df.loc[:, list(sums.keys())], axis=-1)
+        for i in np.unique(max_idx):
+            zeros[max_idx==i, i] = 1
+        df.loc[:, list(sums.keys())] = zeros
+        fig, ax = plt.subplots()
+        ax.bar(sums.keys(), df.loc[:, list(sums.keys())].sum() / result['video']['fps'], label=sums.keys())
+        ax.legend()
+        ax.set_ylabel('Time (s)')
+        ax.set_title('Box Sum Bar')
+        # result['ana_datas'][group]['bar_fig'] = (fig, ax)
+        result['ana_datas'][group]['bar_df'] = df
+        save_show(os.path.join(result['root'], f'{group}_bar_fig.png'), 600, show=False)
+    return result
+
+def save_result_bar_df(result: Dict):
+    df = pd.DataFrame(columns=['Group', 'Box', 'Time'])
+    for group in result['ana_datas']:
+        sums = result['ana_datas'][group]['sums']
+        sum_t = result['ana_datas'][group]['bar_df'].loc[:, list(sums.keys())].sum() / result['video']['fps']
+        for box, t in zip(sums, sum_t):
+            df.loc[len(df)] = [group, box, t]
+    df.set_index(['Group', 'Box'], inplace=True)
+    df.to_excel(os.path.join(result['root'], 'box_sum.xlsx'), index=True)
+    return result
+
+def plot_result_stack_fig(result: Dict):
+    for group in result['ana_datas']:
+        fig, ax = plt.subplots()
+        ax.stackplot(result['ana_datas'][group]['Time'], result['ana_datas'][group]['sums'].values(),
+                     labels=result['ana_datas'][group]['sums'].keys())
+        ax.legend()
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Box Sum')
+        ax.set_title('Box Sum Stack Line')
+        # result['ana_datas'][group]['stack_fig'] = (fig, ax)
+        save_show(os.path.join(result['root'], f'{group}_stack_fig.png'), 600, show=False)
+    return result
         
+def plot_result_heatmap_fig(result: Dict):
+    for group in result['ana_datas']:
+        x = result['ana_datas'][group]['x']
+        y = result['ana_datas'][group]['y']
+        uids = result['ana_datas'][group]['box_uids']
+        fig, axs = plt.subplots(1, len(uids))
+        for axi, xi, yi, uid in zip(axs if len(uids)>1 else [axs], x.values(), y.values(), uids):
+            xlim = (result['template'].boxes[uid][0], result['template'].boxes[uid][2])
+            ylim = (result['template'].boxes[uid][1], result['template'].boxes[uid][3])
+            hb = axi.hexbin(xi, yi, gridsize=((xlim[1]-xlim[0])//5, (ylim[1]-ylim[0])//5), cmap='coolwarm')
+            axi.set(xlim=xlim, ylim=ylim)
+            axi.set_title(f'{result["template"].boxes_name[uid]}')
+            axi.set(xlim=xlim, ylim=ylim)
+            prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0], (4, 20))
+            axi.figure.set_figwidth(prob_size[0])
+            axi.figure.set_figheight(prob_size[1])
+            cb = fig.colorbar(hb, ax=axi)
+        # result['ana_datas'][group]['heatmap_fig'] = (fig, axs)
+        save_show(os.path.join(result['root'], f'{group}_heatmap_fig.png'), 600, show=False)
+    return result
+    
+def plot_result_traj_fig(result: Dict):
+    for group in result['ana_datas']:
+        x = result['ana_datas'][group]['x']
+        y = result['ana_datas'][group]['y']
+        t = result['ana_datas'][group]['t']
+        uids = result['ana_datas'][group]['box_uids']
+        fig, axs = plt.subplots(1, len(uids))
+        for axi, ti, xi, yi, uid in zip(axs if len(uids)>1 else [axs], t.values(), x.values(), y.values(), uids):
+            cmap = colormaps['coolwarm']
+            if all(len(item_v)>0 for item_v in [xi, yi, ti]):
+                norm = Normalize(vmin=min(ti), vmax=max(ti))
+                colors = cmap(norm(ti))[:-1] # [N-1]
+                points_i = np.stack([xi, yi], axis=0).transpose(1, 0) # [N, 2]
+                segments_i = np.concatenate([points_i[:-1], points_i[1:]], axis=1).reshape(-1, 2, 2) # [N-1, 2, 2]
+                line = LineCollection(segments_i, alpha=0.4, colors=colors, linewidths=2, linestyles='solid', cmap=cmap, norm=norm)
+                line = axi.add_collection(line)
+            axi.set_title(f'{result["template"].boxes_name[uid]}')
+            xlim = (result['template'].boxes[uid][0], result['template'].boxes[uid][2])
+            ylim = (result['template'].boxes[uid][1], result['template'].boxes[uid][3])
+            axi.set(xlim=xlim, ylim=ylim)
+            prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0], (4, 20))
+            axi.figure.set_figwidth(prob_size[0])
+            axi.figure.set_figheight(prob_size[1])
+            cb = fig.colorbar(line, ax=axi, cmap=cmap, norm=norm)
+        # result['ana_datas'][group]['traj_fig'] = (fig, axs)
+        save_show(os.path.join(result['root'], f'{group}_traj_fig.png'), 600, show=False)
+    return result
+
+
 def process_video(video_name: str, video_path: str, template: ProcessTemplate, mp_queue):
+    # make root dir
+    root = os.path.join(os.path.dirname(os.path.abspath(video_path)), video_name)
+    os.makedirs(root, exist_ok=True)
+    # read file
     mp_queue.put((video_name, 'loading video'))
     video = VideoFile(video_name, video_path)
-    result = {'name': video_name,
+    result = {'name': video_name, 'root': root,
               'video': {'fps': video.fps, 'width': video.width, 'height': video.height},
               'template': template, 'results': {}}
     # process for each frame
@@ -126,7 +223,7 @@ def process_video(video_name: str, video_path: str, template: ProcessTemplate, m
         box_names = list(filter(lambda x:x.split(',')[0] == single_group, template.boxes_name.values()))
         name2uid = {name:uid for uid, name in template.boxes_name.items()}
         box_uids = [name2uid[name] for name in box_names]
-        ana_datas = {'sums': {}, 'Time':[], 'x':{}, 'y':{}, 't':{}}
+        ana_datas = {'sums': {}, 'Time':[], 'x':{}, 'y':{}, 't':{}, 'box_uids': box_uids}
         ana_datas['Time'] = np.array(list(result['results'].keys())) / video.fps
         for uid in box_uids:
             ana_datas['sums'][template.boxes_name[uid]] = []
@@ -140,15 +237,27 @@ def process_video(video_name: str, video_path: str, template: ProcessTemplate, m
                     ana_datas['y'][template.boxes_name[uid]].append(v[uid]['y']+template.boxes[uid][1])
                     ana_datas['t'][template.boxes_name[uid]].append(t/result['video']['fps'])
         result['ana_datas'][single_group] = ana_datas
-        result['ana_datas']['box_uids'] = box_uids
         mp_queue.put((video.name, f'{group_idx+1}/{len(groups)} analyzed'))
+    # draw figures
+    mp_queue.put((video.name, 'plotting bar figures'))
+    result = plot_result_bar_fig(result)
+    mp_queue.put((video.name, 'plotting stack figures'))
+    result = plot_result_stack_fig(result)
+    mp_queue.put((video.name, 'plotting heatmap figures'))
+    result = plot_result_heatmap_fig(result)
+    mp_queue.put((video.name, 'plotting traj figures'))
+    result = plot_result_traj_fig(result)
+    # save bar dfs
+    mp_queue.put((video.name, 'writing bar dfs'))
+    result = save_result_bar_df(result)
     # release the video, put the result into the queue
     video.close()
     mp_queue.put((video.name, 'done'))
-    mp_queue.put((video.name, result))
+    # NOTE: just offline now, no need to view result in GUI
+    # mp_queue.put((video.name, result))
 
 
-class auto_ccp(Command):
+class auto_cpp(Command):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.SUPPORT_FMT = ['.avi', '.mov', '.mp4', '.mkv']
@@ -160,7 +269,7 @@ class auto_ccp(Command):
         self.batch: Dict[str, Dict[str, str]] = {}
         self.queue: Dict[str, Dict[str, Union[str, float]]] = {}
         self.results: Dict[str, Dict[str, Dict[str, Union[int, float]]]] = {}
-        self.ana_figs: Dict[str, plt.Figure] = {'stack': None, 'bar': None, 'heatmap': None, 'traj': None}
+        self.ana_figs: Dict[str, plt.Figure] = {'stack_fig': None, 'bar_fig': None, 'heatmap_fig': None, 'traj_fig': None}
         self.ana_dfs: Dict[str, pd.DataFrame] = {}
         self.ana_datas: Dict[str, Any] = {'x': {}, 'y': {}, 't': {}}
         self.ui_template = None
@@ -319,105 +428,56 @@ class auto_ccp(Command):
                 self.build_template_tmp_box_ui()
                 
     @ui.refreshable
-    def ana_make_stack_fig(self, result: Dict, uids: List[str]):
-        if result is None or uids is None:
-            return
-        plt.close(self.ana_figs['stack'])
-        with ui.pyplot(figsize=(12, 8), close=False) as fig:
-            self.ana_figs['stack'] = fig.fig
-            ax = self.ana_figs['stack'].gca()
-            ax.stackplot(self.ana_datas['Time'], self.ana_datas['sums'].values(), labels=self.ana_datas['sums'].keys(), alpha=0.8)
-            ax.legend()
-            ax.set_xlabel('Time (s)')
-            ax.set_ylabel('Box Sum')
-            ax.set_title('Box Sum Stack Line')
-    
-    @ui.refreshable
-    def ana_make_bar_fig(self, result: Dict, uids: List[str]):
-        if result is None or uids is None:
+    def ana_draw_stack_fig(self, result: Dict, groupd_name: str):
+        if result is None or groupd_name is None:
             return 
-        plt.close(self.ana_figs['bar'])
-        sums = self.ana_datas['sums']
-        df = pd.DataFrame(data=sums)
-        zeros = np.zeros((len(df), len(sums.keys())))
-        max_idx = np.argmax(df.loc[:, list(sums.keys())], axis=-1)
-        for i in np.unique(max_idx):
-            zeros[max_idx==i, i] = 1
-        df.loc[:, list(sums.keys())] = zeros
-        self.ana_dfs['bar'] = df
-        with ui.pyplot(figsize=(12, 8), close=False) as fig:
-            self.ana_figs['bar'] = fig.fig
-            ax = self.ana_figs['bar'].gca()
-            ax.bar(sums.keys(), df.loc[:, list(sums.keys())].sum() / result['video']['fps'], label=sums.keys())
-            ax.legend()
-            ax.set_ylabel('Time (s)')
-            ax.set_title('Box Sum Bar')
-    
-    @ui.refreshable
-    def ana_make_heatmap_fig(self, result: Dict, uids: List[str]):
-        if result is None or uids is None:
-            return 
-        plt.close(self.ana_figs['heatmap'])
-        x = self.ana_datas['x']
-        y = self.ana_datas['y']
+        plt.close(self.ana_figs['stack_fig'])
         with ui.pyplot(close=False) as fig:
-            self.ana_figs['heatmap'] = fig.fig
-            axs = fig.fig.subplots(1, len(uids))
-            for axi, xi, yi, uid in zip(axs if len(uids)>1 else [axs], x.values(), y.values(), uids):
-                xlim = (result['template'].boxes[uid][0], result['template'].boxes[uid][2])
-                ylim = (result['template'].boxes[uid][1], result['template'].boxes[uid][3])
-                hb = axi.hexbin(xi, yi, gridsize=((xlim[1]-xlim[0])//5, (ylim[1]-ylim[0])//5), cmap='coolwarm')
-                axi.set(xlim=xlim, ylim=ylim)
-                axi.set_title(f'{result["template"].boxes_name[uid]}')
-                axi.set(xlim=xlim, ylim=ylim)
-                prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0], (4, 20))
-                axi.figure.set_figwidth(prob_size[0])
-                axi.figure.set_figheight(prob_size[1])
-                cb = fig.fig.colorbar(hb, ax=axi)
+            plt.close(fig.fig)
+            fig.fig = result['ana_datas'][groupd_name]['stack_fig'][0]
+            self.ana_figs['stack_fig'] = fig.fig
     
     @ui.refreshable
-    def ana_make_traj_fig(self, result: Dict, uids: List[str]):
-        if result is None or uids is None:
+    def ana_draw_bar_fig(self, result: Dict, groupd_name: str):
+        if result is None or groupd_name is None:
             return 
-        plt.close(self.ana_figs['traj'])
-        x = self.ana_datas['x']
-        y = self.ana_datas['y']
-        t = self.ana_datas['t']
+        plt.close(self.ana_figs['bar_fig'])
         with ui.pyplot(close=False) as fig:
-            self.ana_figs['traj'] = fig.fig
-            axs = fig.fig.subplots(1, len(uids))
-            for axi, ti, xi, yi, uid in zip(axs if len(uids)>1 else [axs], t.values(), x.values(), y.values(), uids):
-                cmap = colormaps['coolwarm']
-                if all(len(item_v)>0 for item_v in [xi, yi, ti]):
-                    norm = Normalize(vmin=min(ti), vmax=max(ti))
-                    colors = cmap(norm(ti))[:-1] # [N-1]
-                    points_i = np.stack([xi, yi], axis=0).transpose(1, 0) # [N, 2]
-                    segments_i = np.concatenate([points_i[:-1], points_i[1:]], axis=1).reshape(-1, 2, 2) # [N-1, 2, 2]
-                    line = LineCollection(segments_i, alpha=0.4, colors=colors, linewidths=2, linestyles='solid', cmap=cmap, norm=norm)
-                    line = axi.add_collection(line)
-                axi.set_title(f'{result["template"].boxes_name[uid]}')
-                xlim = (result['template'].boxes[uid][0], result['template'].boxes[uid][2])
-                ylim = (result['template'].boxes[uid][1], result['template'].boxes[uid][3])
-                axi.set(xlim=xlim, ylim=ylim)
-                prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0], (4, 20))
-                axi.figure.set_figwidth(prob_size[0])
-                axi.figure.set_figheight(prob_size[1])
-                cb = fig.fig.colorbar(line, ax=axi, cmap=cmap, norm=norm)
+            plt.close(fig.fig)
+            fig.fig = result['ana_datas'][groupd_name]['bar_fig'][0]
+            self.ana_figs['bar_fig'] = fig.fig
+    
+    @ui.refreshable
+    def ana_draw_heatmap_fig(self, result: Dict, groupd_name: str):
+        if result is None or groupd_name is None:
+            return 
+        plt.close(self.ana_figs['heatmap_fig'])
+        with ui.pyplot(close=False) as fig:
+            plt.close(fig.fig)
+            fig.fig = result['ana_datas'][groupd_name]['heatmap_fig'][0]
+            self.ana_figs['heatmap_fig'] = fig.fig
+    
+    @ui.refreshable
+    def ana_draw_traj_fig(self, result: Dict, groupd_name: str):
+        if result is None or groupd_name is None:
+            return 
+        plt.close(self.ana_figs['traj_fig'])
+        with ui.pyplot(close=False) as fig:
+            plt.close(fig.fig)
+            fig.fig = result['ana_datas'][groupd_name]['traj_fig'][0]
+            self.ana_figs['traj_fig'] = fig.fig
            
     async def run_analysis(self):
         if self.ui_ana_results.value is None or self.ui_ana_group.value is None:
-            result, box_uids = None, None
+            return 
         else:
             result = self.results[self.ui_ana_results.value]
-            template = result['template']
-            box_names = list(filter(lambda x:x.split(',')[0] == self.ui_ana_group.value, template.boxes_name.values()))
-            name2uid = {name:uid for uid, name in template.boxes_name.items()}
-            box_uids = [name2uid[name] for name in box_names]
-            self.ana_datas = result['ana_datas'][self.ui_ana_group.value]
-            self.ana_make_stack_fig.refresh(result, box_uids)
-            self.ana_make_bar_fig.refresh(result, box_uids)
-            self.ana_make_heatmap_fig.refresh(result, box_uids)
-            self.ana_make_traj_fig.refresh(result, box_uids)
+            # NOTE: because store un-closed figs holds many RAM, so just no on-line show figs now
+            # self.ana_datas = result['ana_datas'][self.ui_ana_group.value]
+            # self.ana_draw_stack_fig.refresh(result, self.ui_ana_group.value)
+            # self.ana_draw_bar_fig.refresh(result, self.ui_ana_group.value)
+            # self.ana_draw_heatmap_fig.refresh(result, self.ui_ana_group.value)
+            # self.ana_draw_traj_fig.refresh(result, self.ui_ana_group.value)
     
     def _handle_ui_ana_results_change(self, e):
         template = self.results[e.value]['template']
@@ -437,17 +497,17 @@ class auto_ccp(Command):
                     traj_panel = ui.tab('trajectory').props('no-caps').classes('flex flex-grow')
                 with ui.tab_panels(tabs, value=stack_panel).classes('flex flex-grow'):
                     with ui.tab_panel(stack_panel).classes('flex flex-grow'):
-                        self.ana_make_stack_fig(None, None)
+                        self.ana_draw_stack_fig(None, None)
                     with ui.tab_panel(bar_panel).classes('flex flex-grow'):
-                        self.ana_make_bar_fig(None, None)
+                        self.ana_draw_bar_fig(None, None)
                     with ui.tab_panel(heatmap_panel).classes('flex flex-grow'):
-                        self.ana_make_heatmap_fig(None, None)
+                        self.ana_draw_heatmap_fig(None, None)
                     with ui.tab_panel(traj_panel).classes('flex flex-grow'):
-                        self.ana_make_traj_fig(None, None)
+                        self.ana_draw_traj_fig(None, None)
         
     def make_gui(self):
         with ui.header(elevated=True).style('background-color: #3874c8'):
-            ui.label('mbapy-cli BioHelper | Auto CCP').classes('text-h4')
+            ui.label('mbapy-cli BioHelper | Auto CPP').classes('text-h4')
             ui.space()
             ui.button('Exit', on_click=app.shutdown, icon='power')
         with ui.splitter(value=10).classes('w-full h-full') as splitter:
@@ -488,14 +548,14 @@ class auto_ccp(Command):
         shutil.rmtree(self.TMP_DIR)
 
 _str2func = {
-    'auto-ccp': auto_ccp,
+    'auto-cpp': auto_cpp,
 }
 
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
     subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
-    auto_ccp_args = auto_ccp.make_args(subparsers.add_parser('auto-ccp', description='CCP video analysis'))
+    auto_cpp_args = auto_cpp.make_args(subparsers.add_parser('auto-cpp', description='CPP video analysis'))
 
     if __name__ in ['__main__', 'mbapy.scripts.mass']:
         # '__main__' is debug, 'mbapy.scripts.mass' is user running
@@ -504,6 +564,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main('auto-ccp -i data_tmp/scripts/ccp'.split(' '))
+    main('auto-cpp -i data_tmp/scripts/cpp'.split(' '))
     
     main()
