@@ -554,16 +554,16 @@ _str2func = {
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser()
-    subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
-    auto_cpp_args = auto_cpp.make_args(subparsers.add_parser('auto-cpp', description='CPP video analysis'))
+    auto_cpp_args = auto_cpp.make_args(args_paser)
 
-    if __name__ in ['__main__', 'mbapy.scripts.mass']:
-        # '__main__' is debug, 'mbapy.scripts.mass' is user running
-        excute_command(args_paser, sys_args, _str2func)
+    if __name__ in ['__main__', 'mbapy.scripts.auto_cpp']:
+        # '__main__' is debug, 'mbapy.scripts.auto_cpp' is user running
+        args = args_paser.parse_args(sys_args)
+        auto_cpp(args).excute()
 
 
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main('auto-cpp -i data_tmp/scripts/cpp'.split(' '))
+    # main('auto-cpp -i data_tmp/scripts/cpp'.split(' '))
     
     main()

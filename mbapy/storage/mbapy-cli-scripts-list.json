@@ -150,5 +150,13 @@
                 "exec_names": ["find-file", "find_file"],
                 "brief": "find files with specific suffix or sub-string in name",
                 "detailed":  "This Python script utilizes the `argparse` library to parse command-line arguments and find file based on specific criteria."
-            }
+            },
+    "cpp":
+        {
+            "name": "CPP tools",
+            "script name": "auto_cpp",
+            "exec_names": ["auto_cpp", "auto-cpp"],
+            "brief": "CPP tools",
+            "detailed":  ""
+        }
 }
