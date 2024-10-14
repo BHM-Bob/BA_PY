@@ -107,11 +107,11 @@ def process_video(video_name: str, video_path: str, template: ProcessTemplate, m
                 # calcu center
                 sum0, sum1 = box_mat.sum(axis=0), box_mat.sum(axis=1)
                 if sum0.max() > 0:
-                    center_x = np.argmax(box_mat.sum(axis=1))
+                    center_x = np.argmax(box_mat.sum(axis=0))
                 else:
                     center_x = -1
                 if sum1.max() > 0:
-                    center_y = np.argmax(box_mat.sum(axis=0))
+                    center_y = np.argmax(box_mat.sum(axis=1))
                 else:
                     center_y = -1
                     
@@ -137,7 +137,7 @@ def process_video(video_name: str, video_path: str, template: ProcessTemplate, m
                 ana_datas['sums'][template.boxes_name[uid]].append(v[uid]['sum'])
                 if v[uid]['x'] >= 0 and v[uid]['y'] >= 0:
                     ana_datas['x'][template.boxes_name[uid]].append(v[uid]['x']+template.boxes[uid][0])
-                    ana_datas['y'][template.boxes_name[uid]].append(v[uid]['y']+template.boxes[uid][0])
+                    ana_datas['y'][template.boxes_name[uid]].append(v[uid]['y']+template.boxes[uid][1])
                     ana_datas['t'][template.boxes_name[uid]].append(t/result['video']['fps'])
         result['ana_datas'][single_group] = ana_datas
         result['ana_datas']['box_uids'] = box_uids
