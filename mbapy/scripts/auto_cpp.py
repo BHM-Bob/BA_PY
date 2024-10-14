@@ -364,14 +364,13 @@ class auto_ccp(Command):
             self.ana_figs['heatmap'] = fig.fig
             axs = fig.fig.subplots(1, len(uids))
             for axi, xi, yi, uid in zip(axs if len(uids)>1 else [axs], x.values(), y.values(), uids):
-                hb = axi.hexbin(xi, yi, gridsize=50, cmap='coolwarm')
-                axi.set(xlim=(result['template'].boxes[uid][0], result['template'].boxes[uid][2]), ylim=(result['template'].boxes[uid][1], result['template'].boxes[uid][3]))
-                axi.set_title(f'{result["template"].boxes_name[uid]}')
-                axi.set_title(f'{result["template"].boxes_name[uid]}')
                 xlim = (result['template'].boxes[uid][0], result['template'].boxes[uid][2])
                 ylim = (result['template'].boxes[uid][1], result['template'].boxes[uid][3])
+                hb = axi.hexbin(xi, yi, gridsize=((xlim[1]-xlim[0])//5, (ylim[1]-ylim[0])//5), cmap='coolwarm')
                 axi.set(xlim=xlim, ylim=ylim)
-                prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0])
+                axi.set_title(f'{result["template"].boxes_name[uid]}')
+                axi.set(xlim=xlim, ylim=ylim)
+                prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0], (4, 20))
                 axi.figure.set_figwidth(prob_size[0])
                 axi.figure.set_figheight(prob_size[1])
                 cb = fig.fig.colorbar(hb, ax=axi)
@@ -391,16 +390,16 @@ class auto_ccp(Command):
                 cmap = colormaps['coolwarm']
                 if all(len(item_v)>0 for item_v in [xi, yi, ti]):
                     norm = Normalize(vmin=min(ti), vmax=max(ti))
-                    colors = cmap(ti)[:-1] # [N-1]
+                    colors = cmap(norm(ti))[:-1] # [N-1]
                     points_i = np.stack([xi, yi], axis=0).transpose(1, 0) # [N, 2]
                     segments_i = np.concatenate([points_i[:-1], points_i[1:]], axis=1).reshape(-1, 2, 2) # [N-1, 2, 2]
-                    line = LineCollection(segments_i, alpha=0.8, colors=colors, linewidths=2, linestyles='solid')
-                    axi.add_collection(line)
+                    line = LineCollection(segments_i, alpha=0.4, colors=colors, linewidths=2, linestyles='solid', cmap=cmap, norm=norm)
+                    line = axi.add_collection(line)
                 axi.set_title(f'{result["template"].boxes_name[uid]}')
                 xlim = (result['template'].boxes[uid][0], result['template'].boxes[uid][2])
                 ylim = (result['template'].boxes[uid][1], result['template'].boxes[uid][3])
                 axi.set(xlim=xlim, ylim=ylim)
-                prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0])
+                prob_size = _make_prop_size(xlim[1]-xlim[0], ylim[1]-ylim[0], (4, 20))
                 axi.figure.set_figwidth(prob_size[0])
                 axi.figure.set_figheight(prob_size[1])
                 cb = fig.fig.colorbar(line, ax=axi, cmap=cmap, norm=norm)
@@ -410,7 +409,11 @@ class auto_ccp(Command):
             result, box_uids = None, None
         else:
             result = self.results[self.ui_ana_results.value]
-            self.ana_datas, box_uids = result['ana_datas'][self.ui_ana_group.value], result['ana_datas']['box_uids']
+            template = result['template']
+            box_names = list(filter(lambda x:x.split(',')[0] == self.ui_ana_group.value, template.boxes_name.values()))
+            name2uid = {name:uid for uid, name in template.boxes_name.items()}
+            box_uids = [name2uid[name] for name in box_names]
+            self.ana_datas = result['ana_datas'][self.ui_ana_group.value]
             self.ana_make_stack_fig.refresh(result, box_uids)
             self.ana_make_bar_fig.refresh(result, box_uids)
             self.ana_make_heatmap_fig.refresh(result, box_uids)
