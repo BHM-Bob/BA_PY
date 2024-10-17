@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-02 19:01:58
+LastEditTime: 2024-10-17 16:53:43
 Description: 
 '''
 """
@@ -82,7 +82,7 @@ setup(
     author = __author__,
     author_email = __author_email__,
     
-    packages = find_packages(exclude=["test", "test."]),
+    packages = find_packages(exclude=["test", "test.*"]),
     include_package_data = True, # define in MANIFEST.in file
     package_data = {"mbapy": dynlib},
     
@@ -109,4 +109,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.9.4.tar.gz
+# twine upload dist/mbapy-0.10.0.tar.gz
