@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-17 16:53:43
+LastEditTime: 2024-10-19 16:37:04
 Description: 
 '''
 """
@@ -62,7 +62,7 @@ setup(
         "Topic :: Utilities",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        # "Programming Language :: Python :: 3.7", # because require matplotlib>=3.7.5, but this version is not available for python 3.7
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
