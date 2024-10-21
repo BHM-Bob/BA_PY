@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-10 20:20:43
+LastEditTime: 2024-10-21 22:00:28
 Description: 
 '''
 import collections
@@ -646,7 +646,7 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
     
     
 __all__ = [
-    'get_paths_with_extention',
+    'get_paths_with_extension',
     'get_dir',
     'format_file_size',
     'extract_files_from_dir',
