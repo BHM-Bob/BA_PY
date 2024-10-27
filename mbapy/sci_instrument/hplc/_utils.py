@@ -176,6 +176,7 @@ def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),
         
     Returns:
         - ax: plt.Axes: axes object
+        - ax_topx: plt.Axes: new axes object for top x axis, used for setting xticklabels
     """
     df = hplc_data.data_df.copy(True)
     df.set_index(hplc_data.X_HEADER, inplace=True, drop=True)
@@ -192,7 +193,7 @@ def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),
     # set axis' label
     ax.set_xlabel('Time (min)')
     ax.set_ylabel('Wave Length (nm)')
-    return ax
+    return ax, ax_topx
 
 
 __all__ = [
