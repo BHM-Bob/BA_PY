@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
+import seaborn as sns
 
 if __name__ == '__main__':
     from mbapy.base import put_err
@@ -161,10 +161,28 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     return ax, _bbox_extra_artists, files_peaks_idx, file_labels
 
 
+def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),):
+    df = hplc_data.data_df.copy(True)
+    df.set_index(data.X_HEADER, inplace=True, drop=True)
+    if ax is None:
+        _, ax = plt.subplots(figsize = fig_size)
+    ax = sns.heatmap(df.T, cmap='Reds', ax = ax, cbar_kws={'label': 'Absorbance (AU)'}, xticklabels=60, yticklabels=10)
+    # set bottom X axis' ticks to .2f and Y axis' ticks to .1f
+    ax.set_xticklabels(list(map(lambda x: f'{float(x._text):.2f}', ax.get_xticklabels())))
+    ax.set_yticklabels(list(map(lambda x: f'{float(x._text):.1f}', ax.get_yticklabels())))
+    # make a new axis for top x axis
+    ax_topx = ax.twiny() # call ax_topx.xaxis.tick_top() inner this func
+    ax_topx.set_xticks(ax.get_xticks(), ax.get_xticklabels())
+    # set axis' label
+    ax.set_xlabel('Time (min)')
+    ax.set_ylabel('Wave Length (nm)')
+
+
 __all__ = [
     'process_file_labels',
     'process_peak_labels',
     'plot_hplc',
+    'plot_pda_heatmap',
     ]
 
 
@@ -174,4 +192,6 @@ if __name__ == '__main__':
     data.set_opt_wave_length(228)
     plot_hplc(data, start_search_time=4, dfs_refinment_x={data.get_tag(): -3},
               plot_peaks_underline=True, plot_peaks_line=True, plot_peaks_area=True, dpi = 100)
+    plt.show()
+    plot_pda_heatmap(data)
     plt.show()
