@@ -8,22 +8,25 @@ from uuid import uuid4
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from nicegui import app, ui
-
-from mbapy.game import BaseInfo
+from nicegui import app, ui, run
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
+
 from mbapy.base import get_fmt_time, get_storage_path, put_err
 from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
                         get_valid_file_path, write_sheets)
+from mbapy.game import BaseInfo
 from mbapy.plot import get_palette, save_show
-from mbapy.sci_instrument.hplc import (HplcData, SciexData, SciexTicData,
-                                       WatersData, WatersPdaData, EasychromData)
+from mbapy.sci_instrument.hplc import (EasychromData, HplcData, SciexData,
+                                       SciexTicData, WatersData, WatersPdaData)
 from mbapy.sci_instrument.hplc._utils import plot_hplc as _plot_hplc
+from mbapy.sci_instrument.hplc._utils import \
+    plot_pda_heatmap as _plot_pda_heatmap
 from mbapy.sci_instrument.hplc._utils import (process_file_labels,
                                               process_peak_labels)
 from mbapy.scripts._script_utils_ import Command, clean_path, excute_command
+from mbapy.web_utils.task import TaskPool
 
 
 class plot_hplc(Command):
@@ -125,6 +128,7 @@ class explore_hplc(plot_hplc):
         super().__init__(args, printf)
         self.now_name = ''
         self.fig = None
+        self.pda_fig = None
         self.dfs: Dict[str, HplcData] = OrderedDict()
         self.dfs_checkin = {}
         self.dfs_refinment_x = {}
@@ -139,6 +143,7 @@ class explore_hplc(plot_hplc):
         self.xlim_search_number_max = None
         self.files_peaks_idx = {}
         self.tag2label = {}
+        self.pda_heatmap_panel = None
         self.area_df_panel = None
         self.area_percent_df_panel = None
         self.all_area_df = None
@@ -237,6 +242,9 @@ class explore_hplc(plot_hplc):
                 self.make_area_df.refresh()
             with ui.tab_panel(self.area_percent_df_panel):
                 self.make_area_percent_df.refresh()
+            # update PDA heatmap fig
+            with ui.tab_panel(self.pda_heatmap_panel):
+                self.make_pda_heatmap.refresh()
             
     def _ui_transfer_df_to_table(self, df: pd.DataFrame, classes: str = 'w-full'):
         """first column is the name(str), others are time(float), transfer df to nicegui table format"""
@@ -355,6 +363,22 @@ class explore_hplc(plot_hplc):
             self.all_area_percent_df.iloc[i, 1:] /= (self.all_area_percent_df.iloc[i, 1:].sum() / 100)
         # transfer to nicegui table format
         self._ui_transfer_df_to_table(self.all_area_percent_df, classes='w-full h-full')
+        
+    @ui.refreshable
+    async def make_pda_heatmap(self):
+        if len(self.dfs) != 1 or not list(self.dfs.values())[0].IS_PDA:
+            return
+        data = list(self.dfs.values())[0]
+        plt.close(self.pda_fig)
+        with ui.pyplot(figsize=self.args.fig_size, close=False) as fig:
+            self.pda_fig = fig.fig
+            ax = fig.fig.gca()
+            ax, ax_top = await run.cpu_bound(_plot_pda_heatmap, data, ax=ax, n_xticklabels=5*60)
+            ax.tick_params(axis='both', which='major', labelsize=self.args.axis_ticks_fontsize)
+            ax_top.tick_params(axis='x', which='major', labelsize=self.args.axis_ticks_fontsize)
+            ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
+            ax.set_ylim(bottom=self.args.ylim[0], top=self.args.ylim[1])
+            plt.tight_layout()
             
     def _ui_only_one_expansion(self, e):
         if e.value:
@@ -501,6 +525,7 @@ class explore_hplc(plot_hplc):
                             highcharts_fig_panel = ui.tab('HPLC Manual Peaking Figure').props('no-caps').classes('flex flex-grow')
                             self.area_df_panel = ui.tab('HPLC Peaks Area DataFrame').props('no-caps').classes('flex flex-grow')
                             self.area_percent_df_panel = ui.tab('HPLC Peaks Area Percentage DataFrame').props('no-caps').classes('flex flex-grow')
+                            self.pda_heatmap_panel = ui.tab('PDA Heatmap').props('no-caps').classes('flex flex-grow')
                         with ui.tab_panels(tabs, value=fig_panel).classes('flex flex-grow'):
                             with ui.tab_panel(fig_panel).classes('flex flex-grow'):
                                 self.make_fig()
@@ -511,6 +536,8 @@ class explore_hplc(plot_hplc):
                                 self.make_area_df()
                             with ui.tab_panel(self.area_percent_df_panel).classes('flex flex-grow'):
                                 self.make_area_percent_df()
+                            with ui.tab_panel(self.pda_heatmap_panel).classes('flex flex-grow'):
+                                self.make_pda_heatmap()
         ui.run(host = self.args.url, port = self.args.port, title = 'HPLC Data Explorer',
                favicon=get_storage_path('icons/scripts-hplc-peak.png'), reload=False)
     
@@ -529,7 +556,7 @@ class explore_hplc(plot_hplc):
                              tag_fontsize = 15, tag_offset = [0.05,0.05], marker_size = 80, marker_offset = [0,0.05],
                              title_fontsize = 25, legend_fontsize = 15, line_width = 2,
                              xlim = [0, None], ylim = [None, None],
-                             fig_size = [10, 8], fig = None, dpi = 600, file_name = '',
+                             fig_size = [12, 8], fig = None, dpi = 600, file_name = '',
                              plot_peaks_line = False, plot_peaks_underline = False, plot_peaks_area = False, peak_area_alpha = 0.3,
                              **self.args.__dict__)
         # load dfs from input dir to stored_dfs
