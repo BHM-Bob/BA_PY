@@ -161,12 +161,28 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
     return ax, _bbox_extra_artists, files_peaks_idx, file_labels
 
 
-def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),):
+def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),
+                     cmap: str = 'Reds', n_xticklabels: int = 60, n_yticklabels: int = 10, **kwargs):
+    """
+    plot a heatmap of PDA data, with x-axis as time and y-axis as wave length.
+
+    Parameters:
+        - hplc_data: HplcData, PDA data
+        - ax: matplotlib.axes.Axes, default is None, if None, create a new figure and axes
+        - fig_size: Tuple[float, float], figure size, used when ax is None
+        - cmap: str, colormap name, passed to sns.heatmap, default is 'Reds'
+        - n_xticklabels: int, make a tick every n_xticklabels, passed to sns.heatmap, default is 60
+        - n_yticklabels: int, make a tick every n_yticklabels, passed to sns.heatmap, default is 10
+        
+    Returns:
+        - ax: plt.Axes: axes object
+    """
     df = hplc_data.data_df.copy(True)
     df.set_index(data.X_HEADER, inplace=True, drop=True)
     if ax is None:
         _, ax = plt.subplots(figsize = fig_size)
-    ax = sns.heatmap(df.T, cmap='Reds', ax = ax, cbar_kws={'label': 'Absorbance (AU)'}, xticklabels=60, yticklabels=10)
+    ax = sns.heatmap(df.T, cmap=cmap, ax = ax, cbar_kws={'label': 'Absorbance (AU)'},
+                     xticklabels=n_xticklabels, yticklabels=n_yticklabels)
     # set bottom X axis' ticks to .2f and Y axis' ticks to .1f
     ax.set_xticklabels(list(map(lambda x: f'{float(x._text):.2f}', ax.get_xticklabels())))
     ax.set_yticklabels(list(map(lambda x: f'{float(x._text):.1f}', ax.get_yticklabels())))
@@ -176,6 +192,7 @@ def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),):
     # set axis' label
     ax.set_xlabel('Time (min)')
     ax.set_ylabel('Wave Length (nm)')
+    return ax
 
 
 __all__ = [
