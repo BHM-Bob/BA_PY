@@ -178,7 +178,7 @@ def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),
         - ax: plt.Axes: axes object
     """
     df = hplc_data.data_df.copy(True)
-    df.set_index(data.X_HEADER, inplace=True, drop=True)
+    df.set_index(hplc_data.X_HEADER, inplace=True, drop=True)
     if ax is None:
         _, ax = plt.subplots(figsize = fig_size)
     ax = sns.heatmap(df.T, cmap=cmap, ax = ax, cbar_kws={'label': 'Absorbance (AU)'},
