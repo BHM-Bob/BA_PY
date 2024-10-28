@@ -178,13 +178,26 @@ def plot_pda_heatmap(hplc_data: HplcData, ax = None, fig_size = (12, 7),
         - ax: plt.Axes: axes object
         - ax_topx: plt.Axes: new axes object for top x axis, used for setting xticklabels
     """
+    # tick helper func
+    def make_tick(ax, axis: str, n_ticks: int):
+        ticks = list(map(lambda x: (x[0], f'{float(x[1]._text):.2f}'),
+                        zip(getattr(ax, f'get_{axis}ticks')(), getattr(ax, f'get_{axis}ticklabels')())))
+        filtered_ticks = ticks[::n_ticks]
+        if ticks[-1] not in filtered_ticks:
+            if len(ticks) - ticks.index(filtered_ticks[-1]) < 0.75*n_ticks:
+                filtered_ticks.pop(-1)
+            filtered_ticks.append(ticks[-1])
+        return filtered_ticks
     df = hplc_data.data_df.copy(True)
     df.set_index(hplc_data.X_HEADER, inplace=True, drop=True)
     if ax is None:
         _, ax = plt.subplots(figsize = fig_size)
     ax = sns.heatmap(df.T, cmap=cmap, ax = ax, cbar_kws={'label': 'Absorbance (AU)'},
-                     xticklabels=n_xticklabels, yticklabels=n_yticklabels)
+                     xticklabels=1, yticklabels=1)
     # set bottom X axis' ticks to .2f and Y axis' ticks to .1f
+    xticks, yticks = make_tick(ax, 'x', n_xticklabels), make_tick(ax, 'y', n_yticklabels)
+    ax.set_xticks(list(map(lambda x: x[0], xticks)))
+    ax.set_yticks(list(map(lambda x: x[0], yticks)))
     ax.set_xticklabels(list(map(lambda x: f'{float(x._text):.2f}', ax.get_xticklabels())))
     ax.set_yticklabels(list(map(lambda x: f'{float(x._text):.1f}', ax.get_yticklabels())))
     # make a new axis for top x axis
