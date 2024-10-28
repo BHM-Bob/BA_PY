@@ -3,7 +3,7 @@ import os
 from collections import OrderedDict
 from functools import partial
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import matplotlib.pyplot as plt
@@ -575,7 +575,7 @@ class explore_hplc(plot_hplc):
         
         
 class extract_pda(plot_hplc):
-    SUPPORT_SYSTEMS = {'Waters-PDA', 'SCIEX', 'SCIEX-TIC', 'EasyChrom'}
+    SUPPORT_SYSTEMS = {'Waters-PDA'}
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.sys2suffix = {'Waters-PDA': 'arw'}
@@ -617,12 +617,68 @@ class extract_pda(plot_hplc):
             else:
                 path = path.with_suffix(f'@{self.args.wave_length}nm.xlsx')
             write_sheets(path, {'Info': data.info_df, 'Data': abs_data}, index = False)
+
+
+def plot_single_PDA_data(data: HplcData):
+    tag = data.make_tag(tags=['"样品名称"', '"采集日期"', '"通道"', '"仪器方法名"']).replace('/', '-')
+    ax, ax_top = _plot_pda_heatmap(data, n_xticklabels=5*60)
+    ax.tick_params(axis='both', which='major', labelsize=15)
+    ax_top.tick_params(axis='x', which='major', labelsize=15)
+    ax.set_title(tag, fontsize=20)
+    ax.set_xlabel('Time (min)', fontsize=17)
+    ax.set_ylabel('Wavelength (nm)', fontsize=17)
+    plt.tight_layout()
+    path = Path(data.data_file_path)
+    path = get_valid_file_path(str(path.parent / f'{tag}_heatmap.png'))
+    save_show(path, 600, show=False)
+    print(f'save PDA heatmap to {path}')
+
+
+class plot_pda(extract_pda):
+    def __init__(self, args: argparse.Namespace, printf=print) -> None:
+        super().__init__(args, printf)
+        self.task_pool: Optional[TaskPool] = None
+
+    @staticmethod
+    def make_args(args: argparse.ArgumentParser):
+        args.add_argument('-i', '--input', type = str, default='.',
+                          help="data file directory, default is %(default)s.")
+        args.add_argument('-n', '--use-tag-name', action='store_true', default=False,
+                          help="use tag name as file name, default is %(default)s.")
+        args.add_argument('-s', '--system', type = str, default='Waters-PDA',
+                          help=f"HPLC system. Default is %(default)s, those systems are supported: {', '.join(list(plot_hplc.SUPPORT_SYSTEMS))}")
+        args.add_argument('-r', '--recursive', action='store_true', default=False,
+                          help='search input directory recursively, default is %(default)s.')
+        args.add_argument('-mp', '--multi-process', type = int, default=4,
+                          help='multi-process to speed up plot, default is %(default)s')
+        return args
+
+    def main_process(self):
+        if self.args.multi_process > 1:
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
+            print(f'created task pool with {self.args.multi_process} processes')
+        # load origin dfs from data file
+        self.dfs: Dict[str, Union[WatersPdaData,]] = self.load_dfs_from_data_file()
+        if not self.dfs:
+            raise FileNotFoundError(f'can not find data files in {self.args.input}')
+        print(f'loaded {len(self.dfs)} data files')
+        # show data general info and output peak list DataFrame
+        for i, (tag, data) in enumerate(self.dfs.items()):
+            # save processed data
+            if self.task_pool is not None:
+                self.task_pool.add_task(tag, plot_single_PDA_data, data)
+            else:
+                plot_single_PDA_data(data)
+        if self.task_pool is not None:
+            self.task_pool.wait_till_tasks_done(self.dfs.keys())
+            self.task_pool.close()
         
 
 _str2func = {
     'plot-hplc': plot_hplc,
     'explore-hplc': explore_hplc,
     'extract-pda': extract_pda,
+    'plot-pda': plot_pda,
 }
 
 
@@ -632,6 +688,7 @@ def main(sys_args: List[str] = None):
     plot_hplc_args = plot_hplc.make_args(subparsers.add_parser('plot-hplc', description='plot hplc spectrum'))
     explore_hplc_args = explore_hplc.make_args(subparsers.add_parser('explore-hplc', description='explore hplc spectrum data'))
     extract_pda_args = extract_pda.make_args(subparsers.add_parser('extract-pda', description='extract PDA data'))
+    plot_pda_args = plot_pda.make_args(subparsers.add_parser('plot-pda', description='plot PDA data as heatmap'))
 
     excute_command(args_paser, sys_args, _str2func)
 
