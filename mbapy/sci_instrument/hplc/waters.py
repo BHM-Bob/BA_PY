@@ -1,7 +1,7 @@
 '''
 Date: 2024-06-18 16:25:14
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-09-26 16:15:33
+LastEditTime: 2024-10-28 16:19:51
 Description: 
 '''
 import os
@@ -46,7 +46,7 @@ class WatersData(HplcData):
                  join_str: str = '_'):
         if tag is None:
             info_df = self.processed_data[0]
-            tag = self.tag = join_str.join([info_df.loc[0, t].strip('"') for t in tags])
+            tag = self.tag = join_str.join([info_df.loc[0, t].strip('"') for t in tags if t in info_df.columns])
         return tag
     
     def process_raw_data(self):
