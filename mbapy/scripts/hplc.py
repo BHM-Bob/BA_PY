@@ -234,6 +234,7 @@ class explore_hplc(plot_hplc):
                 ax.set_ylabel(self.args.ylabel, fontsize=self.args.axis_label_fontsize)
                 ax.set_xlim(left=self.args.xlim[0], right=self.args.xlim[1])
                 ax.set_ylim(bottom=self.args.ylim[0], top=self.args.ylim[1])
+                ax.set_title(self.args.title, fontdict={'fontsize':self.args.title_fontsize})
                 plt.tight_layout()
             # update tag2label related ui elements
             self._ui_refinment_numbers.refresh()
@@ -620,7 +621,7 @@ class extract_pda(plot_hplc):
 
 
 def plot_single_PDA_data(data: HplcData):
-    tag = data.make_tag(tags=['"样品名称"', '"采集日期"', '"通道"', '"仪器方法名"']).replace('/', '-')
+    tag = data.make_tag(tags=['"样品名称"', '"采集日期"', '"通道"', '"仪器方法名"'], join_str=' _ ').replace('/', '-')
     ax, ax_top = _plot_pda_heatmap(data, n_xticklabels=5*60)
     ax.tick_params(axis='both', which='major', labelsize=15)
     ax_top.tick_params(axis='x', which='major', labelsize=15)
@@ -694,7 +695,7 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    # main('explore-hplc -i data_tmp/scripts/hplc'.split())
+    main('explore-hplc -i data_tmp/scripts/hplc'.split())
     # main('extract-pda -w 228 -i data_tmp/scripts/hplc/WatersPDA.arw -n'.split())
     
     main()
