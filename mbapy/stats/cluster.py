@@ -12,7 +12,7 @@ from sklearn.mixture import GaussianMixture
 try:
     import torch
     from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
-except:
+except ModuleNotFoundError:
     pass # mbapy now do not compulsively require pytorch and hyperopt
 
 if __name__ == '__main__':
@@ -92,7 +92,7 @@ class KMeans:
                 - 'pytorch': mainly because torch.cdist, it use torch.Tensor.
             - **kwargs: additional keyword arguments.
         """
-        self.centers = None # should be a ndarray with shape [n, D]
+        self.centers = None # should be a ndarray with shape [n, *, D]
         self.data_group_id = None
         self.loss_record = []
         
@@ -116,8 +116,8 @@ class KMeans:
         Calculate the length matrix between data and centers.
 
         Parameters:
-            - data(ndarray): data to be clustered, should be a ndarray with shape [N, D].
-            - centers(ndarray): centers of the clusters, should be a ndarray with shape [n, D], default is None.
+            - data(ndarray): data to be clustered, should be a ndarray with shape [N, *, D].
+            - centers(ndarray): centers of the clusters, should be a ndarray with shape [n, *, D], default is None.
 
         Returns:
             - length_mat(ndarray): length matrix with shape [N, n], N is sum data, n is sum clusters(centers).
@@ -163,10 +163,10 @@ class KMeans:
         if self.centers is None:            
             # choose the first center randomly
             first_center_idx = int(np.random.uniform(0, data.shape[0]))
-            self.centers = data[first_center_idx].reshape(1, -1) # [n=1, D]
+            self.centers = data[first_center_idx][None, ] # [n=1, *, D]
             # generate left centers by kmeans++
             for _ in range(self.n_clusters - 1):
-                new_center = self._choose_center_from_data(data, self.centers).reshape(1, -1)
+                new_center = self._choose_center_from_data(data, self.centers)[None, ]
                 self.centers = self._backend.cat([self.centers, new_center])
         return self.centers
     
@@ -192,7 +192,7 @@ class KMeans:
         """
         # sort data to groups id by now centers, get data_group_id
         kwgs = {'device' : data.device} if self.backend == 'pytorch' else {}
-        new_centers = self._backend._backend.zeros([self.n_clusters, data.shape[-1]], **kwgs)
+        new_centers = self._backend._backend.zeros([self.n_clusters] + list(data.shape[1:]), **kwgs)
         length_mat = self._calcu_length_mat(data) # [N, n]
         data_group_id = length_mat.argmin(-1) # [N, ]
         # sort data to groups, set new centers to be the mean of each group
@@ -631,6 +631,7 @@ def cluster(data, n_clusters:int, method:str,
     
 if __name__ == '__main__':
     # dev code
+    np.random.seed(0)
     import matplotlib.pyplot as plt
     import pandas as pd
     from sklearn.datasets import make_classification
@@ -640,7 +641,7 @@ if __name__ == '__main__':
     X = df.loc[ : ,tags].values
     
     labels, centers, loss = cluster(X, n_classes, 'KOptim', norm = 'div_max')
-    model = BAKMeans(n_classes, backend='pytorch')
+    model = BAKMeans(n_classes, backend='scipy')
     
     for i in range(5):
         model.fit(X)
