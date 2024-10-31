@@ -25,13 +25,47 @@ else:
     from ..base import (autoparse, get_default_args, get_default_call_for_None,
                         get_default_for_None, get_num_digits, put_err,
                         set_default_kwargs)
+    
+
+class KMeansBackend:
+    def __init__(self, backend:str) -> None:
+        self.backend = backend
+        if backend == 'scipy':
+            self._backend = np
+            self.array = np.array
+        elif backend == 'pytorch':
+            self._backend = torch
+            self.array = torch.tensor
+    def cat(self, *args, **kwargs):
+        if self.backend == 'scipy':
+            return np.concatenate(*args, **kwargs, axis = 0)
+        elif self.backend == 'pytorch':
+            return torch.cat(*args, **kwargs, dim = 0)
+    def cdist(self, data, centers):
+        if self.backend == 'scipy' or isinstance(data, np.ndarray):
+            return scipy.spatial.distance.cdist(data, centers, metric = 'euclidean')
+        elif self.backend == 'pytorch' or isinstance(data, torch.Tensor):
+            if isinstance(centers, np.ndarray):
+                centers = torch.tensor(centers, dtype = torch.float64, device = data.device)
+            return torch.cdist(data.to(dtype = torch.float64), centers.to(dtype = torch.float64))
+    def random_choice(self, n:int, p):
+        if self.backend == 'scipy':
+            return np.random.choice(n, p = p)
+        elif self.backend == 'pytorch':
+            return torch.multinomial(p, n)[0]
+    def sample(self, data, mini_batch:float):
+        if self.backend == 'scipy':
+            idxs = np.random.permutation(np.arange(data.shape[0]))[:int(data.shape[0]*mini_batch)]
+        elif self.backend == 'pytorch':
+            idxs = torch.randperm(data.shape[0])[:int(data.shape[0]*mini_batch)]
+        return data[idxs, :]
+        
 
 class KMeans:
     """ 
     KMeans clustering algorithm implementation.
 
     Attributes:
-    - space (list): A list of lists representing the search space for Bayesian optimization.
     - centers (np.ndarray): The final cluster centers.
     
     Methods:
@@ -42,42 +76,10 @@ class KMeans:
     - fit_predict: Fit the model to the data and predict the cluster labels.
     - predict: Predict the cluster labels for the given data.
     """
-    class BackEnd:
-        def __init__(self, backend:str) -> None:
-            self.backend = backend
-            if backend == 'scipy':
-                self._backend = np
-                self.array = np.array
-            elif backend == 'pytorch':
-                self._backend = torch
-                self.array = torch.tensor
-        def cat(self, *args, **kwargs):
-            if self.backend == 'scipy':
-                return np.concatenate(*args, **kwargs, axis = 0)
-            elif self.backend == 'pytorch':
-                return torch.cat(*args, **kwargs, dim = 0)
-        def cdist(self, data, centers):
-            if self.backend == 'scipy' or isinstance(data, np.ndarray):
-                return scipy.spatial.distance.cdist(data, centers, metric = 'euclidean')
-            elif self.backend == 'pytorch' or isinstance(data, torch.Tensor):
-                if isinstance(centers, np.ndarray):
-                    centers = torch.tensor(centers, dtype = torch.float64, device = data.device)
-                return torch.cdist(data.to(dtype = torch.float64), centers.to(dtype = torch.float64))
-        def random_choice(self, n:int, p):
-            if self.backend == 'scipy':
-                return np.random.choice(n, p = p)
-            elif self.backend == 'pytorch':
-                return torch.multinomial(p, n)[0]
-        def sample(self, data, mini_batch:float):
-            if self.backend == 'scipy':
-                idxs = np.random.permutation(np.arange(data.shape[0]))[:int(data.shape[0]*mini_batch)]
-            elif self.backend == 'pytorch':
-                idxs = torch.randperm(data.shape[0])[:int(data.shape[0]*mini_batch)]
-            return data[idxs, :]
         
     @autoparse
-    def __init__(self, n_clusters:int = None, tolerance:float = 0.0001, max_iter:int = 200,
-                 mini_batch:float = 1., init_method = 'prob', backend:str = 'scipy', **kwargs) -> None:
+    def __init__(self, n_clusters: int = None, tolerance: float = 0.0001, max_iter: int = 200,
+                 mini_batch: float = 1., init_method: str = 'prob', backend: str = 'scipy', **kwargs) -> None:
         """
         Parameters:
             - n_clusters(int): number of clusters, if set to None, will auto search from 1 to sum of data to make fit for tolerance.
@@ -94,7 +96,12 @@ class KMeans:
         self.data_group_id = None
         self.loss_record = []
         
-        self._backend = self.BackEnd(backend)
+        if isinstance(backend, str):
+            self._backend = KMeansBackend(backend)
+        elif isinstance(backend, KMeansBackend):
+            self._backend = backend
+        else:
+            raise ValueError(f"backend should be str or a class of KMeansBackend class, but got {backend}")
         
     def reset(self, **kwargs):
         """
