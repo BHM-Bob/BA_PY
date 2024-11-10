@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-21 22:00:28
+LastEditTime: 2024-11-10 22:03:12
 Description: 
 '''
 import collections
@@ -327,6 +327,8 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             elif way == 'pkl':
                 if kwargs.get('gzip', False):
                     f = gzip.GzipFile(fileobj=f)
+                if os.path.getsize(path) == 0:
+                    return None
                 return pickle.load(f, **kwgs)
             elif way == 'csv':
                 return pd.read_csv(f, **kwgs)
@@ -346,7 +348,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return f.writelines(data)
             elif way == 'str':
                 return f.write(data)
-        elif 'w' in mode and data is not None:
+        elif 'w' in mode and (data is not None or way == 'pkl'):
             if way == 'json':
                 return f.write(json.dumps(data, **kwgs))
             elif way == 'pkl':
