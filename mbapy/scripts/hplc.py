@@ -548,7 +548,7 @@ class explore_hplc(plot_hplc):
                              pda_wave_length = 228,
                              min_peak_width = 0.1, min_height = 0.01, start_search_time = 0, end_search_time = None,
                              show_tag_text = True, labels_eps = 0.1,
-                             file_legend_pos = 'upper right', file_legend_bbox = [1.3, 0.75],
+                             file_legend_pos = 'upper right', file_legend_bbox = [1., 1.],
                              peak_legend_pos = 'upper right', peak_legend_bbox = [1.3, 1],
                              title = '', xlabel = 'Time (min)', ylabel = 'Absorbance (AU)',
                              axis_ticks_fontsize = 20, axis_label_fontsize = 25, 
