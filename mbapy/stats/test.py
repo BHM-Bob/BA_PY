@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-02 19:11:11
+LastEditTime: 2024-11-15 17:09:29
 Description: 
 '''
 from itertools import combinations
@@ -156,7 +156,14 @@ def auto_ind_test(x1 = None, x2 = None,
     _fmt_result_gt = lambda result: f'{result[0]:.{float_round}f}, p={result[1]:.{float_round}f}, {result[1] > 0.05}' # < 0.05 为显著差异
     print('-'*22, 'mbapy.stats.auto_ind_test', '-'*23)
     if factors is not None and tag is not None and df is not None:
-        fac_name = df[list(factors.keys())[0]].unique()
+        fac_name = factors[list(factors.keys())[0]]
+        if len(fac_name) == 0:
+            print('no sub factor found in the passed factors, try to find it in the df')
+            fac_name = factors[list(factors.keys())[0]]
+            if len(fac_name) != 2:
+                print(f'only accept 2 sub factors, but got {fac_name}, try to use the first two sub factors')
+        elif len(fac_name) != 2:
+            print(f'only accept 2 sub factors, but got {fac_name}, try to use the first two sub factors')
         print(f'Factor: {list(factors.keys())[0]}')
         print(f'X1: {fac_name[0]}, X2: {fac_name[1]}')
     # show x1 and x2 statistics info (each)
@@ -355,5 +362,6 @@ def multicomp_bonferroni(factors:Dict[str, List[str]], tag:str, df:pd.DataFrame,
                            p_adjust='bonferroni')
 
 if __name__ == '__main__':
-    pass
+    df = pd.read_excel('./data/plot.xlsx', sheet_name='ym')
+    model = auto_ind_test(None, None, {'solution':['K', 'Mg'], 'time':['after']}, 'whole', df)
     
