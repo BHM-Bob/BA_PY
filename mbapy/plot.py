@@ -84,7 +84,7 @@ def get_palette(n:int = 10, mode:Union[None, str] = None, return_n = True) -> Li
     return ret
     
     
-def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int):
+def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int, scale: int = 1):
     """
     Adjusts the `center point` of the color map, the color range could be scaled.
 
@@ -102,13 +102,16 @@ def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int):
         AssertionError: If vmin is greater than or equal to v0, an AssertionError is raised with the message 'vmin >= v0'
     """
     cmap = plt.get_cmap(cmap)
-    vmin, v0, vmax = int(vmin), int(v0), int(vmax)
+    vmin, v0, vmax, scale = int(vmin), int(v0), int(vmax), int(scale)
     max_len = vmax - v0
     assert max_len > 0, 'vmax <= v0'
     min_len = v0 - vmin
     assert min_len > 0, 'vmin >= v0'
-    new_colors = cmap(np.linspace(0, 1, 2*max_len))
-    return ListedColormap(np.concatenate((new_colors[:max_len:max_len//min_len], new_colors[max_len:])))
+    new_colors = cmap(np.linspace(0, 1, 2*max(min_len, max_len)*scale))
+    if max_len > min_len:
+        return ListedColormap(np.concatenate((new_colors[:max_len*scale:scale*max_len//min_len], new_colors[max_len*scale::scale])))
+    else:
+        return ListedColormap(np.concatenate((new_colors[:min_len*scale:scale], new_colors[min_len*scale::scale*min_len//max_len])))
 
 
 def sub_cmap(cmap: str, vmin: int, v0: int, vmax: int):
