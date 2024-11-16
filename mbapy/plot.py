@@ -102,16 +102,17 @@ def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int, scale: int = 
         AssertionError: If vmin is greater than or equal to v0, an AssertionError is raised with the message 'vmin >= v0'
     """
     cmap = plt.get_cmap(cmap)
-    vmin, v0, vmax, scale = int(vmin), int(v0), int(vmax), int(scale)
+    scale = int(scale)
+    vmin, v0, vmax = int(vmin*scale), int(v0), int(vmax*scale)
     max_len = vmax - v0
     assert max_len > 0, 'vmax <= v0'
     min_len = v0 - vmin
     assert min_len > 0, 'vmin >= v0'
-    new_colors = cmap(np.linspace(0, 1, 2*max(min_len, max_len)*scale))
+    new_colors = cmap(np.linspace(0, 1, 2*max(min_len, max_len)))
     if max_len > min_len:
-        return ListedColormap(np.concatenate((new_colors[:max_len*scale:scale*max_len//min_len], new_colors[max_len*scale::scale])))
+        return ListedColormap(np.concatenate((new_colors[:max_len:max_len//min_len], new_colors[max_len::])))
     else:
-        return ListedColormap(np.concatenate((new_colors[:min_len*scale:scale], new_colors[min_len*scale::scale*min_len//max_len])))
+        return ListedColormap(np.concatenate((new_colors[:min_len:], new_colors[min_len::min_len//max_len])))
 
 
 def sub_cmap(cmap: str, vmin: int, v0: int, vmax: int):
@@ -304,6 +305,7 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
+    adjust_cmap_midpoint('Reds', -9.2, 0, 0.2, 10)
     df = pd.read_excel('./data/plot.xlsx', sheet_name='MWM')
     df['Animal Type'] = df['Animal Type'].astype('str')
     model = mst.multicomp_turkeyHSD({'Animal Type':[]}, 'Duration', df)
