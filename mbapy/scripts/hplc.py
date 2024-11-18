@@ -367,6 +367,8 @@ class explore_hplc(plot_hplc):
         
     @ui.refreshable
     async def make_pda_heatmap(self):
+        return None
+        # heatmap is RAM and time consuming, so just skip it for now
         if len(self.dfs) != 1 or not list(self.dfs.values())[0].IS_PDA:
             return
         data = list(self.dfs.values())[0]
@@ -695,7 +697,7 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main('explore-hplc -i data_tmp/scripts/hplc'.split())
+    # main('explore-hplc -i data_tmp/scripts/hplc'.split())
     # main('extract-pda -w 228 -i data_tmp/scripts/hplc/WatersPDA.arw -n'.split())
     
     main()
