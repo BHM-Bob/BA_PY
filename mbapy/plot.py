@@ -103,7 +103,7 @@ def adjust_cmap_midpoint(cmap: str, vmin: int, v0: int, vmax: int, scale: int = 
     """
     cmap = plt.get_cmap(cmap)
     scale = int(scale)
-    vmin, v0, vmax = int(vmin*scale), int(v0), int(vmax*scale)
+    vmin, v0, vmax = int(vmin*scale), int(v0*scale), int(vmax*scale)
     max_len = vmax - v0
     assert max_len > 0, 'vmax <= v0'
     min_len = v0 - vmin
