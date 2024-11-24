@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-12-09 17:24:18
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-10-01 23:11:27
+LastEditTime: 2024-11-24 17:07:47
 Description: 
 '''
 
@@ -11,6 +11,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 if __name__ == '__main__':
     from mbapy.base import get_default_for_None, put_err
@@ -19,8 +20,15 @@ else:
     from ..base import get_default_for_None, put_err
     from . import cluster, df, geography, reg, test
 
-def pca(df:pd.DataFrame, out_dim:int):
+def pca(df:pd.DataFrame, out_dim:int, norm: bool = False) -> np.ndarray:
+    """
+    performs PCA on a dataframe and returns the transformed data.  
+    access return_value.explained_variance_ratio_ to get the explained variance ratio.
+    """
     pca = PCA(n_components=out_dim)
+    if norm:
+        scaler = StandardScaler()
+        df = scaler.fit_transform(df)
     pca.fit(df)
     return pca.transform(df)
 
