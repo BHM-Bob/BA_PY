@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-31 22:32:48
+LastEditTime: 2024-11-30 17:15:30
 Description: 
 '''
 import ctypes
@@ -193,7 +193,7 @@ def get_call_stack():
             break
     return stack_info[1:][::-1]
 
-def put_err(info:str, ret = None, warning_level = 0):
+def put_err(info:str, ret = None, warning_level = 0, _exit: Union[bool, int] = False):
     """
     Prints an error message along with the caller's name and arguments, if the warning level is greater than or equal to the error warning level specified in the Configs class.
         
@@ -220,6 +220,8 @@ def put_err(info:str, ret = None, warning_level = 0):
         err_str = f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n'
         print(err_str)
         Configs.logs.append(err_str)
+    if not __NO_ERR__ and _exit:
+        exit(_exit)
     return ret
 
 def put_log(info:str, head = "bapy::log", ret = None):
