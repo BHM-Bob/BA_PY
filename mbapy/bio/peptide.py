@@ -270,6 +270,9 @@ class AnimoAcid:
         cp.R_protect = self.R_protect
         return cp
     
+class AminoAcid(AnimoAcid):
+    """fix the name of AnimoAcid to AminoAcid"""
+    
 class Peptide:
     """
     This class definition is for a Peptide class.
