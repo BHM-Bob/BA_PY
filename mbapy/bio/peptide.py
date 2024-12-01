@@ -5,6 +5,13 @@ from typing import Dict, List
 
 
 class AnimoAcid:
+    atom_msd = { # atom exact mass dict, from pyteomics.mass.calculate_mass
+        'H': 1.00782503207,
+        'C': 12.0,
+        'N': 14.0030740048,
+        'O': 15.99491461956,
+        'S': 31.972071,
+    }
     aa_mwd = { # amino acid molecular weight dict
         "Ala": 89.09,
         "Arg": 174.20,
@@ -127,6 +134,14 @@ class AnimoAcid:
                 self.R_protect = 'H'
         else:
             self.N_protect, self.animo_acid, self.R_protect, self.C_protect = None, None, None, None
+            
+    @staticmethod
+    def calc_exact_mass(formula: str = None, atom_dict: Dict[str, int] = None) -> float:
+        """using AminoAcid.atom_msd to calculate the exact mass of the given formula."""
+        if formula is not None:
+            assert atom_dict is None, 'atom_dict should be None when formula is not None'
+            atom_dict = {atom: count for atom, count in re.findall(r'([A-Z])(\d*)', formula.upper())}
+        return sum([AnimoAcid.atom_msd[atom] * (int(count) if count else 1) for atom, count in atom_dict.items()])
               
     @staticmethod  
     def check_is_aa(aa: str):
@@ -253,8 +268,11 @@ class AnimoAcid:
             else:
                 mfd = molecular_formula_dict
             molecular_formula = ''.join([f'{k}{v}' for k,v in mfd.items() if v > 0])
-        from pyteomics import mass
-        return mass.calculate_mass(formula=molecular_formula)
+        try:
+            from pyteomics import mass
+            return mass.calculate_mass(formula=molecular_formula)
+        except ImportError:
+            return self.calc_exact_mass(formula=molecular_formula)
     
     def copy(self):
         """
