@@ -1,9 +1,20 @@
+import os
 import re
+from functools import lru_cache
 from typing import Dict, List
 
 import pandas as pd
 
+if __name__ == '__main__':
+    from mbapy.file import opts_file
+else:
+    from ..file import opts_file
+    
+    
+formula_existence_cache = {}
+FORMULA_EXISTENCE_CACHE_PATH = os.path.expanduser(f'~/.mbapy/cache/formula_existence.pkl')
 
+@lru_cache(maxsize=1024, typed=False)
 def check_formula_existence(formula: str, link: int = 0):
     """
     check if a given formula can be formed by a given number of links
@@ -24,6 +35,17 @@ def check_formula_existence(formula: str, link: int = 0):
     |H1|0 |1 |x |  |  
     |H2|0 |1 |0 |x |  
     """
+    # check cache
+    global formula_existence_cache
+    if not formula_existence_cache:
+        os.makedirs(os.path.dirname(FORMULA_EXISTENCE_CACHE_PATH), exist_ok=True)
+        if os.path.exists(FORMULA_EXISTENCE_CACHE_PATH):
+            formula_existence_cache = opts_file(FORMULA_EXISTENCE_CACHE_PATH, 'rb', way='pkl')
+        else:
+            formula_existence_cache['flag'] = 'loaded'
+    if (formula, link) in formula_existence_cache:
+        return formula_existence_cache[(formula, link)]
+    # load or-tools package
     from ortools.linear_solver import pywraplp
 
     # helper function
@@ -47,6 +69,8 @@ def check_formula_existence(formula: str, link: int = 0):
             # add condition: H can not make link to LINK
             if j == 0 and indexs[i][0] == 'H':
                 solver.Add(var[i][j] == 0)
+            # TODO: add condition: all atom can not donate all links to H if non-H atom num is bigger than 1
+            # raise NotImplementedError('not implemented yet')
     # add conditions for atom-pair link
     for i in range(0, len(indexs)):
         if i == 0: # LINK
@@ -58,23 +82,29 @@ def check_formula_existence(formula: str, link: int = 0):
     solver.Maximize(var[-1][-2])
     # solve
     status = solver.Solve()
-    if status == pywraplp.Solver.OPTIMAL:
-        print("Solution: Objective value =", solver.Objective().Value())
-    else:
+    if status != pywraplp.Solver.OPTIMAL:
         return None, None
     # retrive solution
     for i in range(1, len(indexs)):
         for j in range(0, i):
             var[i][j] = var[i][j].solution_value()
+    # update cache
+    formula_existence_cache[(formula, link)] = (var, indexs)
     return var, indexs
     
     
 if __name__ == '__main__':
     # dev code
-    formula = 'C3H4O1N1'
-    link = 1
-    links, indexs = check_formula_existence(formula, link)
-    if links is not None:
-        df = pd.DataFrame(links, columns=indexs, index=indexs)
-        print(df)
+    from mbapy.base import TimeCosts
+    @TimeCosts(10)
+    def test_fn(idx):
+        formula = 'C3H4O1N1'
+        link = 1
+        links, indexs = check_formula_existence(formula, link)
+        if links is not None:
+            df = pd.DataFrame(links, columns=indexs, index=indexs)
+            print(df)
+        
+    test_fn()
+    opts_file(FORMULA_EXISTENCE_CACHE_PATH, 'wb', way='pkl', data=formula_existence_cache)
     
