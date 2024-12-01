@@ -1,11 +1,9 @@
 import argparse
 import itertools
+import math
 import os
 import sys
-from copy import deepcopy
-from dataclasses import dataclass, field
 from functools import partial
-from pathlib import Path
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -15,8 +13,8 @@ os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 
 from mbapy.base import put_err, put_log, split_list
-from mbapy.bio.peptide import AnimoAcid, Peptide, MutationOpts
 from mbapy.bio.high_level import calcu_peptide_mutations
+from mbapy.bio.peptide import AnimoAcid, MutationOpts, Peptide
 from mbapy.file import get_paths_with_extension, get_valid_file_path, opts_file
 from mbapy.sci_instrument.mass import MassData, SciexOriData, SciexPeakListData
 from mbapy.scripts._script_utils_ import (Command, _print, clean_path,
@@ -350,6 +348,22 @@ class fit_mass(Command):
             return put_err(f'error: mass_file {self.args.mass_file} not found')
         # set output file
         self.args.output = clean_path(self.args.output)
+        
+    def match_single_mass_data(self, candidates: np.ndarray, data_i: MassData, i: int, ms: float, h: float, charge: int, mono: bool):
+        for mode, iron in MassData.ESI_IRON_MODE.items():
+            if iron['c'] != charge:
+                continue
+            transfered_ms = (ms*charge-iron['im'])/iron['m']
+            if self.args.ms_lim is None or (transfered_ms > self.args.ms_lim[0] and transfered_ms < self.args.ms_lim[1]):
+                matched = np.where(np.abs(candidates - transfered_ms) <= self.args.error_tolerance)[0] # <= if the eps is 0
+                if matched.size > 0:
+                    all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
+                    data_i.add_match_record(ms, h, charge, mono, mode, ' | '.join(pep[0].repr(self.args.repr_w, True, not self.args.disable_repr_dash) for pep in all_matched_peps))
+                    self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
+                    for i, (pep, pep_mass) in enumerate(all_matched_peps):
+                        self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)}')
+                    self.printf('\n\n')
+        return data_i
 
     def main_process(self):
         candidates = np.array(list(self.mw2pep.keys()))
@@ -381,21 +395,96 @@ class fit_mass(Command):
             if not self.args.remain_old_match:
                 data_i.match_df = data_i.match_df.iloc[0:0]
             for i, (ms, h, charge, mono) in enumerate(zip(monoisotopic_df[data_i.X_HEADER], monoisotopic_df[data_i.Y_HEADER], charges, monoisotopic)):
-                for mode, iron in MassData.ESI_IRON_MODE.items():
-                    if iron['c'] != charge:
-                        continue
-                    transfered_ms = (ms*charge-iron['im'])/iron['m']
-                    if self.args.ms_lim is None or (transfered_ms > self.args.ms_lim[0] and transfered_ms < self.args.ms_lim[1]):
-                        matched = np.where(np.abs(candidates - transfered_ms) < self.args.error_tolerance)[0]
-                        if matched.size > 0:
-                            all_matched_peps = [(pep, candidates[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
-                            data_i.add_match_record(ms, h, charge, mono, mode, ' | '.join(pep[0].repr(self.args.repr_w, True, not self.args.disable_repr_dash) for pep in all_matched_peps))
-                            self.printf(f'matched {len(all_matched_peps)} peptide(s) with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
-                            for i, (pep, pep_mass) in enumerate(all_matched_peps):
-                                self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass:.4f}]{pep.get_molecular_formula()}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)}')
-                            self.printf('\n\n')
+                data_i = self.match_single_mass_data(candidates, data_i, i, ms, h, charge, mono)
             # save result
             data_i.save_processed_data()
+        
+
+class riddle_mass(fit_mass):
+    def __init__(self, args: argparse.Namespace, printf=print) -> None:
+        super().__init__(args, printf)
+        self.cache_exhaustivity_ms = None
+        self.cache_all_combinations = None
+        self.cache_all_combinations_ms = None
+        
+    @staticmethod
+    def make_args(args: argparse.ArgumentParser):
+        fit_mass.make_args(args)
+        args.add_argument('--riddle-tolerance', type = float, default = 200,
+                          help='make riddle if the transfered mass is within the error tolerance, default is %(default)s.')
+        args.add_argument('--leaving-groups', type = str, default = 'H,OH',
+                          help='leaving groups for riddle, comma separated chemical formula string, default is %(default)s.')
+        args.add_argument('--atom-candidates', type=str, default='C,H,O,N,S',
+                          help = 'atom candidates for riddle, default is %(default)s')
+        args.add_argument('--method', type=str, default='exhaustivity', choices=['exhaustivity'],
+                          help = 'method to generate solution for riddle, default is %(default)s')
+
+    def process_args(self):
+        super().process_args()
+        self.args.leaving_groups = self.args.leaving_groups.split(',')
+        self.leaving_groups_ms = [AnimoAcid.calc_exact_mass(formula=lg) for lg in self.args.leaving_groups]
+        self.args.atom_candidates = self.args.atom_candidates.split(',')
+        self.atom_candidates_msd = {ac: AnimoAcid.atom_msd[ac] for ac in self.args.atom_candidates}
+        self.atom_candidates_msa = np.array([self.atom_candidates_msd[ac] for ac in self.args.atom_candidates])
+        
+    def riddle_mass_value_by_exhaustivity(self, ms: float) -> Tuple[List[str], List[float]]:
+        """ms > 0"""
+        if self.cache_exhaustivity_ms is None or ms > self.cache_exhaustivity_ms:
+            self.cache_exhaustivity_ms = ms
+            ## calcu all possible atoms combinations
+            atom_candidates_num = [math.ceil(ms/AnimoAcid.atom_msd[ac]) for ac in self.args.atom_candidates]
+            all_combinations = itertools.product(*[range(n+1) for n in atom_candidates_num])
+            self.cache_all_combinations = all_combinations = np.array([list(combination) for combination in all_combinations])
+            ## calcu all ms mat np.array
+            self.cache_all_combinations_ms = all_combinations_ms = all_combinations.dot(self.atom_candidates_msa)
+        else:
+            all_combinations = self.cache_all_combinations
+            all_combinations_ms = self.cache_all_combinations_ms
+        # filter candidates
+        index = np.where(np.abs(all_combinations_ms - ms) <= self.args.error_tolerance)[0]
+        return all_combinations[index], all_combinations_ms[index]
+        
+    def riddle_mass_diff_by_exhaustivity(self, pep: Peptide, pep_mass: float, diff: float) -> Tuple[List[str], List[float]]:
+        # if diff > 0, candidates shuold drop the leaving group and add the candidate atom combination to fit the diff be within the error tolerance
+        if diff > 0:
+            candidates = {}
+            max_candidate_ms = diff + max(self.leaving_groups_ms)
+            self.riddle_mass_value_by_exhaustivity(max_candidate_ms)
+            for name, ms in zip(self.args.leaving_groups, self.leaving_groups_ms):
+                candidates[name] = self.riddle_mass_value_by_exhaustivity(diff + ms)
+            lgs = list(candidates.keys())
+            comb2formula = lambda comb: ''.join([f'{a}{n}' for a, n in zip(self.args.atom_candidates, comb) if n > 0])
+            subs = [[comb2formula(comb) for comb in combs] for combs, _ in candidates.values()]
+            subs_ms = [ms.tolist() for _, ms in candidates.values()]
+        else: # diff < 0 only
+        # if diff < 0, candidates shuold add the leaving group (s)? and ?
+            return [], [], []
+        return lgs, subs, subs_ms
+
+    def match_single_mass_data(self, candidates: np.ndarray, data_i: MassData, i: int, ms: float, h: float, charge: int, mono: bool):
+        # exact match
+        super().match_single_mass_data(candidates, data_i, i, ms, h, charge, mono)
+        # riddle the left
+        for mode, iron in MassData.ESI_IRON_MODE.items():
+            if iron['c'] != charge:
+                continue
+            transfered_ms = (ms*charge-iron['im'])/iron['m']
+            if self.args.ms_lim is None or (transfered_ms > self.args.ms_lim[0] and transfered_ms < self.args.ms_lim[1]):
+                diff = transfered_ms - candidates
+                matched = np.where((np.abs(diff) > self.args.error_tolerance) & (np.abs(diff) < self.args.riddle_tolerance))[0] # so the abs(diff) must > 0
+                all_matched_peps = [(pep, candidates[match_i], diff[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
+                for pep, pep_mass, diff in all_matched_peps:
+                    lgs, subss, subss_ms = getattr(self, f'riddle_mass_diff_by_{self.args.method}')(pep, pep_mass, diff)
+                    if not subss:
+                        continue
+                    pep_rper = pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)
+                    for lg, subs in zip(lgs, subss):
+                        data_i.add_match_record(ms, h, charge, mono, mode, f'{pep_rper} -{lg}+[' + '/'.join(subs) + ']')
+                    self.printf(f'riddle {len(subs)} subs(s) for {pep_rper} with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
+                    for i, (lg, subs, sub_ms) in enumerate(zip(lgs, subss, subss_ms)):
+                        self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass+min(sub_ms):.4f} ~ {pep_mass+max(sub_ms):.4f}]{pep.get_molecular_formula()}-{lg}+{subs}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)} -{lg}+{subs}')
+                    self.printf('\n\n')
+        return data_i
 
         
 def transfer_letters(args):
@@ -439,6 +528,8 @@ _str2func = {
     
     'fit-mass': fit_mass,
     
+    'riddle-mass': riddle_mass,
+    
     'letters': transfer_letters,
     'transfer-letters': transfer_letters,
 }
@@ -468,6 +559,8 @@ def main(sys_args: List[str] = None):
     
     fit_mass_args = fit_mass.make_args(subparsers.add_parser('fit-mass', description='fit peptide mutation and mass iron exact mass for mass data'))
     
+    riddle_mass_args = riddle_mass.make_args(subparsers.add_parser('riddle-mass', description='fit peptide mutation and mass iron exact mass for mass data with riddle'))
+    
     letters = subparsers.add_parser('letters', aliases = ['transfer-letters'], description='transfer AnimoAcid repr letters width.')
     letters.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str, default='',
                                 help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or ABC(Trt)DE')
@@ -489,7 +582,7 @@ def main(sys_args: List[str] = None):
 
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code. MUST BE COMMENTED OUT WHEN PUBLISHING
-    # main('fit-mass -s data_tmp/scripts/peptide/C.mbapy.mmw.pkl -m data_tmp/scripts/mass/pl.txt'.split())
+    main('riddle-mass -s data_tmp/scripts/peptide/C.mbapy.mmw.pkl -m data_tmp/scripts/mass/pl.txt'.split())
     # main('mmw -s Boc-Asn(Trt)-Asp(OtBu)-Glu(OtBu)-Cys(Trt)-Glu(OtBu)-Leu-OH -m --max-repeat 0 --max-deletion 0 --max-replace 0  --multi-process 4'.split())
     
     # release code
