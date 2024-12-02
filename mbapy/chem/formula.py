@@ -47,26 +47,24 @@ def check_formula_existence(formula: str, link: int = 0):
             formula_existence_cache['flag'] = 'loaded'
     if (formula, link) in formula_existence_cache:
         return formula_existence_cache[(formula, link)]
-    # load or-tools package
-    from ortools.linear_solver import pywraplp
-
-    # helper function
-    def get_max_link_num(i: int, link: int, link_num: Dict[str, int], indexs: List[str]) -> int:
-        return link if i == 0 else link_num[indexs[i][0]]
     # init link info
     link_num = {'LINK': link, 'C': 4, 'H': 1, 'O': 2, 'N': 3, 'S': 2}
     atom_dict = {atom: (int(count) if count else 1) for atom, count in re.findall(r'([A-Z])(\d*)', formula.upper())}
     indexs = ['LINK'] + [f'{n}{i}' for n, c in atom_dict.items() for i in range(c)]
     var = [[None] * len(indexs) for _ in range(len(indexs))]
+    # check unsaturation
+    if 2*atom_dict.get('C', 0) + 2 + atom_dict.get('N', 0) - atom_dict.get('H', 0) - link < 0:
+        return None, None
     # check flag: only one non-H atom
     more_one_non_H_atom = any(atom_dict[n[0]] > 1 for n in indexs[1:] if n[0] != 'H')
     # init solver
+    from ortools.linear_solver import pywraplp
     solver = pywraplp.Solver.CreateSolver("SAT")
     for i in range(1, len(indexs)):
         for j in range(0, i):
             # add condition: atom-pair link can not exceed max link num
-            max_v = min(get_max_link_num(i, link, link_num, indexs),
-                        get_max_link_num(j, link, link_num, indexs))
+            max_v = min(link if i == 0 else link_num[indexs[i][0]],
+                        link if j == 0 else link_num[indexs[j][0]])
             var[i][j] = solver.IntVar(0, max_v, f'{indexs[i]}-{indexs[j]}')
             # add condition: same atom can not make max link
             if indexs[i][0] == indexs[j][0]:
@@ -104,7 +102,7 @@ if __name__ == '__main__':
     from mbapy.base import TimeCosts
     @TimeCosts(10)
     def test_fn(idx):
-        formula = 'C1H8O4N2'
+        formula = 'CO2H'
         link = 1
         links, indexs = check_formula_existence(formula, link)
         if links is not None:
