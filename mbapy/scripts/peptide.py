@@ -436,6 +436,7 @@ class riddle_mass(fit_mass):
         self.atom_num_min = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[0]) for ac in self.args.atom_candidates])
         self.atom_num_max = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[1]) for ac in self.args.atom_candidates])
         self.ESI_IRON_MODE = {mode: iron for mode, iron in MassData.ESI_IRON_MODE.items() if mode in self.args.riddle_mode.split(',')}
+        self.unsaturation = np.array([2, -1, 0, 1, 0])
         
     def riddle_mass_value_by_exhaustivity(self, ms: float) -> Tuple[List[str], List[float]]:
         """ms > 0"""
@@ -450,11 +451,14 @@ class riddle_mass(fit_mass):
         else:
             all_combinations = self.cache_all_combinations
             all_combinations_ms = self.cache_all_combinations_ms
-        # filter candidates
+        # filter candidates by error tolerance and atom number range
         eps_index = np.abs(all_combinations_ms - ms) <= self.args.error_tolerance
         range_index = np.all((all_combinations >= self.atom_num_min) & (all_combinations <= self.atom_num_max), axis=-1)
-        index = np.where(eps_index & range_index)
+        # filter by chemical degree of unsaturation
+        unsaturation = (all_combinations.dot(self.unsaturation) + 2 - 1) / 2 # unsaturation = (2*C+2+N−H−X−L)/2, X is Cl, L is link num
+        unsaturation_index = unsaturation >= 0
         # filter by chemical formula validity
+        index = np.where(eps_index & range_index & unsaturation_index)
         valid_combinations, valid_combinations_ms = [], []
         for combination, ms in zip(all_combinations[index], all_combinations_ms[index]):
             formula_str = ''.join([f'{a}{n}' for a, n in zip(self.args.atom_candidates, combination) if n > 0])
