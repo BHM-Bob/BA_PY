@@ -42,7 +42,7 @@ def check_formula_existence(formula: str, link: int = 0):
     if not formula_existence_cache:
         os.makedirs(os.path.dirname(FORMULA_EXISTENCE_CACHE_PATH), exist_ok=True)
         if os.path.exists(FORMULA_EXISTENCE_CACHE_PATH):
-            formula_existence_cache = opts_file(FORMULA_EXISTENCE_CACHE_PATH, 'rb', way='pkl')
+            formula_existence_cache = opts_file(FORMULA_EXISTENCE_CACHE_PATH, 'rb', way='pkl') or {'flag': 'loaded'}
         else:
             formula_existence_cache['flag'] = 'loaded'
     if (formula, link) in formula_existence_cache:
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     from mbapy.base import TimeCosts
     @TimeCosts(10)
     def test_fn(idx):
-        formula = 'C2H10O2N1S1'
+        formula = 'C1H8O4N2'
         link = 1
         links, indexs = check_formula_existence(formula, link)
         if links is not None:
