@@ -27,6 +27,8 @@ def check_formula_existence(formula: str, link: int = 0):
         - links (np.ndarray): the matrix of links, shape (len(formula), len(formula))
         - indexs (List[str]): the index of the matrix, such as ['LINK', 'C1', 'C2', 'C3', 'H1', 'O1', 'N1']
     
+    Kown issues:
+        - atoms may split into several unlinked groups.
     Notes:
     
     |  |L1|N1|H1|H2|  
@@ -56,10 +58,13 @@ def check_formula_existence(formula: str, link: int = 0):
     atom_dict = {atom: (int(count) if count else 1) for atom, count in re.findall(r'([A-Z])(\d*)', formula.upper())}
     indexs = ['LINK'] + [f'{n}{i}' for n, c in atom_dict.items() for i in range(c)]
     var = [[None] * len(indexs) for _ in range(len(indexs))]
+    # check flag: only one non-H atom
+    more_one_non_H_atom = any(atom_dict[n[0]] > 1 for n in indexs[1:] if n[0] != 'H')
     # init solver
     solver = pywraplp.Solver.CreateSolver("SAT")
     for i in range(1, len(indexs)):
         for j in range(0, i):
+            # add condition: atom-pair link can not exceed max link num
             max_v = min(get_max_link_num(i, link, link_num, indexs),
                         get_max_link_num(j, link, link_num, indexs))
             var[i][j] = solver.IntVar(0, max_v, f'{indexs[i]}-{indexs[j]}')
@@ -69,8 +74,6 @@ def check_formula_existence(formula: str, link: int = 0):
             # add condition: H can not make link to LINK
             if j == 0 and indexs[i][0] == 'H':
                 solver.Add(var[i][j] == 0)
-            # TODO: add condition: all atom can not donate all links to H if non-H atom num is bigger than 1
-            # raise NotImplementedError('not implemented yet')
     # add conditions for atom-pair link
     for i in range(0, len(indexs)):
         if i == 0: # LINK
@@ -78,6 +81,9 @@ def check_formula_existence(formula: str, link: int = 0):
         else: # other atom link
             v = link_num[indexs[i][0]]
             solver.Add(sum([var[i][j] for j in range(0, i)] + [var[i_tmp][i] for i_tmp in range(i+1, len(indexs))]) == v)
+            # add condition: all atom can not donate all links to H if non-H atom num is bigger than 1
+            if more_one_non_H_atom and indexs[i][0] != 'H':
+                solver.Add(sum([var[i][j] for j in range(0, i) if indexs[j][0] == 'H'] + [var[i_tmp][i] for i_tmp in range(i+1, len(indexs)) if indexs[i_tmp][0] == 'H']) <= v-1)
     # add objective
     solver.Maximize(var[-1][-2])
     # solve
@@ -98,7 +104,7 @@ if __name__ == '__main__':
     from mbapy.base import TimeCosts
     @TimeCosts(10)
     def test_fn(idx):
-        formula = 'C3H4O1N1'
+        formula = 'C2H10O2N1S1'
         link = 1
         links, indexs = check_formula_existence(formula, link)
         if links is not None:
