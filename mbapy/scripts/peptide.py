@@ -406,6 +406,8 @@ class riddle_mass(fit_mass):
         self.cache_exhaustivity_ms = None
         self.cache_all_combinations = None
         self.cache_all_combinations_ms = None
+        from mbapy.chem import formula
+        self.formula = formula
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -418,6 +420,10 @@ class riddle_mass(fit_mass):
                           help = 'atom candidates for riddle, default is %(default)s')
         args.add_argument('--method', type=str, default='exhaustivity', choices=['exhaustivity'],
                           help = 'method to generate solution for riddle, default is %(default)s')
+        args.add_argument('--atom-num-range', type=str, default='',
+                          help = 'atom candidates number range for riddle, input as "C,0,5;H,0,10", default is %(default)s')
+        args.add_argument('--riddle-mode', type=str, default='[M+H]+',
+                          help = 'iron mode for riddle, input as "[M+H]+,[M+Na]+", default is %(default)s')
 
     def process_args(self):
         super().process_args()
@@ -426,6 +432,10 @@ class riddle_mass(fit_mass):
         self.args.atom_candidates = self.args.atom_candidates.split(',')
         self.atom_candidates_msd = {ac: AnimoAcid.atom_msd[ac] for ac in self.args.atom_candidates}
         self.atom_candidates_msa = np.array([self.atom_candidates_msd[ac] for ac in self.args.atom_candidates])
+        self.atom_candidates_range = {atom.split(',')[0]:atom.split(',')[1:] for atom in self.args.atom_num_range.split(';') if atom}
+        self.atom_num_min = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[0]) for ac in self.args.atom_candidates])
+        self.atom_num_max = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[1]) for ac in self.args.atom_candidates])
+        self.ESI_IRON_MODE = {mode: iron for mode, iron in MassData.ESI_IRON_MODE.items() if mode in self.args.riddle_mode.split(',')}
         
     def riddle_mass_value_by_exhaustivity(self, ms: float) -> Tuple[List[str], List[float]]:
         """ms > 0"""
@@ -441,8 +451,17 @@ class riddle_mass(fit_mass):
             all_combinations = self.cache_all_combinations
             all_combinations_ms = self.cache_all_combinations_ms
         # filter candidates
-        index = np.where(np.abs(all_combinations_ms - ms) <= self.args.error_tolerance)[0]
-        return all_combinations[index], all_combinations_ms[index]
+        eps_index = np.abs(all_combinations_ms - ms) <= self.args.error_tolerance
+        range_index = np.all((all_combinations >= self.atom_num_min) & (all_combinations <= self.atom_num_max), axis=-1)
+        index = np.where(eps_index & range_index)
+        # filter by chemical formula validity
+        valid_combinations, valid_combinations_ms = [], []
+        for combination, ms in zip(all_combinations[index], all_combinations_ms[index]):
+            formula_str = ''.join([f'{a}{n}' for a, n in zip(self.args.atom_candidates, combination) if n > 0])
+            if self.formula.check_formula_existence(formula_str, link=1) != (None, None):
+                valid_combinations.append(combination)
+                valid_combinations_ms.append(ms)
+        return valid_combinations, valid_combinations_ms
         
     def riddle_mass_diff_by_exhaustivity(self, pep: Peptide, pep_mass: float, diff: float) -> Tuple[List[str], List[float]]:
         # if diff > 0, candidates shuold drop the leaving group and add the candidate atom combination to fit the diff be within the error tolerance
@@ -455,7 +474,7 @@ class riddle_mass(fit_mass):
             lgs = list(candidates.keys())
             comb2formula = lambda comb: ''.join([f'{a}{n}' for a, n in zip(self.args.atom_candidates, comb) if n > 0])
             subs = [[comb2formula(comb) for comb in combs] for combs, _ in candidates.values()]
-            subs_ms = [ms.tolist() for _, ms in candidates.values()]
+            subs_ms = [ms for _, ms in candidates.values()]
         else: # diff < 0 only
         # if diff < 0, candidates shuold add the leaving group (s)? and ?
             return [], [], []
@@ -465,7 +484,7 @@ class riddle_mass(fit_mass):
         # exact match
         super().match_single_mass_data(candidates, data_i, i, ms, h, charge, mono)
         # riddle the left
-        for mode, iron in MassData.ESI_IRON_MODE.items():
+        for mode, iron in self.ESI_IRON_MODE.items():
             if iron['c'] != charge:
                 continue
             transfered_ms = (ms*charge-iron['im'])/iron['m']
@@ -475,15 +494,19 @@ class riddle_mass(fit_mass):
                 all_matched_peps = [(pep, candidates[match_i], diff[match_i]) for match_i in matched for pep in self.mw2pep[candidates[match_i]]]
                 for pep, pep_mass, diff in all_matched_peps:
                     lgs, subss, subss_ms = getattr(self, f'riddle_mass_diff_by_{self.args.method}')(pep, pep_mass, diff)
-                    if not subss:
+                    if all(not subs for subs in subss):
                         continue
                     pep_rper = pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)
                     for lg, subs in zip(lgs, subss):
-                        data_i.add_match_record(ms, h, charge, mono, mode, f'{pep_rper} -{lg}+[' + '/'.join(subs) + ']')
-                    self.printf(f'riddle {len(subs)} subs(s) for {pep_rper} with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
+                        if subs:
+                            data_i.add_match_record(ms, h, charge, mono, mode, f'{pep_rper} -{lg}+[' + '/'.join(subs) + ']')
+                    self.printf(f'riddle {sum(map(len, subss))} subs(s) for {pep_rper} with {mode} at {ms:.4f} (transfered: {transfered_ms:.4f})')
                     for i, (lg, subs, sub_ms) in enumerate(zip(lgs, subss, subss_ms)):
-                        self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass+min(sub_ms):.4f} ~ {pep_mass+max(sub_ms):.4f}]{pep.get_molecular_formula()}-{lg}+{subs}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)} -{lg}+{subs}')
+                        if subs:
+                            self.printf(f'{i}: ({len(pep.AAs)} AA)[{pep_mass+min(sub_ms):.4f} ~ {pep_mass+max(sub_ms):.4f}]{pep.get_molecular_formula()}-{lg}: {pep.repr(self.args.repr_w, True, not self.args.disable_repr_dash)} -{lg}+{subs}')
                     self.printf('\n\n')
+        # save formula cache
+        opts_file(self.formula.FORMULA_EXISTENCE_CACHE_PATH, 'wb', way='pkl', data = self.formula.formula_existence_cache)
         return data_i
 
         
