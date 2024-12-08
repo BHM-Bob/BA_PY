@@ -5,7 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from functools import wraps
-from typing import List, Tuple, Union, NewType
+from typing import Callable, List, Tuple, Union, NewType
 
 import numpy as np
 import requests
@@ -554,11 +554,21 @@ class Browser:
         return self.browser.find_elements(by, element)
     
     def wait_element(self, element: Union[str, List[str]], by: str = 'xpath',
-                     timeout: int = 600):
-        """return True if all elements are found in time, False if timeout exceeded"""
+                     timeout: int = 600, check_fn: Callable = None):
+        """
+        Parameters:
+            - element (Union[str, List[str]]): The element to wait for. It can be a string representing the element's xpath or a list of strings representing multiple elements' xpaths.
+            - by (str, optional): The locator strategy to use. Defaults to 'xpath'.
+            - timeout (int, optional): The maximum amount of time (in seconds) to wait for the element to be found. Defaults to 600.
+            - check_fn (Callable, optional): A function to check if the element is found. Defaults to None (built-in `all` function will be used). The function should take a list of element objects as input and return a boolean value indicating whether all elements are found. If None, it will use the `all` function to check if all elements are found.
+
+        Returns:
+            return True if all elements are found in time (check_fn returns True), False if timeout exceeded
+        """
         st = time.time()
         element = [element] if isinstance(element, str) else element
-        while not all(self.find_elements(e, by) for e in element):
+        check_fn = check_fn or all
+        while not check_fn(self.find_elements(e, by) for e in element):
             random_sleep(3)
             if time.time() - st > timeout:
                 return False
