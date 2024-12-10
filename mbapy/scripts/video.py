@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-05 12:03:34
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-03-14 16:21:45
+LastEditTime: 2024-12-10 18:24:10
 Description: 
 '''
 import argparse
@@ -90,7 +90,7 @@ def extract_video(args):
                 start, end, step = map(int, args.frame_index.split(':'))
                 frames = extract_frames_by_index(path, list(range(start, end, step)))
             elif args.mode == 'all':
-                img_size = tuple(map(int, args.frame_size.split(',')))
+                img_size = list(map(int, args.frame_size.split(',')))
                 frames = extract_frame_to_img(path, '', True, False, None,
                                               read_frame_interval=args.frame_interval,
                                               img_size=img_size)
