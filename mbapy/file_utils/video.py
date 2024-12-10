@@ -92,9 +92,9 @@ def extract_frame_to_img(video_path:str, img_type = 'jpg', return_frames = False
     """
     import cv2
 
+    video_path = Path(video_path)
     # Create the directory if it doesn't exist
     if write_file:
-        video_path = Path(video_path)
         if not dir:
             dir = video_path.parent / video_path.stem
         if not os.path.exists(dir):
