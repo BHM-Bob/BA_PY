@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-05 12:03:34
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-12-10 18:24:10
+LastEditTime: 2024-12-10 18:50:51
 Description: 
 '''
 import argparse
@@ -91,9 +91,11 @@ def extract_video(args):
                 frames = extract_frames_by_index(path, list(range(start, end, step)))
             elif args.mode == 'all':
                 img_size = list(map(int, args.frame_size.split(',')))
-                frames = extract_frame_to_img(path, '', True, False, None,
+                save_dir = os.path.join(file_dir, f'{file_name.replace("."+file_type, "")}_frames')
+                frames = extract_frame_to_img(path, dir=save_dir,
                                               read_frame_interval=args.frame_interval,
                                               img_size=img_size)
+                continue
             elif args.mode == 'unique':
                 frames = extract_unique_frames(
                     path, args.threshold, args.frame_interval, args.scale,
@@ -101,8 +103,8 @@ def extract_video(args):
             else:
                 raise ValueError(f'unknown mode: {args.mode}')
             # save frames
-            for frame in frames:
-                frame_name = f'{file_name.replace("."+file_type, "")}_{frame[0]}.jpg'
+            for i, frame in enumerate(tqdm(frames, desc='saving frames')):
+                frame_name = f'{file_name.replace("."+file_type, "")}_{i}.jpg'
                 frame_path = os.path.join(file_dir, frame_name)
                 img = Image.fromarray(frame)
                 img.save(frame_path)
