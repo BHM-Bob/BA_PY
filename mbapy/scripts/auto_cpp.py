@@ -540,7 +540,7 @@ class auto_cpp(Command):
             video = self.load_video(path)
             self.video[video.name] = video
         # load ProcessTemplate
-        for path in get_paths_with_extension(self.input, '.cppPTemplate'):
+        for path in get_paths_with_extension(self.input, ['.cppPTemplate']):
             template = ProcessTemplate().from_json(path)
             self.templates[str(Path(path).stem)] = template
         # GUI
@@ -564,6 +564,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    # main('auto-cpp -i data_tmp/scripts/cpp'.split(' '))
+    # pass
     
     main()
