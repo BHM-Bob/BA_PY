@@ -537,7 +537,7 @@ class Browser:
         self.browser_name = browser_name
         self.options = options
         self.use_undetected = use_undetected
-        
+        self.download_path = download_path
         self.browser = get_browser(browser_name, driver_path, options,
                                    use_undetected, download_path=download_path)
         
