@@ -76,7 +76,7 @@ class plot_hplc(Command):
         else:
             paths = [str(self.args.input)]
         dfs = [self.data_model(path) for path in paths]
-        dfs = {data.get_tag():data for data in dfs if data.SUCCEED_LOADED}
+        dfs = [(data.get_tag(), data) for data in dfs if data.SUCCEED_LOADED]
         return dfs
 
     def process_args(self):
@@ -103,7 +103,7 @@ class plot_hplc(Command):
             raise FileNotFoundError(f'can not find data files in {self.args.input}')
         # show data general info and output peak list DataFrame
         if self.args.merge:
-            dfs = list(self.dfs.values())
+            dfs = list(map(lambda x: x[1], self.dfs))
             ax, extra_artists, _, _ = _plot_hplc(dfs, **self.args.__dict__)
             _save_fig(self.args.output, "merge.png", self.args.dpi, self.args.show, extra_artists)
         else:
@@ -112,7 +112,7 @@ class plot_hplc(Command):
                 self.args.file_labels = [[n, 'black'] for n in self.dfs]
             all_file_labels = self.args.file_labels
             delattr(self.args, 'file_labels')
-            for i, (tag, data) in enumerate(self.dfs.items()):
+            for i, (tag, data) in enumerate(self.dfs):
                 print(f'plotting data for {tag}')
                 data.save_processed_data()
                 if data.IS_PDA:
@@ -193,7 +193,7 @@ class explore_hplc(plot_hplc):
         self.make_tabs.refresh()
         
     def load_data_from_dir(self):
-        for name, dfs in self.load_dfs_from_data_file().items():
+        for (name, dfs) in self.load_dfs_from_data_file():
             self.stored_dfs[name] = dfs
         self.make_tabs.refresh()
         
@@ -606,11 +606,11 @@ class extract_pda(plot_hplc):
 
     def main_process(self):
         # load origin dfs from data file
-        self.dfs: Dict[str, Union[WatersPdaData,]] = self.load_dfs_from_data_file()
+        self.dfs: List[Tuple[str, Union[WatersPdaData,]]] = self.load_dfs_from_data_file()
         if not self.dfs:
             raise FileNotFoundError(f'can not find data files in {self.args.input}')
         # show data general info and output peak list DataFrame
-        for i, (tag, data) in enumerate(self.dfs.items()):
+        for i, (tag, data) in enumerate(self.dfs):
             print(f'extracting data for {tag} @ {self.args.wave_length} nm')
             abs_data = data.get_abs_data(self.args.wave_length)
             path = Path(data.data_file_path)
@@ -661,12 +661,12 @@ class plot_pda(extract_pda):
             self.task_pool = TaskPool('process', self.args.multi_process).start()
             print(f'created task pool with {self.args.multi_process} processes')
         # load origin dfs from data file
-        self.dfs: Dict[str, Union[WatersPdaData,]] = self.load_dfs_from_data_file()
+        self.dfs: List[Tuple[str, Union[WatersPdaData,]]] = self.load_dfs_from_data_file()
         if not self.dfs:
             raise FileNotFoundError(f'can not find data files in {self.args.input}')
         print(f'loaded {len(self.dfs)} data files')
         # show data general info and output peak list DataFrame
-        for i, (tag, data) in enumerate(self.dfs.items()):
+        for i, (tag, data) in enumerate(self.dfs):
             # save processed data
             if self.task_pool is not None:
                 self.task_pool.add_task(tag, plot_single_PDA_data, data)
