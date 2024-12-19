@@ -1,3 +1,9 @@
+'''
+Date: 2023-07-29 09:56:37
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2024-12-19 19:08:36
+Description: 
+'''
 # Configuration file for the Sphinx documentation builder.
 
 # -- Project information
@@ -6,8 +12,8 @@ project = 'ba-py'
 copyright = '2023, BHM-Bob'
 author = 'BHM-Bob G'
 
-release = '0.1'
-version = '0.1.0'
+release = '0.10.3'
+version = '0.10.3'
 
 # -- General configuration
 
