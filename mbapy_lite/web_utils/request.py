@@ -171,9 +171,14 @@ def get_browser(browser:str, browser_driver_path:str = None,
     opts = Options()
     for option in options:
         opts.add_argument(option)
+    ## set prefs
+    prefs = {'profile.default_content_settings.popups': 0,
+             'download.prompt_for_download': False,
+             'safebrowsing.enabled': False}
     if download_path is not None:
-        opts.add_experimental_option('prefs', {'profile.default_content_settings.popups': 0,
-                                               'download.default_directory': download_path})
+        prefs['download.default_directory'] = download_path
+    opts.add_experimental_option('prefs', prefs)
+    opts.add_experimental_option("useAutomationExtension", False)
     # set Browser kwargs
     kwargs = {'options': opts}
     if browser_driver_path is not None:
@@ -531,7 +536,7 @@ class Browser:
         self.browser_name = browser_name
         self.options = options
         self.use_undetected = use_undetected
-        
+        self.download_path = download_path
         self.browser = get_browser(browser_name, driver_path, options,
                                    use_undetected, download_path=download_path)
         
