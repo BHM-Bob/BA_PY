@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-24 22:43:33
+LastEditTime: 2024-12-22 20:53:21
 Description: mbapy.sci_instrument.hplc._base
 '''
 from typing import Dict, List, Tuple, Union
@@ -10,6 +10,10 @@ import numpy as np
 import pandas as pd
 import scipy
 import scipy.integrate
+try:
+    from scipy.integrate import simps as simpson
+except :
+    from scipy.integrate import simpson
 import scipy.signal
 
 if __name__ == '__main__':
@@ -87,7 +91,7 @@ class HplcData(SciInstrumentData):
         underline_x = abs_data[self.X_HEADER][(abs_data[self.X_HEADER] >= st_minute) & (abs_data[self.X_HEADER] <= ed_minute)]
         underline_y = np.linspace(abs_data[self.Y_HEADER][st_tick], abs_data[self.Y_HEADER][ed_tick], len(y))
         refined_y = y - underline_y
-        return st_minute, ed_minute, scipy.integrate.simps(refined_y, underline_x), y, underline_x, underline_y, refined_y
+        return st_minute, ed_minute, simpson(refined_y, underline_x), y, underline_x, underline_y, refined_y
         
     
     def calcu_peaks_area(self, peaks_idx: np.ndarray, rel_height: float = 1,
