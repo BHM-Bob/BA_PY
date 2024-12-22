@@ -179,7 +179,6 @@ def get_browser(browser:str, browser_driver_path:str = None,
     if download_path is not None:
         prefs['download.default_directory'] = download_path
     opts.add_experimental_option('prefs', prefs)
-    opts.add_experimental_option("useAutomationExtension", False)
     # set Browser kwargs
     kwargs = {'options': opts}
     if browser_driver_path is not None:
