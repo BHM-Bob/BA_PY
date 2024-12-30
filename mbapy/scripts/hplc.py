@@ -222,6 +222,9 @@ class explore_hplc(plot_hplc):
                     data.set_opt_wave_length(self.args.pda_wave_length)
             with ui.pyplot(figsize=self.args.fig_size, close=False) as fig:
                 self.fig = fig.fig
+                for label_name in ['file_labels', 'peak_labels']:
+                    if getattr(self.args, label_name) is None:
+                        setattr(self.args, label_name, '')
                 ax, self._bbox_extra_artists, self.files_peaks_idx, file_labels = \
                     _plot_hplc(list(self.dfs.values()), ax = self.fig.gca(),
                             dfs_refinment_x=self.dfs_refinment_x, dfs_refinment_y=self.dfs_refinment_y,
