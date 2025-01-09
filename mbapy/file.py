@@ -257,6 +257,8 @@ _filetype2opts_ = {
     'yml': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
     'yaml': {'mode': '', 'way': 'yaml', 'encoding': 'utf-8'},
     'pkl': {'mode': 'b', 'way': 'pkl', 'encoding': None},
+    'csv': {'mode': '', 'way': 'csv', 'encoding': 'utf-8'},
+    'xlsx': {'mode': 'b', 'way': 'excel', 'encoding': 'utf-8'},
 }
 
 
