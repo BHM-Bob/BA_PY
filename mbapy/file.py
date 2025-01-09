@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-11-10 22:03:12
+LastEditTime: 2025-01-09 16:05:36
 Description: 
 '''
 import collections
@@ -11,10 +11,11 @@ import os
 import pickle
 import platform
 import shutil
+import tarfile
 import tempfile
-from zipfile import ZipFile 
 from pathlib import Path
 from typing import Dict, List, Union
+from zipfile import ZipFile
 
 try:
     import ujson as json
@@ -301,8 +302,9 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
     # set open_fn depend on way
-    if way == 'zip':
-        open_fn = ZipFile
+    open_fn_dict = {'zip': ZipFile, 'tar': tarfile.open}
+    if way in open_fn_dict:
+        open_fn = open_fn_dict[way]
         if 'encoding' in kwargs:
             del kwargs['encoding']
     else:
@@ -336,7 +338,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return pd.read_csv(f, **kwgs)
             elif way in ['excel', 'xlsx', 'xls']:
                 return pd.read_excel(f, **kwgs)
-            elif way == 'zip':
+            elif way in {'zip', 'tar'}:
                 with tempfile.TemporaryDirectory() as tmpdirname:
                     f.extractall(tmpdirname)
                     files = {}
@@ -675,6 +677,6 @@ __all__ = [
 
 if __name__ == '__main__':
     # dev code
-    contents = opts_file('data_tmp/files/result.zip', way='zip')
+    contents = opts_file('data_tmp/files/file.tar', way='tar', mode='r:')
     dirs = get_dir('.', min_item_num=10, dir_name_substr='scripts', recursive=True)
     convert_pdf_to_txt(r'./data_tmp\papers\A review of the clinical efficacy of linaclotide in irritable bowel syndrome with constipation.pdf')
