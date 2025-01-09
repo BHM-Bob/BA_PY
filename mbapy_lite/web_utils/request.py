@@ -576,6 +576,32 @@ class Browser:
             if time.time() - st > timeout:
                 return False
         return True
+    
+    def wait_text(self, element: Union[str, List[str]], text: str, by: str = 'xpath',
+                  timeout: int = 600, check_fn: Callable = None):
+        """
+        Parameters:
+            - element (Union[str, List[str]]): The element to wait for. It can be a string representing the element's xpath or a list of strings representing multiple elements' xpaths.
+            - text (str): The expected text to be found in the element.
+            - by (str, optional): The locator strategy to use. Defaults to 'xpath'.
+            - timeout (int, optional): The maximum amount of time (in seconds) to wait for the element to be found. Defaults to 600.
+            - check_fn (Callable, optional): A function to check the string between the element and the text. Defaults to None (equals function will be used). The function should take two string arguments (element text and expected text) and return a boolean value indicating whether the two strings are equal.
+
+        Returns:
+            return True if check_fn returns True, False if no element is found or timeout exceeded
+        """
+        st = time.time()
+        check_fn = check_fn or (lambda x, y: x == y)
+        while True:
+            eles = self.find_elements(element, by)
+            if eles:
+                if check_fn(eles[0].text, text):
+                    return True
+            else:
+                return False
+            random_sleep(min(1, timeout//10))
+            if time.time() - st > timeout:
+                return False
         
     def execute_script(self, script: str, *args):
         return self.browser.execute_script(script, *args)
@@ -632,7 +658,7 @@ class Browser:
             - sleep_after (Union[None, int, float, Tuple[int, int]], optional): The amount of time to sleep after executing the action. This can be None, an integer or float representing the number of seconds, or a tuple representing a range of seconds. Defaults to (3, 1).
         """
         if executor == 'element':
-            element.send_key(key)
+            element.send_keys(key)
         elif executor == 'ActionChains':
             ActionChains(self.browser).send_keys(key).click().perform()
         elif executor == 'JS':

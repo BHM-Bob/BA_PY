@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-11-10 22:04:23
+LastEditTime: 2025-01-09 16:10:25
 Description: 
 '''
 import collections
@@ -11,6 +11,7 @@ import os
 import pickle
 import platform
 import shutil
+import tarfile
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Union
@@ -219,6 +220,8 @@ _filetype2opts_ = {
     'yml': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
     'yaml': {'mode': '', 'way': 'yaml', 'encoding': 'utf-8'},
     'pkl': {'mode': 'b', 'way': 'pkl', 'encoding': None},
+    'csv': {'mode': '', 'way': 'csv', 'encoding': 'utf-8'},
+    'xlsx': {'mode': 'b', 'way': 'excel', 'encoding': 'utf-8'},
 }
 
 
@@ -261,8 +264,9 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
     if 'b' not in mode:
         kwargs.update(encoding=encoding)
     # set open_fn depend on way
-    if way == 'zip':
-        open_fn = ZipFile
+    open_fn_dict = {'zip': ZipFile, 'tar': tarfile.open}
+    if way in open_fn_dict:
+        open_fn = open_fn_dict[way]
         if 'encoding' in kwargs:
             del kwargs['encoding']
     else:
@@ -296,7 +300,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return pd.read_csv(f, **kwgs)
             elif way in ['excel', 'xlsx', 'xls']:
                 return pd.read_excel(f, **kwgs)
-            elif way == 'zip':
+            elif way in {'zip', 'tar'}:
                 with tempfile.TemporaryDirectory() as tmpdirname:
                     f.extractall(tmpdirname)
                     files = {}
@@ -490,7 +494,7 @@ def update_excel(path:str, sheets:Dict[str, pd.DataFrame] = None):
     
     
 __all__ = [
-    'get_paths_with_extention',
+    'get_paths_with_extension',
     'get_dir',
     'format_file_size',
     'extract_files_from_dir',
