@@ -633,7 +633,7 @@ class Browser:
             - sleep_after (Union[None, int, float, Tuple[int, int]], optional): The amount of time to sleep after executing the action. This can be None, an integer or float representing the number of seconds, or a tuple representing a range of seconds. Defaults to (3, 1).
         """
         if executor == 'element':
-            element.send_key(key)
+            element.send_keys(key)
         elif executor == 'ActionChains':
             ActionChains(self.browser).send_keys(key).click().perform()
         elif executor == 'JS':
