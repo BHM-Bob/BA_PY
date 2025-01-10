@@ -250,7 +250,8 @@ class TaskPool:
     Methods:
     """
     @parameter_checker(mode = lambda mode: mode in ['async', 'thread',
-                                                    'threads', 'process'])
+                                                    'threads', 'process',
+                                                    'isolated_process'])
     def __init__(self, mode: str = 'async', n_worker: int = None,
                  sleep_while_empty: float = 0.1):
         """
@@ -263,7 +264,7 @@ class TaskPool:
             - n_worker (int, default=None): number of worker threads or processes.
             - sleep_while_empty (float, default=0.1): sleep time in a loop while task queue is empty.
         """
-        if mode in ['async', 'thread'] and n_worker is not None:
+        if mode in ['async', 'thread', 'isolated_process'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
         self.N_WORKER = n_worker
@@ -313,6 +314,9 @@ class TaskPool:
                     del tasks_cache[task_name]
             time.sleep(0.1)
         pool.close()
+        
+    def _run_isolated_process_loop(self):
+        raise NotImplementedError('isolated process mode is not implemented yet')
 
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
