@@ -356,6 +356,9 @@ def save_checkpoint(epoch: float, args:GlobalSettings, model: torch.nn.Module,
         - loss: The current loss value.
         - other: A dictionary containing any other information that needs to be saved.
         - tailName: A string to be used in the checkpoint file name for better identification.
+    
+    Returns:
+        - filename: The name of the saved checkpoint file.
     """
     state = {
         "epoch": epoch + 1,
@@ -369,6 +372,7 @@ def save_checkpoint(epoch: float, args:GlobalSettings, model: torch.nn.Module,
     filename = os.path.join(args.model_root,
                             f"checkpoint_{tailName:s}_{get_fmt_time('%Y%m%d-%H%M%S.%f')}.pth.tar")
     torch.save(state, filename)
+    return filename
 
 def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
                       optimizer: torch.optim.Optimizer, strict=False) -> Tuple[torch.nn.Module, torch.optim.Optimizer, float, Dict]:
