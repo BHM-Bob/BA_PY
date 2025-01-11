@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-21 15:09:52
+LastEditTime: 2025-01-11 14:10:51
 Description: 
 '''
 from typing import List
@@ -114,8 +114,8 @@ class DataSetRAM():
                  x_transfer_gather = None, y_transfer_gather = None):
         super(DataSetRAM, self).__init__()
         self.args = args
-        self.x = []
-        self.y = []
+        self.x = x
+        self.y = y
         self.load_db_ratio = args.load_db_ratio
         self.batch_size =args.batch_size
         self.load_part = load_part
