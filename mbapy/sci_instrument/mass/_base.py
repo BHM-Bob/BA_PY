@@ -22,17 +22,18 @@ from mbapy.web import TaskPool
     
 class MassData(SciInstrumentData):
     ESI_IRON_MODE = {
-        '[M+H]+': dict(m = 1, iron = 'H', im = 1, c = 1),
-        '[M+2H]2+': dict(m=1, iron='H', im=2, c=2),
-        '[M+3H]3+': dict(m=1, iron='H', im=3, c=3),
-        '[M+Na]+': dict(m = 1, iron = 'Na', im = 23, c = 1),
-        '[M+K]+': dict(m = 1, iron = 'K', im = 39, c = 1),
-        '[M+Li]+': dict(m = 1, iron = 'Li', im = 10, c = 1),
-        '[M+NH4]+': dict(m = 1, iron = 'NH4', im = 18, c = 1),
-        '[M+ACN+H]+': dict(m = 1, iron = 'ACN', im = 42, c = 1),
-        '[2M+H]+': dict(m = 2, iron = 'H', im = 1, c = 1),
-        '[2M+Na]+': dict(m = 2, iron = 'Na', im = 23, c = 1),
-        '[2M+K]+': dict(m = 2, iron = 'K', im = 39, c = 1),
+        '[M+H]+': dict(m = 1, iron = 'H', im = 1.00782503207, c = 1),
+        '[M+2H]2+': dict(m=1, iron='H', im=2.01565006414, c=2),
+        '[M+3H]3+': dict(m=1, iron='H', im=3.02347509621, c=3),
+        '[M+Na]+': dict(m = 1, iron = 'Na', im = 22.9897692809, c = 1),
+        '[M+K]+': dict(m = 1, iron = 'K', im = 38.96370668, c = 1),
+        '[M+Li]+': dict(m = 1, iron = 'Li', im = 7.01600455, c = 1),
+        '[M+NH4]+': dict(m = 1, iron = 'NH4', im = 18.03437413308, c = 1),
+        '[M+ACN+H]+': dict(m = 1, iron = 'ACN', im = 42.03437413308, c = 1),
+        '[M+CH3OH+H]+': dict(m = 1, iron = 'CH3OH', im = 33.03403977991, c = 1),
+        '[2M+H]+': dict(m = 2, iron = 'H', im = 1.00782503207, c = 1),
+        '[2M+Na]+': dict(m = 2, iron = 'Na', im = 22.9897692809, c = 1),
+        '[2M+K]+': dict(m = 2, iron = 'K', im = 38.96370668, c = 1),
         '[M]+': dict(m = 1, iron = '', im = 0, c = 1),
         }
     def __init__(self, data_file_path: Union[None, str, List[str]] = None) -> None:
