@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-02 18:17:27
+LastEditTime: 2025-01-12 12:47:05
 Description: Basic Blocks
 '''
 
@@ -228,7 +228,7 @@ class MultiHeadAttentionLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.scale = 1.0 / torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
     def forward(self, query, key, value, RoPE: RoPE = None,
-                mask = None, pad_id = None):
+                mask = None, pad_id = None, return_attn = False):
         batch_size = query.shape[0]
         # Q = [batch size, query len, input dim] => [batch size, query len, hid_dim][batch size, n heads, query len, head dim]
         # K = [batch size, key len,   input dim] => [batch size, key len,   hid_dim][batch size, n heads, key len  , head dim]
@@ -257,7 +257,9 @@ class MultiHeadAttentionLayer(nn.Module):
         x = self.dropout(attention).matmul(V).permute(0, 2, 1, 3).contiguous()\
             .reshape(batch_size, -1, self.hid_dim)
         # x = [batch size, query len, hid dim]
-        return self.fc_o(x)
+        if not return_attn:
+            return self.fc_o(x)
+        return self.fc_o(x), attention.clone().detach()
     
 class FastMultiHeadAttentionLayer(nn.Module):
     """wrapper for FlashAttention, just import flash_attn and adjust dtype"""
@@ -265,7 +267,7 @@ class FastMultiHeadAttentionLayer(nn.Module):
         super().__init__()
         assert paper.bb.flash_attn_func is not None, 'mbapy::import-error: paper.bb.flash_attn_func is None'
         raise NotImplementedError
-    def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
+    def forward(self, query, key, value, RoPE: RoPE = None, mask = None, **kwargs):
         ori_type = query.dtype
         query = query.to(dtype = torch.float16)
         query = self.net(query)[0]
@@ -287,7 +289,7 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
                                       nn.GELU(),
                                       nn.Dropout(dropout),
                                       nn.Linear(hid_dim, class_num))
-    def forward(self, query, key, value, RoPE: RoPE = None, mask = None):
+    def forward(self, query, key, value, RoPE: RoPE = None, mask = None, return_attn = False):
         # query = [batch size, query len, hid dim]
         # key = [batch size, key len, hid dim]
         # value = [batch size, value len, hid dim]
@@ -309,7 +311,9 @@ class OutMultiHeadAttentionLayer(MultiHeadAttentionLayer):
             permute(0, 2, 1, 3).contiguous().\
             reshape(batch_size, -1, self.hid_dim)
         # x = [batch size, class num, hid dim]
-        return self.fc_o(x)
+        if not return_attn:
+            return self.fc_o(x)
+        return self.fc_o(x), attention.clone().detach()
     
 class EncoderLayer(nn.Module):
     def __init__(self, q_len: None, class_num: None,
@@ -332,13 +336,15 @@ class EncoderLayer(nn.Module):
             self.self_attention = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device, **kwargs)
         self.dropout = nn.Dropout(dropout)
     def forward(self, src, k = None, v = None, RoPE: RoPE = None,
-                mask = None, pad_id = None):
+                mask = None, pad_id = None, return_attn = False):
         # src = [batch size, src len, hid dim]
         # self attention
         k = get_default_for_None(k, src)
         v = get_default_for_None(v, src)
         _src = self.self_attention(src, k, v, RoPE = RoPE,
-                                   mask = mask, pad_id = pad_id)
+                                   mask = mask, pad_id = pad_id, return_attn = return_attn)
+        if return_attn:
+            _src, attn = _src
         # dropout, residual connection and layer norm
         src = self.self_attn_layer_norm(src + self.dropout(_src))
         # src = [batch size, src len, hid dim]
@@ -346,7 +352,10 @@ class EncoderLayer(nn.Module):
         _src = self.positionwise_feedforward(src)
         # dropout, residual and layer norm
         # ret = [batch size, src len, hid dim]
-        return self.ff_layer_norm(src + self.dropout(_src))
+        out = self.ff_layer_norm(src + self.dropout(_src))
+        if not return_attn:
+            return out
+        return out, attn
 
 class OutEncoderLayer(EncoderLayer):
     def __init__(self, q_len: int, class_num: int,
@@ -360,18 +369,23 @@ class OutEncoderLayer(EncoderLayer):
         )
         self.ff_layer_norm = nn.LayerNorm(class_num)
         self.fc_out = nn.Linear(hid_dim, 1)
-    def forward(self, src):
+    def forward(self, src, return_attn = False):
         # src = [batch size, src len, hid dim]
         # self attention
         # src = [batch size, class num, hid dim]
-        src = self.self_attention(src, src, src)
+        src = self.self_attention(src, src, src, return_attn=return_attn)
+        if return_attn:
+            src, attn = src
         # dropout, residual connection and layer norm
         # src = [batch size, class num, hid dim]
         src = self.self_attn_layer_norm(src + self.dropout(src))
         # src = [batch size, class num]
         _src = self.fc_out(src).reshape(-1, self.class_num)
         # ret = [batch size, class num]
-        return self.ff_layer_norm(self.dropout(_src))
+        out = self.ff_layer_norm(self.dropout(_src))
+        if not return_attn:
+            return out
+        return out, attn
 
 class Trans(nn.Module):
     """[batch size, src len, hid dim]"""

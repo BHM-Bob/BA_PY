@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-17 09:14:33
+LastEditTime: 2025-01-12 12:46:36
 Description: some Basic Blocks implements for some paper
 '''
 
@@ -64,7 +64,7 @@ class HydraAttention(nn.Module):
         self.inc = inc
         self.out = nn.Linear(self.inc, self.inc) if output_layer == 'linear' else nn.Identity()
         self.dropout = nn.Dropout(dropout)
-    def forward(self, q, k, v):
+    def forward(self, q, k, v, **kwargs):
         '''x:[b, l, c]'''
         q = q / q.norm(dim=-1, keepdim=True)
         k = k / k.norm(dim=-1, keepdim=True)
