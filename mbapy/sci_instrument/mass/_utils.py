@@ -63,7 +63,11 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
     if 'color' not in df.columns:
         df['color'] = get_palette(len(data.match_df), 'hls')
     if 'marker' not in df.columns:
-        df['marker'] = PLT_MARKERS[1:len(data.match_df)+1]
+        if len(data.match_df) > len(PLT_MARKERS):
+            put_err(f'Not enough markers for {len(data.match_df)} peaks, use default markers instead.')
+            df['marker'] = PLT_MARKERS[0]
+        else:
+            df['marker'] = PLT_MARKERS[1:len(data.match_df)+1]
     match_df = data.match_df
     # plot normal
     charges = data.peak_df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(data.peak_df)
