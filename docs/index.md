@@ -1,7 +1,7 @@
 <!--
  * @Date: 2023-07-29 09:56:37
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2024-12-28 11:11:30
+ * @LastEditTime: 2025-01-12 20:53:10
  * @Description: 
 -->
 <!-- mkdocs serve -->
@@ -17,7 +17,7 @@ Welcome to the BA_PY docs!
 
 ![Read the Docs](https://img.shields.io/readthedocs/ba-py) ![GitHub](https://img.shields.io/github/license/BHM-Bob/BA_PY) [![built with Codeium](https://codeium.com/badges/main)](https://codeium.com)
 
-![platform - WINDOWS](https://camo.githubusercontent.com/c292429e232884db22e86c2ea2ea7695bc49dc4ae13344003a95879eeb7425d8/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f57696e646f77732d3030373844363f7374796c653d666f722d7468652d6261646765266c6f676f3d77696e646f7773266c6f676f436f6c6f723d7768697465) ![platform - LINUX](https://camo.githubusercontent.com/7eefb2ba052806d8a9ce69863c2eeb3b03cd5935ead7bd2e9245ae2e705a1adf/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c696e75782d4643433632343f7374796c653d666f722d7468652d6261646765266c6f676f3d6c696e7578266c6f676f436f6c6f723d626c61636b)
+![platform - WINDOWS](https://img.shields.io/badge/Windows-support-<COLOR>.svg) ![platform - LINUX](https://img.shields.io/badge/Linux-support-<COLOR>.svg)
 
 mbapy is a Python package that includes a collection of useful Python scripts as sub-modules, and it's goal is *Basic for All in Python*.  
 mbapy primarily focus on data works, including data-retrieval, data-management, data-visualization, data-analysis and data-computation. It is built for both python-users and command-line-users.
@@ -112,6 +112,7 @@ Some helpful command line scripts.
 16. [video](scripts/video.md)  
 
 # Release History
+- [0.10.5](release_notes/0.10.5.md)
 - [0.10.4](release_notes/0.10.4.md)
 - [0.10.3](release_notes/0.10.3.md)
 - [0.10.2](release_notes/0.10.2.md)
