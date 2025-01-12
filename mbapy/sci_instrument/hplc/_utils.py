@@ -114,6 +114,9 @@ def plot_hplc(hplc_data: Union[HplcData, List[HplcData]],
         if peaks_idx.size > 0:
             files_peaks_idx[data_i.get_tag()] = peaks_idx
         peak_df = data_df_i.iloc[peaks_idx, :]
+        # if do not plot peak label, skip
+        if not data_i.plot_params['peak_label']:
+            continue
         # plot peaks and matched labels
         for t, peak_idx, a in zip(peak_df[data_i.X_HEADER], peaks_idx, peak_df[data_i.Y_HEADER]):                    
             matched = np.where(np.abs(peak_labels_v - t) < labels_eps)[0]

@@ -203,6 +203,7 @@ class explore_hplc(plot_hplc):
         else:
             self.dfs.pop(event.sender.text, None)
         self._ui_refinment_numbers.refresh()
+        self._ui_plot_params.refresh()
         
     @ui.refreshable
     def make_tabs(self):
@@ -241,6 +242,7 @@ class explore_hplc(plot_hplc):
                 plt.tight_layout()
             # update tag2label related ui elements
             self._ui_refinment_numbers.refresh()
+            self._ui_plot_params.refresh()
             # re-calcu area df and refreash GUI table
             with ui.tab_panel(self.area_df_panel):
                 self.make_area_df.refresh()
@@ -403,6 +405,14 @@ class explore_hplc(plot_hplc):
             with ui.row():
                 ui.number(label='x', value=x, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_x, n).classes('w-2/5')
                 ui.number(label='y', value=y, step=0.01, format='%.4f').bind_value_to(self.dfs_refinment_y, n).classes('w-2/5')
+                    
+    @ui.refreshable
+    def _ui_plot_params(self):
+        # update refinment numbers GUI
+        for n in self.dfs:
+            ui.label(self.tag2label.get(n, n)).tooltip(n)
+            with ui.row():
+                ui.checkbox('peak_label', value=self.dfs[n].plot_params['peak_label']).bind_value_to(self.dfs[n].plot_params, 'peak_label').classes('w-2/5')
             
     def _ui_bind_xlim_onchange(self, e):
         if self.is_bind_lim:
@@ -456,6 +466,10 @@ class explore_hplc(plot_hplc):
                         with ui.expansion('Data Refinment', icon='auto_fix_high', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)
                             self._ui_refinment_numbers()
+                        # data refinment configs
+                        with ui.expansion('Single Params', icon='format_list_bulleted', on_value_change=self._ui_only_one_expansion) as expansion6:
+                            self._expansion.append(expansion6)
+                            self._ui_plot_params()
                         # configs for fontsize
                         with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion3:
                             self._expansion.append(expansion3)

@@ -1,10 +1,10 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-12-30 20:23:25
+LastEditTime: 2025-01-12 13:54:02
 Description: mbapy.sci_instrument.hplc._base
 '''
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -31,6 +31,7 @@ class HplcData(SciInstrumentData):
         self.Y_HEADER = 'Absorbance'
         self.TICKS_IN_MINUTE = 60 # how many ticks in one minute
         self.IS_PDA = False
+        self.plot_params: Dict[str, Any] = {'peak_label': True}
         self.refined_abs_data: pd.DataFrame = None
         self.area: Dict[int, Dict[str, Union[float, int, np.ndarray]]] = {} # the area and underline of peaks
         self.peaks_idx: np.ndarray = None # the index of peaks in the data, in tick.
