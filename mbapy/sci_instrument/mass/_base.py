@@ -1,12 +1,11 @@
 '''
 Date: 2024-05-20 16:53:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-31 10:52:57
+LastEditTime: 2025-01-12 20:39:32
 Description: mbapy.sci_instrument.mass._base
 '''
-import os
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -14,12 +13,11 @@ import scipy
 
 # use multi-process
 from mbapy.base import check_parameters_path, parameter_checker, put_err
-from mbapy.file import (decode_bits_to_str, get_paths_with_extension,
-                        get_valid_file_path, opts_file, write_sheets)
+from mbapy.file import write_sheets
 from mbapy.sci_instrument._base import SciInstrumentData
 from mbapy.web import TaskPool
-    
-    
+
+
 class MassData(SciInstrumentData):
     ESI_IRON_MODE = {
         '[M+H]+': dict(m = 1, iron = 'H', im = 1.00782503207, c = 1),
@@ -41,6 +39,7 @@ class MassData(SciInstrumentData):
         self.peak_df = None
         self.match_df = pd.DataFrame(columns=['x', 'X_HEADER', 'y', 'Y_HEADER', 'c', 'CHARGE_HEADER',
                                               'Monoisotopic', 'mode', 'substance'])
+        self.plot_params: Dict[str, Any] = {'min_tag_lim': 0}
         self.X_HEADER = 'Mass/charge (charge)'
         self.Y_HEADER = 'Height'
         self.CHARGE_HEADER = None

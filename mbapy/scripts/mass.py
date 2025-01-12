@@ -178,6 +178,7 @@ class explore_mass(plot_mass):
         self.data_loader: Thread = None
         self._expansion = []
         self._bbox_extra_artists = None
+        self.plot_params = {'min_tag_lim': 0}
         
     @ui.refreshable
     def _ui_make_dfs_tabs(self):
@@ -217,13 +218,14 @@ class explore_mass(plot_mass):
                 data.search_peaks(self.args.xlim, self.args.min_peak_width,
                                   self.task_pool, self.args.multi_process)
             tmp_data = deepcopy(data) # filter from original data
+            tmp_data.plot_params = self.plot_params
             tmp_data.filter_peaks(self.args.xlim, self.args.min_height, self.args.min_height_percent)
             ## plot
             ax, self._bbox_extra_artists = _plot_mass(tmp_data, ax = ax, xlim=self.args.xlim,
                                                       labels=self.args.labels, labels_eps=self.args.labels_eps,
                                                       legend_bbox=(self.args.legend_pos_bbox1, self.args.legend_pos_bbox2),
                                                       legend_pos=self.args.legend_pos, marker_size=self.args.marker_size,
-                                                      is_y_log=self.args.is_y_log, tag_monoisotopic_only=self.args.tag_monoisotopic_only)
+                                                      is_y_log=self.args.is_y_log, tag_monoisotopic_only=True)
             x_axis_exp = (1-self.args.xaxis_expand, 1+self.args.xaxis_expand)
             y_axis_exp = (1-self.args.yaxis_expand, 1+self.args.yaxis_expand)
             plt.xlim(tmp_data.peak_df[tmp_data.X_HEADER].min() * x_axis_exp[0], tmp_data.peak_df[tmp_data.X_HEADER].max() * x_axis_exp[1])
@@ -289,6 +291,10 @@ class explore_mass(plot_mass):
                             ui.number('min height', value=self.args.min_height, min = 0).bind_value_to(self.args, 'min_height')
                             ui.number('min height percent', value=self.args.min_height_percent, min = 0, max = 100).bind_value_to(self.args,'min_height_percent').classes('w-full')
                             ui.input('xlim', value=self.args.xlim).bind_value_to(self.args, 'xlim')
+                        # data refinment configs
+                        with ui.expansion('Plot Params', icon='format_list_bulleted', on_value_change=self._ui_only_one_expansion) as expansion5:
+                            self._expansion.append(expansion5)
+                            ui.number('min_tag_lim', value=0).bind_value_to(self.plot_params,'min_tag_lim')
                         # configs for fontsize
                         with ui.expansion('Configs for Fontsize', icon='format_size', on_value_change=self._ui_only_one_expansion) as expansion2:
                             self._expansion.append(expansion2)

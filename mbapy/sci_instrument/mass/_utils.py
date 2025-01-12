@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-31 16:35:15
+LastEditTime: 2025-01-12 20:27:22
 Description: 
 '''
 
@@ -47,6 +47,8 @@ def _plot_tag_by_string_label(ax: plt.Axes, df: pd.DataFrame, data: MassData,
             label, text_col, maker = labels.get(labels_ms[matched[0]])
             _plot_vlines(ax, [ms], [h], text_col, scatter_label = label, marker = maker, plot_scatter = True, scatter_size=marker_size)
             has_label_matched = True
+        elif h < data.plot_params['min_tag_lim']: # skip tag if h < data.plot_params['min_tag_lim']
+            continue
         else:
             text_col = color
         charge_str = f'({charge})' if charge is not None else ''
@@ -73,7 +75,7 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
     charges = data.peak_df[data.CHARGE_HEADER] if data.CHARGE_HEADER is not None else [None]*len(data.peak_df)
     is_monoisotopic = data.peak_df[data.MONOISOTOPIC_HEADER] if data.MONOISOTOPIC_HEADER is not None else [True]*len(data.peak_df)
     for ms, h, charge, is_mono in zip(data.peak_df[data.X_HEADER], data.peak_df[data.Y_HEADER], charges, is_monoisotopic):
-        if ms not in match_df['x'] and _check_monoisotopic(is_mono):
+        if ms not in match_df['x'] and _check_monoisotopic(is_mono) and h >= data.plot_params['min_tag_lim']:
             charge_str = f'({charge})' if charge is not None else ''
             ax.text(ms, h, f'  {ms:.3f}{charge_str}', fontsize=tag_fontsize, color = color,
                     horizontalalignment='left', verticalalignment='center')
