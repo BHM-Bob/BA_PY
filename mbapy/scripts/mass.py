@@ -45,12 +45,13 @@ def load_single_mass_data_file(path: str, dfs_name: Set[str], support_sys: Dict[
     return None
 
 
-def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox, tag_monoisotopic_only):
+def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, legend_bbox, tag_monoisotopic_only, min_tag_percent):
     name = data.get_tag()
     # save processed data
     data.save_processed_data()
     print(f'{name}: processed data saved to {data.processed_data_path}')
     # plot
+    data.plot_params['min_tag_lim'] = min_tag_percent / 100 * data.peak_df[data.Y_HEADER].max()
     ax, extra_artists = _plot_mass(data, xlim=xlim, labels=labels,
                                    labels_eps=labels_eps, legend_pos='lower right', legend_bbox = legend_bbox,
                                    tag_monoisotopic_only=tag_monoisotopic_only)
@@ -161,10 +162,12 @@ class plot_mass(Command):
             if self.task_pool is not None:
                 self.task_pool.add_task(n, plot_single_mass_data, data, self.args.xlim,
                                         self.args.labels, self.args.labels_eps, self.args.show_fig,
-                                        self.args.legend_bbox, self.args.tag_monoisotopic_only)
+                                        self.args.legend_bbox, self.args.tag_monoisotopic_only,
+                                        self.args.min_tag_height_percent)
             else:
                 plot_single_mass_data(data, self.args.xlim, self.args.labels, self.args.labels_eps,
-                                      self.args.show_fig, self.args.legend_bbox, self.args.tag_monoisotopic_only)
+                                      self.args.show_fig, self.args.legend_bbox, self.args.tag_monoisotopic_only,
+                                      self.args.min_tag_height_percent)
         if self.task_pool is not None:
             self.task_pool.wait_till_tasks_done(self.dfs.keys())
             self.task_pool.close()
@@ -361,8 +364,10 @@ def main(sys_args: List[str] = None):
                                 help='draw Mass instead of Mass/charge which is Mass+z, default is %(default)s')
     plot_mass_args.add_argument('-min', '--min-height', type = int, default=0,
                                 help='filter data with min height in peak list plot, default is %(default)s')
-    plot_mass_args.add_argument('-minp', '--min-height-percent', type = float, default=1,
+    plot_mass_args.add_argument('-minp', '--min-height-percent', type = float, default=0.1,
                                 help='filter data with min height percent to hightest in mass/charge plot, default is %(default)s')
+    plot_mass_args.add_argument('-mintp', '--min-tag-height-percent', type = float, default=1,
+                                help='filter data with min height percent to hightest in label tag plot, default is %(default)s')
     plot_mass_args.add_argument('--min-peak-width', type = float, default=4,
                                 help='filter peaks with min width in Mass/Charge plot, default is %(default)s')
     plot_mass_args.add_argument('-xlim', type = str, default=None,
@@ -393,7 +398,10 @@ def main(sys_args: List[str] = None):
 
     if __name__ in ['__main__', 'mbapy.scripts.mass']:
         # '__main__' is debug, 'mbapy.scripts.mass' is user running
-        excute_command(args_paser, sys_args, _str2func)
+        # excute_command(args_paser, sys_args, _str2func)
+        args = args_paser.parse_args(sys_args)
+        if args.sub_command in _str2func:
+            _str2func[args.sub_command](args).excute()
 
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code, MUST COMMENT OUT BEFORE RELEASE
