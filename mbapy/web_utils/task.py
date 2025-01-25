@@ -502,6 +502,28 @@ class TaskPool:
                        wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
         return {name: self.query_task(name) for name in task_names}
     
+    def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
+                  coro_func, return_result: bool = True, timeout: int = 3, **kwargs) -> Union[List[Any], Dict[str, Any]]:
+        """
+        map tasks to coro_func, and return the results.
+        
+        Parameters:
+            - coro_func (Callable): a coroutine function.
+            - return_result (bool, default=True): if True, return the result of each task.
+            - tasks (Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]]): a list of (*args, **kwargs) or a dict of name - (*args, **kwargs) pairs.
+            - **kwargs: other args for coro_func.
+
+        Returns:
+        """
+        if isinstance(tasks, list):
+            tasks = [self.add_task(None, coro_func, *ags, **kgs, **kwargs) for (ags, kgs) in tasks]
+            return [self.query_task(name, block=return_result, timeout=timeout) for name in tasks]
+        elif isinstance(tasks, dict):
+            tasks = {name: self.add_task(name, coro_func, *ags, **kgs, **kwargs) for name, (ags, kgs) in tasks.items()}
+            return {name: self.query_task(name, block=return_result, timeout=timeout) for name in tasks}
+        else:
+            raise TypeError(f'Unsupported type of tasks: {type(tasks)}')
+    
     def close(self):
         """close the thread and event loop, join the thread"""
         # close async pool
@@ -544,3 +566,6 @@ if __name__ == '__main__':
     pool = TaskPool().start()
     pool.add_task("task1", example_coroutine, "task1", 2)
     pool.add_task("task2", example_coroutine, "task2", 4)
+    map_result = pool.map_tasks({"task3": (["task3"], {"seconds": 3}), "task4": (["task4"], {"seconds": 5})},
+                                example_coroutine, return_result=False, timeout=9)
+    print(map_result)
