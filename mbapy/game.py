@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-16 22:10:56
+LastEditTime: 2025-01-24 17:32:09
 Description: 
 '''
 
@@ -9,11 +9,12 @@ import base64
 import collections
 import gzip
 import inspect
-import pickle
 import os
+import pickle
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
+
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "True"
 import pygame as pg
 
@@ -105,6 +106,39 @@ def make_array_from_surface(surface: pg.SurfaceType, copy: bool = True):
         alpha = pg.surfarray.pixels_alpha(surface)
         arr = np.concatenate([arr, alpha[:, :, None]], axis=-1)
     return arr
+
+
+def blit_scale(src: pg.SurfaceType, dist_rect: pg.Rect, dist: pg.SurfaceType):
+    """
+    Scale and blit a surface onto another surface.
+
+    Args:
+        - src (pg.SurfaceType): The source surface to scale.
+        - dist_rect (pg.Rect): The rectangle on the destination surface where the scaled image will be blitted.
+        - dist (pg.SurfaceType): The destination surface where the scaled image will be blitted.
+
+    Returns:
+        pg.SurfaceType: The destination surface after the blit operation.
+    """
+    scaled_src = pg.transform.scale(src, dist_rect[2:])
+    dist.blit(scaled_src, dist_rect)
+    return dist
+
+
+def check_quit(event: pg.event.Event):
+    """
+    Check if the given event is a quit event.
+    
+    Args:
+        event (pg.event.Event): The event to check.
+        
+    Returns:
+        bool: True if the event is a quit event, False otherwise.
+    """
+    if event.type == pg.QUIT or \
+        (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+            return True
+    return False
 
 
 class BaseInfo:
