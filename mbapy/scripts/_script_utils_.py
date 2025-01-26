@@ -1,12 +1,13 @@
 '''
 Date: 2024-01-12 16:06:35
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-10 16:25:26
+LastEditTime: 2025-01-26 11:38:52
 FilePath: \BA_PY\mbapy\scripts\_script_utils_.py
 Description: 
 '''
 import argparse
 import os
+import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
@@ -83,9 +84,8 @@ def excute_command(args_paser: argparse.ArgumentParser, sys_args: List[str],
                 _str2func[args.sub_command](args).excute()
             else:
                 _str2func[args.sub_command](args)
-        except:
-            if callable(_str2func[args.sub_command]):
-                _str2func[args.sub_command](args)
+        except Exception as e:
+            traceback.print_exception(type(e), e, e.__traceback__)
     else:
         put_err(f'no such sub commmand: {args.sub_command}')
 
