@@ -21,8 +21,11 @@ else:
     from ..game import BaseInfo
 
 
-def clean_path(path: str):
-    return Path(path.replace('"', '').replace("'", '')).resolve()
+def clean_path(path: str, return_str: bool = False):
+    path = Path(path.replace('"', '').replace("'", '')).resolve()
+    if not return_str:
+        return path
+    return str(path)
 
 def _print(content: str, f, verbose = True):
     if f is not None:
