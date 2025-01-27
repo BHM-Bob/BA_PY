@@ -1,7 +1,7 @@
 '''
 Date: 2024-01-12 16:06:35
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-26 12:02:36
+LastEditTime: 2025-01-27 23:01:24
 FilePath: \BA_PY\mbapy\scripts\_script_utils_.py
 Description: 
 '''
@@ -82,13 +82,17 @@ def excute_command(args_paser: argparse.ArgumentParser, sys_args: List[str],
     args = args_paser.parse_args(sys_args)
     
     if args.sub_command in _str2func:
+        cmd = _str2func[args.sub_command]
         try:
-            if callable(_str2func[args.sub_command]):
-                _str2func[args.sub_command](args)
-            elif isinstance(_str2func[args.sub_command], Command):
-                _str2func[args.sub_command](args).excute()
+            # if is inherite from Command, excute it
+            if isinstance(cmd, type) and issubclass(cmd, Command):
+                cmd(args).excute()
+            # if is a function, excute it
+            elif callable(cmd):
+                cmd(args)
+            # else, just try
             else:
-                _str2func[args.sub_command](args)
+                cmd(args)
         except Exception as e:
             traceback.print_exception(type(e), e, e.__traceback__)
     else:
