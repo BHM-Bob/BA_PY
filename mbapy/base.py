@@ -227,7 +227,7 @@ def put_err(info:str, ret = None, warning_level = 0, _exit: Union[bool, int] = F
         exit(_exit)
     return ret
 
-def put_log(info:str, head = "bapy::log", ret = None):
+def put_log(info:str, head = "bapy::log", ret = None, full_stack = False, new_line: bool = False):
     """
     Logs the given information with a formatted timestamp, call stack, and provided head. 
     Appends the log to the list of logs in the Configs class and prints it.
@@ -240,8 +240,10 @@ def put_log(info:str, head = "bapy::log", ret = None):
     Returns:
         Any: The value specified by the ret parameter.
     """
-    time_str = get_fmt_time()
-    log_str = f'\n{head:s} {time_str:s}: {">".join(get_call_stack()[:-1]):s}: {info:s}\n'
+    time_str = get_fmt_time("%Y:%m:%d-%H:%M:%S.%f")
+    stacks = get_call_stack()[:-1] if full_stack else [get_call_stack()[-2]]
+    new_line = '\n' if new_line else ' '
+    log_str = f'\n{head:s} {time_str:s}: {">".join(stacks):s}:{new_line}{info:s}\n'
     Configs.logs.append(log_str)
     print(log_str)
     return ret
