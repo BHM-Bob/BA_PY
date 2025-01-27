@@ -2,10 +2,12 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-11-30 17:15:30
+LastEditTime: 2025-01-27 18:47:29
 Description: 
 '''
 import ctypes
+import hashlib
+import importlib
 import inspect
 import json
 import math
@@ -13,6 +15,7 @@ import os
 import pathlib
 import pkgutil
 import platform
+import re
 import sys
 import time
 from functools import wraps
@@ -647,6 +650,58 @@ class CDLL:
             free_func(ptr)
         else:
             put_err(f'{free_func:s} is not exist')
+            
+
+def is_valid_module_name(name):
+    """check if a string is a valid module name"""
+    return re.fullmatch(r'^[_a-zA-Z][_a-zA-Z0-9]*$', name) is not None
+
+
+def import_file_as_package(file_path, module_name=None, force_reload=False):
+    """
+    Load a Python file as a module.
+
+    Parameters:
+        - file_path (str): The path to the Python file.
+        - module_name (str, optional): The name to assign to the module. If not provided, the file name without extension is used.
+        - force_reload (bool, optional): If True, the module will be reloaded even if it already exists in sys.modules. Defaults to False.
+
+    Returns:
+        - module: The loaded module object.
+        
+    Errors:
+        - If the module name is not a valid Python identifier
+        - If the module cannot be loaded from the file
+        - If the module cannot be registered in sys.modules
+    """
+    # make valid module name
+    if module_name is None:
+        # from file name
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        if is_valid_module_name(base_name):
+            module_name = base_name
+        else:
+            # generate a random name from file hash
+            file_hash = hashlib.md5(file_path.encode()).hexdigest()
+            module_name = f"dynamic_module_{file_hash}"
+    # check if module exists and handle force_reload
+    if module_name in sys.modules and not force_reload:
+        return sys.modules[module_name]  # return existing module
+    # create module spec
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    if spec is None:
+        return put_err(f"Cannot create module spec from file {file_path}, return None")
+    # create and load module
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module  # register to sys.modules for circular import
+    try:
+        spec.loader.exec_module(module)
+    except Exception as e:
+        if module_name in sys.modules:
+            del sys.modules[module_name]  # clean up on load failure
+        return put_err(f"Cannot load module {module_name} from file {file_path}, {e}, return None")
+    return module
+
 
 @parameter_checker(check_parameters_len, raise_err=False)
 def run_cmd(command: str):
@@ -693,6 +748,7 @@ __all__ = [
     'get_storage_path',
     'get_dll_path_for_sys',
     'CDLL',
+    'import_file_as_package',
     'run_cmd',    
 ]
 

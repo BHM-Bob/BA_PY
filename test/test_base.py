@@ -1,11 +1,13 @@
 '''
 Date: 2023-06-30 12:25:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-01-09 22:49:59
+LastEditTime: 2025-01-27 18:44:24
 FilePath: \BA_PY\test\test_base.py
 Description: 
 '''
 import inspect
+import os
+import tempfile
 import unittest
 from functools import wraps
 
@@ -67,7 +69,83 @@ class ConfigTestCase(unittest.TestCase):
         sum_log = len(Configs.logs)
         put_err('test full err log')
         self.assertEqual(sum_log + 1, len(Configs.logs))
+
+
+class ImportFileAsPackageTestCase(unittest.TestCase):
+    def test_import_file_as_package_valid_module_name(self):
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmpfile:
+            tmpfile.write(b"print('Hello, World!')")
+            file_path = tmpfile.name
+
+        # Import the file as a package with a valid module name
+        module = import_file_as_package(file_path, module_name="my_module")
+
+        # Assert that the module was imported successfully
+        assert module is not None
+
+        # Clean up
+        os.remove(file_path)
+
+    def test_import_file_as_package_invalid_module_name(self):
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmpfile:
+            tmpfile.write(b"print('Hello, World!')")
+            file_path = tmpfile.name
+
+        # Import the file as a package with an invalid module name
+        module = import_file_as_package(file_path, module_name="invalid!module@name")
+
+        # Assert that the module was imported successfully with a generated name
+        assert module is not None
+
+        # Clean up
+        os.remove(file_path)
         
+
+    def test_import_file_as_package_no_force_reload(self):
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmpfile:
+            tmpfile.write(b"print('Hello, World!')")
+            file_path = tmpfile.name
+
+        # Import the file as a package
+        module1 = import_file_as_package(file_path)
+
+        # Import the file again with force_reload=True
+        module2 = import_file_as_package(file_path, force_reload=False)
+
+        # Assert that the modules are different
+        assert module1 is module2
+
+        # Clean up
+        os.remove(file_path)
+
+    def test_import_file_as_package_force_reload(self):
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as tmpfile:
+            tmpfile.write(b"print('Hello, World!')")
+            file_path = tmpfile.name
+
+        # Import the file as a package
+        module1 = import_file_as_package(file_path)
+
+        # Import the file again with force_reload=True
+        module2 = import_file_as_package(file_path, force_reload=True)
+
+        # Assert that the modules are different
+        assert module1 is not module2
+
+        # Clean up
+        os.remove(file_path)
+
+    def test_import_file_as_package_file_not_found(self):
+        # Try to import a non-existent file
+        module = import_file_as_package("non_existent_file.py")
+
+        # Assert that the module is None
+        assert module is None
+
 
 if __name__ == '__main__':
     unittest.main()
