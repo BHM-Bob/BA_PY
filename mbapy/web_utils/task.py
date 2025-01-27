@@ -17,9 +17,9 @@ from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import parameter_checker, put_err, put_log
+    from mbapy.base import parameter_checker, put_err, put_log, split_list
 else:
-    from ..base import parameter_checker, put_err, put_log
+    from ..base import parameter_checker, put_err, put_log, split_list
 
 statuesQue = Queue()
 Key2Action = namedtuple('Key2Action', ['statue', 'func', 'args', 'kwgs',
@@ -503,26 +503,34 @@ class TaskPool:
         return {name: self.query_task(name) for name in task_names}
     
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
-                  coro_func, return_result: bool = True, timeout: int = 3, **kwargs) -> Union[List[Any], Dict[str, Any]]:
+                  coro_func: Callable, batch_size: int = None, return_result: bool = True,
+                  timeout: int = 3, **kwargs) -> Union[List[Any], Dict[str, Any]]:
         """
         map tasks to coro_func, and return the results.
         
         Parameters:
-            - coro_func (Callable): a coroutine function.
-            - return_result (bool, default=True): if True, return the result of each task.
             - tasks (Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]]): a list of (*args, **kwargs) or a dict of name - (*args, **kwargs) pairs.
-            - **kwargs: other args for coro_func.
+            - coro_func (Callable): a coroutine function.
+            - batch_size (int, default=None): if is int and >=1, split tasks into batches and pass batches(list) into coro_func, ONLY for list tasks.
+            - timeout (int, default=3): timeout in seconds.
+            - return_result (bool, default=True): if True, return the result of each task.
+            - **kwargs: other args for every coro_func call.
 
         Returns:
         """
+        if 'batch_size' in kwargs:
+            batch_size = kwargs.pop('batch_size')
         if isinstance(tasks, list):
-            tasks = [self.add_task(None, coro_func, *ags, **kgs, **kwargs) for (ags, kgs) in tasks]
+            if isinstance(batch_size, int) and batch_size >= 1:
+                tasks = [self.add_task(None, coro_func, batch, **kwargs) for batch in split_list(tasks, batch_size)]
+            else:
+                tasks = [self.add_task(None, coro_func, *ags, **kgs, **kwargs) for (ags, kgs) in tasks]
             return [self.query_task(name, block=return_result, timeout=timeout) for name in tasks]
         elif isinstance(tasks, dict):
             tasks = {name: self.add_task(name, coro_func, *ags, **kgs, **kwargs) for name, (ags, kgs) in tasks.items()}
             return {name: self.query_task(name, block=return_result, timeout=timeout) for name in tasks}
         else:
-            raise TypeError(f'Unsupported type of tasks: {type(tasks)}')
+            return put_err(f'Unsupported type of tasks: {type(tasks)}, return None and skip')
     
     def close(self):
         """close the thread and event loop, join the thread"""

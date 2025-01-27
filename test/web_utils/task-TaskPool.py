@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-24 11:11:58
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-21 15:49:18
+LastEditTime: 2025-01-27 15:13:47
 Description: 
 '''
 import asyncio
@@ -21,8 +21,8 @@ class TaskPoolCorutineTest(unittest.TestCase):
             return f"Coroutine {name} result"
 
         pool = TaskPool().start()
-        pool.add_task("task1", example_coroutine, "task1", 2)
-        pool.add_task("task2", example_coroutine, "task2", 4)
+        pool.add_task("task1", example_coroutine, "task1", 1)
+        pool.add_task("task2", example_coroutine, "task2", 2)
         
         self.assertEqual(pool.count_done_tasks(), 0)  # Output: 0
         self.assertEqual(pool.query_task("task1"), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
@@ -64,14 +64,14 @@ class TaskPoolThreadTest(unittest.TestCase):
             return f'Thread {name} result'
         
         pool = TaskPool('thread').start()
-        pool.add_task("task1", example_function, "task1", 2)
-        pool.add_task("task2", example_function, "task2", 4)
+        pool.add_task("task1", example_function, "task1", 1)
+        pool.add_task("task2", example_function, "task2", 2)
 
         self.assertEqual(pool.query_task("task1"), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
         self.assertEqual(pool.query_task("task2"), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
 
         # wait for tasks to finish, thread mode must wait long
-        time.sleep(10)
+        time.sleep(6)
 
         self.assertEqual(pool.query_task("task1"), 'Thread task1 result')  # Output: task1 finished after 3 seconds
         self.assertEqual(pool.query_task("task2"), 'Thread task2 result')  # Output: task2 finished after 5 seconds
@@ -84,14 +84,14 @@ class TaskPoolThreadTest(unittest.TestCase):
             return f'Thread {name} result'
         
         pool = TaskPool('thread').start()
-        pool.add_task('', example_function, "task1", 2)
-        pool.add_task('', example_function, "task2", 4)
+        pool.add_task('', example_function, "task1", 1)
+        pool.add_task('', example_function, "task2", 2)
         
         names = list(pool.tasks.keys())
         self.assertEqual(pool.query_task(names[0]), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
         self.assertEqual(pool.query_task(names[1]), TaskStatus.NOT_FINISHED)  # Output: TaskStatus.NOT_FINISHED
         
-        time.sleep(10)
+        time.sleep(6)
         
         self.assertEqual(pool.query_task(names[0]), f'Thread task1 result')  # Output: task1 finished after 3 seconds
         self.assertEqual(pool.query_task(names[1]), f'Thread task2 result')  # Output: task2 finished after 5 seconds
@@ -109,13 +109,13 @@ class TaskPoolThreadsTest(unittest.TestCase):
         n_woker = 4
         pool = TaskPool('threads', n_woker).start()
         for i in range(n_woker):
-            pool.add_task(f"task{i+1}", example_function, f"task{i+1}", 3)
+            pool.add_task(f"task{i+1}", example_function, f"task{i+1}", 1)
 
         for i in range(n_woker):
             self.assertEqual(pool.query_task(f"task{i+1}"), TaskStatus.NOT_FINISHED)
 
         # wait for tasks to finish
-        time.sleep(8)
+        time.sleep(6)
         
         for i in range(n_woker):
             self.assertEqual(pool.query_task(f"task{i+1}"), f'Threads task{i+1} result')
@@ -134,16 +134,60 @@ class TaskPoolProcessTest(unittest.TestCase):
         n_worker = 4
         pool = TaskPool('process', n_worker).start()
         for i in range(n_worker):
-            pool.add_task(f"task{i+1}", TaskPoolProcessTest_example_function, f"task{i+1}", 3)
+            pool.add_task(f"task{i+1}", TaskPoolProcessTest_example_function, f"task{i+1}", 2)
 
         for i in range(n_worker):
             self.assertEqual(pool.query_task(f"task{i+1}"), TaskStatus.NOT_FINISHED)
 
         # wait for tasks to finish
-        time.sleep(12)
+        results = pool.wait_till_tasks_done([f"task{i+1}" for i in range(n_worker)])
         
         for i in range(n_worker):
-            self.assertEqual(pool.query_task(f"task{i+1}"), f'Process task{i+1} result')
+            self.assertEqual(results[f"task{i+1}"], f'Process task{i+1} result')
+        
+        pool.close()
+        
+        
+class TaskPoolMapTest(unittest.TestCase):
+    def test_list(self):
+        def example_function(x, y):
+            return x+y
+        
+        pool = TaskPool('threads', 4).start()
+        results = pool.map_tasks(list(zip([[1]]*9, [{}]*9)), example_function, y=1)
+        self.assertEqual(results, [2]*9)
+        
+        pool.close()
+        
+    def test_dict(self):
+        def example_function(x, y):
+            return x+y
+        
+        pool = TaskPool('threads', 4).start()
+        results = pool.map_tasks({'a': ([1], {}), 'b': ([2], {}), 'c': ([3], {})}, example_function, y=1)
+        self.assertEqual(results, {'a': 2, 'b': 3, 'c': 4})
+        
+        pool.close()
+        
+    def test_list_batch(self):
+        def example_function(x, y):
+            print(x, y)
+            return sum(list(map(lambda i: i[0][0], x)))+y
+        
+        pool = TaskPool('threads', 4).start()
+        results = pool.map_tasks(list(zip([[1]]*9, [{}]*9)), example_function, 3, y=1)
+        self.assertEqual(results, [4]*3)
+        
+        pool.close()
+        
+    def test_list_batch2(self):
+        def example_function(x, y):
+            print(x, y)
+            return sum(x)+y
+        
+        pool = TaskPool('threads', 4).start()
+        results = pool.map_tasks(list(range(9)), example_function, 3, y=1)
+        self.assertEqual(results, [sum(i)+1 for i in split_list(list(range(9)), 3)])
         
         pool.close()
 
