@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-27 18:47:29
+LastEditTime: 2025-01-28 15:34:17
 Description: 
 '''
 import ctypes
@@ -681,10 +681,28 @@ def import_file_as_package(file_path, module_name=None, force_reload=False):
         - If the module cannot be loaded from the file
         - If the module cannot be registered in sys.modules
     """
+    file_path = os.path.abspath(file_path)
+    is_package = False
+    # check if file is a package
+    if os.path.isdir(file_path):
+        init_py = os.path.join(file_path, '__init__.py')
+        if os.path.isfile(init_py):
+            is_package = True
+            file_path = init_py  # instead of dir, use __init__.py
+        else:
+            return put_err(f"Cannot find __init__.py in {file_path}, return None")
+    elif os.path.isfile(file_path) and os.path.basename(file_path) == '__init__.py':
+        is_package = True
     # make valid module name
     if module_name is None:
         # from file name
-        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        if is_package:
+            # use parent dir name as module name
+            base_name = os.path.basename(os.path.dirname(file_path))
+        else:
+            # use file name without extension as module name
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+        # check if module name is valid
         if is_valid_module_name(base_name):
             module_name = base_name
         else:
@@ -695,7 +713,9 @@ def import_file_as_package(file_path, module_name=None, force_reload=False):
     if module_name in sys.modules and not force_reload:
         return sys.modules[module_name]  # return existing module
     # create module spec
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    submodule_search = [os.path.dirname(file_path)] if is_package else None
+    spec = importlib.util.spec_from_file_location(module_name, file_path,
+                                                  submodule_search_locations=submodule_search)
     if spec is None:
         return put_err(f"Cannot create module spec from file {file_path}, return None")
     # create and load module
@@ -707,6 +727,10 @@ def import_file_as_package(file_path, module_name=None, force_reload=False):
         if module_name in sys.modules:
             del sys.modules[module_name]  # clean up on load failure
         return put_err(f"Cannot load module {module_name} from file {file_path}, {e}, return None")
+    # set __package__ and __path__ for package
+    if is_package:
+        module.__package__ = module_name
+        module.__path__ = [os.path.dirname(file_path)]
     return module
 
 

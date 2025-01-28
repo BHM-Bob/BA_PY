@@ -1,7 +1,7 @@
 '''
 Date: 2023-06-30 12:25:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-27 18:44:24
+LastEditTime: 2025-01-27 19:44:45
 FilePath: \BA_PY\test\test_base.py
 Description: 
 '''
@@ -101,7 +101,6 @@ class ImportFileAsPackageTestCase(unittest.TestCase):
 
         # Clean up
         os.remove(file_path)
-        
 
     def test_import_file_as_package_no_force_reload(self):
         # Create a temporary file
@@ -145,6 +144,19 @@ class ImportFileAsPackageTestCase(unittest.TestCase):
 
         # Assert that the module is None
         assert module is None
+        
+    def test_import_dir_from_init_file(self):
+        # Create a temporary directory
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a temporary file in the directory
+            with open(os.path.join(tmpdir, "__init__.py"), "w") as f:
+                f.write("print('Hello, World!')")
+
+            # Import the directory as a package
+            module = import_file_as_package(tmpdir)
+
+            # Assert that the module was imported successfully
+            assert module is not None
 
 
 if __name__ == '__main__':
