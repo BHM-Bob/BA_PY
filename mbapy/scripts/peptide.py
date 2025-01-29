@@ -609,7 +609,7 @@ def main(sys_args: List[str] = None):
 
 if __name__ in {"__main__", "__mp_main__"}:
     # dev code. MUST BE COMMENTED OUT WHEN PUBLISHING
-    main('riddle-mass -s data_tmp/scripts/peptide/C.mbapy.mmw.pkl -m data_tmp/scripts/mass/pl.txt'.split())
+    # main('riddle-mass -s data_tmp/scripts/peptide/C.mbapy.mmw.pkl -m data_tmp/scripts/mass/pl.txt'.split())
     # main('mmw -s Boc-Asn(Trt)-Asp(OtBu)-Glu(OtBu)-Cys(Trt)-Glu(OtBu)-Leu-OH -m --max-repeat 0 --max-deletion 0 --max-replace 0  --multi-process 4'.split())
     
     # release code
