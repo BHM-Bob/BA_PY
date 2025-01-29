@@ -1,22 +1,36 @@
 '''
 Date: 2024-01-08 21:31:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-20 20:36:54
+LastEditTime: 2025-01-29 09:32:31
 FilePath: \BA_PY\mbapy\scripts\_main_.py
 Description: 
 '''
 import importlib
 import os
 import sys
+from typing import Dict
 
 os.environ['MBAPY_FAST_LOAD'] = 'True'
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 
-from mbapy.base import get_fmt_time, get_storage_path
+from mbapy.base import (get_fmt_time, get_storage_path, import_file_as_package,
+                        put_log)
 from mbapy.file import opts_file
 
+load_exec2script = lambda x: {n: x_i['script name'] for x_i in x.values() for n in x_i['exec_names']}
+# load scripts list
 scripts_info = opts_file(get_storage_path('mbapy-cli-scripts-list.json'), way = 'json')
-exec2script = {exec_name: script_info['script name'] for script_info in scripts_info.values() for exec_name in script_info['exec_names']}
+exec2script: Dict[str, str] = load_exec2script(scripts_info)
+# load extention scripts list
+EXT_SCRIPT_PATH = os.path.expanduser(f'~/.mbapy/scripts/mbapy-cli-scripts-list.json')
+if os.path.isfile(EXT_SCRIPT_PATH):
+    ext_scripts_info = opts_file(EXT_SCRIPT_PATH, way = 'json')
+else:
+    ext_scripts_info = {}
+ext_exec2script: Dict[str, str] = load_exec2script(ext_scripts_info)
+# merge scripts list
+scripts_info.update(ext_scripts_info)
+exec2script.update(ext_exec2script)
 
 
 def print_version_info():
@@ -61,13 +75,22 @@ def print_scripts_info():
 def exec_scripts():
     import mbapy
 
+    # remind overwrite num
+    overwite_num = len(set(ext_exec2script.keys()) & set(exec2script.keys()))
+    if overwite_num > 0:
+        put_log(f'Overwrite {overwite_num} script(s) from {EXT_SCRIPT_PATH}.')
     # check --pause-after-exec argumet
     pause_after_exec = '--pause-after-exec' in sys.argv
     if pause_after_exec:
         sys.argv.remove('--pause-after-exec')
     # check and exec scripts NOTE: DO NOT use exec
-    script_name = exec2script[sys.argv[1]]
-    script = importlib.import_module(f'.{script_name}', 'mbapy.scripts')
+    if sys.argv[1] in ext_exec2script:
+        ext_script_path = os.path.expanduser(f'~/.mbapy/scripts/{ext_exec2script[sys.argv[1]]}.py')
+        put_log(f'Loading external script: {sys.argv[1]} from {ext_script_path}')
+        script = import_file_as_package(ext_script_path)
+    else:
+        script_name = exec2script[sys.argv[1]]
+        script = importlib.import_module(f'.{script_name}', 'mbapy.scripts')
     script.main(sys.argv[2:])
     # pause if --pause-after-exec
     if pause_after_exec:
@@ -106,8 +129,11 @@ def main():
         else:
             _handle_unkown()
     # exit
-    print(f'\nmbapy-cli: exit at {get_fmt_time()}')
+    print(f'\nmbapy-cli: exit at {get_fmt_time("%Y-%m-%d %H:%M:%S.%f")}')
             
 
 if __name__ == '__main__':
+    # dev code
+    # sys.argv = 'mbapy-cli scihub -h'.split()
+    
     main()
