@@ -1,7 +1,7 @@
 '''
 Date: 2025-01-25 17:21:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-29 09:32:01
+LastEditTime: 2025-01-31 10:20:03
 Description: 
 '''
 import argparse
@@ -104,6 +104,6 @@ def main(sys_args: List[str] = None):
 
 if __name__ == "__main__":
     # dev code, MUST COMMENT OUT BEFORE RELEASE
-    main('script mbapy/scripts/scihub.py -F'.split())
+    # main('script mbapy/scripts/scihub.py -F'.split())
     
     main()
