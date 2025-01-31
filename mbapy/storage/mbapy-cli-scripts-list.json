@@ -158,5 +158,13 @@
             "exec_names": ["auto_cpp", "auto-cpp"],
             "brief": "CPP tools",
             "detailed":  ""
+        },
+    "install":
+        {
+            "name": "mbapy-cli scripts installation tool",
+            "script name": "install",
+            "exec_names": ["install"],
+            "brief": "mbapy-cli scripts installation tool",
+            "detailed":  "This Python script is designed to install mbapy-cli scripts from GitHub. It utilizes the `argparse` library to parse command-line arguments and the `requests` library for making HTTP requests to the GitHub API. The script clones the specified repository and installs the scripts in the specified directory."
         }
 }
