@@ -304,16 +304,19 @@ class TaskPool:
             if not self._thread_task_queue.empty():
                 task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
                 tasks_cache[task_name] = pool.apply_async(task_func, task_args, task_kwargs)
-            # get finished tasks from cache
-            for task_name, task_result in list(tasks_cache.items()):
-                if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
-                    try:
-                        self._thread_result_queue.put((task_name, task_result.get(),
-                                                       TaskStatus.SUCCEED))
-                    except Exception as e:
-                        self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-                    del tasks_cache[task_name]
-            time.sleep(0.1)
+            # make sure only N_WORKER tasks in cache
+            check_once = True
+            while len(tasks_cache) > self.N_WORKER or check_once:
+                check_once = False
+                # get finished tasks from cache
+                for task_name, task_result in list(tasks_cache.items()):
+                    if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
+                        try:
+                            self._thread_result_queue.put((task_name, task_result.get(),
+                                                        TaskStatus.SUCCEED))
+                        except Exception as e:
+                            self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+                        del tasks_cache[task_name]
         pool.close()
         
     def _run_isolated_process_loop(self):
