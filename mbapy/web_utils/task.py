@@ -489,7 +489,7 @@ class TaskPool:
         while not condition_func(*args, **kwargs):
             if timeout is not None and time.time() - st > timeout:
                 return False
-            done = self.count_done_tasks()
+            done = self.count_done_tasks() # call _query_task_queue to update _thread_result_queue and self.tasks
             if verbose:
                 bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
                 bar.update(self.count_done_tasks() - bar.n)
@@ -504,7 +504,7 @@ class TaskPool:
     
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
                   coro_func: Callable, batch_size: int = None, return_result: bool = True,
-                  timeout: int = 3, **kwargs) -> Union[List[Any], Dict[str, Any]]:
+                  timeout: int = 3, wait_busy: bool = False, **kwargs) -> Union[List[Any], Dict[str, Any]]:
         """
         map tasks to coro_func, and return the results.
         
@@ -521,13 +521,23 @@ class TaskPool:
         if 'batch_size' in kwargs:
             batch_size = kwargs.pop('batch_size')
         if isinstance(tasks, list):
+            results = []
             if isinstance(batch_size, int) and batch_size >= 1:
-                tasks = [self.add_task(None, coro_func, batch, **kwargs) for batch in split_list(tasks, batch_size)]
+                for batch in split_list(tasks, batch_size):
+                    results.append(self.add_task(None, coro_func, batch, **kwargs))
+                    if wait_busy:
+                        self.wait_till(lambda: self.count_waiting_tasks() == 0, 0.1)
             else:
-                tasks = [self.add_task(None, coro_func, *ags, **kgs, **kwargs) for (ags, kgs) in tasks]
-            return [self.query_task(name, block=return_result, timeout=timeout) for name in tasks]
+                for ags, kgs in tasks:
+                    results.append(self.add_task(None, coro_func, *ags, **kgs, **kwargs))
+                    if wait_busy:
+                        self.wait_till(lambda: self.count_waiting_tasks() == 0, 0.1)
+            return [self.query_task(name, block=return_result, timeout=timeout) for name in results]
         elif isinstance(tasks, dict):
-            tasks = {name: self.add_task(name, coro_func, *ags, **kgs, **kwargs) for name, (ags, kgs) in tasks.items()}
+            for name, (ags, kgs) in tasks.items():
+                self.add_task(name, coro_func, *ags, **kgs, **kwargs)
+                if wait_busy:
+                    self.wait_till(lambda: self.count_waiting_tasks() == 0, 0.1)
             return {name: self.query_task(name, block=return_result, timeout=timeout) for name in tasks}
         else:
             return put_err(f'Unsupported type of tasks: {type(tasks)}, return None and skip')
