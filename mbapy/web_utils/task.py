@@ -278,6 +278,7 @@ class TaskPool:
         self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
         self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
+        self.TASK_NOT_RETURNED = TaskStatus.NOT_RETURNED
         self.TIME_OUT = TaskStatus.TIME_OUT
         self.NO_TASK_LEFT = TaskStatus.ZERO_LEFT
 
