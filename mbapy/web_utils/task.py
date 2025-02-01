@@ -545,6 +545,33 @@ class TaskPool:
             return {name: self.query_task(name, block=return_result, timeout=timeout) for name in tasks}
         else:
             return put_err(f'Unsupported type of tasks: {type(tasks)}, return None and skip')
+        
+    def clear(self, clear_tasks: bool = True, clear_queue: bool = True):
+        """
+        Clear the task pool, including tasks and queues.
+
+        Parameters:
+            - clear_tasks (bool, default=True): Whether to clear the task dictionary.
+            - clear_queue (bool, default=True): Whether to clear the task queue and result queue.
+
+        Returns:
+            list: A list containing the sizes of the task dictionary, task queue, and result queue before clearing.
+            
+        Notes: 
+            - This method does not check wether the task pool is running or not.
+        """
+        # Record the sizes of the task dictionary, task queue, and result queue before clearing
+        sizes = [len(self.tasks), self._thread_task_queue.qsize(), self._thread_result_queue.qsize()]
+        # Clear the task dictionary
+        if clear_tasks:
+            self.tasks.clear()
+        # Clear the task queue and result queue
+        while not self._thread_task_queue.empty() and clear_queue:
+            self._thread_task_queue.get()
+        while not self._thread_result_queue.empty() and clear_queue:
+            self._thread_result_queue.get()
+        return sizes
+        
     
     def close(self):
         """close the thread and event loop, join the thread"""
