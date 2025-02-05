@@ -278,6 +278,7 @@ class TaskPool:
         self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
         self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
+        self.TASK_NOT_RETURNED = TaskStatus.NOT_RETURNED
         self.TIME_OUT = TaskStatus.TIME_OUT
         self.NO_TASK_LEFT = TaskStatus.ZERO_LEFT
 
@@ -303,20 +304,23 @@ class TaskPool:
             if not self._thread_task_queue.empty():
                 task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
                 tasks_cache[task_name] = pool.apply_async(task_func, task_args, task_kwargs)
-            # get finished tasks from cache
-            for task_name, task_result in list(tasks_cache.items()):
-                if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
-                    try:
-                        self._thread_result_queue.put((task_name, task_result.get(),
-                                                       TaskStatus.SUCCEED))
-                    except Exception as e:
-                        self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-                    del tasks_cache[task_name]
-            time.sleep(0.1)
+            # make sure only N_WORKER tasks in cache
+            check_once = True
+            while len(tasks_cache) > self.N_WORKER or check_once:
+                check_once = False
+                # get finished tasks from cache
+                for task_name, task_result in list(tasks_cache.items()):
+                    if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
+                        try:
+                            self._thread_result_queue.put((task_name, task_result.get(),
+                                                        TaskStatus.SUCCEED))
+                        except Exception as e:
+                            self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+                        del tasks_cache[task_name]
         pool.close()
         
     def _run_isolated_process_loop(self):
-        pass
+        raise NotImplementedError('isolated process mode is not implemented yet')
 
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
@@ -489,7 +493,7 @@ class TaskPool:
         while not condition_func(*args, **kwargs):
             if timeout is not None and time.time() - st > timeout:
                 return False
-            done = self.count_done_tasks()
+            done = self.count_done_tasks() # call _query_task_queue to update _thread_result_queue and self.tasks
             if verbose:
                 bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
                 bar.update(self.count_done_tasks() - bar.n)
