@@ -269,6 +269,7 @@ class TaskPool:
         self.MODE = mode
         self.N_WORKER = n_worker
         self.IS_STARTED = False
+        self.sleep_while_empty = sleep_while_empty
         self._async_loop: asyncio.AbstractEventLoop = None
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
@@ -317,6 +318,8 @@ class TaskPool:
                         except Exception as e:
                             self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
                         del tasks_cache[task_name]
+                time.sleep(self.sleep_while_empty)
+            time.sleep(self.sleep_while_empty)
         pool.close()
         
     def _run_isolated_process_loop(self):
