@@ -165,6 +165,14 @@
             "script name": "install",
             "exec_names": ["install"],
             "brief": "mbapy-cli scripts installation tool",
-            "detailed":  "This Python script is designed to install mbapy-cli scripts from GitHub. It utilizes the `argparse` library to parse command-line arguments and the `requests` library for making HTTP requests to the GitHub API. The script clones the specified repository and installs the scripts in the specified directory."
+            "detailed":  "This Python script is designed to install mbapy-cli scripts from local file."
+        },
+    "uninstall":
+        {
+            "name": "mbapy-cli scripts uninstallation tool",
+            "script name": "uninstall",
+            "exec_names": ["uninstall"],
+            "brief": "mbapy-cli scripts uninstallation tool",
+            "detailed":  "This Python script is designed to uninstall mbapy-cli scripts from a specified directory."
         }
 }
