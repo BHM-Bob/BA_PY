@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-11-30 17:17:48
+LastEditTime: 2025-02-06 20:18:07
 Description: 
 '''
 import inspect
@@ -191,14 +191,16 @@ def get_call_stack():
             break
     return stack_info[1:][::-1]
 
-def put_err(info:str, ret = None, warning_level = 0, _exit: Union[bool, int] = False):
+def put_err(info:str, ret = None, warning_level = 0, _exit: Union[bool, int] = False, full_stack = True):
     """
     Prints an error message along with the caller's name and arguments, if the warning level is greater than or equal to the error warning level specified in the Configs class.
         
     Parameters:
-        info (str): The error message to be printed.
-        ret (Any, optional): The return value of the function. Defaults to None.
-        warning_level (int, optional): The warning level of the error. Defaults to 0.
+        - info (str): The error message to be printed.
+        - ret (Any, optional): The return value of the function. Defaults to None.
+        - warning_level (int, optional): The warning level of the error. Defaults to 0.
+        - _exit (Union[bool, int], optional): Whether to exit the program after printing the error message. If an integer is provided, the program will exit with that status code. Defaults to False.
+        - full_stack (bool, optional): Whether to log the full call stack. Defaults to True.
     
     Returns:
         Any: The value specified by the ret parameter.
@@ -212,31 +214,36 @@ def put_err(info:str, ret = None, warning_level = 0, _exit: Union[bool, int] = F
         - It appends the log to the list of logs in the Configs class and prints it.
     """
     if warning_level >= Configs.err_warning_level:
+        time_str = get_fmt_time("%Y-%m-%d %H:%M:%S.%f")
         frame = inspect.currentframe().f_back
-        caller_name = frame.f_code.co_name
         caller_args = inspect.getargvalues(frame).args
-        err_str = f'\nERROR INFO : {caller_name:s} {caller_args}:\n {info:s}\n'
+        stacks = get_call_stack()[:-1] if full_stack else [get_call_stack()[-2]]
+        err_str = f'\nERROR[{time_str:s}]: {">".join(stacks):s}({", ".join(caller_args)}):\n {info:s}\n'
         print(err_str)
         Configs.logs.append(err_str)
     if not __NO_ERR__ and _exit:
         exit(_exit)
     return ret
 
-def put_log(info:str, head = "bapy::log", ret = None):
+def put_log(info:str, head = "log", ret = None, full_stack = False, new_line: bool = False):
     """
     Logs the given information with a formatted timestamp, call stack, and provided head. 
     Appends the log to the list of logs in the Configs class and prints it.
     
     Parameters:
         - info (str): The information to be logged.
-        - head (str): The head of the log message. Default is "bapy::log".
-        - ret : The value to return. Default is None.
+        - head (str): The head of the log message. Default is "log".
+        - ret (Any) : The value to return. Default is None.
+        - full_stack (bool): Whether to log the full call stack. Default is False.
+        - new_line (bool): Whether to add a new line after the log message. Default is False.
     
     Returns:
         Any: The value specified by the ret parameter.
     """
-    time_str = get_fmt_time()
-    log_str = f'\n{head:s} {time_str:s}: {">".join(get_call_stack()[:-1]):s}: {info:s}\n'
+    time_str = get_fmt_time("%Y-%m-%d %H:%M:%S.%f")
+    stacks = get_call_stack()[:-1] if full_stack else [get_call_stack()[-2]]
+    new_line = '\n' if new_line else ' '
+    log_str = f'\n{head:s}[{time_str:s}]: {">".join(stacks):s}:{new_line}{info:s}\n'
     Configs.logs.append(log_str)
     print(log_str)
     return ret

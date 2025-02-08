@@ -269,6 +269,7 @@ class TaskPool:
         self.MODE = mode
         self.N_WORKER = n_worker
         self.IS_STARTED = False
+        self.sleep_while_empty = sleep_while_empty
         self._async_loop: asyncio.AbstractEventLoop = None
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
@@ -317,6 +318,8 @@ class TaskPool:
                         except Exception as e:
                             self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
                         del tasks_cache[task_name]
+                time.sleep(self.sleep_while_empty)
+            time.sleep(self.sleep_while_empty)
         pool.close()
         
     def _run_isolated_process_loop(self):
@@ -505,6 +508,32 @@ class TaskPool:
         self.wait_till(lambda names: names.issubset(set([r[0] for r in self.tasks.values() if r != TaskStatus.NOT_RETURNED])),
                        wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
         return {name: self.query_task(name) for name in task_names}
+        
+    def clear(self, clear_tasks: bool = True, clear_queue: bool = True):
+        """
+        Clear the task pool, including tasks and queues.
+
+        Parameters:
+            - clear_tasks (bool, default=True): Whether to clear the task dictionary.
+            - clear_queue (bool, default=True): Whether to clear the task queue and result queue.
+
+        Returns:
+            list: A list containing the sizes of the task dictionary, task queue, and result queue before clearing.
+            
+        Notes: 
+            - This method does not check wether the task pool is running or not.
+        """
+        # Record the sizes of the task dictionary, task queue, and result queue before clearing
+        sizes = [len(self.tasks), self._thread_task_queue.qsize(), self._thread_result_queue.qsize()]
+        # Clear the task dictionary
+        if clear_tasks:
+            self.tasks.clear()
+        # Clear the task queue and result queue
+        while not self._thread_task_queue.empty() and clear_queue:
+            self._thread_task_queue.get()
+        while not self._thread_result_queue.empty() and clear_queue:
+            self._thread_result_queue.get()
+        return sizes
     
     def close(self):
         """close the thread and event loop, join the thread"""
