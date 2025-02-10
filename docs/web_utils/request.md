@@ -1,303 +1,513 @@
-# mbapy.web_utils.request
+Documentation
+=============
 
-This module provides functions for web scraping and browser automation.  
+Module Overview
+---------------
 
-### random_sleep -> None
-**General Description**
+This module provides a comprehensive set of functions and classes for web scraping and automation using Python. It integrates various libraries such as `requests`, `selenium`, and `BeautifulSoup` to facilitate tasks like fetching web pages, handling browser interactions, and parsing HTML content. The module also includes utility functions for random sleep intervals, retrying requests, and downloading files.
 
-This function introduces a random sleep interval between `min_t` and `max_t` seconds.
+Functions
+=========
+`random_sleep(max_t: int = 10, min_t: int = 1)`
+-----------------------------------------------
+### Function Overview
 
-#### Params
-- max_t (int): The maximum time in seconds for the random sleep interval. Defaults to 10.
-- min_t (int): The minimum time in seconds for the random sleep interval. Defaults to 1.
+Introduces a random sleep interval between `min_t` and `max_t` seconds to simulate human-like behavior or avoid overwhelming web servers.
+### Parameters
 
-#### Returns
+*   `max_t` (int): The maximum sleep time in seconds. Defaults to 10.
+*   `min_t` (int): The minimum sleep time in seconds. Defaults to 1.
+### Return Value
+
 None
 
-#### Notes
-This function is useful for introducing random delays in a program, which can be helpful for simulating human-like behavior when making requests or performing other actions.
+### Notes
 
-#### Example
+This function is useful for adding delays between requests to avoid being blocked by web servers.
+### Example
 ```python
-random_sleep(5, 2)
+random_sleep(5, 2)  # Sleeps for a random time between 2 and 5 seconds
 ```
+`get_requests_retry_session(retries=3, backoff_factor=0.3, status_forcelist=(500, 502, 504), session=None)`
+-----------------------------------------------------------------------------------------------------------
+### Function Overview
 
-### get_requests_retry_session -> Session
-**General Description**
+Creates a `requests.Session` object with automatic retry functionality for handling transient errors.
+### Parameters
 
-This function creates and returns a session object with automatic request retry functionality.
+*   `retries` (int): The number of retry attempts. Defaults to 3.
+*   `backoff_factor` (float): The delay factor between retries. Defaults to 0.3.
+*   `status_forcelist` (tuple): A tuple of HTTP status codes that should trigger a retry. Defaults to (500, 502, 504).
+*   `session` (requests.Session): An existing session object. If not provided, a new session is created.
+### Return Value
 
-#### Params
-- retries (int): The number of times to retry a request in case of failure. Defaults to 3.
-- backoff_factor (float): The factor by which the backoff time between retries increases. Defaults to 0.3.
-- status_forcelist (tuple): The HTTP status codes that should trigger a retry. Defaults to (500, 502, 504).
-- session (Session): An existing session object to use. If not provided, a new session object will be created.
+A `requests.Session` object with retry functionality.
+### Notes
 
-#### Returns
-- Session: The session object with retry functionality.
-
-#### Notes
-This function uses the `requests` library to create a session object with automatic request retry functionality based on the provided parameters.
-
-#### Example
+This function helps in making HTTP requests more robust by automatically retrying failed requests.
+### Example
 ```python
-session = get_requests_retry_session(retries=5, backoff_factor=0.5)
+session = get_requests_retry_session(retries=5)
+response = session.get("https://example.com")
 ```
+`get_url_page(url: str, coding='utf-8')`
+----------------------------------------
+### Function Overview
 
-### get_url_page -> str
-**General Description**
+Fetches the content of a web page from the given URL and decodes it using the specified encoding.
+### Parameters
 
-Given a URL and a character encoding, this function returns the decoded content of the page.
+*   `url` (str): The URL of the web page to fetch.
+*   `coding` (str): The character encoding of the page. Defaults to 'utf-8'.
+### Return Value
 
-#### Params
-- url (str): A string representing the URL to be visited.
-- coding (str): A string representing the character encoding of the page. Default is 'gbk'.
+The decoded content of the web page as a string.
+### Notes
 
-#### Returns
-- str: The decoded content of the page.
-
-#### Notes
-This function uses the `urllib` library to retrieve the content of the specified URL and decode it using the provided character encoding.
-
-#### Example
+This function uses `urllib` to make the HTTP request and handle cookies.
+### Example
 ```python
-content = get_url_page('https://example.com', 'utf-8')
+html_content = get_url_page("https://example.com")
+print(html_content)
 ```
+`get_url_page_s(url: str, coding='utf-8')`
+------------------------------------------
+### Function Overview
 
-### get_url_page_s -> str
-**General Description**
+A simplified version of `get_url_page` that handles exceptions and returns `-html-None` if an error occurs.
+### Parameters
 
-This function returns the HTML page content from the given URL. The function takes two parameters: `url` and `coding`. It tries to retrieve the HTML page content from the given URL using the `get_url_page` function, with the specified encoding. If it fails, it returns '-html-None'.
+*   `url` (str): The URL of the web page to fetch.
+*   `coding` (str): The character encoding of the page. Defaults to 'utf-8'.
+### Return Value
 
-#### Params
-- url (str): A string representing the URL of the web page to retrieve.
-- coding (str): A string representing the encoding of the HTML content. Default is 'gbk'.
+The decoded content of the web page as a string, or `-html-None` if an error occurs.
+### Notes
 
-#### Returns
-- str: The HTML page content from the given URL, or '-html-None' if retrieval fails.
+This function is useful for cases where robust error handling is required.
+### Example
+```python
+html_content = get_url_page_s("https://example.com")
+print(html_content)
+```
+`get_url_page_b(url: str, return_html_text: bool = False, debug: bool = False, coding='utf-8')`
+-----------------------------------------------------------------------------------------------
+### Function Overview
 
-#### Notes
-This function is a wrapper around the `get_url_page` function and provides a fallback option if the retrieval fails.
+Fetches the content of a web page and parses it using `BeautifulSoup`.
+### Parameters
 
-### get_url_page_b -> BeautifulSoup object, str (optional)
-**General Description**
+*   `url` (str): The URL of the web page to fetch.
+*   `return_html_text` (bool): Whether to return the raw HTML text. Defaults to False.
+*   `debug` (bool): Whether to enable debug mode. Defaults to False.
+*   `coding` (str): The character encoding of the page. Defaults to 'utf-8'.
+### Return Value
 
-This function takes a URL and returns the HTML page of the URL in a BeautifulSoup object. It has the option to return a string of the HTML text as well. It also takes optional arguments for debugging and specifying the coding of the page to be retrieved.
+A `BeautifulSoup` object representing the parsed HTML. If `return_html_text` is True, returns a tuple containing the `BeautifulSoup` object and the raw HTML text.
+### Notes
 
-#### Params
-- url (str): A string representing the URL to retrieve.
-- return_html_text (bool): A boolean indicating whether or not to return the HTML text as a string. Defaults to False.
-- debug (bool): A boolean indicating whether to use debug mode. Defaults to False.
-- coding: The coding of the page to retrieve. Defaults to 'gbk'.
+This function is useful for parsing HTML content for web scraping.
+### Example
+```python
+soup = get_url_page_b("https://example.com")
+print(soup.title.text)
+```
+`get_url_page_se(browser, url: str, return_html_text: bool = False, debug=False)`
+---------------------------------------------------------------------------------
+### Function Overview
 
-#### Returns
-- BeautifulSoup object: A BeautifulSoup object representing the HTML page of the URL.
-- str (optional): If `return_html_text` is True, it returns a string of the HTML text.
+Fetches the content of a web page using a Selenium WebDriver instance.
+### Parameters
 
-#### Notes
-This function uses the `get_url_page` and `BeautifulSoup` to retrieve the HTML content of the specified URL and parse it into a BeautifulSoup object. It also provides the option to return the HTML text as a string.
+*   `browser`: The WebDriver instance.
+*   `url` (str): The URL of the web page to fetch.
+*   `return_html_text` (bool): Whether to return the raw HTML text. Defaults to False.
+*   `debug` (bool): Whether to enable debug mode. Defaults to False.
+### Return Value
 
-### get_url_page_se -> BeautifulSoup object, str (optional)
-**General Description**
+A `BeautifulSoup` object representing the parsed HTML. If `return_html_text` is True, returns a tuple containing the `BeautifulSoup` object and the raw HTML text.
+### Notes
 
-Retrieves the HTML source code of a webpage given its URL using a webdriver instance.
+This function is useful for fetching dynamic content that requires browser interaction.
+### Example
+```python
+browser = get_browser("Chrome")
+soup = get_url_page_se(browser, "https://example.com")
+print(soup.title.text)
+```
+`get_browser(browser: str, browser_driver_path: str = None, options=['--no-sandbox', '--headless', f"--user-agent={Configs.web.chrome_driver_path:s}"], use_undetected: bool = False, download_path: str = None)`
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+### Function Overview
 
-#### Params
-- browser: The webdriver instance.
-- url (str): The URL of the webpage to retrieve.
-- return_html_text (bool): Whether or not to return the HTML source code as a string.
-- debug (bool): Whether or not to enable debug mode.
+Initializes and returns a Selenium WebDriver instance based on the specified browser and options.
+### Parameters
 
-#### Returns
-- If `return_html_text` is True, returns a tuple containing a BeautifulSoup object representing the parsed HTML and the raw HTML source code as a string. Otherwise, returns a BeautifulSoup object representing the parsed HTML.
+*   `browser` (str): The name of the browser (e.g., 'Chrome', 'Edge').
+*   `browser_driver_path` (str): The path to the browser driver executable. Defaults to None.
+*   `options` (list): A list of additional options for the browser. Defaults to `['--no-sandbox', '--headless']`.
+*   `use_undetected` (bool): Whether to use undetected\_chromedriver. Defaults to False.
+*   `download_path` (str): The path for downloaded files. Defaults to None.
+### Return Value
 
-#### Notes
-This function uses a webdriver instance to retrieve the HTML source code of a webpage and parse it into a BeautifulSoup object. It provides the option to return the HTML source code as a string.
+A Selenium WebDriver instance.
+### Notes
 
-### get_browser -> Browser
-**General Description**
+This function is useful for setting up a browser instance for web automation.
+### Example
+```python
+browser = get_browser("Chrome", options=['--no-sandbox'])
+```
+`add_cookies(browser, cookies_path: str = None, cookies_string: str = None)`
+----------------------------------------------------------------------------
+### Function Overview
 
-Initializes and returns a Selenium browser instance based on the specified browser name and driver path.
+Adds cookies to a Selenium WebDriver instance from a file or a string.
+### Parameters
 
-#### Params
-- browser (str): The name of the browser. Currently supported values are 'Edge' and 'Chrome'.
-- browser_driver_path (str, optional): The path to the browser driver executable. Defaults to None.
-- options (list, optional): A list of additional options to be passed to the browser. Defaults to ['--no-sandbox', '--headless'].
-- use_undetected (bool): Whether to use undetected_chromedriver or not.
+*   `browser`: The WebDriver instance.
+*   `cookies_path` (str): The path to a file containing cookies. Defaults to None.
+*   `cookies_string` (str): A string of cookies. Defaults to None.
+### Return Value
 
-#### Returns
-- Browser: An instance of the Selenium browser based on the specified browser name and options.
-
-#### Notes
-This function initializes and returns a Selenium browser instance based on the specified browser name and driver path. It also provides the option to use undetected_chromedriver.
-
-### add_cookies -> None
-**General Description**
-
-Adds cookies to the browser.
-
-#### Params
-- browser (object): The browser object to add the cookies to.
-- cookies_path (str, optional): The path to the file containing the cookies. Defaults to None.
-- cookies_string (str, optional): A string of cookies to add. Defaults to None.
-
-#### Returns
 None
 
-#### Raises
-- ValueError: If no cookies are specified.
+### Notes
 
-#### Description
-This function adds cookies to the specified browser object. It can add cookies from a file or from a string. If the `cookies_path` parameter is provided, the function will check if the file exists and is valid before parsing and adding the cookies. If the `cookies_string` parameter is provided, the function will directly parse and add the cookies from the string. If neither `cookies_path` nor `cookies_string` is provided, a `ValueError` will be raised.
+This function is useful for managing cookies in web automation.
+### Example
+```python
+add_cookies(browser, cookies_string="cookie1=value1; cookie2=value2")
+```
+`transfer_str2by(by: str)`
+--------------------------
+### Function Overview
 
-### transfer_str2by -> By
-**General Description**
+Converts a string representation of a Selenium `By` locator to the corresponding `By` object.
+### Parameters
 
-Transfers a string representation of a 'By' identifier to the corresponding 'By' object.
+*   `by` (str): The string representation of the locator (e.g., 'class', 'css', 'xpath').
+### Return Value
 
-#### Params
-- by (str): The string representation of the 'By' identifier.
-    - support class('By.CLASS_NAME'), css('By.CSS_SELECTOR'), xpath('By.XPATH')
+The corresponding `By` object.
+### Notes
 
-#### Returns
-- By: The corresponding 'By' object.
-
-#### Raises
-- ValueError: If the 'by' parameter is not one of the valid 'By' identifier strings.
-
-### wait_for_amount_elements -> list
-**General Description**
+This function simplifies the use of locators in Selenium.
+### Example
+```python
+by = transfer_str2by("class")
+```
+`wait_for_amount_elements(browser, by, element, count, timeout=10)`
+-------------------------------------------------------------------
+### Function Overview
 
 Waits for a specified number of elements to be present on the page.
+### Parameters
 
-#### Params
-- browser (WebDriver): The WebDriver instance used to interact with the browser.
-- by (str): The method used to locate the elements (e.g. "class", "css", "xpath").
-- element (str): The value used to locate the elements (e.g. the ID, class name, or xpath expression).
-- count (int): The number of elements to wait for.
-- timeout (int, optional): The maximum amount of time (in seconds) to wait for the elements to be present. Defaults to 10.
+*   `browser`: The WebDriver instance.
+*   `by`: The locator strategy (e.g., `By.CLASS_NAME`, `By.CSS_SELECTOR`, `By.XPATH`).
+*   `element` (str): The locator value.
+*   `count` (int): The number of elements to wait for.
+*   `timeout` (int): The maximum time to wait in seconds. Defaults to 10.
+### Return Value
 
-#### Returns
-- list: A list of WebElement objects representing the elements found.
+A list of `WebElement` objects representing the found elements.
+### Notes
 
-#### Raises
-- TimeoutException: If the elements are not found within the specified timeout.
+This function is useful for ensuring that a certain number of elements are present before proceeding.
+### Example
+```python
+elements = wait_for_amount_elements(browser, By.CSS_SELECTOR, ".example-class", 3)
+```
+`send_browser_key(browser, keys: str, element: str, by: str = 'class', wait: int = 5)`
+--------------------------------------------------------------------------------------
+### Function Overview
 
-### send_browser_key -> None
-**General Description**
+Sends a sequence of keystrokes to a specified element in a browser.
+### Parameters
 
-Sends a sequence of keystrokes to a specified element in a web browser.
+*   `browser`: The WebDriver instance.
+*   `keys` (str): The sequence of keystrokes to send.
+*   `element` (str): The locator value of the element.
+*   `by` (str): The locator strategy. Defaults to 'class'.
+*   `wait` (int): The maximum time to wait for the element in seconds. Defaults to 5.
+### Return Value
 
-#### Params
-- browser (WebDriver): The web browser instance.
-- keys (str): The sequence of keystrokes to send.
-- element (str): The identifier of the element to send the keystrokes to.
-- by (str, optional): The method used to locate the element. Defaults to 'class'.
-- wait (int, optional): The maximum time in seconds to wait for the element to be present. Defaults to 5.
-
-#### Returns
 None
 
-### click_browser -> None
-**General Description**
+### Notes
+
+This function is useful for interacting with web elements.
+### Example
+```python
+send_browser_key(browser, "Hello, World!", "input-field", by="css")
+```
+`click_browser(browser, element: str, by: str = 'class', wait: int = 5)`
+------------------------------------------------------------------------
+### Function Overview
 
 Clicks on a specified element in a browser.
+### Parameters
 
-#### Params
-- browser: The browser object on which to perform the click.
-- element (str): The identifier of the element to click on.
-- by (str, optional): The method to locate the element. Defaults to 'class'.
-- wait (int, optional): The maximum time to wait for the element to be present. Defaults to 5.
+*   `browser`: The WebDriver instance.
+*   `element` (str): The locator value of the element.
+*   `by` (str): The locator strategy. Defaults to 'class'.
+*   `wait` (int): The maximum time to wait for the element in seconds. Defaults to 5.
+### Return Value
 
-#### Returns
 None
 
-### scroll_browser -> None
-**General Description**
+### Notes
 
-Scroll the browser window either to the bottom or by a specific amount.
+This function is useful for interacting with web elements.
+### Example
+```python
+click_browser(browser, "button-class", by="css")
+```
+`scroll_browser(browser, scroll='bottom', duration=0)`
+------------------------------------------------------
+### Function Overview
 
-#### Params
-- browser (object): The browser object.
-- scroll (str|int): The scroll behavior. If set to 'bottom', the browser will be scrolled to the bottom. If set to an integer, the browser will be scrolled by that amount (in pixels).
-- duration (int): The duration (in seconds) for which the scroll operation should be performed. If set to 0, the scroll operation will be performed instantly.
+Scrolls the browser window to the specified position.
+### Parameters
 
-#### Returns
+*   `browser`: The WebDriver instance.
+*   `scroll` (str|int): The scroll behavior. Can be 'bottom' or an integer value. Defaults to 'bottom'.
+*   `duration` (int): The duration of the scroll in seconds. Defaults to 0.
+### Return Value
+
 None
 
-#### Raises
-- ValueError: If the scroll type is unknown.
+### Notes
 
-### download_streamly -> None
-**General Description**
+This function is useful for scrolling through web pages.
+### Example
+```python
+scroll_browser(browser, scroll=500, duration=2)
+```
+`download_streamly(url: str, path: str, session)`
+-------------------------------------------------
+### Function Overview
 
 Downloads a file from the given URL to the specified path using a streaming approach.
+### Parameters
 
-#### Params
-- url (str): The URL of the file to be downloaded.
-- path (str): The path where the downloaded file will be saved.
-- session (object): The session object used for making the HTTP request.
+*   `url` (str): The URL of the file to download.
+*   `path` (str): The local path to save the file.
+*   `session`: The HTTP session object.
+### Return Value
 
-#### Returns
 None
 
-### BrowserActionWarpper -> function
-**General Description**
+### Notes
 
-Decorator function and adds sleep functionality before and after the function call.
+This function is useful for downloading large files without loading them entirely into memory.
+### Example
+```python
+session = requests.Session()
+download_streamly("https://example.com/file.zip", "local_file.zip", session)
+```
 
-#### Warpped functon args
-- self: The instance of the class that the function is a method of.
-- *args: Positional arguments to be passed to the wrapped function.
-- sleep_before (Union[None, int, float, Tuple[int, int]]): Optional. The amount of time to sleep before the function call.
-- sleep_after (Union[None, int, float, Tuple[int, int]]): Optional. The amount of time to sleep after the function call.
-- **kwargs: Keyword arguments to be passed to the wrapped function.
+Classes
+=======
+`Browser`
+---------
+### Class Overview
 
-#### Returns
-The return value of the wrapped function.
+A class for web automation using Selenium WebDriver.
+### Initialization
+```python
+Browser(browser_name: str = 'Chrome', options: List[str] = ['--no-sandbox', '--headless'], use_undetected: bool = False, driver_path: str = None, download_path: str = None)
+```
+### Initialization Parameters
 
-### BrowserElementActionWarpper -> function
-**General Description**
+*   `browser_name` (str): The name of the browser (e.g., 'Chrome', 'Edge'). Defaults to 'Chrome'.
+*   `options` (List\[str\]): A list of additional options for the browser. Defaults to `['--no-sandbox', '--headless']`.
+*   `use_undetected` (bool): Whether to use undetected\_chromedriver. Defaults to False.
+*   `driver_path` (str): The path to the browser driver executable. Defaults to None.
+*   `download_path` (str): The path for downloaded files. Defaults to None.
+### Members
 
-Decorator function, find the element and adds sleep functionality before and after the function call.
+*   `browser_name` (str): The name of the browser.
+*   `options` (List\[str\]): The list of browser options.
+*   `use_undetected` (bool): Whether undetected\_chromedriver is used.
+*   `download_path` (str): The path for downloaded files.
+*   `browser`: The Selenium WebDriver instance.
+### Methods
 
-#### Warpped functon args
-- self: The instance of the class.
-- *args: Positional arguments passed to the wrapped function.
-- element (Union[None, str, ElementType]): The element to locate on the page. Defaults to None.
-- by (str): The locator strategy to use. Defaults to 'xpath'.
-- executor (str): The script executor to use. Defaults to 'JS'.
-- time_out (int): The maximum time to wait for the element to be present. Defaults to 5.
-- multi_idx (int): The index of the element to interact with in case multiple elements are found. Defaults to 0.
-- sleep_before (Union[None, int, float, Tuple[int, int]]): The sleep interval before executing the wrapped function. Defaults to None.
-- sleep_after (Union[None, int, float, Tuple[int, int]]): The sleep interval after executing the wrapped function. Defaults to (3, 1).
-- **kwargs: Keyword arguments passed to the wrapped function.
+#### `get(url: str, sleep_before: Union[None, int, float, Tuple[int, int]] = None, sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5))`
+##### Method Overview
 
-#### Returns
-The return value of the wrapped function.
+Navigates to the specified URL with optional sleep intervals before and after the request.
+##### Parameters
 
-#### Raises
-- TypeError: If `element` is not of type `None`, `str`, or `ElementType`.
-- TimeoutException: If the element is not found within the specified time out.
+*   `url` (str): The URL to navigate to.
+*   `sleep_before` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval before navigating. Defaults to None.
+*   `sleep_after` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval after navigating. Defaults to (10, 5).
+##### Return Value
 
-### Browser
-**General Description**
+The HTML content of the page as a string.
+##### Notes
 
-Browser class for web automation.
+This method is useful for navigating to web pages with delays to simulate human behavior.
+##### Example
+```python
+browser = Browser()
+html_content = browser.get("https://example.com", sleep_after=(5, 3))
+print(html_content)
+```
+#### `find_elements(element: str, by: str = 'xpath')`
+##### Method Overview
 
-#### Attributes
-- browser_name (str): The name of the browser.
-- options (List[str]): A list of additional options to be passed to the browser.
-- use_undetected (bool): Whether to use undetected_chromedriver or not.
-- browser (Browser): The Selenium browser instance.
+Finds elements on the page using the specified locator strategy.
+##### Parameters
 
-#### Methods
-- get(self, url: str, sleep_before: Union[None, int, float, Tuple[int, int]] = None, sleep_after: Union[None, int, float, Tuple[int, int]] = (10, 5))
-- execute_script(self, script: str, *args)
-- click(self, element: Union[str, ElementType], by: str = 'xpath', executor: str = 'element', 
-        time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, 
-        sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))
-- send_key(self, key, element: Union[str, ElementType], by: str = 'xpath', executor: str = 'element', 
-        time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, 
-        sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))
-- scroll_percent(self, dx: Union[str, float], dy: Union[str, float], duration: int,
+*   `element` (str): The locator value.
+*   `by` (str): The locator strategy. Defaults to 'xpath'.
+##### Return Value
+
+A list of `WebElement` objects representing the found elements.
+##### Notes
+
+This method is useful for locating elements on a web page.
+##### Example
+```python
+elements = browser.find_elements(".example-class", by="css")
+```
+#### `wait_element(element: Union[str, List[str]], by: str = 'xpath', timeout: int = 600, check_fn: Callable = None)`
+##### Method Overview
+
+Waits for an element or a list of elements to be present on the page.
+##### Parameters
+
+*   `element` (Union\[str, List\[str\]\]): The locator value or a list of locator values.
+*   `by` (str): The locator strategy. Defaults to 'xpath'.
+*   `timeout` (int): The maximum time to wait in seconds. Defaults to 600.
+*   `check_fn` (Callable): A custom function to check the presence of elements. Defaults to None.
+##### Return Value
+
+True if the elements are found within the timeout, False otherwise.
+##### Notes
+
+This method is useful for ensuring that elements are present before proceeding.
+##### Example
+```python
+browser.wait_element([".element1", ".element2"], timeout=300)
+```
+#### `wait_text(element: Union[str, List[str]], text: str, by: str = 'xpath', timeout: int = 600, check_fn: Callable = None)`
+##### Method Overview
+
+Waits for an element to contain the specified text.
+##### Parameters
+
+*   `element` (Union\[str, List\[str\]\]): The locator value or a list of locator values.
+*   `text` (str): The expected text.
+*   `by` (str): The locator strategy. Defaults to 'xpath'.
+*   `timeout` (int): The maximum time to wait in seconds. Defaults to 600.
+*   `check_fn` (Callable): A custom function to check the text. Defaults to None.
+##### Return Value
+
+True if the text is found within the timeout, False otherwise.
+##### Notes
+
+This method is useful for waiting for specific text to appear on a web page.
+##### Example
+```python
+browser.wait_text(".example-class", "Expected Text", timeout=300)
+```
+#### `execute_script(script: str, *args)`
+##### Method Overview
+
+Executes a JavaScript script in the context of the current page.
+##### Parameters
+
+*   `script` (str): The JavaScript script to execute.
+*   `*args`: Arguments to pass to the script.
+##### Return Value
+
+The result of the script execution.
+##### Notes
+
+This method is useful for executing custom JavaScript on a web page.
+##### Example
+```python
+result = browser.execute_script("return document.title;")
+print(result)
+```
+#### `click(element: Union[str, ElementType], by: str = 'xpath', executor: str = 'element', time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))`
+##### Method Overview
+
+Clicks on a specified element with optional sleep intervals before and after the click.
+##### Parameters
+
+*   `element` (Union\[str, ElementType\]): The locator value or the element object.
+*   `by` (str): The locator strategy. Defaults to 'xpath'.
+*   `executor` (str): The executor to use for the click action. Defaults to 'element'.
+*   `time_out` (int): The maximum time to wait for the element in seconds. Defaults to 5.
+*   `multi_idx` (int): The index of the element if multiple elements match the locator. Defaults to 0.
+*   `sleep_before` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval before clicking. Defaults to None.
+*   `sleep_after` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval after clicking. Defaults to (3, 1).
+##### Return Value
+
+None
+
+##### Notes
+
+This method is useful for interacting with web elements.
+##### Example
+```python
+browser.click(".example-class", by="css", sleep_after=(2, 1))
+```
+#### `send_key(key, element: Union[str, ElementType], by: str = 'xpath', executor: str = 'element', time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))`
+##### Method Overview
+
+Sends a sequence of keystrokes to a specified element with optional sleep intervals before and after the action.
+##### Parameters
+
+*   `key`: The sequence of keystrokes to send.
+*   `element` (Union\[str, ElementType\]): The locator value or the element object.
+*   `by` (str): The locator strategy. Defaults to 'xpath'.
+*   `executor` (str): The executor to use for the key press action. Defaults to 'element'.
+*   `time_out` (int): The maximum time to wait for the element in seconds. Defaults to 5.
+*   `multi_idx` (int): The index of the element if multiple elements match the locator. Defaults to 0.
+*   `sleep_before` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval before sending keys. Defaults to None.
+*   `sleep_after` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval after sending keys. Defaults to (3, 1).
+##### Return Value
+
+None
+
+##### Notes
+
+This method is useful for interacting with web elements.
+##### Example
+```python
+browser.send_key("Hello, World!", ".example-class", by="css", sleep_after=(2, 1))
+```
+#### `scroll_percent(dx: Union[str, float], dy: Union[str, float], duration: int, element: Union[None, str, ElementType], by: str = 'xpath', executor: str = 'JS', js_method: str = 'scrollBy', verbose: bool = False, time_out: int = 5, multi_idx: int = 0, sleep_before: Union[None, int, float, Tuple[int, int]] = None, sleep_after: Union[None, int, float, Tuple[int, int]] = (3, 1))`
+##### Method Overview
+
+Scrolls an element by a specified percentage of its scroll width and height.
+##### Parameters
+
+*   `dx` (Union\[str, float\]): The horizontal scroll percentage or 'bottom'.
+*   `dy` (Union\[str, float\]): The vertical scroll percentage or 'bottom'.
+*   `duration` (int): The duration of the scroll in seconds.
+*   `element` (Union\[None, str, ElementType\]): The locator value or the element object.
+*   `by` (str): The locator strategy. Defaults to 'xpath'.
+*   `executor` (str): The executor to use for the scroll action. Defaults to 'JS'.
+*   `js_method` (str): The JavaScript method to use for scrolling. Defaults to 'scrollBy'.
+*   `verbose` (bool): Whether to print debug information. Defaults to False.
+*   `time_out` (int): The maximum time to wait for the element in seconds. Defaults to 5.
+*   `multi_idx` (int): The index of the element if multiple elements match the locator. Defaults to 0.
+*   `sleep_before` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval before scrolling. Defaults to None.
+*   `sleep_after` (Union\[None, int, float, Tuple\[int, int\]\]): The sleep interval after scrolling. Defaults to (3, 1).
+##### Return Value
+
+None
+
+##### Notes
+
+This method is useful for scrolling through web pages or elements.
+##### Example
+```python
+browser.scroll_percent(0, 0.5, 2, ".example-class", by="css", sleep_after=(2, 1))
+```
