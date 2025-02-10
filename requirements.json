@@ -23,7 +23,8 @@
         "lxml",
         "crossref_commons",
         "tqdm",
-        "deprecated"
+        "deprecated",
+        "natsort"
     ],
     "bio":
     [
