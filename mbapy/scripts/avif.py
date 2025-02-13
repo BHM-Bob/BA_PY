@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-16 13:36:12
+LastEditTime: 2025-02-13 14:24:45
 Description: convert jpeg to avif
 '''
 import argparse
@@ -19,11 +19,8 @@ from tqdm import tqdm
 
 from mbapy.base import put_err, split_list
 from mbapy.file import format_file_size, get_paths_with_extension, opts_file
-
-if __name__ == '__main__':
-    from mbapy.scripts._script_utils_ import clean_path, show_args
-else:
-    from ._script_utils_ import clean_path, show_args
+from mbapy.scripts._script_utils_ import clean_path, show_args
+from mbapy.web_utils.task import TaskPool
 
 # disable waring: 
 # Limit to around a quarter gigabyte for a 24-bit (3 bpp) image
@@ -103,23 +100,14 @@ def main(sys_args: List[str] = None):
     if args.multi_process == 1:
         file_size = transfer_img(args, paths, dict(before=0, after=0))
     elif args.multi_process > 1:
-        from mbapy.web import TaskPool
         with Manager() as manager:
             file_size = manager.dict(before=0, after=0)
             pool, batches_name = TaskPool('process', args.multi_process).start(), []
             batches = split_list(paths, args.batch)
             # add tasks to pool
-            for batch in tqdm(batches, desc='adding batches'):
+            for batch in tqdm(batches, desc='processing batches'):
                 batches_name.append(pool.add_task(None, transfer_img, args, batch, file_size))
-            # wait for tasks done
-            last_done = pool.count_done_tasks()
-            bar = tqdm(total=len(batches), position=last_done, desc='processing batches')
-            while last_done < len(batches_name):
-                 # make sure progress bar update for done tasks, not added or in-progress tasks.
-                now_done = pool.count_done_tasks()
-                bar.update(now_done - last_done)
-                last_done = now_done
-                time.sleep(0.2)
+                pool.wait_till(lambda : pool.count_waiting_tasks() == 0, 0.01, update_result_queue=False)
             pool.wait_till_tasks_done(batches_name)
             # update file size
             file_size = dict(**file_size)
@@ -130,10 +118,6 @@ def main(sys_args: List[str] = None):
     print(f'after: {format_file_size(file_size["after"])}')
     print(f'decrease: {format_file_size(file_size["before"] - file_size["after"])}')
     print(f'rate: {round(file_size["after"] / file_size["before"] * 100, 2)}%')
-
-# dev code
-# main(['-i', r'E:\My_Progs\z_Progs_Data_HC', '-o', r'E:\My_Progs\z_Progs_Data_HC\avif',
-#       '-r', '-t', 'avif', '-q', '80', '-ifmt', 'jpg', '-m', '1'])
 
 
 if __name__ == "__main__":
