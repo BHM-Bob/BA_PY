@@ -494,7 +494,8 @@ class TaskPool:
             return self._thread_task_queue.empty()
         
     def wait_till(self, condition_func, wait_each_loop: float = 0.5,
-                  timeout: float = None, verbose: bool = False, *args, **kwargs):
+                  timeout: float = None, verbose: bool = False,
+                  update_result_queue: bool = True, *args, **kwargs):
         """
         wait till condition_func return True, or timeout.
         
@@ -502,22 +503,30 @@ class TaskPool:
             - condition_func (Callable): a function that return True or False.
             - wait_each_loop (float, default=0.1): sleep time in a loop while waiting.
             - timeout (float, default=None): timeout in seconds.
+            - verbose (bool, default=False): if True, use tqdm to show progress bar of done/sum.
+            - update_result_queue (bool, default=True): if True, call _thread_result_queue to update self.tasks and _thread_result_queue in each loop.
             - *args, **kwargs: other args for condition_func.
         
         Returns:
             - pool(TaskPool): retrun self for chaining.
             - False: means timeout.
+            
+        Notes:
+            - _query_task_queue will be called in each loop, so it will update self.tasks and _thread_result_queue.
         """
-        st = time.time()
+        if timeout is not None:
+            st = time.time()
         if verbose:
             bar =tqdm(desc='waiting', total=len(self.tasks), initial=self.count_done_tasks())
         while not condition_func(*args, **kwargs):
             if timeout is not None and time.time() - st > timeout:
                 return False
-            done = self.count_done_tasks() # call _query_task_queue to update _thread_result_queue and self.tasks
             if verbose:
+                done = self.count_done_tasks() # call _query_task_queue to update _thread_result_queue and self.tasks
                 bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
                 bar.update(self.count_done_tasks() - bar.n)
+            if update_result_queue:
+                self._query_task_queue(block=False) # call _query_task_queue to update _thread_result_queue and self.tasks
             time.sleep(wait_each_loop)
         return self
     
