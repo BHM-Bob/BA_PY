@@ -18,9 +18,9 @@ from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy_lite.base import parameter_checker, put_err, put_log
+    from mbapy_lite.base import parameter_checker, put_err, put_log, split_list
 else:
-    from ..base import parameter_checker, put_err, put_log
+    from ..base import parameter_checker, put_err, put_log, split_list
 
 statuesQue = Queue()
 Key2Action = namedtuple('Key2Action', ['statue', 'func', 'args', 'kwgs',
@@ -310,7 +310,7 @@ class TaskPool:
                 self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
             
     def _run_process_loop(self):
-        pool = multiprocessing.Pool(self.N_WORKER)
+        pool, running_que = multiprocessing.Pool(self.N_WORKER), Queue()
         while not self._thread_quit_event.is_set():
             # wait condition to be triggered
             with self._condition:
@@ -318,8 +318,8 @@ class TaskPool:
                         not self._thread_quit_event.is_set()):
                     self._condition.wait(timeout=self.sleep_while_empty)
             # get tasks for max N_WORKER tasks
-            tasks_to_submit = []
-            while len(tasks_to_submit) < self.N_WORKER:
+            tasks_to_submit, max_submit = [], self.N_WORKER - running_que.qsize()
+            while len(tasks_to_submit) < max_submit:
                 try:
                     task = self._thread_task_queue.get_nowait()
                     tasks_to_submit.append(task)
@@ -331,11 +331,14 @@ class TaskPool:
                 # define callback function
                 def success_callback(result, tn=task_name):
                     self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
+                    running_que.get()
                 def error_callback(error, tn=task_name):
                     self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
+                    running_que.get()
                 # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
                 pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
                                  callback=success_callback, error_callback=error_callback)
+                running_que.put(None)
         pool.close()
         
     def _run_isolated_process_loop(self):
