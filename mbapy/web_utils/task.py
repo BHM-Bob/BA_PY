@@ -291,14 +291,23 @@ class TaskPool:
         
     def _run_thread_loop(self):
         while not self._thread_quit_event.is_set():
-            if not self._thread_task_queue.empty():
-                task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
-                try:
-                    result = task_func(*task_args, **task_kwargs)
-                    self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
-                except Exception as e:
-                    self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-            time.sleep(0.1)
+            # wait condition to be triggered
+            with self._condition:
+                while (self._thread_task_queue.empty() and 
+                        not self._thread_quit_event.is_set()):
+                    self._condition.wait(timeout=self.sleep_while_empty)
+            # get one task
+            try:
+                task = self._thread_task_queue.get_nowait()
+            except queue.Empty:
+                continue
+            # run task
+            task_name, task_func, task_args, task_kwargs = task
+            try:
+                result = task_func(*task_args, **task_kwargs)
+                self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
+            except Exception as e:
+                self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
             
     def _run_process_loop(self):
         pool = multiprocessing.Pool(self.N_WORKER)
