@@ -2,6 +2,7 @@ import _thread
 import asyncio
 import multiprocessing
 import os
+import queue
 import re
 import threading
 import time
@@ -274,7 +275,8 @@ class TaskPool:
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
         self._thread_quit_event: threading.Event = threading.Event()
-        self.thread: threading.Thread = None
+        self._condition = threading.Condition()
+        self.thread: Union[threading.Thread, List[threading.Thread]] = None
         self.tasks = {}
         self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
@@ -299,27 +301,32 @@ class TaskPool:
             time.sleep(0.1)
             
     def _run_process_loop(self):
-        pool, tasks_cache = multiprocessing.Pool(self.N_WORKER), {}
+        pool = multiprocessing.Pool(self.N_WORKER)
         while not self._thread_quit_event.is_set():
-            # put async result into cache
-            if not self._thread_task_queue.empty():
-                task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
-                tasks_cache[task_name] = pool.apply_async(task_func, task_args, task_kwargs)
-            # make sure only N_WORKER tasks in cache
-            check_once = True
-            while len(tasks_cache) > self.N_WORKER or check_once:
-                check_once = False
-                # get finished tasks from cache
-                for task_name, task_result in list(tasks_cache.items()):
-                    if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
-                        try:
-                            self._thread_result_queue.put((task_name, task_result.get(),
-                                                        TaskStatus.SUCCEED))
-                        except Exception as e:
-                            self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-                        del tasks_cache[task_name]
-                time.sleep(self.sleep_while_empty)
-            time.sleep(self.sleep_while_empty)
+            # wait condition to be triggered
+            with self._condition:
+                while (self._thread_task_queue.empty() and 
+                        not self._thread_quit_event.is_set()):
+                    self._condition.wait(timeout=self.sleep_while_empty)
+            # get tasks for max N_WORKER tasks
+            tasks_to_submit = []
+            while len(tasks_to_submit) < self.N_WORKER:
+                try:
+                    task = self._thread_task_queue.get_nowait()
+                    tasks_to_submit.append(task)
+                except queue.Empty:
+                    break
+            # submit tasks to pool and set callback
+            for task in tasks_to_submit:
+                task_name, task_func, task_args, task_kwargs = task
+                # define callback function
+                def success_callback(result, tn=task_name):
+                    self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
+                def error_callback(error, tn=task_name):
+                    self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
+                # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
+                pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
+                                 callback=success_callback, error_callback=error_callback)
         pool.close()
         
     def _run_isolated_process_loop(self):
@@ -331,7 +338,9 @@ class TaskPool:
         return name
     
     def _add_task_thread(self, name: str, func, *args, **kwargs):
-        self._thread_task_queue.put((name, func, args, kwargs))
+        with self._condition:
+            self._thread_task_queue.put((name, func, args, kwargs))
+            self._condition.notify()
         return name
     
     def add_task(self, name: str, coro_func, *args, **kwargs) -> str:
