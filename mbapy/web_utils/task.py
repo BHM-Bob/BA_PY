@@ -10,6 +10,7 @@ from collections import namedtuple
 from enum import Enum
 from functools import partial
 from queue import Queue
+import traceback
 from typing import Any, Callable, Dict, List, Literal, Set, Tuple, Union
 from uuid import uuid4
 
@@ -328,7 +329,7 @@ class TaskPool:
             # submit tasks to pool and set callback
             for task in tasks_to_submit:
                 task_name, task_func, task_args, task_kwargs = task
-                # define callback function
+                # define callback function, these callback functions will be running in main-process's host thread.
                 def success_callback(result, tn=task_name):
                     self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
                     running_que.get()
@@ -416,6 +417,7 @@ class TaskPool:
         del self.tasks[name]
         if statue == TaskStatus.NOT_SUCCEEDED:
             put_err(f'Task {name} failed with {result}, return {result}')
+            traceback.print_exception(type(result), result, result.__traceback__)
         return result
     
     def query_single_task_from_tasks(self, tasks_name: List[str], block: bool = False, timeout: int = 3):
@@ -446,6 +448,7 @@ class TaskPool:
                 del self.tasks[name]
                 if statue == TaskStatus.NOT_SUCCEEDED:
                     put_err(f'Task {name} failed with {result}, return {result}')
+                    traceback.print_exception(type(result), result, result.__traceback__)
                 return result
         # Case 3 return
         return self.TASK_NOT_FINISHED
