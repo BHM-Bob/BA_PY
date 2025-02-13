@@ -2,6 +2,7 @@ import _thread
 import asyncio
 import multiprocessing
 import os
+import queue
 import re
 import threading
 import time
@@ -274,7 +275,8 @@ class TaskPool:
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
         self._thread_quit_event: threading.Event = threading.Event()
-        self.thread: threading.Thread = None
+        self._condition = threading.Condition()
+        self.thread: Union[threading.Thread, List[threading.Thread]] = None
         self.tasks = {}
         self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
         self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
@@ -289,37 +291,51 @@ class TaskPool:
         
     def _run_thread_loop(self):
         while not self._thread_quit_event.is_set():
-            if not self._thread_task_queue.empty():
-                task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
-                try:
-                    result = task_func(*task_args, **task_kwargs)
-                    self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
-                except Exception as e:
-                    self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-            time.sleep(0.1)
+            # wait condition to be triggered
+            with self._condition:
+                while (self._thread_task_queue.empty() and 
+                        not self._thread_quit_event.is_set()):
+                    self._condition.wait(timeout=self.sleep_while_empty)
+            # get one task
+            try:
+                task = self._thread_task_queue.get_nowait()
+            except queue.Empty:
+                continue
+            # run task
+            task_name, task_func, task_args, task_kwargs = task
+            try:
+                result = task_func(*task_args, **task_kwargs)
+                self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
+            except Exception as e:
+                self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
             
     def _run_process_loop(self):
-        pool, tasks_cache = multiprocessing.Pool(self.N_WORKER), {}
+        pool = multiprocessing.Pool(self.N_WORKER)
         while not self._thread_quit_event.is_set():
-            # put async result into cache
-            if not self._thread_task_queue.empty():
-                task_name, task_func, task_args, task_kwargs = self._thread_task_queue.get()
-                tasks_cache[task_name] = pool.apply_async(task_func, task_args, task_kwargs)
-            # make sure only N_WORKER tasks in cache
-            check_once = True
-            while len(tasks_cache) > self.N_WORKER or check_once:
-                check_once = False
-                # get finished tasks from cache
-                for task_name, task_result in list(tasks_cache.items()):
-                    if task_result.ready(): # 无论任务是否因异常结束，ready()都返回True
-                        try:
-                            self._thread_result_queue.put((task_name, task_result.get(),
-                                                        TaskStatus.SUCCEED))
-                        except Exception as e:
-                            self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-                        del tasks_cache[task_name]
-                time.sleep(self.sleep_while_empty)
-            time.sleep(self.sleep_while_empty)
+            # wait condition to be triggered
+            with self._condition:
+                while (self._thread_task_queue.empty() and 
+                        not self._thread_quit_event.is_set()):
+                    self._condition.wait(timeout=self.sleep_while_empty)
+            # get tasks for max N_WORKER tasks
+            tasks_to_submit = []
+            while len(tasks_to_submit) < self.N_WORKER:
+                try:
+                    task = self._thread_task_queue.get_nowait()
+                    tasks_to_submit.append(task)
+                except queue.Empty:
+                    break
+            # submit tasks to pool and set callback
+            for task in tasks_to_submit:
+                task_name, task_func, task_args, task_kwargs = task
+                # define callback function
+                def success_callback(result, tn=task_name):
+                    self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
+                def error_callback(error, tn=task_name):
+                    self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
+                # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
+                pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
+                                 callback=success_callback, error_callback=error_callback)
         pool.close()
         
     def _run_isolated_process_loop(self):
@@ -331,7 +347,9 @@ class TaskPool:
         return name
     
     def _add_task_thread(self, name: str, func, *args, **kwargs):
-        self._thread_task_queue.put((name, func, args, kwargs))
+        with self._condition:
+            self._thread_task_queue.put((name, func, args, kwargs))
+            self._condition.notify()
         return name
     
     def add_task(self, name: str, coro_func, *args, **kwargs) -> str:
@@ -476,7 +494,8 @@ class TaskPool:
             return self._thread_task_queue.empty()
         
     def wait_till(self, condition_func, wait_each_loop: float = 0.5,
-                  timeout: float = None, verbose: bool = False, *args, **kwargs):
+                  timeout: float = None, verbose: bool = False,
+                  update_result_queue: bool = True, *args, **kwargs):
         """
         wait till condition_func return True, or timeout.
         
@@ -484,22 +503,30 @@ class TaskPool:
             - condition_func (Callable): a function that return True or False.
             - wait_each_loop (float, default=0.1): sleep time in a loop while waiting.
             - timeout (float, default=None): timeout in seconds.
+            - verbose (bool, default=False): if True, use tqdm to show progress bar of done/sum.
+            - update_result_queue (bool, default=True): if True, call _thread_result_queue to update self.tasks and _thread_result_queue in each loop.
             - *args, **kwargs: other args for condition_func.
         
         Returns:
             - pool(TaskPool): retrun self for chaining.
             - False: means timeout.
+            
+        Notes:
+            - _query_task_queue will be called in each loop, so it will update self.tasks and _thread_result_queue.
         """
-        st = time.time()
+        if timeout is not None:
+            st = time.time()
         if verbose:
             bar =tqdm(desc='waiting', total=len(self.tasks), initial=self.count_done_tasks())
         while not condition_func(*args, **kwargs):
             if timeout is not None and time.time() - st > timeout:
                 return False
-            done = self.count_done_tasks() # call _query_task_queue to update _thread_result_queue and self.tasks
             if verbose:
+                done = self.count_done_tasks() # call _query_task_queue to update _thread_result_queue and self.tasks
                 bar.set_description(f'done/sum: {done}/{len(self.tasks)}')
                 bar.update(self.count_done_tasks() - bar.n)
+            if update_result_queue:
+                self._query_task_queue(block=False) # call _query_task_queue to update _thread_result_queue and self.tasks
             time.sleep(wait_each_loop)
         return self
     
@@ -508,6 +535,46 @@ class TaskPool:
         self.wait_till(lambda names: names.issubset(set([r[0] for r in self.tasks.values() if r != TaskStatus.NOT_RETURNED])),
                        wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
         return {name: self.query_task(name) for name in task_names}
+    
+    def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
+                  coro_func: Callable, batch_size: int = None, return_result: bool = True,
+                  timeout: int = 3, wait_busy: bool = False, **kwargs) -> Union[List[Any], Dict[str, Any]]:
+        """
+        map tasks to coro_func, and return the results.
+        
+        Parameters:
+            - tasks (Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]]): a list of (*args, **kwargs) or a dict of name - (*args, **kwargs) pairs.
+            - coro_func (Callable): a coroutine function.
+            - batch_size (int, default=None): if is int and >=1, split tasks into batches and pass batches(list) into coro_func, ONLY for list tasks.
+            - timeout (int, default=3): timeout in seconds.
+            - return_result (bool, default=True): if True, return the result of each task.
+            - **kwargs: other args for every coro_func call.
+
+        Returns:
+        """
+        if 'batch_size' in kwargs:
+            batch_size = kwargs.pop('batch_size')
+        if isinstance(tasks, list):
+            results = []
+            if isinstance(batch_size, int) and batch_size >= 1:
+                for batch in split_list(tasks, batch_size):
+                    results.append(self.add_task(None, coro_func, batch, **kwargs))
+                    if wait_busy:
+                        self.wait_till(lambda: self.count_waiting_tasks() == 0, 0.1)
+            else:
+                for ags, kgs in tasks:
+                    results.append(self.add_task(None, coro_func, *ags, **kgs, **kwargs))
+                    if wait_busy:
+                        self.wait_till(lambda: self.count_waiting_tasks() == 0, 0.1)
+            return [self.query_task(name, block=return_result, timeout=timeout) for name in results]
+        elif isinstance(tasks, dict):
+            for name, (ags, kgs) in tasks.items():
+                self.add_task(name, coro_func, *ags, **kgs, **kwargs)
+                if wait_busy:
+                    self.wait_till(lambda: self.count_waiting_tasks() == 0, 0.1)
+            return {name: self.query_task(name, block=return_result, timeout=timeout) for name in tasks}
+        else:
+            return put_err(f'Unsupported type of tasks: {type(tasks)}, return None and skip')
         
     def clear(self, clear_tasks: bool = True, clear_queue: bool = True):
         """
