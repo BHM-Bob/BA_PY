@@ -97,7 +97,6 @@ class plot_mass(Command):
         if os.path.exists(self.args.labels):
             self.args.labels = opts_file(self.args.labels)
         self.args.labels = process_peak_labels(self.args.labels)
-        self.args.xlim = eval(f'[{self.args.xlim}]') if self.args.xlim else None
         self.args.legend_bbox = eval(f'({self.args.legend_bbox})') # NOTE: can be invoked
         
     @staticmethod
@@ -370,8 +369,8 @@ def main(sys_args: List[str] = None):
                                 help='filter data with min height percent to hightest in label tag plot, default is %(default)s')
     plot_mass_args.add_argument('--min-peak-width', type = float, default=4,
                                 help='filter peaks with min width in Mass/Charge plot, default is %(default)s')
-    plot_mass_args.add_argument('-xlim', type = str, default=None,
-                                help='set x-axis limit, input as "200,2000", default is %(default)s')
+    plot_mass_args.add_argument('-xlim', type = float, nargs='+', default=None,
+                                help='set x-axis limit, input as "200 2000", default is %(default)s')
     plot_mass_args.add_argument('-col', '--color', type = str, default='black',
                                 help='draw color, default is %(default)s')
     plot_mass_args.add_argument('--marker-size', type = float, default=120,
