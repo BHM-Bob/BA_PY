@@ -66,7 +66,8 @@ def plot_single_mass_data(data: MassData, xlim, labels, labels_eps, show_fig, le
     plt.xticks(size = 20);plt.yticks(size = 20)
     plt.ylabel(f'{data.Y_HEADER}', fontdict={'size': 25})
     plt.xlabel(f'{data.X_HEADER}', fontdict={'size': 25})
-    plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
+    if xlim is None:
+        plt.xlim(data.peak_df[data.X_HEADER].min() * 0.8, data.peak_df[data.X_HEADER].max() * 1.2)
     plt.ylim(data.peak_df[data.Y_HEADER].min() * 0.8, data.peak_df[data.Y_HEADER].max() * 1.5)
     png_path = Path(data.data_file_path).with_suffix('.png')
     save_show(png_path, dpi = 600, show = show_fig, bbox_extra_artists = extra_artists)
