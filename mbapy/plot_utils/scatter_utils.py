@@ -180,7 +180,7 @@ def add_scatter_legend(scatters: Union[PathCollection, List[PathCollection]],
     reg_lines = [reg_lines] if isinstance(reg_lines, Line2D) else reg_lines
     reg_results = [reg_results] if isinstance(reg_results, dict) else reg_results
     # add main legend
-    ## set amin legend default kwgs
+    ## set main legend default kwgs
     d_main_h_kwgs = dict(_A=[0], numpoints=1, yoffsets=[0], sizes=[100], marker_pad=0)
     d_main_h_kwgs.update(main_h_kwgs or {})
     d_main_kwgs = dict(frameon=True, framealpha = 0.45, borderpad=1.2, borderaxespad=1, labelspacing=1)
