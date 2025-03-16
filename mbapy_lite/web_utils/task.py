@@ -341,6 +341,7 @@ class TaskPool:
                                  callback=success_callback, error_callback=error_callback)
                 running_que.put(None)
         pool.close()
+        pool.join()
         
     def _run_isolated_process_loop(self):
         raise NotImplementedError('isolated process mode is not implemented yet')
