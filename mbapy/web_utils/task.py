@@ -311,37 +311,36 @@ class TaskPool:
                 self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
             
     def _run_process_loop(self):
-        pool, running_que = multiprocessing.Pool(self.N_WORKER), Queue()
-        while not self._thread_quit_event.is_set():
-            # wait condition to be triggered
-            with self._condition:
-                while (self._thread_task_queue.empty() and 
-                        not self._thread_quit_event.is_set()):
-                    self._condition.wait(timeout=self.sleep_while_empty)
-            # get tasks for max N_WORKER tasks
-            tasks_to_submit, max_submit = [], self.N_WORKER - running_que.qsize()
-            while len(tasks_to_submit) < max_submit:
-                try:
-                    task = self._thread_task_queue.get_nowait()
-                    tasks_to_submit.append(task)
-                except queue.Empty:
-                    break
-            # submit tasks to pool and set callback
-            for task in tasks_to_submit:
-                task_name, task_func, task_args, task_kwargs = task
-                # define callback function, these callback functions will be running in main-process's host thread.
-                def success_callback(result, tn=task_name):
-                    self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
-                    running_que.get()
-                def error_callback(error, tn=task_name):
-                    self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
-                    running_que.get()
-                # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
-                pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
-                                 callback=success_callback, error_callback=error_callback)
-                running_que.put(None)
-        pool.close()
-        pool.join()
+        running_que = Queue()
+        with multiprocessing.Pool(self.N_WORKER) as pool:
+            while not self._thread_quit_event.is_set():
+                # wait condition to be triggered
+                with self._condition:
+                    while (self._thread_task_queue.empty() and 
+                            not self._thread_quit_event.is_set()):
+                        self._condition.wait(timeout=self.sleep_while_empty)
+                # get tasks for max N_WORKER tasks
+                tasks_to_submit, max_submit = [], self.N_WORKER - running_que.qsize()
+                while len(tasks_to_submit) < max_submit:
+                    try:
+                        task = self._thread_task_queue.get_nowait()
+                        tasks_to_submit.append(task)
+                    except queue.Empty:
+                        break
+                # submit tasks to pool and set callback
+                for task in tasks_to_submit:
+                    task_name, task_func, task_args, task_kwargs = task
+                    # define callback function, these callback functions will be running in main-process's host thread.
+                    def success_callback(result, tn=task_name):
+                        self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
+                        running_que.get()
+                    def error_callback(error, tn=task_name):
+                        self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
+                        running_que.get()
+                    # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
+                    pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
+                                    callback=success_callback, error_callback=error_callback)
+                    running_que.put(None)
         
     def _run_isolated_process_loop(self):
         raise NotImplementedError('isolated process mode is not implemented yet')
