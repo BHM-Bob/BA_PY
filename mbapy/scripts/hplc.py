@@ -109,7 +109,7 @@ class plot_hplc(Command):
         else:
             # make file labels again if no file labels given
             if not self.args.file_labels:
-                self.args.file_labels = [[n, 'black'] for n in self.dfs]
+                self.args.file_labels = [[n_i, 'black'] for (n_i, data_i) in self.dfs]
             all_file_labels = self.args.file_labels
             delattr(self.args, 'file_labels')
             for i, (tag, data) in enumerate(self.dfs):
