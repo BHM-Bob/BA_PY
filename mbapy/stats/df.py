@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-21 15:12:36
+LastEditTime: 2025-03-23 19:51:43
 Description: pd.dataFrame utils
 '''
 import itertools
@@ -44,26 +44,35 @@ def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     # pro
     if len(tags) == 0:
         tags = list(df.columns)[len(factors):]
-    factor_contents:List[List[str]] = [ df[f].unique().tolist() for f in factors ]
-    ndf = [factors.copy()]
-    for tag in tags:
-        ndf[0] += [tag, tag+'_SE', tag+'_N']
-    for factorCombi in itertools.product(*factor_contents):
-        factorMask = np.array(df[factors[0]] == factorCombi[0])
-        for i in range(1, len(factors)):
-            factorMask &= np.array(df[factors[i]] == factorCombi[i])
-        if factorMask.sum() >= min_sample_N:
-            line = []
-            for idx, tag in enumerate(tags):
-                values = np.array(df.loc[factorMask, [tag]])
-                line.append(values.mean())
-                if values.shape[0] > 1:
-                    line.append(values.std(ddof = 1)/np.sqrt(values.shape[0]))
-                else:
-                    line.append(np.NaN)
-                line.append(values.shape[0])
-            ndf.append(list(factorCombi) + line)
-    return pd.DataFrame(ndf[1:], columns=ndf[0])
+
+    def custom_agg(x):
+        if len(x) == 0:
+            # 返回完整的Series结构，确保所有统计量都存在
+            return pd.Series([np.nan, np.nan, 0], 
+                           index=['mean', 'SE', 'N'],
+                           name=x.name)  # 添加name属性保持结构一致
+        mean_val = x.mean()
+        se_val = x.std(ddof=1)/np.sqrt(len(x)) if len(x) > 1 else 0
+        n_val = len(x)
+        return pd.Series([mean_val, se_val, n_val], 
+                       index=['mean', 'SE', 'N'],
+                       name=x.name)  # 保持索引对齐
+
+    # 修改为apply方式处理分组
+    result = df.groupby(factors, dropna=False)[tags].apply(
+        lambda g: g.apply(custom_agg).unstack()
+    ).reset_index()
+    # 修复列名处理逻辑
+    new_columns = []
+    for col_tuple in result.columns:
+        if col_tuple[0] in factors or col_tuple[1] == 'mean':  # 处理分组列和统计量列的mean
+            new_columns.append(col_tuple[0])  # 取第一个元素作为列名
+        else:  # 处理统计量列
+            new_columns.append(f"{col_tuple[0]}_{col_tuple[1]}")  # 合并元组元素
+    result.columns = new_columns
+    result = result.reset_index()
+    result = result[result[[f'{tag}_N' for tag in tags]].min(axis=1) >= min_sample_N]
+    return result
 
 def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:List[str], **kwargs):
     """
