@@ -608,7 +608,7 @@ class TaskPool:
             self._thread_result_queue.get()
         return sizes
     
-    def close(self):
+    def close(self, timeout: float = None):
         """close the thread and event loop, join the thread"""
         # close async pool
         if self.MODE == 'async':
@@ -617,7 +617,7 @@ class TaskPool:
         # close thread and join it
         self._thread_quit_event.set()
         if self.MODE in ['async', 'thread', 'process']:
-            self.thread.join()
+            self.thread.join(timeout)
         elif self.MODE == 'threads':
             [t.join() for t in self.thread]
         # deactive IS_STARTED Flag
