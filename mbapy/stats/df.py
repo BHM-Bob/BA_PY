@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-10 20:59:26
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-03-23 19:51:43
+LastEditTime: 2025-03-23 20:50:13
 Description: pd.dataFrame utils
 '''
 import itertools
@@ -12,6 +12,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 import scipy
+from tqdm import tqdm
 
 if __name__ == '__main__':
     # dev mode
@@ -74,13 +75,14 @@ def pro_bar_data(factors:List[str], tags:List[str], df:pd.DataFrame, **kwargs):
     result = result[result[[f'{tag}_N' for tag in tags]].min(axis=1) >= min_sample_N]
     return result
 
-def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:List[str], **kwargs):
+def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:List[str], verbose: bool = False, **kwargs):
     """
     Params:
         - factors: list of factors to group by
         - tags: list of tags to calculate mean and SE for
         - df: input DataFrame
         - suffixs: list of suffixes for each tag, used to distinguish different tags with same name
+        - verbose: bool, whether to show progress bar of applying core_func or not
         - kwargs:
             - min_sample_N: int, min N threshold(>=)
             
@@ -100,27 +102,30 @@ def pro_bar_data_R(factors:List[str], tags:List[str], df:pd.DataFrame, suffixs:L
         def core_wrapper(**kwargs):
             min_sample_N = kwargs.get('min_sample_N', 1)
             assert min_sample_N > 0, 'min_sample_N <= 0 !'
+            # 自动填充tags逻辑
             nonlocal tags
             if len(tags) == 0:
                 tags = list(df.columns)[len(factors):]
-            factor_contents:List[List[str]] = [ df[f].unique().tolist() for f in factors ]
-            ndf = [factors.copy()]
+            # 使用groupby
+            grouped = df.groupby(factors, dropna=False)
+            # 保持多级分组处理
+            results = []
+            for name, group in tqdm(grouped, desc='pro_bar_data_R', total=grouped.ngroups, disable=not verbose):
+                if len(group) < min_sample_N:
+                    continue
+                # 处理每个tag的统计量
+                line = list(name) if isinstance(name, tuple) else [name]
+                for tag in tags:
+                    values = group[tag].dropna()
+                    ret_line = core_func(values if len(values) > 0 else np.array([np.nan]))
+                    line.extend(ret_line)
+                results.append(line)
+            # 生成带后缀的列名
+            columns = factors.copy()
             for tag in tags:
-                for suffix in suffixs:
-                    ndf[0] += [tag+suffix]
-            for factorCombi in itertools.product(*factor_contents):
-                factorMask = np.array(df[factors[0]] == factorCombi[0])
-                for i in range(1, len(factors)):
-                    factorMask &= np.array(df[factors[i]] == factorCombi[i])
-                if factorMask.sum() > min_sample_N:
-                    line = []
-                    for idx, tag in enumerate(tags):
-                        values = np.array(df.loc[factorMask, [tag]])
-                        ret_line = core_func(values)
-                        assert len(ret_line) == len(suffixs), 'length of return value of core_func != len(suffixs)'
-                        line += ret_line
-                    ndf.append(list(factorCombi) + line)
-            return pd.DataFrame(ndf[1:], columns=ndf[0])
+                columns.extend([f"{tag}{suffix}" for suffix in suffixs])
+            
+            return pd.DataFrame(results, columns=columns).dropna(how='all', subset=columns[len(factors):])
         return core_wrapper
     return ret_wrapper
 
