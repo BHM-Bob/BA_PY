@@ -246,12 +246,12 @@ def plot_positional_hue(factors:List[str], tags:List[str], df:pd.DataFrame, **kw
             nonlocal tags
             if len(tags) == 0:
                 tags = list(df.columns)[len(factors):]    
-            margs = get_wanted_args({'width':0.4, 'bar_space':0.2, 'xrotations':[0]*len(factors),
+            margs = get_wanted_args({'width':0.4, 'hue_space': 0.2, 'bar_space':0.2, 'xrotations':[0]*len(factors),
                                     'colors':plt.rcParams['axes.prop_cycle'].by_key()['color'],
                                     'offset':[(i+1)*(plt.rcParams['font.size']+8) for i in range(len(factors))]},
                                    kwargs)
             margs.xrotations.append(0)
-            xlabels, pos = pro_hue_pos(factors, df, margs.width, margs.bar_space)
+            xlabels, pos = pro_hue_pos(factors, df, margs.width, margs.hue_space, margs.bar_space)
             margs.add_arg('xlabels', xlabels)
             margs.add_arg('bottom', np.zeros(len(pos[0])), False)
             if 'bottom' in kwargs:
