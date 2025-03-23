@@ -366,6 +366,16 @@ class TaskPool:
         mode = 'async' if self.MODE == 'async' else 'thread'
         self.tasks[name] = TaskStatus.NOT_RETURNED
         return getattr(self, f'_add_task_{mode}')(name, coro_func, *args, **kwargs)
+    
+    def asign_callback(self, trg_name, callback_func, *args, **kwargs):
+        """
+        Parameters:
+            - trg_name (str): target task name.
+            - callback_func (Callable): callback function.
+            - *args (list): *args for callback function.
+            - **kwargs (dict): **kwargs for callback function.
+        """
+        raise NotImplementedError('asign_callback is not implemented yet')
 
     def _query_async_task_callback(self, future: asyncio.Future, task_name: str):
         try:
