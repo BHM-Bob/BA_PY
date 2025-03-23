@@ -253,7 +253,7 @@ def plot_positional_hue(factors:List[str], tags:List[str], df:pd.DataFrame, **kw
             margs.xrotations.append(0)
             xlabels, pos = pro_hue_pos(factors, df, margs.width, margs.hue_space, margs.bar_space)
             margs.add_arg('xlabels', xlabels)
-            margs.add_arg('bottom', np.zeros(len(pos[0])), False)
+            margs.add_arg('bottom', np.zeros(len(pos[0])))
             if 'bottom' in kwargs:
                 del kwargs['bottom']
             for yIdx, yName in enumerate(tags):
