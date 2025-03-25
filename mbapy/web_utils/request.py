@@ -185,7 +185,8 @@ def get_browser(browser:str, browser_driver_path:str = None,
         kwargs['service'] = Service(browser_driver_path)
     # return browser instance
     try:
-        return Browser(**kwargs)
+        browser = Browser(**kwargs)
+        return browser
     except:
         if browser_driver_path is not None and\
             'AppData/Local/Google/Chrome/Application' in browser_driver_path:
@@ -193,11 +194,14 @@ def get_browser(browser:str, browser_driver_path:str = None,
                 another_path = 'C:/Program Files/Google/Chrome/chromedriver.exe'
                 kwargs['service'] = Service(another_path)
                 put_err(f'can not use chromedriver with default setting, try {another_path}')
-                return Browser(**kwargs)
+                browser = Browser(**kwargs)
+                return browser
             except:
                 put_err(f'can not use chromedriver with default setting, return None')
-                # just raise error
-                return None
+        # 确保创建失败的实例也被清理
+        if 'browser' in locals():
+            browser.quit()
+        return None
                 
 
 def add_cookies(browser, cookies_path:str = None, cookies_string:str = None):
@@ -727,6 +731,26 @@ class Browser:
         else:
             return put_err(f'Not implemented with executor {executor},\
                 do nothing and return None')
+    
+    def close(self):
+        """显式关闭浏览器"""
+        if hasattr(self, 'browser') and self.browser:
+            try:
+                self.browser.quit()  # 使用quit()而不是close()来彻底结束进程
+            except Exception as e:
+                put_err(f'Error closing browser: {str(e)}')
+            self.browser = None
+            
+    def __del__(self):
+        """析构时自动关闭"""
+        self.close()
+        
+    # 添加上下文管理器支持
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 __all__ = [
