@@ -137,17 +137,12 @@ class mutation_weight(Command):
         self.verbose = True
         
     @staticmethod
-    def make_args(args: argparse.ArgumentParser):
-        args.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
-                          help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-        args.add_argument('-w', '--weight', type = str, default = '',
-                          help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
-        
+    def make_mutation_args(args: argparse.ArgumentParser):
         args.add_argument('--max-repeat', type = int, default = 0,
                           help='max times for repeat any AA in sequence at all, default is %(default)s.')
         args.add_argument('--each-repeat', type=str, default='',
                           help='each repeat times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
-        
+
         args.add_argument('--replace-aa', type=str, default='',
                           help='AAs to replace, input as "Cys(Acm),Trt", default is no AA to replace.')
         args.add_argument('--max-replace', type=int, default=0,
@@ -164,7 +159,15 @@ class mutation_weight(Command):
                           help='max times for deprotect any AA in sequence at all, 0 for no deprotection, None means seq len, default is %(default)s.')
         args.add_argument('--each-deprotection', type=str, default='',
                           help='each deprotection times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deprotection.')
+        return args
         
+    @staticmethod
+    def make_args(args: argparse.ArgumentParser):
+        args.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
+                          help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
+        args.add_argument('-w', '--weight', type = str, default = '',
+                          help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+        args = mutation_weight.make_mutation_args(args) # add mutation args to args parser, such as --max-repeate, --replace-aa, etc.
         args.add_argument('-o', '--out', type = str, default = None,
                           help='save results to output file/dir. Defaults None, do not save.')
         args.add_argument('-m', '--mass', action='store_true', default=False,
@@ -177,23 +180,7 @@ class mutation_weight(Command):
                           help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
         return args
     
-    def process_args(self):
-        if self.args.out is not None:
-            self.args.out = clean_path(self.args.out)
-            if os.path.isdir(self.args.out):
-                file_name = get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
-                self.args.out = os.path.join(self.args.out, file_name)
-            self.f = open(self.args.out, 'w')
-        else:
-            self.f = None
-        self.printf = partial(_print, f = self.f)
-        self.verbose = not self.args.disable_verbose
-        # task pool
-        if self.args.multi_process > 1:
-            self.task_pool = TaskPool('process', self.args.multi_process).start()
-        else:
-            self.task_pool = None
-        # mutation controls
+    def process_mutation_args(self):
         self.seq = Peptide(self.args.seq)
         def _strvec2intvec(args: argparse.Namespace, vec_name: str):
             each_name, max_name = f'each_{vec_name}', f'max_{vec_name}'
@@ -217,16 +204,39 @@ class mutation_weight(Command):
             else:
                 put_log(f'--repeat-aa not set, use all AAs in sequence to repeat.')
                 self.args.replace_aa = list(set(self.seq.AAs))
+    
+    def process_args(self):
+        if self.args.out is not None:
+            self.args.out = clean_path(self.args.out)
+            if os.path.isdir(self.args.out):
+                file_name = get_valid_file_path(" ".join(sys.argv[1:]))+'.txt'
+                self.args.out = os.path.join(self.args.out, file_name)
+            self.f = open(self.args.out, 'w')
+        else:
+            self.f = None
+        self.printf = partial(_print, f = self.f)
+        self.verbose = not self.args.disable_verbose
+        # task pool
+        if self.args.multi_process > 1:
+            self.task_pool = TaskPool('process', self.args.multi_process).start()
+        else:
+            self.task_pool = None
+        # mutation controls
+        self.process_mutation_args()
         
-    def main_process(self):
-        # show mother peptide info
-        peptide, expand_mw_dict = calcu_mw(self.args, _print = self.printf)
-        # make mutation opts
+    def generate_mutation_opts(self):
         opts = []
         for i in range(len(self.args.each_repeat)):
             opts.append(MutationOpts(self.args.each_deletion[i], self.args.each_repeat[i], self.args.each_replace[i],
                                      self.args.replace_aa, self.args.each_deprotection[i],
                                      self.args.each_deprotection[i], self.args.each_deprotection[i]))
+        return opts        
+        
+    def main_process(self):
+        # show mother peptide info
+        peptide, expand_mw_dict = calcu_mw(self.args, _print = self.printf)
+        # make mutation opts
+        opts = self.generate_mutation_opts()
         # calcu mutations, gather mutations, calcu mw and store in dict
         peps, mw2pep = calcu_peptide_mutations(self.seq, opts, self.args.mass,
                                                self.task_pool, self.args.batch_size,
@@ -241,6 +251,7 @@ class mutation_weight(Command):
                     mf = f'({pep.get_molecular_formula()})' if self.args.mass else ''
                     self.printf(f'    pep-{i:>4}-{j:<4}({idx:8d})({len(pep.AAs)} AA){mf}: {pep}', verbose = self.verbose)
                     idx += 1
+        return peps, mw2pep
 
 
 class cycmmw(Command):
@@ -248,7 +259,7 @@ class cycmmw(Command):
         super().__init__(args, printf)
         
 
-class fit_mass(Command):
+class fit_mass(mutation_weight):
     def __init__(self, args: argparse.Namespace, printf=print) -> None:
         super().__init__(args, printf)
         self.task_pool: TaskPool = None
@@ -269,12 +280,9 @@ class fit_mass(Command):
                           help='recursive search for seq file and mass files in dir, default is %(default)s')
         args.add_argument('-o', '--output', type=str, default='.',
                           help='output dir, default is %(default)s')
-        args.add_argument('--max-repeat', type = int, default = 1,
-                          help='max times for repeat a AA in sequence')
-        args.add_argument('--disable-aa-deletion', action='store_true', default=False,
-                          help='disable AA deletion in mutations.')
         args.add_argument('--multi-process', type = int, default = 4,
                           help='number of multi-process to use. Defaults 1, no multi-process.')
+        args = mutation_weight.make_mutation_args(args) # add mutation args to args parser, such as --max-repeate, --replace-aa, etc.
         args.add_argument('--batch-size', type = int, default = 500000,
                           help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
         args.add_argument('-eps', '--error-tolerance', type = float, default = 0.1,
@@ -328,11 +336,12 @@ class fit_mass(Command):
             if not self.mw2pep:
                 return put_err(f'no valid peptide found in {self.args.seq}, return None')
         else:
-            seq = Peptide(self.args.seq)
-            # calcu mutations
-            seqs = mutation_weight.generate_mutate_peps(seq, self.args)
-            # gather mutations, calcu mw and store in dict
-            _, self.mw2pep = mutation_weight.calcu_mutations_mw(seqs, self.args.mass, self.args.multi_process, self.args.batch_size)
+            self.process_mutation_args()
+            # make mutation opts
+            opts = self.generate_mutation_opts()
+            # calcu mutations, gather mutations, calcu mw and store in dict
+            _, self.mw2pep = calcu_peptide_mutations(self.seq, opts, self.args.mass,
+                                                     self.task_pool, self.args.batch_size, None)
         self.printf(f'{len(self.mw2pep)} peptides loaded')
         # process argument: mass_file
         mass_manager = plot_mass(self.args)
