@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-11 14:10:51
+LastEditTime: 2025-04-06 18:35:16
 Description: 
 '''
 from typing import List
@@ -137,8 +137,9 @@ class DataSetRAM():
     def _check_list(self, x):
         return [x] if not isinstance(x, list) else x
 
-    def split(self, divide:List[float],
-              x_transformer:list = None, y_transformer:list = None, dataset = SubDataSet):
+    def split(self, divide: List[float],
+              x_transformer: List = None, y_transformer: List = None, dataset = SubDataSet,
+              shuffle = True, drop_last = True):
         """divide : [0, 0.7, 0.9, 1] => train_70% val_20% test_10%"""
         ret = []
         if len(self.y) == 0:
@@ -150,9 +151,9 @@ class DataSetRAM():
             index2 = int(divide[idx+1]*self.size)
             ret.append(
                 DataLoader(
-                    dataset(args = self.args,
-                            x = self.x[index1 : index2], y = self.y[index1 : index2],
-                            x_transformer = x_transformer[idx], y_transformer = y_transformer[idx])
-                    ,batch_size = self.batch_size, shuffle = True, drop_last=True))
+                    dataset(args=self.args,
+                            x=self.x[index1:index2], y=self.y[index1:index2],
+                            x_transformer=x_transformer[idx], y_transformer=y_transformer[idx])
+                    ,batch_size=self.batch_size, shuffle=shuffle, drop_last=drop_last))
             self.args.mp.mprint(f'dataSet{idx:d} size:{index2-index1:d}')
         return ret
