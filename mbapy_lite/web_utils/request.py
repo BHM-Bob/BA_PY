@@ -576,7 +576,7 @@ class Browser:
         element = [element] if isinstance(element, str) else element
         check_fn = check_fn or all
         while not check_fn(self.find_elements(e, by) for e in element):
-            random_sleep(3)
+            random_sleep(min(1, timeout//10))
             if time.time() - st > timeout:
                 return False
         return True
