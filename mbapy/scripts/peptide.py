@@ -407,6 +407,8 @@ class fit_mass(mutation_weight):
                 data_i = self.match_single_mass_data(candidates, data_i, i, ms, h, charge, mono)
             # save result
             data_i.save_processed_data()
+        if self.args.multi_process > 1:
+            self.task_pool.close(1)
         
 
 class riddle_mass(fit_mass):
