@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-21 00:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-04-06 18:35:16
+LastEditTime: 2025-04-07 21:56:41
 Description: 
 '''
 from typing import List
@@ -141,14 +141,18 @@ class DataSetRAM():
               x_transformer: List = None, y_transformer: List = None, dataset = SubDataSet,
               shuffle = True, drop_last = True):
         """divide : [0, 0.7, 0.9, 1] => train_70% val_20% test_10%"""
+        use_ratio_idx = all([0 <= i <= 1 for i in divide])
         ret = []
         if len(self.y) == 0:
             self.y = [0] * self.size
         x_transformer = [None]*len(divide) if x_transformer is None else x_transformer
         y_transformer = [None]*len(divide) if y_transformer is None else y_transformer
         for idx in range(len(divide) - 1):
-            index1 = int(divide[idx  ]*self.size)
-            index2 = int(divide[idx+1]*self.size)
+            if not use_ratio_idx:
+                index1, index2 = divide[idx], divide[idx+1]
+            else:
+                index1 = int(divide[idx  ]*self.size)
+                index2 = int(divide[idx+1]*self.size)
             ret.append(
                 DataLoader(
                     dataset(args=self.args,
