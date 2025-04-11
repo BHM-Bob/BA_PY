@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-23 21:50:21
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-12 12:47:05
+LastEditTime: 2025-04-10 16:56:38
 Description: Basic Blocks
 '''
 
@@ -227,6 +227,7 @@ class MultiHeadAttentionLayer(nn.Module):
             self.fc_o = nn.Linear(hid_dim, kwargs['out_dim'])
         self.dropout = nn.Dropout(dropout)
         self.scale = 1.0 / torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
+        self.RoPE = None
     def forward(self, query, key, value, RoPE: RoPE = None,
                 mask = None, pad_id = None, return_attn = False):
         batch_size = query.shape[0]
@@ -237,7 +238,8 @@ class MultiHeadAttentionLayer(nn.Module):
         K = self.fc_k(key)
         V = self.fc_v(value)
         # RoPE
-        if RoPE is not None:
+        if RoPE is not None or self.RoPE is not None:
+            RoPE = self.RoPE or RoPE
             Q, K = RoPE(Q, K)
         # reshape and permute
         # Q = [batch size, query len, hid_dim] => [batch size, n heads, query len, head dim]
