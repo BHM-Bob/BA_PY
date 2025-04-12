@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-03-07 15:56:47
+LastEditTime: 2025-04-08 19:26:30
 Description: 
 '''
 
@@ -151,6 +151,8 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color, scatter_size=marker_size//4, marker=normal_marker)
     # plot labels tag
     if use_match_as_label and len(data.match_df) > 0:
+        if data.X_HEADER == data.X_M_HEADER:
+            put_log(f'using x-data like "Mass (charge)" on matched peaks may cause unexpected mass transfer results')
         has_label_matched = _plot_tag_by_match_df(ax, data.match_df, data, color, tag_fontsize, marker_size, tag_monoisotopic_only)
     else:
         has_label_matched = _plot_tag_by_string_label(ax, df, data, labels_eps, labels, color, tag_fontsize, marker_size, tag_monoisotopic_only)
