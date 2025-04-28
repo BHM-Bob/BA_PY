@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-05 15:12:32
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-05-02 16:20:29
+LastEditTime: 2025-02-15 11:46:08
 Description: 
 '''
 
@@ -25,7 +25,7 @@ else:
 def main(sys_args: List[str] = None):
     # set and parse args
     args_paser = argparse.ArgumentParser(description = 'move files with specific suffix or sub-string in name to root dir')
-    args_paser.add_argument('-t', '--type', type = str, default='',
+    args_paser.add_argument('-t', '--type', type = str, nargs='+', default=[],
                             help='format of files to remove, splited by ",". Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
@@ -39,7 +39,6 @@ def main(sys_args: List[str] = None):
                             help='FLAG, remove empty dir after move files. Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     # process args
-    args.type = args.type.split(',')
     args.input = clean_path(args.input)
     show_args(args, ['type', 'input', 'name', 'recursive', 'join_str', 'remove_dir'])
     

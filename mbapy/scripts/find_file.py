@@ -1,7 +1,7 @@
 '''
 Date: 2024-07-16 13:43:25
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-16 13:57:19
+LastEditTime: 2025-02-15 11:47:55
 Description: 
 '''
 
@@ -19,7 +19,7 @@ else:
 
 def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser(description = 'delete files with specific suffix or sub-string in name')
-    args_paser.add_argument('-t', '--type', type = str, default='',
+    args_paser.add_argument('-t', '--type', type = str, nargs='+', default=[],
                             help='format of files to remove, splited by ",". Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
@@ -31,7 +31,6 @@ def main(sys_args: List[str] = None):
                             help='FLAG, recursive search. Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     
-    args.type = args.type.split(',')
     # process IO path
     args.input = clean_path(args.input)
     if args.output is not None:

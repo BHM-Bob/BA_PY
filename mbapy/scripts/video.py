@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-05 12:03:34
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-12-10 18:50:51
+LastEditTime: 2025-02-15 11:51:37
 Description: 
 '''
 import argparse
@@ -9,9 +9,9 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-from tqdm import tqdm
-from PIL import Image
 from moviepy.editor import *
+from PIL import Image
+from tqdm import tqdm
 
 os.environ['MBAPY_AUTO_IMPORT_TORCH'] = 'False'
 os.environ['MBAPY_FAST_LOAD'] = 'True'
@@ -19,17 +19,22 @@ os.environ['MBAPY_FAST_LOAD'] = 'True'
 if __name__ == '__main__':
     from mbapy.base import put_err
     from mbapy.file import get_paths_with_extension
-    from mbapy.file_utils.video import extract_frames_by_index, extract_frame_to_img, extract_unique_frames
+    from mbapy.file_utils.video import (extract_frame_to_img,
+                                        extract_frames_by_index,
+                                        extract_unique_frames)
     from mbapy.scripts._script_utils_ import clean_path, show_args
 else:
     from ..base import put_err
     from ..file import get_paths_with_extension
-    from ..file_utils.video import extract_frames_by_index, extract_frame_to_img, extract_unique_frames
+    from ..file_utils.video import (extract_frame_to_img,
+                                    extract_frames_by_index,
+                                    extract_unique_frames)
     from ._script_utils_ import clean_path, show_args
     
     
 def edit_video(args):
     from moviepy.editor import VideoFileClip
+
     # process args
     args.input = clean_path(args.input)
     args.out = clean_path(args.out)
@@ -90,11 +95,10 @@ def extract_video(args):
                 start, end, step = map(int, args.frame_index.split(':'))
                 frames = extract_frames_by_index(path, list(range(start, end, step)))
             elif args.mode == 'all':
-                img_size = list(map(int, args.frame_size.split(',')))
                 save_dir = os.path.join(file_dir, f'{file_name.replace("."+file_type, "")}_frames')
                 frames = extract_frame_to_img(path, dir=save_dir,
                                               read_frame_interval=args.frame_interval,
-                                              img_size=img_size)
+                                              img_size=args.frame_size)
                 continue
             elif args.mode == 'unique':
                 frames = extract_unique_frames(
@@ -144,7 +148,7 @@ def main(sys_args: List[str] = None):
                               help='Frmae index to extract, format: start:end:step", Default is %(default)s.')
     extract_args.add_argument('-interval', '--frame-interval', type=int, default=0,
                               help='Frmae interval to extract, Default is %(default)s.')
-    extract_args.add_argument('-size', '--frame-size', type=str, default='-1,-1',
+    extract_args.add_argument('-size', '--frame-size', type=int, nargs='+', default=[-1, -1],
                               help='image size to save, format: width,height, Default is %(default)s.')
     extract_args.add_argument('-th', '--threshold', type=float, default=0.9,
                               help='threshold for image similarity, Default is %(default)s.')
