@@ -145,25 +145,25 @@ class mutation_weight(Command):
         
         args.add_argument('--max-repeat', type = int, default = 0,
                           help='max times for repeat any AA in sequence at all, default is %(default)s.')
-        args.add_argument('--each-repeat', type=str, default='',
-                          help='each repeat times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
+        args.add_argument('--each-repeat', type=int, nargs='+', default=[],
+                          help='each repeat times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
         
-        args.add_argument('--replace-aa', type=str, default='',
-                          help='AAs to replace, input as "Cys(Acm),Trt", default is no AA to replace.')
+        args.add_argument('--replace-aa', type=str, nargs='+', default=[],
+                          help='AAs to replace, input as "Cys(Acm) Trt", default is no AA to replace.')
         args.add_argument('--max-replace', type=int, default=0,
                           help='max times for any AA replacement in sequence at all, 0 for no replacement, default is %(default)s.')
-        args.add_argument('--each-replace', type=str, default='',
-                          help='each replacement times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-replace.')
+        args.add_argument('--each-replace', type=int, nargs='+', default=[],
+                          help='each replacement times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-replace.')
         
         args.add_argument('--max-deletion', type = int, default=None,
                           help='max times for any AA deletion in sequence at all, 0 for no deletion, None means seq len, default is %(default)s.')
-        args.add_argument('--each-deletion', type=str, default='',
-                          help='each deletion times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deletion.')
+        args.add_argument('--each-deletion', type=int, nargs='+', default=[],
+                          help='each deletion times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deletion.')
         
         args.add_argument('--max-deprotection', type=int, default=None,
                           help='max times for deprotect any AA in sequence at all, 0 for no deprotection, None means seq len, default is %(default)s.')
-        args.add_argument('--each-deprotection', type=str, default='',
-                          help='each deprotection times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deprotection.')
+        args.add_argument('--each-deprotection', type=int, nargs='+', default=[],
+                          help='each deprotection times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deprotection.')
         
         args.add_argument('-o', '--out', type = str, default = None,
                           help='save results to output file/dir. Defaults None, do not save.')
@@ -198,7 +198,7 @@ class mutation_weight(Command):
         def _strvec2intvec(args: argparse.Namespace, vec_name: str):
             each_name, max_name = f'each_{vec_name}', f'max_{vec_name}'
             if getattr(args, each_name):
-                intvec = [int(i) for i in getattr(args, each_name).split(',')]
+                intvec = getattr(args, each_name)
                 if len(intvec) != len(self.seq.AAs):
                     raise ValueError(f'--{each_name} must have the same length as the peptide sequence.')
                 return intvec
@@ -213,7 +213,7 @@ class mutation_weight(Command):
         self.args.max_deprotection = self.args.max_deprotection or len(self.seq.AAs)
         if self.args.each_replace or self.args.max_replace:
             if self.args.replace_aa:
-                self.args.replace_aa = [AnimoAcid(aa) for aa in self.args.replace_aa.split(',')]
+                self.args.replace_aa = [AnimoAcid(aa) for aa in self.args.replace_aa]
             else:
                 put_log(f'--repeat-aa not set, use all AAs in sequence to repeat.')
                 self.args.replace_aa = list(set(self.seq.AAs))
@@ -414,28 +414,28 @@ class riddle_mass(fit_mass):
         fit_mass.make_args(args)
         args.add_argument('--riddle-tolerance', type = float, default = 200,
                           help='make riddle if the transfered mass is within the error tolerance, default is %(default)s.')
-        args.add_argument('--leaving-groups', type = str, default = 'H,OH',
+        args.add_argument('--leaving-groups', type = str, nargs='+', default = ['H', 'OH'],
                           help='leaving groups for riddle, comma separated chemical formula string, default is %(default)s.')
-        args.add_argument('--atom-candidates', type=str, default='C,H,O,N,S',
+        args.add_argument('--atom-candidates', type=str, nargs='+', default=['C', 'H', 'O', 'N', 'S'],
                           help = 'atom candidates for riddle, default is %(default)s')
         args.add_argument('--method', type=str, default='exhaustivity', choices=['exhaustivity'],
                           help = 'method to generate solution for riddle, default is %(default)s')
-        args.add_argument('--atom-num-range', type=str, default='',
-                          help = 'atom candidates number range for riddle, input as "C,0,5;H,0,10", default is %(default)s')
-        args.add_argument('--riddle-mode', type=str, default='[M+H]+',
-                          help = 'iron mode for riddle, input as "[M+H]+,[M+Na]+", default is %(default)s')
+        args.add_argument('--atom-num-range', type=str, nargs='+', default=[],
+                          help = 'atom candidates number range for riddle, input as "C,0,5 H,0,10", default is %(default)s')
+        args.add_argument('--riddle-mode', type=str, nargs='+', default=['[M+H]+'],
+                          help = 'iron mode for riddle, input as "[M+H]+ [M+Na]+", default is %(default)s')
 
     def process_args(self):
         super().process_args()
-        self.args.leaving_groups = self.args.leaving_groups.split(',')
+        self.args.leaving_groups = self.args.leaving_groups
         self.leaving_groups_ms = [AnimoAcid.calc_exact_mass(formula=lg) for lg in self.args.leaving_groups]
-        self.args.atom_candidates = self.args.atom_candidates.split(',')
+        self.args.atom_candidates = self.args.atom_candidates
         self.atom_candidates_msd = {ac: AnimoAcid.atom_msd[ac] for ac in self.args.atom_candidates}
         self.atom_candidates_msa = np.array([self.atom_candidates_msd[ac] for ac in self.args.atom_candidates])
-        self.atom_candidates_range = {atom.split(',')[0]:atom.split(',')[1:] for atom in self.args.atom_num_range.split(';') if atom}
+        self.atom_candidates_range = {atom.split(',')[0]:atom.split(',')[1:] for atom in self.args.atom_num_range if atom}
         self.atom_num_min = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[0]) for ac in self.args.atom_candidates])
         self.atom_num_max = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[1]) for ac in self.args.atom_candidates])
-        self.ESI_IRON_MODE = {mode: iron for mode, iron in MassData.ESI_IRON_MODE.items() if mode in self.args.riddle_mode.split(',')}
+        self.ESI_IRON_MODE = {mode: iron for mode, iron in MassData.ESI_IRON_MODE.items() if mode in self.args.riddle_mode}
         self.unsaturation = np.array([2, -1, 0, 1, 0])
         
     def riddle_mass_value_by_exhaustivity(self, ms: float) -> Tuple[List[str], List[float]]:
