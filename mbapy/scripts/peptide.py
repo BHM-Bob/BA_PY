@@ -44,8 +44,8 @@ def calcu_substitution_value(args: argparse.Namespace):
     import seaborn as sns
     from sklearn.linear_model import LinearRegression
     
-    a = np.array([float(i) for i in args.absorbance.split(',') if len(i)])
-    m = np.array([float(i) for i in args.weight.split(',') if len(i)])
+    a = np.array(args.absorbance)
+    m = np.array(args.weight)
     mean_subval = np.mean(args.coff*a/m)
     print(f'\nSubstitution Value: {args.coff*a/m}')
     print(f'\nAvg Substitution Value: {mean_subval}')
@@ -92,7 +92,7 @@ def calcu_mw(args: argparse.Namespace, _print = print):
         Exact Mass: 118.07
         (<peptide object>, {'A': '71.04', 'C': '103.01', 'D': '115.03', 'E': '129.04'})
     """
-    expand_mw_dict = [i.split('-') for i in args.weight.split(',') if len(i) > 2]
+    expand_mw_dict = [i.split('-') for i in args.weight if len(i) > 2]
     expand_mw_dict = {i[0]:i[1] for i in expand_mw_dict}
     peptide = Peptide(args.seq)
     _print(f'\npeptide: {peptide}')
