@@ -567,18 +567,18 @@ def main(sys_args: List[str] = None):
     subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
     
     sub_val_args = subparsers.add_parser('subval', aliases = ['sb'], description='calcu SPPS substitution value for a release test of resin.')
-    sub_val_args.add_argument('-a', '-A', '--absorbance', '--Absorbance', type = str,
-                              help='Absorbance (OD value), input as 0.503,0.533')
-    sub_val_args.add_argument('-m', '-w', '--weight', type = str,
-                              help='resin wight (mg), input as 0.165,0.155')
+    sub_val_args.add_argument('-a', '-A', '--absorbance', '--Absorbance', type = float, nargs='+',
+                              help='Absorbance (OD value), input as 0.503 0.533')
+    sub_val_args.add_argument('-m', '-w', '--weight', type = float, nargs='+',
+                              help='resin wight (mg), input as 0.165 0.155')
     sub_val_args.add_argument('-c', '--coff', default = 16.4, type = float,
                               help='coff, default is 16.4')
     
     molecularweight = subparsers.add_parser('molecularweight', aliases = ['molecular-weight', 'mw'], description='calcu MW of peptide.')
     molecularweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
                                  help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-    molecularweight.add_argument('-w', '--weight', type = str, default = '',
-                                 help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+    molecularweight.add_argument('-w', '--weight', type = str, nargs='+', default = [],
+                                 help='MW of peptide AAs and protect group, input as Trt-243.34 Boc-101.13 and do not include weight of -H')
     molecularweight.add_argument('-m', '--mass', action='store_true', default=False,
                                  help='calcu Exact Mass instead of Molecular Weight.')
     
