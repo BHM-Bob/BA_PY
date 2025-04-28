@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-10-19 22:46:30
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-28 15:34:17
+LastEditTime: 2025-03-23 20:22:51
 Description: 
 '''
 import ctypes
@@ -488,26 +488,22 @@ def format_secs(sum_secs, fmt: str = None):
 
 class MyArgs():
     def __init__(self, args:dict) -> None:
-        self.__args = dict()
-        self.get_args(args)
+        self.__args = set()
+        self.get_args(args, True, False)
         
     def update_args(self, args:dict, force_update = True):
-        for arg_name in list(args.keys()):
-            if (arg_name not in self.__args) or force_update:
-                setattr(self, arg_name, args[arg_name])
-        return self
+        return self.get_args(args, force_update, False)
     
     def get_args(self, args:dict, force_update = True, del_kwargs = True):
-        for arg_name, arg_value in args.items():
+        for arg_name in list(args.keys()):
             if (arg_name not in self.__args) or force_update:
-                setattr(self, arg_name, arg_value)
-        if del_kwargs:
-            for arg_name in self.__args:
-                if arg_name in args:
+                self.add_arg(arg_name, args[arg_name])
+                if del_kwargs:
                     del args[arg_name]
         return self
     
-    def add_arg(self, arg_name:str, arg_value, force_update = True):
+    def add_arg(self, arg_name:str, arg_value):
+        self.__args.add(arg_name)
         setattr(self, arg_name, arg_value)
         
     def toDict(self):
@@ -782,6 +778,7 @@ __all__ = [
     'import_file_as_package',
     'run_cmd',    
 ]
+
 
 if __name__ == '__main__':
     # dev code

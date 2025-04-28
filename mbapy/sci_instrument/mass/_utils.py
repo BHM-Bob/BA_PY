@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-12 20:27:22
+LastEditTime: 2025-04-08 19:26:30
 Description: 
 '''
 
@@ -13,13 +13,13 @@ import numpy as np
 import pandas as pd
 
 if __name__ == '__main__':
-    from mbapy.base import get_default_for_None, put_err
+    from mbapy.base import get_default_for_None, put_err, put_log
     from mbapy.plot import get_palette, PLT_MARKERS
     from mbapy.sci_instrument._utils import \
         process_num_label_col_marker as process_peak_labels
     from mbapy.sci_instrument.mass._base import MassData
 else:
-    from ...base import get_default_for_None, put_err
+    from ...base import get_default_for_None, put_err, put_log
     from ...plot import get_palette, PLT_MARKERS
     from .._utils import process_num_label_col_marker as process_peak_labels
     from ._base import MassData
@@ -138,10 +138,11 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
         data.search_peaks(xlim, min_height, min_height_percent)
     df = data.peak_df.copy()
     # set xlim
+    auto_xlim = True if xlim is None else False
     xlim = get_default_for_None(xlim, (data.peak_df[data.X_HEADER].min(),
                                        data.peak_df[data.X_HEADER].max()))
     if verbose:
-        print(f'x-axis data limit set to {xlim}')
+        put_log(f'x-axis data limit set to {xlim}')
     df = df[(df[data.X_HEADER] >= xlim[0]) & (df[data.X_HEADER] <= xlim[1])] # repetitive code if data.peak_df is None
     # check if there has any peak
     if data.check_processed_data_empty(df):
@@ -150,6 +151,8 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
     _plot_vlines(ax, df[data.X_HEADER], df[data.Y_HEADER], color, scatter_size=marker_size//4, marker=normal_marker)
     # plot labels tag
     if use_match_as_label and len(data.match_df) > 0:
+        if data.X_HEADER == data.X_M_HEADER:
+            put_log(f'using x-data like "Mass (charge)" on matched peaks may cause unexpected mass transfer results')
         has_label_matched = _plot_tag_by_match_df(ax, data.match_df, data, color, tag_fontsize, marker_size, tag_monoisotopic_only)
     else:
         has_label_matched = _plot_tag_by_string_label(ax, df, data, labels_eps, labels, color, tag_fontsize, marker_size, tag_monoisotopic_only)
@@ -160,6 +163,9 @@ def plot_mass(data: MassData, ax: plt.Axes = None, fig_size: Tuple[float, float]
                            fontsize = legend_fontsize, draggable = True)
         _bbox_extra_artists.append(legend)
     # fix style
+    if not auto_xlim: # because when auto_xlim is True, the min x is in the edge of the figure
+        put_log(f'x-axis plot limit set to {xlim}')
+        ax.set_xlim(xlim)
     if is_y_log:
         ax.set_yscale('log')
     else:

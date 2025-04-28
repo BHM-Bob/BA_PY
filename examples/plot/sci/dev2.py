@@ -1,18 +1,17 @@
 '''
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-03-25 23:13:03
-LastEditors: BHM-Bob
-LastEditTime: 2023-04-03 11:24:53
+LastEditors: BHM-Bob 2262029386@qq.com
+LastEditTime: 2025-03-23 19:22:14
 Description: 
 '''
 import sys
 
-sys.path.append(r'../../../')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import plot
+from mbapy import plot
 
 # create bars
 ndf_peak = pd.read_excel(r"data/plot.xlsx", sheet_name="peak")

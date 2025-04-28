@@ -1,7 +1,7 @@
 '''
 Date: 2024-06-17 15:06:17
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-07-04 16:03:45
+LastEditTime: 2025-03-29 11:32:37
 Description: 
 '''
 
@@ -11,13 +11,13 @@ from typing import Dict, List, Tuple
 from tqdm import tqdm
 
 if __name__ == '__main__':
-    from mbapy.base import split_list
+    from mbapy.base import split_list, put_log
     from mbapy.bio.peptide import (AnimoAcid, MutationOpts, MutationTree,
                                    Peptide)
     from mbapy.file import opts_file
     from mbapy.web_utils.task import TaskPool
 else:
-    from ..base import split_list
+    from ..base import split_list, put_log
     from ..file import opts_file
     from ..web_utils.task import TaskPool
     from .peptide import AnimoAcid, MutationOpts, MutationTree, Peptide
@@ -118,12 +118,12 @@ def calcu_peptide_mutations(peptide: Peptide, mutate_opts: List[MutationOpts],
         aa_mutations = mutate_peptide(aa_mutations)
         seqs.append(aa_mutations.extract_mutations())
     seqs = list(itertools.product(*seqs))
-    print(f'Total number of mutated candidates: {len(seqs)}')
+    put_log(f'Total number of mutated candidates: {len(seqs)}')
     # calcu MW or Exact Mass
     if task_pool is None:
         peps, mw2pep = calcu_mutations_mw_in_batch(seqs, mass=mass, verbose=True)
     else:
-        print('Gathering mutations and Calculating molecular weight...')
+        put_log('Gathering mutations and Calculating molecular weight...')
         peps, mw2pep = {}, {}
         for i, batch in enumerate(split_list(seqs, batch_size)):
             task_pool.add_task(f'{i}', calcu_mutations_mw_in_batch, batch, mass, False)

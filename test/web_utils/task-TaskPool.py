@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-24 11:11:58
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-27 15:13:47
+LastEditTime: 2025-04-01 20:01:31
 Description: 
 '''
 import asyncio
@@ -120,7 +120,7 @@ class TaskPoolThreadsTest(unittest.TestCase):
         for i in range(n_woker):
             self.assertEqual(pool.query_task(f"task{i+1}"), f'Threads task{i+1} result')
         
-        pool.close()
+        pool.close(1)
         
         
 def TaskPoolProcessTest_example_function(name, seconds):
@@ -145,7 +145,7 @@ class TaskPoolProcessTest(unittest.TestCase):
         for i in range(n_worker):
             self.assertEqual(results[f"task{i+1}"], f'Process task{i+1} result')
         
-        pool.close()
+        pool.close(1)
         
         
 class TaskPoolMapTest(unittest.TestCase):
@@ -157,7 +157,7 @@ class TaskPoolMapTest(unittest.TestCase):
         results = pool.map_tasks(list(zip([[1]]*9, [{}]*9)), example_function, y=1)
         self.assertEqual(results, [2]*9)
         
-        pool.close()
+        pool.close(1)
         
     def test_dict(self):
         def example_function(x, y):
@@ -167,7 +167,7 @@ class TaskPoolMapTest(unittest.TestCase):
         results = pool.map_tasks({'a': ([1], {}), 'b': ([2], {}), 'c': ([3], {})}, example_function, y=1)
         self.assertEqual(results, {'a': 2, 'b': 3, 'c': 4})
         
-        pool.close()
+        pool.close(1)
         
     def test_list_batch(self):
         def example_function(x, y):
@@ -178,7 +178,7 @@ class TaskPoolMapTest(unittest.TestCase):
         results = pool.map_tasks(list(zip([[1]]*9, [{}]*9)), example_function, 3, y=1)
         self.assertEqual(results, [4]*3)
         
-        pool.close()
+        pool.close(1)
         
     def test_list_batch2(self):
         def example_function(x, y):
@@ -189,7 +189,7 @@ class TaskPoolMapTest(unittest.TestCase):
         results = pool.map_tasks(list(range(9)), example_function, 3, y=1)
         self.assertEqual(results, [sum(i)+1 for i in split_list(list(range(9)), 3)])
         
-        pool.close()
+        pool.close(1)
 
 
 if __name__ == '__main__':
