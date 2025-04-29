@@ -151,12 +151,12 @@ class mutation_weight(Command):
                           help='each replacement times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-replace.')
         
         args.add_argument('--max-deletion', type = int, default=None,
-                          help='max times for any AA deletion in sequence at all, 0 for no deletion, None means seq len, default is %(default)s.')
+                          help='max times for any AA deletion in sequence at all, 0 for no deletion, None means 1, default is %(default)s.')
         args.add_argument('--each-deletion', type=int, nargs='+', default=[],
                           help='each deletion times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deletion.')
         
         args.add_argument('--max-deprotection', type=int, default=None,
-                          help='max times for deprotect any AA in sequence at all, 0 for no deprotection, None means seq len, default is %(default)s.')
+                          help='max times for deprotect any AA in sequence at all, 0 for no deprotection, None means 1, default is %(default)s.')
         args.add_argument('--each-deprotection', type=str, default='',
                           help='each deprotection times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deprotection.')
         return args
