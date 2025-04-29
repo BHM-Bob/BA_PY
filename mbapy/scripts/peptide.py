@@ -142,11 +142,6 @@ class mutation_weight(Command):
                           help='max times for repeat any AA in sequence at all, default is %(default)s.')
         args.add_argument('--each-repeat', type=int, nargs='+', default=[],
                           help='each repeat times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
-        
-        args.add_argument('--replace-aa', type=str, nargs='+', default=[],
-                          help='AAs to replace, input as "Cys(Acm) Trt", default is no AA to replace.')
-        args.add_argument('--each-repeat', type=str, default='',
-                          help='each repeat times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
 
         args.add_argument('--replace-aa', type=str, default='',
                           help='AAs to replace, input as "Cys(Acm),Trt", default is no AA to replace.')
