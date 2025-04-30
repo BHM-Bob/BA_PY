@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-11-15 17:09:29
+LastEditTime: 2025-04-30 16:15:38
 Description: 
 '''
 from itertools import combinations
@@ -19,20 +19,31 @@ from statsmodels.stats.multicomp import MultiComparison
 import mbapy.stats.df as msd
 
 
-def get_interval(mean = None, se = None, data:Optional[Union[np.ndarray, List[int], pd.Series]] = None, confidence:float = 0.95):
+def get_interval(mean=None, se=None, data: Optional[Union[np.ndarray, List[int], pd.Series]] = None, confidence: float = 0.95):
     """
     置信区间\n
-    ± 1.96 * SE or other depends on confidence
+    ± t_(α/2) * SE（当使用t分布时）或 Z_(α/2) * SE（当使用正态分布时）
     """
     assert se is not None or data is not None, 'se is None and data is None'
-    kwargs = {
-        'scale':se if se is not None else scipy.stats.sem(data)       
-    }
-    if mean is not None:
-        kwargs.update({'loc':mean})
+    kwargs = {'loc': mean}
+    
     if data is not None:
-        kwargs.update({'df':len(data) - 1, 'loc':np.mean(data).item()})
-    return scipy.stats.norm.interval(confidence = confidence, loc = kwargs['loc'], scale = kwargs['scale']), kwargs
+        # 当提供数据时自动计算均值和标准误
+        kwargs['loc'] = np.mean(data).item()
+        kwargs['scale'] = scipy.stats.sem(data)
+        # 使用t分布（当总体方差未知时）
+        dist = scipy.stats.t
+        kwargs['df'] = len(data) - 1
+    else:
+        # 当直接提供se时使用正态分布
+        dist = scipy.stats.norm
+        kwargs['scale'] = se
+    
+    if mean is not None and data is None:
+        # 允许手动覆盖均值（当不提供数据时）
+        kwargs['loc'] = mean
+        
+    return dist.interval(confidence=confidence, **kwargs), kwargs
 
 def _get_x1_x2(x1 = None, x2 = None,
                factors:Dict[str, List[str]] = None, tag:str = None, df:pd.DataFrame = None):
