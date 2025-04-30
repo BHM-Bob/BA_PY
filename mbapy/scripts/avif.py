@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-02-13 14:24:45
+LastEditTime: 2025-02-15 11:44:20
 Description: convert jpeg to avif
 '''
 import argparse
@@ -78,8 +78,8 @@ def main(sys_args: List[str] = None):
                             help='output file path or dir path, default is %(default)s.')
     args_paser.add_argument('-rm', '--remove-origin', action='store_true', default=False,
                             help='FLAG, remove original files, default is %(default)s.')
-    args_paser.add_argument('-ifmt', '--input-format', type=str,
-                            default='jpg,jpeg,png,JPG,JPEG,PNG',
+    args_paser.add_argument('-ifmt', '--input-format', type=str, nargs='+',
+                            default=['JPG', 'JPEG', 'PNG', 'BMP', 'jpg', 'jpeg', 'png', 'bmp'],
                             help='output file path or dir path, default is %(default)s.')
     args_paser.add_argument('-m', '--multi-process', type=int, default=4,
                             help='number of processes for parallel processing, default is %(default)s.')
@@ -89,7 +89,6 @@ def main(sys_args: List[str] = None):
     
     args.input = clean_path(args.input)
     args.output = clean_path(args.output)
-    args.input_format = args.input_format.split(',')
     show_args(args, ['to', 'input', 'output', 'quality', 'remove_origin',
                      'input_format', 'multi_process', 'batch', 'recursive'])
     

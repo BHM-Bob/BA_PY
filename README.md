@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2025-01-04 20:30:33
+ * @LastEditTime: 2025-04-28 20:54:35
  * @Description: 
 -->
 
@@ -70,6 +70,8 @@ pip install git+https://gitee.com/BHM-Bob/BA_PY.git
 
 #### docs
 The documentation for mbapy can be found on [read the docs](https://ba-py.readthedocs.io/en/latest/) or just in the `docs` folder.
+
+<a href="https://deepwiki.com/BHM-Bob/BA_PY/1-overview"><img src="https://img.shields.io/badge/DeepWiKi-<COLOR>.svg" alt="DeepWiKi" style="display:inline-block; margin-left:auto; margin-right:auto;" /></a>
 
 #### web sites
 - open source at:  

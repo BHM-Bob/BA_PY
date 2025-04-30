@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-06 15:41:40
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-02-06 18:53:19
+LastEditTime: 2025-02-15 11:45:33
 Description: 
 '''
 
@@ -27,7 +27,7 @@ def main(sys_args: List[str] = None):
                             help='input/src files path or dir path.')
     args_paser.add_argument('-o', '--output', type=str,
                             help='output/dist files path or dir path.')
-    args_paser.add_argument('-t', '--type', type = str, default='',
+    args_paser.add_argument('-t', '--type', type = str, nargs='+', default=[],
                             help='format of files to remove, splited by ",". Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
@@ -36,7 +36,6 @@ def main(sys_args: List[str] = None):
     args = args_paser.parse_args(sys_args)
     
     # process args
-    args.type = args.type.split(',')
     args.input = clean_path(args.input)
     args.output = clean_path(args.output)
     show_args(args, ['input', 'output', 'type', 'name', 'recursive'])

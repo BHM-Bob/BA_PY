@@ -44,8 +44,8 @@ def calcu_substitution_value(args: argparse.Namespace):
     import seaborn as sns
     from sklearn.linear_model import LinearRegression
     
-    a = np.array([float(i) for i in args.absorbance.split(',') if len(i)])
-    m = np.array([float(i) for i in args.weight.split(',') if len(i)])
+    a = np.array(args.absorbance)
+    m = np.array(args.weight)
     mean_subval = np.mean(args.coff*a/m)
     print(f'\nSubstitution Value: {args.coff*a/m}')
     print(f'\nAvg Substitution Value: {mean_subval}')
@@ -92,7 +92,7 @@ def calcu_mw(args: argparse.Namespace, _print = print):
         Exact Mass: 118.07
         (<peptide object>, {'A': '71.04', 'C': '103.01', 'D': '115.03', 'E': '129.04'})
     """
-    expand_mw_dict = [i.split('-') for i in args.weight.split(',') if len(i) > 2]
+    expand_mw_dict = [i.split('-') for i in args.weight if len(i) > 2]
     expand_mw_dict = {i[0]:i[1] for i in expand_mw_dict}
     peptide = Peptide(args.seq)
     _print(f'\npeptide: {peptide}')
@@ -140,6 +140,11 @@ class mutation_weight(Command):
     def make_mutation_args(args: argparse.ArgumentParser):
         args.add_argument('--max-repeat', type = int, default = 0,
                           help='max times for repeat any AA in sequence at all, default is %(default)s.')
+        args.add_argument('--each-repeat', type=int, nargs='+', default=[],
+                          help='each repeat times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
+        
+        args.add_argument('--replace-aa', type=str, nargs='+', default=[],
+                          help='AAs to replace, input as "Cys(Acm) Trt", default is no AA to replace.')
         args.add_argument('--each-repeat', type=str, default='',
                           help='each repeat times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, default is follow --max-repeat.')
 
@@ -147,13 +152,13 @@ class mutation_weight(Command):
                           help='AAs to replace, input as "Cys(Acm),Trt", default is no AA to replace.')
         args.add_argument('--max-replace', type=int, default=0,
                           help='max times for any AA replacement in sequence at all, 0 for no replacement, default is %(default)s.')
-        args.add_argument('--each-replace', type=str, default='',
-                          help='each replacement times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-replace.')
+        args.add_argument('--each-replace', type=int, nargs='+', default=[],
+                          help='each replacement times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-replace.')
         
         args.add_argument('--max-deletion', type = int, default=None,
                           help='max times for any AA deletion in sequence at all, 0 for no deletion, None means seq len, default is %(default)s.')
-        args.add_argument('--each-deletion', type=str, default='',
-                          help='each deletion times for each AA in sequence, input as "0,1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deletion.')
+        args.add_argument('--each-deletion', type=int, nargs='+', default=[],
+                          help='each deletion times for each AA in sequence, input as "0 1" for Cys(Trt)-Leu-OH, max is 1, default is follow --max-deletion.')
         
         args.add_argument('--max-deprotection', type=int, default=None,
                           help='max times for deprotect any AA in sequence at all, 0 for no deprotection, None means seq len, default is %(default)s.')
@@ -425,28 +430,28 @@ class riddle_mass(fit_mass):
         fit_mass.make_args(args)
         args.add_argument('--riddle-tolerance', type = float, default = 200,
                           help='make riddle if the transfered mass is within the error tolerance, default is %(default)s.')
-        args.add_argument('--leaving-groups', type = str, default = 'H,OH',
+        args.add_argument('--leaving-groups', type = str, nargs='+', default = ['H', 'OH'],
                           help='leaving groups for riddle, comma separated chemical formula string, default is %(default)s.')
-        args.add_argument('--atom-candidates', type=str, default='C,H,O,N,S',
+        args.add_argument('--atom-candidates', type=str, nargs='+', default=['C', 'H', 'O', 'N', 'S'],
                           help = 'atom candidates for riddle, default is %(default)s')
         args.add_argument('--method', type=str, default='exhaustivity', choices=['exhaustivity'],
                           help = 'method to generate solution for riddle, default is %(default)s')
-        args.add_argument('--atom-num-range', type=str, default='',
-                          help = 'atom candidates number range for riddle, input as "C,0,5;H,0,10", default is %(default)s')
-        args.add_argument('--riddle-mode', type=str, default='[M+H]+',
-                          help = 'iron mode for riddle, input as "[M+H]+,[M+Na]+", default is %(default)s')
+        args.add_argument('--atom-num-range', type=str, nargs='+', default=[],
+                          help = 'atom candidates number range for riddle, input as "C,0,5 H,0,10", default is %(default)s')
+        args.add_argument('--riddle-mode', type=str, nargs='+', default=['[M+H]+'],
+                          help = 'iron mode for riddle, input as "[M+H]+ [M+Na]+", default is %(default)s')
 
     def process_args(self):
         super().process_args()
-        self.args.leaving_groups = self.args.leaving_groups.split(',')
+        self.args.leaving_groups = self.args.leaving_groups
         self.leaving_groups_ms = [AnimoAcid.calc_exact_mass(formula=lg) for lg in self.args.leaving_groups]
-        self.args.atom_candidates = self.args.atom_candidates.split(',')
+        self.args.atom_candidates = self.args.atom_candidates
         self.atom_candidates_msd = {ac: AnimoAcid.atom_msd[ac] for ac in self.args.atom_candidates}
         self.atom_candidates_msa = np.array([self.atom_candidates_msd[ac] for ac in self.args.atom_candidates])
-        self.atom_candidates_range = {atom.split(',')[0]:atom.split(',')[1:] for atom in self.args.atom_num_range.split(';') if atom}
+        self.atom_candidates_range = {atom.split(',')[0]:atom.split(',')[1:] for atom in self.args.atom_num_range if atom}
         self.atom_num_min = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[0]) for ac in self.args.atom_candidates])
         self.atom_num_max = np.array([int(self.atom_candidates_range.get(ac, (0, 10000))[1]) for ac in self.args.atom_candidates])
-        self.ESI_IRON_MODE = {mode: iron for mode, iron in MassData.ESI_IRON_MODE.items() if mode in self.args.riddle_mode.split(',')}
+        self.ESI_IRON_MODE = {mode: iron for mode, iron in MassData.ESI_IRON_MODE.items() if mode in self.args.riddle_mode}
         self.unsaturation = np.array([2, -1, 0, 1, 0])
         
     def riddle_mass_value_by_exhaustivity(self, ms: float) -> Tuple[List[str], List[float]]:
@@ -578,18 +583,18 @@ def main(sys_args: List[str] = None):
     subparsers = args_paser.add_subparsers(title='subcommands', dest='sub_command')
     
     sub_val_args = subparsers.add_parser('subval', aliases = ['sb'], description='calcu SPPS substitution value for a release test of resin.')
-    sub_val_args.add_argument('-a', '-A', '--absorbance', '--Absorbance', type = str,
-                              help='Absorbance (OD value), input as 0.503,0.533')
-    sub_val_args.add_argument('-m', '-w', '--weight', type = str,
-                              help='resin wight (mg), input as 0.165,0.155')
+    sub_val_args.add_argument('-a', '-A', '--absorbance', '--Absorbance', type = float, nargs='+',
+                              help='Absorbance (OD value), input as 0.503 0.533')
+    sub_val_args.add_argument('-m', '-w', '--weight', type = float, nargs='+',
+                              help='resin wight (mg), input as 0.165 0.155')
     sub_val_args.add_argument('-c', '--coff', default = 16.4, type = float,
                               help='coff, default is 16.4')
     
     molecularweight = subparsers.add_parser('molecularweight', aliases = ['molecular-weight', 'mw'], description='calcu MW of peptide.')
     molecularweight.add_argument('-s', '--seq', '--seqeunce', '--pep', '--peptide', type = str,
                                  help='peptide seqeunce, input as Fmoc-Cys(Acm)-Leu-OH or H-Cys(Trt)-Leu-OH')
-    molecularweight.add_argument('-w', '--weight', type = str, default = '',
-                                 help='MW of peptide AAs and protect group, input as Trt-243.34,Boc-101.13 and do not include weight of -H')
+    molecularweight.add_argument('-w', '--weight', type = str, nargs='+', default = [],
+                                 help='MW of peptide AAs and protect group, input as Trt-243.34 Boc-101.13 and do not include weight of -H')
     molecularweight.add_argument('-m', '--mass', action='store_true', default=False,
                                  help='calcu Exact Mass instead of Molecular Weight.')
     

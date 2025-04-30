@@ -1,7 +1,7 @@
 '''
 Date: 2024-04-15 21:01:33
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-06-27 22:05:26
+LastEditTime: 2025-02-15 11:47:09
 Description: 
 '''
 
@@ -29,8 +29,8 @@ def main(sys_args: List[str] = None):
     args_paser = argparse.ArgumentParser(description = 'count files with specific suffix or sub-string in name')
     args_paser.add_argument('-i', '--input', type=str, default='.',
                             help='input/src files path or dir path. Default is %(default)s.')
-    args_paser.add_argument('-t', '--type', type = str, default=[],
-                            help='format of files to count, splited by ",". Default is %(default)s')
+    args_paser.add_argument('-t', '--type', type = str, nargs='+', default=[],
+                            help='format of files. Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
     args_paser.add_argument('-r', '--recursive', action='store_true', default=False,
@@ -42,7 +42,6 @@ def main(sys_args: List[str] = None):
     args = args_paser.parse_args(sys_args)
     
     # process args
-    args.type = args.type.split(',') if args.type else args.type
     args.input = clean_path(args.input)
     show_args(args, ['input', 'type', 'name', 'recursive', 'enable_case', 'sort_by_name'])
     
