@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-10-17 10:43:07
+LastEditTime: 2025-05-02 18:53:28
 Description: 
 '''
 
@@ -11,6 +11,7 @@ import gzip
 import inspect
 import os
 import pickle
+import traceback
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
@@ -335,7 +336,8 @@ class BaseInfo:
             _dict_ = self.to_dict(True, True)
             mf.save_json(path, _dict_)
             return _dict_
-        except:
+        except Exception as e:
+            traceback.print_exception(type(e), e, e.__traceback__)
             return self.__dict__
         
     def from_json(self, path: str, global_vars:Dict = None):
