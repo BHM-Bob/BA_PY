@@ -102,7 +102,7 @@ def get_input(promot:str = '', end = '\n'):
         ret = statues_que_opts(statuesQue, "__inputs__", "getValue")
     statues_que_opts(statuesQue, "__inputs__", "setValue", None)
     return ret
-    
+
 def launch_sub_thread(statuesQue = statuesQue,
                       key2action: List[Tuple[str, Key2Action]] = []):
     """
@@ -226,7 +226,7 @@ class ThreadsPool:
             while not que.empty():
                 retList.append(que.get())
         return retList
-    
+
 class TaskStatus(Enum):
     SUCCEED = 0
     NOT_FOUND = 1
@@ -356,21 +356,21 @@ class TaskPool:
                     pool_is_free = True
                 else:
                     pool_is_free = False
-        
-    def _run_isolated_process_loop(self):
+
+    def _run_isolated_process_loop(self, reprot_error: bool = False):
         raise NotImplementedError('isolated process mode is not implemented yet')
 
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
         future.add_done_callback(partial(self._query_async_task_callback, task_name=name))
         return name
-    
+
     def _add_task_thread(self, name: str, func, *args, **kwargs):
         with self._condition:
             self._thread_task_queue.put((name, func, args, kwargs))
             self._condition.notify()
         return name
-    
+
     def add_task(self, name: str, coro_func, *args, **kwargs) -> str:
         # check name
         if name == '' or name is None:
@@ -381,7 +381,7 @@ class TaskPool:
         mode = 'async' if self.MODE == 'async' else 'thread'
         self.tasks[name] = TaskStatus.NOT_RETURNED
         return getattr(self, f'_add_task_{mode}')(name, coro_func, *args, **kwargs)
-    
+
     def asign_callback(self, trg_name, callback_func, *args, **kwargs):
         """
         Parameters:
@@ -399,7 +399,7 @@ class TaskPool:
         except Exception as e:
             put_err(f'error {e} when get result from queue') 
             self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-            
+
     def _query_task_queue(self, block: bool = True, timeout: int = 3):
         while not self._thread_result_queue.empty():
             try:
@@ -407,7 +407,7 @@ class TaskPool:
                 self.tasks[_name] = (_name, result, statue)
             except Exception as e:
                 put_err(f'error {e} when get result from queue')
-        
+
     def query_task(self, name: str, block: bool = False, timeout: int = 3):
         """
         Parameters:
@@ -444,7 +444,7 @@ class TaskPool:
             put_err(f'Task {name} failed with {result}, return {result}')
             traceback.print_exception(type(result), result, result.__traceback__)
         return result
-    
+
     def query_single_task_from_tasks(self, tasks_name: List[str], block: bool = False, timeout: int = 3):
         """
         Parameters:
@@ -477,7 +477,7 @@ class TaskPool:
                 return result
         # Case 3 return
         return self.TASK_NOT_FINISHED
-    
+
     def count_waiting_tasks(self):
         """
         - for async mode, return the number of unfinished tasks.
@@ -487,7 +487,7 @@ class TaskPool:
             return len([None for task in self.tasks.values() if not task.done()])
         elif self.MODE in ['thread', 'threads', 'process']:
             return self._thread_task_queue.qsize()
-        
+
     def count_done_tasks(self):
         """INCLUDE succeed and failed tasks."""
         self._query_task_queue(block=False)
@@ -498,7 +498,7 @@ class TaskPool:
     @deprecated("This method will be deprecated, use start method instead.")
     def run(self):
         return self.start()
-    
+
     def start(self):
         """start the thread and event loop"""
         if self.MODE == 'async':
@@ -513,7 +513,7 @@ class TaskPool:
             self.thread.start()
         self.IS_STARTED = True
         return self
-    
+
     def check_empty(self):
         """check tasks (undo and done) is empty"""
         if self.MODE == 'async':
@@ -523,7 +523,7 @@ class TaskPool:
             return True
         elif self.MODE in ['thread', 'threads', 'process']:
             return self._thread_task_queue.empty()
-        
+
     def wait_till(self, condition_func, wait_each_loop: float = 0.5,
                   timeout: float = None, verbose: bool = False,
                   update_result_queue: bool = True, *args, **kwargs):
@@ -560,13 +560,13 @@ class TaskPool:
                 self._query_task_queue(block=False) # call _query_task_queue to update _thread_result_queue and self.tasks
             time.sleep(wait_each_loop)
         return self
-    
+
     def wait_till_tasks_done(self, task_names: List[str],
                              wait_each_loop: float = 0.5) -> Dict[str, Union[Any, Literal[TaskStatus.NOT_FOUND], Literal[TaskStatus.NOT_FINISHED]]]:
         self.wait_till(lambda names: names.issubset(set([r[0] for r in self.tasks.values() if r != TaskStatus.NOT_RETURNED])),
                        wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
         return {name: self.query_task(name) for name in task_names}
-    
+
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
                   coro_func: Callable, batch_size: int = None, return_result: bool = True,
                   timeout: int = 3, wait_busy: bool = False, **kwargs) -> Union[List[Any], Dict[str, Any]]:
@@ -606,7 +606,7 @@ class TaskPool:
             return {name: self.query_task(name, block=return_result, timeout=timeout) for name in tasks}
         else:
             return put_err(f'Unsupported type of tasks: {type(tasks)}, return None and skip')
-        
+
     def clear(self, clear_tasks: bool = True, clear_queue: bool = True):
         """
         Clear the task pool, including tasks and queues.
@@ -632,8 +632,7 @@ class TaskPool:
         while not self._thread_result_queue.empty() and clear_queue:
             self._thread_result_queue.get()
         return sizes
-        
-    
+
     def close(self, timeout: float = None):
         """close the thread and event loop, join the thread"""
         # close async pool
