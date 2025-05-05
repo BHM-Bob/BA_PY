@@ -255,7 +255,7 @@ class TaskPool:
                                                     'threads', 'process',
                                                     'isolated_process'])
     def __init__(self, mode: str = 'async', n_worker: int = None,
-                 sleep_while_empty: float = 0.1):
+                 sleep_while_empty: float = 0.1, report_error: bool = False):
         """
         Parameters:
             - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
@@ -265,6 +265,7 @@ class TaskPool:
                 - If it's CPU heavy and wants run MULTI tasks at ONCE, use 'process'. Use multiprocessing.Pool to run MULTI tasks at ONCE.
             - n_worker (int, default=None): number of worker threads or processes.
             - sleep_while_empty (float, default=0.1): sleep time in a loop while task queue is empty.
+            - report_error (bool, default=False): whether to report error when task failed INSTANTLY. Only valid when mode is 'thread' or 'process'.
         """
         if mode in ['async', 'thread', 'isolated_process'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
@@ -272,6 +273,7 @@ class TaskPool:
         self.N_WORKER = n_worker
         self.IS_STARTED = False
         self.sleep_while_empty = sleep_while_empty
+        self.REPORT_ERROR = report_error
         self._async_loop: asyncio.AbstractEventLoop = None
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
@@ -286,11 +288,11 @@ class TaskPool:
         self.TIME_OUT = TaskStatus.TIME_OUT
         self.NO_TASK_LEFT = TaskStatus.ZERO_LEFT
 
-    def _run_async_loop(self):
+    def _run_async_loop(self, reprot_error: bool = False):
         asyncio.set_event_loop(self._async_loop)
         self._async_loop.run_forever()
-        
-    def _run_thread_loop(self):
+
+    def _run_thread_loop(self, reprot_error: bool = False):
         while not self._thread_quit_event.is_set():
             # wait condition to be triggered
             with self._condition:
@@ -308,9 +310,11 @@ class TaskPool:
                 result = task_func(*task_args, **task_kwargs)
                 self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
             except Exception as e:
+                if reprot_error:
+                    traceback.print_exception(type(result), result, result.__traceback__)
                 self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
-            
-    def _run_process_loop(self):
+
+    def _run_process_loop(self, reprot_error: bool = False):
         running_que = Queue()
         pool_free_condition, pool_is_free = threading.Condition(), True
         with multiprocessing.Pool(self.N_WORKER) as pool:
@@ -346,6 +350,8 @@ class TaskPool:
                         uniform_callback()
                     def error_callback(error, tn=task_name):
                         self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
+                        if reprot_error:
+                            traceback.print_exception(type(error), error, error.__traceback__)
                         uniform_callback()
                     # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
                     pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
