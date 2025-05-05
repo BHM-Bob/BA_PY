@@ -501,15 +501,25 @@ class TaskPool:
 
     def start(self):
         """start the thread and event loop"""
-        if self.MODE == 'async':
+        if self.MODE == "async":
             self._async_loop = asyncio.new_event_loop()
-        if self.MODE == 'threads':
+        if self.MODE == "threads":
             self.thread = []
             for _ in range(self.N_WORKER):
-                self.thread.append(threading.Thread(target=self._run_thread_loop, daemon=True))
+                self.thread.append(
+                    threading.Thread(
+                        target=self._run_thread_loop,
+                        args=(self.REPORT_ERROR,),
+                        daemon=True,
+                    )
+                )
                 self.thread[-1].start()
-        else: # async, thread and process only need one thread
-            self.thread = threading.Thread(target=getattr(self, f'_run_{self.MODE}_loop'), daemon=True)
+        else:  # async, thread and process only need one thread
+            self.thread = threading.Thread(
+                target=getattr(self, f"_run_{self.MODE}_loop"),
+                args=(self.REPORT_ERROR,),
+                daemon=True,
+            )
             self.thread.start()
         self.IS_STARTED = True
         return self
