@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-05-02 18:53:08
+LastEditTime: 2025-05-06 21:43:24
 Description: 
 '''
 
@@ -300,7 +300,7 @@ class BaseInfo:
             elif isinstance(v, np.ndarray):
                 return _transfer_np_ndarray(v, to_json, use_gzip)
             # v是numpy的标量, 调用_transfer_np_ndarray方法转换
-            elif any(isinstance(v, ty) for ty in [np.int_, np.float_, np.bool_]):
+            elif any(isinstance(v, ty) for ty in [np.int_, np.float16, np.float32, np.float64, np.bool_]):
                 return _transfer_np_scallar(v, to_json, use_gzip)
             # v是pygame.SurfaceType, 调用_transfer_pg_surface方法转换
             elif isinstance(v, pg.SurfaceType):
