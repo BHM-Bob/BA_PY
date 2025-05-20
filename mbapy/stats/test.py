@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-04-30 16:15:38
+LastEditTime: 2025-05-20 21:19:24
 Description: 
 '''
 from itertools import combinations
@@ -344,18 +344,19 @@ def turkey_to_table(turkey_result):
     table = pd.DataFrame(table_data, columns=['Group 1', 'Group 2', 'Mean Difference', 'p-value', 'Stars', 'Reject'])
     return table
 
-def multicomp_dunnett(factor:str, exp:List[str], control:str, df:pd.DataFrame, **kwargs):
+def multicomp_dunnett(factor: str, tag: str, exp:List[str], control:str, df:pd.DataFrame, **kwargs):
     """
     using SciPy 1.11 scipy.stats.dunnett, 用于比较一个处理组与其他多个处理组之间的差异\n
     Parameters:
     -----------
     factors: str, means colum name for expiremental factor and control factor
+    tag: str, data column name
     exp: list[str], sub factors stands for experiment group
     control: str, sub factors stands for control group
     df: pd.DataFrame
     """
-    exps = [np.array(df[factor][df[factor]==e]) for e in exp]
-    return scipy.stats.dunnett(*exps, np.array(df[factor][df[factor]==control]), **kwargs)
+    exps = [np.array(df[tag][df[factor]==e]) for e in exp]
+    return scipy.stats.dunnett(*exps, np.array(df[tag][df[factor]==control]), **kwargs)
 
 def multicomp_bonferroni(factors:Dict[str, List[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """
