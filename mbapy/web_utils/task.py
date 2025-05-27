@@ -235,6 +235,8 @@ class TaskStatus(Enum):
     NOT_RETURNED = 4
     TIME_OUT = 5
     ZERO_LEFT = 6
+    RUNNING = 7
+    QUEUED = 8
 
 class TaskPool:
     """
@@ -251,6 +253,16 @@ class TaskPool:
         
     Methods:
     """
+    TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
+    TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
+    TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
+    TASK_NOT_RETURNED = TaskStatus.NOT_RETURNED
+    TASK_IS_QUEUED = TaskStatus.QUEUED # TODO: use QUEUED to indicate task is queued, but not running
+    TASK_IS_RUNNING = TaskStatus.RUNNING # TODO: use RUNNING to indicate task is running, but not finished
+    TASK_IS_SUCCEEDED = TaskStatus.SUCCEED # TODO: use SUCCEED to indicate task is finished and succeeded
+    TASK_IS_FAILED = TaskStatus.NOT_SUCCEEDED # TODO: use FAILED to indicate task is finished and failed
+    TIME_OUT = TaskStatus.TIME_OUT
+    NO_TASK_LEFT = TaskStatus.ZERO_LEFT
     @parameter_checker(mode = lambda mode: mode in ['async', 'thread',
                                                     'threads', 'process',
                                                     'isolated_process'])
@@ -266,7 +278,7 @@ class TaskPool:
             - n_worker (int, default=None): number of worker threads or processes.
             - sleep_while_empty (float, default=0.1): sleep time in a loop while task queue is empty.
             - report_error (bool, default=False): whether to report error when task failed INSTANTLY. Only valid when mode is 'thread' or 'process'.
-        """
+        """# TODO: use billiard.Pool to support multi-process in child processes
         if mode in ['async', 'thread', 'isolated_process'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
@@ -281,12 +293,6 @@ class TaskPool:
         self._condition = threading.Condition()
         self.thread: Union[threading.Thread, List[threading.Thread]] = None
         self.tasks = {}
-        self.TASK_NOT_FOUND = TaskStatus.NOT_FOUND        
-        self.TASK_NOT_FINISHED = TaskStatus.NOT_FINISHED
-        self.TASK_NOT_SUCCEEDED = TaskStatus.NOT_SUCCEEDED
-        self.TASK_NOT_RETURNED = TaskStatus.NOT_RETURNED
-        self.TIME_OUT = TaskStatus.TIME_OUT
-        self.NO_TASK_LEFT = TaskStatus.ZERO_LEFT
 
     def _run_async_loop(self, reprot_error: bool = False):
         asyncio.set_event_loop(self._async_loop)
