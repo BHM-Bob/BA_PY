@@ -36,8 +36,12 @@ def search_IF(query:str, proxies = None):
         - abbr_name (str): The abbreviated name of the journal.
         - subjects (list[str]): A list of subjects covered by the journal.
         - impact_factor (str): The impact factor of the journal.
-        - wos_q (str): The WOS query associated with the journal.
+        - jcr_q (str): The Journal Citation Reports (JCR) quartile of the journal.
+        - jci_q (str): The Journal Citation Index (JCI) quartile of the journal.
         - cas_q (str): The CAS query associated with the journal.
+        - publish_period (str): The publish period of the journal.
+        - exam_period (str): The exam period of the journal.
+        - self_cite_ratio (str): The self-cite ratio of the journal.
     
     If no results are found, an error message is returned.
     """
