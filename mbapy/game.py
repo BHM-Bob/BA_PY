@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-01-24 17:32:09
+LastEditTime: 2025-05-06 21:43:24
 Description: 
 '''
 
@@ -11,6 +11,7 @@ import gzip
 import inspect
 import os
 import pickle
+import traceback
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
@@ -299,7 +300,7 @@ class BaseInfo:
             elif isinstance(v, np.ndarray):
                 return _transfer_np_ndarray(v, to_json, use_gzip)
             # v是numpy的标量, 调用_transfer_np_ndarray方法转换
-            elif any(isinstance(v, ty) for ty in [np.int_, np.float_, np.bool_]):
+            elif any(isinstance(v, ty) for ty in [np.int_, np.float16, np.float32, np.float64, np.bool_]):
                 return _transfer_np_scallar(v, to_json, use_gzip)
             # v是pygame.SurfaceType, 调用_transfer_pg_surface方法转换
             elif isinstance(v, pg.SurfaceType):
@@ -469,7 +470,8 @@ class BaseInfo:
             _dict_ = self.to_dict(True, True)
             mf.save_json(path, _dict_)
             return _dict_
-        except:
+        except Exception as e:
+            traceback.print_exception(type(e), e, e.__traceback__)
             return self.__dict__
         
     def from_json(self, path: str, global_vars:Dict = None):
