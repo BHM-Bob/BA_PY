@@ -50,14 +50,19 @@ def search_IF(query:str, proxies = None):
         page = etree.HTML(res.text)
         full_name = page.xpath("//tbody/tr[1]//td[2]/text()")[0]
         abbr_name = page.xpath("//tbody/tr[2]//td[2]/text()")[0]
-        if query == full_name or query == abbr_name:
+        if query.upper() == full_name.upper() or query.upper() == abbr_name.upper():
             subjects = page.xpath("//tbody/tr[3]/td[2]/div/span/@title")
             subjects = [subject.replace('\n', ' | ') for subject in subjects]
-            impact_factor = page.xpath("//tbody/tr[6]/td[2]/span/text()")[0]
-            wos_q = page.xpath("//tbody/tr[12]/td[2]/table/tbody/tr/td/div/span/text()")[0]
-            cas_q = page.xpath("//tbody/tr[13]/td[2]/table/tbody/tr/td/div/span/text()")[0]
+            impact_factor = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[7]/td[2]/span[1]/text()')[0]
+            jcr_q = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[14]/td[2]/table[1]/tbody/tr/td[3]/span/text()')[0]
+            jci_q = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[14]/td[2]/table[2]/tbody/tr/td[3]/span/text()')[0]
+            cas_q = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[15]/td[2]/table/tbody/tr/td[2]/div/span[1]/text()')[0]
+            publish_period = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[26]/td[2]/text()')[0]
+            exam_period = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[32]/td[2]/text()')[0]
+            self_cite_ratio = page.xpath('//*[@id="LAY_ucm"]/div/div/div[1]/table/tbody/tr[11]/td[2]/text()')[0]
             return {'full_name': full_name, 'abbr_name': abbr_name, 'subjects': subjects,
-                    'impact_factor': impact_factor, 'wos_q': wos_q, 'cas_q': cas_q}
+                    'impact_factor': impact_factor, 'jcr_q': jcr_q, 'jci_q': jci_q, 'cas_q': cas_q,
+                    'publish_period': publish_period, 'exam_period': exam_period, 'self_cite_ratio': self_cite_ratio}
     return put_err('No results found', None)
     
 @parameter_checker(check_parameters_len, raise_err = False)
@@ -329,6 +334,7 @@ if __name__ == '__main__':
     from mbapy.file import read_json
 
     # search
+    print(search_IF('IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING'))
     # search_result_bd = search_by_baidu('linaclotide', 11, use_browser=True, use_undetected=True)
-    search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
-    search_result_wos = search_by_wos("linaclotide", 61, browser_driver_path=web.CHROMEDRIVERPATH)
+    # search_result_pm = search_by_pubmed('linaclotide', read_json('./data_tmp/id.json')['edu_email'], 11)
+    # search_result_wos = search_by_wos("linaclotide", 61, browser_driver_path=web.CHROMEDRIVERPATH)
