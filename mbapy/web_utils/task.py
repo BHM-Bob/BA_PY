@@ -322,7 +322,7 @@ class TaskPool:
 
     def _run_process_loop(self, reprot_error: bool = False):
         running_que = Queue()
-        pool_free_condition, pool_is_free = threading.Condition(), True
+        pool_free_condition = threading.Condition()
         with multiprocessing.Pool(self.N_WORKER) as pool:
             while not self._thread_quit_event.is_set():
                 # wait task add signal to be triggered
@@ -331,8 +331,8 @@ class TaskPool:
                             not self._thread_quit_event.is_set()):
                         # with timeout=None, because the finished-task post process is automatic in callback threads
                         self._condition.wait(timeout=None)
-                # wait pool free condition to be triggered
-                if not pool_is_free:
+                # if pool is busy, wait pool free condition to be triggered
+                if self.N_WORKER < running_que.qsize():
                     with pool_free_condition:
                         pool_free_condition.wait(timeout=None)
                 # get newly added tasks upto max N_WORKER tasks
@@ -363,11 +363,6 @@ class TaskPool:
                     pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
                                     callback=success_callback, error_callback=error_callback)
                     running_que.put(None)
-                # check whether pool is free
-                if self.N_WORKER > running_que.qsize():
-                    pool_is_free = True
-                else:
-                    pool_is_free = False
 
     def _run_isolated_process_loop(self, reprot_error: bool = False):
         raise NotImplementedError('isolated process mode is not implemented yet')
