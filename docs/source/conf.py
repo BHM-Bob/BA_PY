@@ -12,8 +12,8 @@ project = 'ba-py'
 copyright = '2023, BHM-Bob'
 author = 'BHM-Bob G'
 
-release = '0.10.3'
-version = '0.10.3'
+release = '0.11.4'
+version = '0.11.4'
 
 # -- General configuration
 
