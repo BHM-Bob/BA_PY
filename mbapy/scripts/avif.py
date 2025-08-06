@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-06 10:32:32
+LastEditTime: 2025-08-06 16:53:59
 Description: convert jpeg to avif
 '''
 import argparse
@@ -34,38 +34,29 @@ except:
     pass
 register_heif_opener()
 
-def transfer_img(args, paths: List[str], file_size: Dict[str, int]):
+
+def transfer_img(args, paths: List[str]):
     before_size, after_size = 0, 0
     for path in (paths if args.multi_process > 1 else tqdm(paths)):
-        path = str(clean_path(path))
-        sub_path = path[len(str(args.input)):]
-        if sub_path.startswith(os.path.sep):
-            sub_path = sub_path[len(os.path.sep):]
-        output_path = os.path.join(args.output, sub_path)
+        sub_path = Path(path).relative_to(args.input)
+        output_path = (Path(args.output) / sub_path).with_suffix(f'.{args.to}')
         before_size += os.path.getsize(path)
-        if path.endswith(args.to) and path != output_path:
+        try:
+            if not output_path.parent.exists():
+                os.makedirs(output_path.parent)
+            with Image.open(path) as im:
+                im.save(output_path, optimize=True, quality=args.quality)
+        except:
             shutil.copy(path, output_path)
-        else:
-            try:
-                output_path = output_path[:1-len(Path(path).suffix)] + args.to
-                output_dir = os.path.dirname(output_path)
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
-                with Image.open(path) as im:
-                    im.save(output_path, optimize=True, quality=args.quality)
-            except:
-                shutil.copy(path, output_path)
-            if args.remove_origin:
-                if platform.system().lower() == 'windows':
-                    os.system(f'attrib -r "{path}"')
-                elif platform.system().lower() == 'linux':
-                    os.system(f'chmod 666 "{path}"')
-                os.remove(path)
+        if args.remove_origin:
+            if platform.system().lower() == 'windows':
+                os.system(f'attrib -r "{path}"')
+            elif platform.system().lower() == 'linux':
+                os.system(f'chmod 666 "{path}"')
+            os.remove(path)
         after_size += os.path.getsize(output_path)
-    # update file size and return
-    file_size['before'] += before_size
-    file_size['after'] += after_size
-    return file_size
+    
+    return before_size, after_size
         
 
 def main(sys_args: List[str] = None):
@@ -96,33 +87,37 @@ def main(sys_args: List[str] = None):
     args.output = clean_path(args.output)
     show_args(args, ['to', 'input', 'output', 'quality', 'remove_origin',
                      'input_format', 'multi_process', 'batch', 'recursive'])
-    
+    # check ifmt and to has conflict
+    if args.to in args.input_format:
+        put_err(f'target format {args.to} is in input format, exit.')
+        return
     paths = get_paths_with_extension(args.input, args.input_format,
                                      args.recursive)
     print(f'sum of files: {len(paths)}')
+    if not paths:
+        put_err('no files found, exit.')
+        return
     
+    before_size, after_size = 0, 0
     if args.multi_process == 1:
-        file_size = transfer_img(args, paths, dict(before=0, after=0))
+        before_size, after_size = transfer_img(args, paths)
     elif args.multi_process > 1:
-        with Manager() as manager:
-            file_size = manager.dict(before=0, after=0)
-            pool, batches_name = TaskPool('process', args.multi_process).start(), []
-            batches = split_list(paths, args.batch)
-            # add tasks to pool
-            for batch in tqdm(batches, desc='processing batches'):
-                batches_name.append(pool.add_task(None, transfer_img, args, batch, file_size))
-                pool.wait_till(lambda : pool.count_waiting_tasks() == 0, 0.01, update_result_queue=False)
-            
-            # update file size
-            file_size = dict(**file_size)
-            
-        pool.wait_till_tasks_done(batches_name)
+        pool, batches_name = TaskPool('process', args.multi_process).start(), []
+        batches = split_list(paths, args.batch)
+        # add tasks to pool
+        for batch in tqdm(batches, desc='processing batches'):
+            batches_name.append(pool.add_task(None, transfer_img, args, batch))
+            pool.wait_till(lambda : pool.count_waiting_tasks() == 0, 0.01, update_result_queue=False)
+        results_dict = pool.wait_till_tasks_done(batches_name)
+        for b, a in results_dict.values():
+            before_size += b
+            after_size += a
         pool.close(1)
         
-    print(f'before: {format_file_size(file_size["before"])}')
-    print(f'after: {format_file_size(file_size["after"])}')
-    print(f'decrease: {format_file_size(file_size["before"] - file_size["after"])}')
-    print(f'rate: {round(file_size["after"] / file_size["before"] * 100, 2)}%')
+    print(f'before: {format_file_size(before_size)}')
+    print(f'after: {format_file_size(after_size)}')
+    print(f'decrease: {format_file_size(before_size - after_size)}')
+    print(f'rate: {round(after_size / before_size * 100, 2)}%')
 
 
 if __name__ == "__main__":
