@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-02-15 11:44:20
+LastEditTime: 2025-08-06 10:32:32
 Description: convert jpeg to avif
 '''
 import argparse
@@ -107,11 +107,12 @@ def main(sys_args: List[str] = None):
             for batch in tqdm(batches, desc='processing batches'):
                 batches_name.append(pool.add_task(None, transfer_img, args, batch, file_size))
                 pool.wait_till(lambda : pool.count_waiting_tasks() == 0, 0.01, update_result_queue=False)
-            pool.wait_till_tasks_done(batches_name)
+            
             # update file size
             file_size = dict(**file_size)
             
-        pool.close()
+        pool.wait_till_tasks_done(batches_name)
+        pool.close(1)
         
     print(f'before: {format_file_size(file_size["before"])}')
     print(f'after: {format_file_size(file_size["after"])}')
