@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-06 15:41:40
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-02-15 11:45:33
+LastEditTime: 2025-08-06 18:28:54
 Description: 
 '''
 
@@ -12,13 +12,12 @@ from typing import Dict, List
 
 from tqdm import tqdm
 from mbapy.base import put_err
-from mbapy.file import get_paths_with_extension
+from mbapy.file import get_paths_with_extension, get_valid_path_on_exists
 
 if __name__ == '__main__':
     from mbapy.scripts._script_utils_ import clean_path, show_args
 else:
     from ._script_utils_ import clean_path, show_args
-    
 
 def main(sys_args: List[str] = None):
     # make and parse args
@@ -33,16 +32,28 @@ def main(sys_args: List[str] = None):
                             help='sub-string of name of files to remove. Default is %(default)s')
     args_paser.add_argument('-r', '--recursive', action='store_true', default=False,
                             help='FLAG, recursive search. Default is %(default)s.')
+    args_paser.add_argument('--on-exist', type=str, choices=['skip', 'overwrite', 'random'], default='overwrite',
+                            help='What to do if target file exists: skip, overwrite, or random (add random uuid4 suffix). Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     
     # process args
     args.input = clean_path(args.input)
     args.output = clean_path(args.output)
-    show_args(args, ['input', 'output', 'type', 'name', 'recursive'])
+    show_args(args, ['input', 'output', 'type', 'name', 'recursive', 'on_exist'])
     
     # short cut if only a single file to move
-    if os.path.isfile(args.input) and not os.path.isdir(args.output):
-        return shutil.copy(args.input, args.output)
+    if os.path.isfile(args.input):
+        output_file = args.output if os.path.isfile(args.output) else os.path.join(args.output, os.path.basename(args.input))
+        if os.path.exists(output_file):
+            if args.on_exist == 'skip':
+                put_err(f'{output_file} exists, skip')
+                return
+            elif args.on_exist == 'random':
+                output_file = get_valid_path_on_exists(output_file)
+                if output_file is None:
+                    put_err(f'Failed to generate unique filename for {args.output}, skip')
+                    return
+        return shutil.copy(args.input, output_file)
     
     # get input paths
     paths = get_paths_with_extension(args.input, args.type,
@@ -52,16 +63,24 @@ def main(sys_args: List[str] = None):
     # copy
     for path in tqdm(paths):
         try:
-            sub_path = path[len(str(args.input)):]
-            if sub_path.startswith(os.path.sep):
-                sub_path = sub_path[len(os.path.sep):]
+            sub_path = os.path.relpath(path, args.input)
             output_path = os.path.join(args.output, sub_path)
             output_dir = os.path.dirname(output_path)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            if os.path.exists(output_path):
+                if args.on_exist == 'skip':
+                    put_err(f'{output_path} exists, skip')
+                    continue
+                elif args.on_exist == 'random':
+                    output_path_new = get_valid_path_on_exists(output_path)
+                    if output_path_new is None:
+                        put_err(f'Failed to generate unique filename for {output_path}, skip')
+                        continue
+                    output_path = output_path_new
             shutil.copy(path, output_path)
-        except:
-            put_err(f'can not move {path}, skip')
+        except Exception as e:
+            put_err(f'can not move {path}, skip ({e})')
     return paths
     
     
