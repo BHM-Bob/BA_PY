@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-02-10 19:45:47
+LastEditTime: 2025-08-06 18:06:58
 Description: 
 '''
 import collections
@@ -15,6 +15,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Union
+import uuid
 from zipfile import ZipFile
 
 import natsort
@@ -261,6 +262,29 @@ def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
         valid_len = valid_len - len(suffix)
         path = path[:valid_len] + suffix
     return path if not return_Path else Path(path)
+
+
+def get_valid_path_on_exists(path: str, max_retry: int = 10) -> str:
+    """
+    Check if a file path exists, and if it does, try to add a random uuid4 suffix to the file name. 
+    If the path still exists after multiple attempts, return None.
+
+    Args:
+        path (str): The file path to check.
+        max_retry (int, optional): The maximum number of retry attempts. Defaults to 10.
+
+    Returns:
+        str: The validated file path with a random suffix, or None if the path still exists after multiple attempts.
+    """
+    if not os.path.exists(path):
+        return path
+    base, ext = os.path.splitext(path)
+    for _ in range(max_retry):
+        rand_str = uuid.uuid4().hex[:8]
+        new_path = f"{base}_{rand_str}{ext}"
+        if not os.path.exists(new_path):
+            return new_path
+    return None
 
 
 _filetype2opts_ = {
