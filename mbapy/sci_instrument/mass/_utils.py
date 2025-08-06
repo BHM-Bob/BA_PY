@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-22 10:00:28
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-04-08 19:26:30
+LastEditTime: 2025-07-24 10:41:49
 Description: 
 '''
 
@@ -65,8 +65,8 @@ def _plot_tag_by_match_df(ax: plt.Axes, df: pd.DataFrame, data: MassData,
     if 'color' not in df.columns:
         df['color'] = get_palette(len(data.match_df), 'hls')
     if 'marker' not in df.columns:
-        if len(data.match_df) > len(PLT_MARKERS):
-            put_err(f'Not enough markers for {len(data.match_df)} peaks, use default markers instead.')
+        if len(data.match_df) + 1 > len(PLT_MARKERS):
+            put_log(f'Not enough markers for {len(data.match_df)} peaks, use default markers instead.')
             df['marker'] = PLT_MARKERS[0]
         else:
             df['marker'] = PLT_MARKERS[1:len(data.match_df)+1]

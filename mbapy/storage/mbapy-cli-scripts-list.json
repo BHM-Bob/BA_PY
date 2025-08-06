@@ -174,5 +174,13 @@
             "exec_names": ["uninstall"],
             "brief": "mbapy-cli scripts uninstallation tool",
             "detailed":  "This Python script is designed to uninstall mbapy-cli scripts from a specified directory."
+        },
+    "batch_cmd":
+        {
+            "name": "batch exec cmd",
+            "script name": "batch_cmd",
+            "exec_names": ["batch_cmd", "batch-cmd"],
+            "brief": "batch exec cmd",
+            "detailed":  "This Python script is designed to execute a batch of commands from a file."
         }
 }

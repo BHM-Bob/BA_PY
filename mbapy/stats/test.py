@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2023-04-04 16:45:23
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-05-20 21:19:24
+LastEditTime: 2025-05-31 12:18:58
 Description: 
 '''
 from itertools import combinations
@@ -356,7 +356,7 @@ def multicomp_dunnett(factor: str, tag: str, exp:List[str], control:str, df:pd.D
     df: pd.DataFrame
     """
     exps = [np.array(df[tag][df[factor]==e]) for e in exp]
-    return scipy.stats.dunnett(*exps, np.array(df[tag][df[factor]==control]), **kwargs)
+    return scipy.stats.dunnett(*exps, control=np.array(df[tag][df[factor]==control]), **kwargs)
 
 def multicomp_bonferroni(factors:Dict[str, List[str]], tag:str, df:pd.DataFrame, alpha:float = 0.05):
     """

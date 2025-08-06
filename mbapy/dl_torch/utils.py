@@ -380,10 +380,10 @@ def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
     Resumes the training from the last checkpoint if it exists, otherwise starts from scratch.
 
     Params:
-        - args: Namespace object containing parsed command-line arguments.
+        - args: args, an instance of the GlobalSettings class.
         - model: Model to be trained.
         - optimizer: Optimizer to be used for training.
-        - other: Optional dictionary containing additional objects to be updated from checkpoint.
+        - strict: If True, strict loading is used. Default is False.
 
     Returns:
         - Tuple of the model, optimizer, and old_losses if checkpoint exists, otherwise tuple of model, optimizer, and 0.
@@ -393,7 +393,8 @@ def resume_checkpoint(args: GlobalSettings, model: torch.nn.Module,
         checkpoint = torch.load(args.resume)
         args.now_epoch = checkpoint["epoch"]
         model.load_state_dict(checkpoint["state_dict"], strict = strict)
-        optimizer.load_state_dict(checkpoint["optimizer"])
+        if optimizer is not None:
+            optimizer.load_state_dict(checkpoint["optimizer"])
         old_losses = checkpoint["loss"]
         args.mp.mprint(f'loaded checkpoint {args.resume} (epoch {checkpoint["epoch"]})')
         return model, optimizer, old_losses, checkpoint
