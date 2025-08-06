@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from PIL import Image
-from pillow_heif import register_avif_opener, register_heif_opener
+from pillow_heif import register_heif_opener
 from tqdm import tqdm
 
 from mbapy.base import put_err, split_list
@@ -26,7 +26,12 @@ from mbapy.web_utils.task import TaskPool
 # Limit to around a quarter gigabyte for a 24-bit (3 bpp) image
 Image.MAX_IMAGE_PIXELS = None
 
-register_avif_opener()
+try:
+    # in higher version (>0.22.0), avif is decrepated
+    from pillow_heif import register_avif_opener
+    register_avif_opener()
+except:
+    pass
 register_heif_opener()
 
 def transfer_img(args, paths: List[str], file_size: Dict[str, int]):

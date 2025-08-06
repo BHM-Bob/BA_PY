@@ -2,7 +2,7 @@
  * @Author: BHM-Bob 2262029386@qq.com
  * @Date: 2022-10-19 22:16:22
  * @LastEditors: BHM-Bob 2262029386@qq.com
- * @LastEditTime: 2025-08-06 10:37:24
+ * @LastEditTime: 2025-08-06 17:44:47
  * @Description: 
 -->
 
@@ -174,5 +174,4 @@ launch by `python -m mbapy.scripts.XXX` or `mbapy-cli XXX`.
 - `matplotlib>=3.7.5`: HPLC and Mass data visualization need set legend `draggable`, this is only supported in 3.7+  
 - `seaborn>=0.13.0`: plot_utils.bar_utils.plot_bar need set seaborn stripplot `native_scale`, this is only supported in 0.13+  
 - `nicegui[highcharts]`: scripts/hplc: explore-hplc need a highcharts as interactive plot for manual peaking.  
-- `pillow_heif==0.22.0`: scripts/avif: when version is higher than 0.22.0, avif functionality is decrepated.  
 - `torch any`: though dl_torch is important for mbapy, but the developer kowns torch is a big package, and do not has a specific function requirement.  
