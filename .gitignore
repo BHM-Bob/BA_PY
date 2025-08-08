@@ -146,3 +146,6 @@ data_tmp
 # temperory ignore cpp/bio and cpp/BA_1_2_min
 mbapy/cpp/bio
 mbapy/cpp/BA_1_2_min
+
+# ignore all exe file in mbapy/cpp and sub-dir
+mbapy/cpp/**/*.exe
