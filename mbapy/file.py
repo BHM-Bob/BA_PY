@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-06 18:06:58
+LastEditTime: 2025-08-08 23:28:30
 Description: 
 '''
 import collections
@@ -13,9 +13,9 @@ import platform
 import shutil
 import tarfile
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Dict, List, Union
-import uuid
 from zipfile import ZipFile
 
 import natsort
@@ -29,8 +29,7 @@ import pandas as pd
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import (check_parameters_path, format_secs,
-                            get_default_for_bool, parameter_checker, put_err)
+    from mbapy.base import CDLL, get_dll_path_for_sys, put_err
 
     # video and image functions assembly
     try:
@@ -46,8 +45,7 @@ if __name__ == '__main__':
     __all__extend__ = []
 else:
     # release mode
-    from .base import (check_parameters_path, format_secs,
-                       get_default_for_bool, parameter_checker, put_err)
+    from .base import CDLL, get_dll_path_for_sys, put_err
 
     # video and image functions assembly
     try:# mbapy package now does not require cv2 and torch installed forcibly
@@ -71,6 +69,41 @@ else:
         ]
     except:# if cv2 or torch is not installed, skip
         __all__extend__ = []
+        
+
+def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
+                               name_substr: str = '', path_substr: str = '',
+                               case_sensitive: bool = True, recursive: bool = True,
+                               include_dirs: bool = False) -> List[str]:
+    """
+    Returns a list of file paths within a given folder that have a specified extension.
+    C version, faster than python version, but not well tested.
+
+    Args:
+        - folder_path (str): The path of the folder to search for files.
+        - file_extensions (List[str]): A list of file extensions to filter the search by.
+            If it is empty, accept all extensions.
+        - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
+        - path_substr (str, optional): Sub-string in file-path. Defualts to '', means not specific.
+        - case_sensitive (bool, optional): Whether to search case sensitively. Defaults to True.
+        - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
+        - include_dirs (bool, optional): Whether to include directories in the search results. Defaults to False.
+
+    Returns:
+        List[str]: A list of file paths that match the specified file extensions.
+    """
+    dll = CDLL(get_dll_path_for_sys('file'))
+    func = dll.get_func('search_files_c', [dll.STR, dll.STR, dll.STR, dll.STR,
+                                           dll.INT, dll.INT, dll.INT], dll.STR)
+    ret = func(folder_path.encode(), ';'.join(file_extensions).encode(),
+               name_substr.encode(), path_substr.encode(),
+               int(case_sensitive), int(recursive), int(include_dirs))
+    if ret:
+        ret = [p for p in ret.decode().strip().split('\n') if p]
+    else:
+        ret = []
+    return ret
+
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
