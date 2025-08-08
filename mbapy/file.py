@@ -107,7 +107,8 @@ def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
-                             search_name_in_dir: bool = False, sort: Union[bool, str] = False) -> List[str]:
+                             search_name_in_dir: bool = False, 
+                             sort: Union[bool, str] = False, c_version: bool = False) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
@@ -121,10 +122,25 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         - sort (Union[bool, str], optional): Whether to sort the file paths. Defaults to False.
             If True, sort by default order.
             If 'natsort', sort by natural order.
+        - c_version (bool, optional): Whether to use C version. Defaults to False.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
+    def _sort(file_paths: List[str]) -> List[str]:
+        if isinstance(sort, bool):
+            if sort:
+                return sorted(file_paths)
+            return file_paths
+        elif isinstance(sort, str) and sort == 'natsort':
+            return natsort.natsorted(file_paths)
+        else:
+            return put_err(f'Unknown sort option: {sort}, return unsorted list', file_paths)
+
+    if c_version:
+        file_paths = get_paths_with_extension_c(folder_path, file_extensions, name_substr, '', True, recursive, False)
+        return _sort(file_paths)
+
     file_paths = []
     for name in os.listdir(folder_path): # do not use os.walk() to avoid FXXK files updates
         path = os.path.join(folder_path, name)
@@ -135,14 +151,11 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
             file_paths.append(path)
         if recursive and os.path.isdir(path):
             file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr, search_name_in_dir))
-    if isinstance(sort, bool):
-        if sort:
-            return sorted(file_paths)
+    
+    if not sort:
         return file_paths
-    elif isinstance(sort, str) and sort == 'natsort':
-        return natsort.natsorted(file_paths)
-    else:
-        return put_err(f'Unknown sort option: {sort}, return unsorted list', file_paths)
+    return _sort(file_paths)
+
 
 def get_dir(root: str, min_item_num: int = 0, max_item_num: int = None,
             file_extensions: List[str] = [],
