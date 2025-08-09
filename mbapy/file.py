@@ -95,7 +95,7 @@ def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
     dll = CDLL(get_dll_path_for_sys('file'))
     func = dll.get_func('search_files_c', [dll.STR, dll.STR, dll.STR, dll.STR,
                                            dll.INT, dll.INT, dll.INT], dll.STR)
-    ret = func(folder_path.encode(), ';'.join(file_extensions).encode(),
+    ret = func(str(folder_path).encode(), ';'.join(file_extensions).encode(),
                name_substr.encode(), path_substr.encode(),
                int(case_sensitive), int(recursive), int(include_dirs))
     if ret:
