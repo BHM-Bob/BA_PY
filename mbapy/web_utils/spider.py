@@ -41,10 +41,10 @@ async def get_web_html_async(url: str, headers: Dict[str, str] = None, encoding:
     try:
         async with aiohttp.request('GET', url, headers=headers, timeout=timeout) as response:
             if response.status != 200:
-                return (TaskStatus.NOT_SUCCEED, f'Web error: {response.status}')
+                return (TaskStatus.NOT_SUCCEEDED, f'Web error: {response.status}')
             return await response.text(encoding=encoding)
     except Exception as e:
-        return (TaskStatus.NOT_SUCCEED, f'Error occurred: {e}')
+        return (TaskStatus.NOT_SUCCEEDED, f'Error occurred: {e}')
 
 async def retrieve_file_async(url: str, file_path: str, headers: Dict[str, str] = None):
     """async version of download_file"""
@@ -52,14 +52,14 @@ async def retrieve_file_async(url: str, file_path: str, headers: Dict[str, str] 
     try:
         async with aiohttp.request('GET', url, headers=headers, timeout=timeout) as response:
             if response.status != 200:
-                return (TaskStatus.NOT_SUCCEED, f'Web error: {response.status}')
+                return (TaskStatus.NOT_SUCCEEDED, f'Web error: {response.status}')
             content = await response.read()
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, 'wb') as f:
                 f.write(content)
             return file_path
     except Exception as e:
-        return (TaskStatus.NOT_SUCCEED, f'Error occurred: {e}')
+        return (TaskStatus.NOT_SUCCEEDED, f'Error occurred: {e}')
 
 
 @dataclass
@@ -77,7 +77,7 @@ class AsyncResult:
         while self.result == TaskStatus.NOT_FINISHED:
             self.result = self.task_pool.query_task(self.name)
             time.sleep(0.1)
-        # will also return TaskStatus.NOT_SUCCEED
+        # will also return TaskStatus.NOT_SUCCEEDED
         return self.result
         
         
