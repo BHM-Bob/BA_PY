@@ -6,6 +6,7 @@ import os
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
+from uuid import uuid4
 from typing import Any, Dict, List, Tuple, Union, Callable
 
 import aiohttp
@@ -97,7 +98,7 @@ def text_fn(x: Union[str, List[str], etree._Element, List[etree._Element]]):
     if isinstance(x, etree._Element):
         return x.text.strip()
     elif isinstance(x, list) and len(x) > 0 and isinstance(x[0], etree._Element):
-        return [i.text.strip() for i in x]
+        return [i.text.strip() if i.text else uuid4().hex[:8] for i in x if isinstance(i, etree._Element)]
     else:
         return x
     
