@@ -6,7 +6,7 @@ cd "$WDIR"
 echo "wdir: $WDIR"
 
 # set storage dir
-STORAGE=$(cd $(dirname $0); cd ../../../storage; pwd)
+STORAGE=$(cd $(dirname $0); cd ../../storage; pwd)
 echo "storage dir: $STORAGE"
 
 # set build dir
