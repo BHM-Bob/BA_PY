@@ -1,5 +1,6 @@
 include requirements.json
 include mbapy/storage/libfile.dll
+include mbapy/storage/libfile.so
 include mbapy/storage/libstats.dll
 include mbapy/storage/libstats.so
 include mbapy/storage/libsci.dll
