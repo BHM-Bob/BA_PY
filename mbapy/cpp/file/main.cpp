@@ -5,14 +5,42 @@
 #include <ctype.h>
 #include <wchar.h>
 #include <locale.h>
+
+// 跨平台宽字符函数封装
 #ifdef _WIN32
-#include <windows.h>
+    #include <windows.h>
+    #define wcsdup _wcsdup
+    #define wcscasecmp _wcsicmp
+    #define wcsncasecmp _wcsnicmp
+    #define wcstok wcstok_s
 #else
-#include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <limits.h>
-#include <iconv.h>
+    #include <wctype.h>
+    #include <dirent.h>
+    #include <sys/stat.h>
+    #include <unistd.h>
+    #include <limits.h>
+    #include <strings.h>
+    
+    // POSIX 宽字符大小写不敏感比较
+    int wcscasecmp(const wchar_t* s1, const wchar_t* s2) {
+        wchar_t c1, c2;
+        do {
+            c1 = towlower(*s1++);
+            c2 = towlower(*s2++);
+        } while (c1 && c1 == c2);
+        return c1 - c2;
+    }
+    
+    int wcsncasecmp(const wchar_t* s1, const wchar_t* s2, size_t n) {
+        if (n == 0) return 0;
+        
+        wchar_t c1, c2;
+        do {
+            c1 = towlower(*s1++);
+            c2 = towlower(*s2++);
+        } while (--n > 0 && c1 && c1 == c2);
+        return c1 - c2;
+    }
 #endif
 
 // 字符串列表结构
@@ -52,7 +80,7 @@ void add_to_wstring_list(WStringList* list, const wchar_t* str) {
     if (!new_items) return;
     
     list->items = new_items;
-    list->items[list->count] = _wcsdup(str);
+    list->items[list->count] = wcsdup(str);
     list->count++;
 }
 
@@ -64,7 +92,7 @@ WStringList prealloc_wstring_list(int capacity) {
     return list;
 }
 
-// UTF-8 到宽字符转换
+// 跨平台宽字符转换函数
 wchar_t* utf8_to_wchar(const char* utf8_str) {
     if (!utf8_str) return NULL;
     
@@ -128,6 +156,34 @@ char* wchar_to_utf8(const wchar_t* wstr) {
     #endif
 }
 
+// 跨平台宽字符复制函数
+wchar_t* wcs_dup(const wchar_t* str) {
+    if (!str) return NULL;
+    size_t len = wcslen(str) + 1;
+    wchar_t* copy = (wchar_t*)malloc(len * sizeof(wchar_t));
+    if (copy) wcscpy(copy, str);
+    return copy;
+}
+
+// 跨平台宽字符大小写转换
+wchar_t* wcs_tolower(const wchar_t* str) {
+    if (!str) return NULL;
+    
+    size_t len = wcslen(str) + 1;
+    wchar_t* lower = (wchar_t*)malloc(len * sizeof(wchar_t));
+    if (!lower) return NULL;
+    
+    for (size_t i = 0; i < len; i++) {
+        #ifdef _WIN32
+        lower[i] = (wchar_t)tolower(str[i]);
+        #else
+        lower[i] = (wchar_t)towlower(str[i]);
+        #endif
+    }
+    
+    return lower;
+}
+
 // 预编译匹配配置
 MatchConfig prepare_match_config(const char* extensions, 
                                  const char* name_substr, 
@@ -154,17 +210,19 @@ MatchConfig prepare_match_config(const char* extensions,
         config.extensions = prealloc_wstring_list(count);
         
         // 分割扩展名
-        wchar_t* token = wcstok(wext, L";");
+        wchar_t* context = NULL;
+        wchar_t* token = wcstok(wext, L";", &context);
+
         while (token) {
             // 处理大小写
-            wchar_t* ext = _wcsdup(token);
+            wchar_t* ext = wcsdup(token);
             if (!case_sensitive) {
                 for (wchar_t* c = ext; *c; c++) *c = (wchar_t)towlower(*c);
             }
             
             add_to_wstring_list(&config.extensions, ext);
             free(ext);
-            token = wcstok(NULL, L";");
+            token = wcstok(NULL, L";", &context);
         }
         free(wext);
     }
@@ -212,17 +270,12 @@ int check_extension_match(const MatchConfig* config, const wchar_t* filename) {
     
     size_t filename_len = wcslen(filename);
     wchar_t* filename_copy = NULL;
-    const wchar_t* filename_to_compare = filename;  // 指向要比较的字符串
+    const wchar_t* filename_to_compare = filename;
     
     // 仅在大小写不敏感时创建副本
     if (!config->case_sensitive) {
-        filename_copy = _wcsdup(filename);
-        if (!filename_copy) return 0;  // 内存分配失败
-        
-        // 转换为小写
-        for (wchar_t* c = filename_copy; *c; c++) {
-            *c = (wchar_t)towlower(*c);
-        }
+        filename_copy = wcs_tolower(filename);
+        if (!filename_copy) return 0;
         filename_to_compare = filename_copy;
     }
     
@@ -236,6 +289,7 @@ int check_extension_match(const MatchConfig* config, const wchar_t* filename) {
         if (filename_len >= ext_len) {
             const wchar_t* filename_end = filename_to_compare + filename_len - ext_len;
             
+            // 使用跨平台比较函数
             if (wcsncmp(filename_end, ext, ext_len) == 0) {
                 match_found = 1;
                 break;
@@ -243,43 +297,45 @@ int check_extension_match(const MatchConfig* config, const wchar_t* filename) {
         }
     }
     
-    // 释放副本内存（如果有）
-    if (filename_copy) {
-        free(filename_copy);
-    }
-    
+    if (filename_copy) free(filename_copy);
     return match_found;
 }
 
-// 检查文件名是否匹配
 int check_name_match(const MatchConfig* config, const wchar_t* filename) {
     if (!config->name_substr) return 1;
     
-    // 处理大小写
-    wchar_t* fname_copy = _wcsdup(filename);
+    wchar_t* filename_copy = NULL;
+    const wchar_t* filename_to_compare = filename;
+    
     if (!config->case_sensitive) {
-        for (wchar_t* c = fname_copy; *c; c++) *c = (wchar_t)towlower(*c);
+        filename_copy = wcs_tolower(filename);
+        if (!filename_copy) return 0;
+        filename_to_compare = filename_copy;
     }
     
     // 检查子串
-    int match = (wcsstr(fname_copy, config->name_substr) != NULL);
-    free(fname_copy);
+    int match = (wcsstr(filename_to_compare, config->name_substr) != NULL);
+    
+    if (filename_copy) free(filename_copy);
     return match;
 }
 
-// 检查路径是否匹配
 int check_path_match(const MatchConfig* config, const wchar_t* full_path) {
     if (!config->path_substr) return 1;
     
-    // 处理大小写
-    wchar_t* path_copy = _wcsdup(full_path);
+    wchar_t* path_copy = NULL;
+    const wchar_t* path_to_compare = full_path;
+    
     if (!config->case_sensitive) {
-        for (wchar_t* c = path_copy; *c; c++) *c = (wchar_t)towlower(*c);
+        path_copy = wcs_tolower(full_path);
+        if (!path_copy) return 0;
+        path_to_compare = path_copy;
     }
     
     // 检查子串
-    int match = (wcsstr(path_copy, config->path_substr) != NULL);
-    free(path_copy);
+    int match = (wcsstr(path_to_compare, config->path_substr) != NULL);
+    
+    if (path_copy) free(path_copy);
     return match;
 }
 
@@ -293,7 +349,7 @@ WStringList search_files_win(const wchar_t* root_path, const MatchConfig* config
     wchar_t** dir_stack = (wchar_t**)malloc(sizeof(wchar_t*) * stack_capacity);
     
     // 初始根目录
-    dir_stack[0] = _wcsdup(root_path);
+    dir_stack[0] = wcsdup(root_path);
     stack_size = 1;
     
     // 路径缓冲区
@@ -332,7 +388,7 @@ WStringList search_files_win(const wchar_t* root_path, const MatchConfig* config
                         stack_capacity *= 2;
                         dir_stack = (wchar_t**)realloc(dir_stack, sizeof(wchar_t*) * stack_capacity);
                     }
-                    dir_stack[stack_size++] = _wcsdup(current_path);
+                    dir_stack[stack_size++] = wcsdup(current_path);
                 }
                 
                 // 检查是否需要处理目录项
@@ -595,14 +651,15 @@ extern "C" {
 #include <unordered_set>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 
 int main() {
     //获取运行时间
     auto start = std::chrono::high_resolution_clock::now();
 
-    const char* root_path = "E:\\Env";
-    const char* extensions = "exe";
+    const char* root_path = "../../../";
+    const char* extensions = "txt;in";
     const char* name_substr = "";
     const char* path_substr = "";
     int case_sensitive = 1;
