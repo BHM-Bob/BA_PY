@@ -265,6 +265,7 @@ class fit_mass(mutation_weight):
         self.task_pool: TaskPool = None
         self.mw2pep: Dict[int, List[Peptide]] = {}
         self.mass_dfs: Dict[str, MassData] = None
+        self.ion_mode: Dict[str, Dict[str, float]] = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -283,6 +284,8 @@ class fit_mass(mutation_weight):
         args.add_argument('--multi-process', type = int, default = 4,
                           help='number of multi-process to use. Defaults 1, no multi-process.')
         args = mutation_weight.make_mutation_args(args) # add mutation args to args parser, such as --max-repeate, --replace-aa, etc.
+        args.add_argument('--ion-mode', type = str, nargs='+', default = 'all',
+                          help=f'ion mode, default is %(default)s. Avaliable mode are: {list(MassData.ESI_IRON_MODE.keys())}')
         args.add_argument('--batch-size', type = int, default = 500000,
                           help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
         args.add_argument('-eps', '--error-tolerance', type = float, default = 0.1,
@@ -343,6 +346,12 @@ class fit_mass(mutation_weight):
             _, self.mw2pep = calcu_peptide_mutations(self.seq, opts, self.args.mass,
                                                      self.task_pool, self.args.batch_size, None)
         self.printf(f'{len(self.mw2pep)} peptides loaded')
+        # set ion mode
+        if self.args.ion_mode == 'all':
+            self.ion_mode = MassData.ESI_IRON_MODE
+        else:
+            self.ion_mode = {k: v for k, v in MassData.ESI_IRON_MODE.items() if k in self.args.ion_mode}
+        self.printf(f'ion mode: {list(self.ion_mode.keys())}')
         # process argument: mass_file
         mass_manager = plot_mass(self.args)
         if os.path.isfile(self.args.mass_file):
@@ -359,7 +368,7 @@ class fit_mass(mutation_weight):
         self.args.output = clean_path(self.args.output)
         
     def match_single_mass_data(self, candidates: np.ndarray, data_i: MassData, i: int, ms: float, h: float, charge: int, mono: bool):
-        for mode, iron in MassData.ESI_IRON_MODE.items():
+        for mode, iron in self.ion_mode.items():
             if iron['c'] != charge:
                 continue
             transfered_ms = (ms*charge-iron['im'])/iron['m']
