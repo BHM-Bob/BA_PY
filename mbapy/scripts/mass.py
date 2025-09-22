@@ -170,7 +170,7 @@ class plot_mass(Command):
                                       self.args.min_tag_height_percent)
         if self.task_pool is not None:
             self.task_pool.wait_till_tasks_done(self.dfs.keys())
-            self.task_pool.close()
+            self.task_pool.close(1)
 
 
 class explore_mass(plot_mass):
