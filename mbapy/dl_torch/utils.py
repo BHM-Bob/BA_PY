@@ -310,6 +310,8 @@ class ProgressMeter(object):
         entries += [str(meter) for meter in self.meters]
         if self.mp is None:
             print("\t".join(entries))
+        elif callable(self.mp):
+            self.mp("\t".join(entries))
         else:
             self.mp.mprint("\t".join(entries))
 
