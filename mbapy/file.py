@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-08 23:28:30
+LastEditTime: 2025-09-13 22:35:38
 Description: 
 '''
 import collections
@@ -107,6 +107,7 @@ def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
+                             neg_name_substr: Union[str, List[str]] = None, 
                              search_name_in_dir: bool = False, 
                              sort: Union[bool, str] = False, c_version: bool = False) -> List[str]:
     """
@@ -118,6 +119,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
             If it is empty, accept all extensions.
         - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
         - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
+        - neg_name_substr (Union[str, List[str]], optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX), if find, file will be excluded. Defualts to '', means not specific.
         - search_name_in_dir (bool, optional): Whether to search file names in directory, if find, dir-path will be added to result. Defaults to False.
         - sort (Union[bool, str], optional): Whether to sort the file paths. Defaults to False.
             If True, sort by default order.
@@ -138,14 +140,25 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
             return put_err(f'Unknown sort option: {sort}, return unsorted list', file_paths)
 
     if c_version:
+        assert not neg_name_substr, 'neg_name_substr is not supported in C version'
         file_paths = get_paths_with_extension_c(folder_path, file_extensions, name_substr, '', True, recursive, False)
         return _sort(file_paths)
+    
+    if neg_name_substr:
+        if isinstance(neg_name_substr, str):
+            neg_name_substr = [neg_name_substr]
+        neg_name_substr = list(filter(lambda x: x, neg_name_substr))
 
     file_paths = []
     for name in os.listdir(folder_path): # do not use os.walk() to avoid FXXK files updates
         path = os.path.join(folder_path, name)
+        # check file extension
         if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
+            # check file name
             if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
+                # check neg name substr
+                if neg_name_substr and any(n in path for n in neg_name_substr):
+                    continue
                 file_paths.append(path)
         elif search_name_in_dir and os.path.isdir(path) and name_substr in path:
             file_paths.append(path)
