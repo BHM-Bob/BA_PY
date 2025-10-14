@@ -182,20 +182,20 @@ class mutation_weight(Command):
     
     def process_mutation_args(self):
         self.seq = Peptide(self.args.seq)
-        def _strvec2intvec(args: argparse.Namespace, vec_name: str):
+        def _argvec2intvec(args: argparse.Namespace, vec_name: List[int]):
             each_name, max_name = f'each_{vec_name}', f'max_{vec_name}'
             if getattr(args, each_name):
-                intvec = [int(i) for i in getattr(args, each_name).split(',')]
+                intvec = getattr(args, each_name)
                 if len(intvec) != len(self.seq.AAs):
                     raise ValueError(f'--{each_name} must have the same length as the peptide sequence.')
                 return intvec
             else:
                 max_value = getattr(args, max_name)
                 return [max_value if max_value is not None else 1] * len(self.seq.AAs) # None means seq len, that is 1 for each aa
-        self.args.each_repeat = _strvec2intvec(self.args, 'repeat')
-        self.args.each_replace = _strvec2intvec(self.args, 'replace')
-        self.args.each_deletion = _strvec2intvec(self.args, 'deletion')
-        self.args.each_deprotection = _strvec2intvec(self.args, 'deprotection')
+        self.args.each_repeat = _argvec2intvec(self.args, 'repeat')
+        self.args.each_replace = _argvec2intvec(self.args, 'replace')
+        self.args.each_deletion = _argvec2intvec(self.args, 'deletion')
+        self.args.each_deprotection = _argvec2intvec(self.args, 'deprotection')
         self.args.max_deletion = self.args.max_deletion or len(self.seq.AAs)
         self.args.max_deprotection = self.args.max_deprotection or len(self.seq.AAs)
         if self.args.each_replace or self.args.max_replace:
