@@ -4,7 +4,7 @@ import math
 import os
 import time
 from queue import Queue
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -166,7 +166,7 @@ class GlobalSettings(MyArgs):
         self.resume_paths = glob.glob(os.path.join(self.model_root,'*.tar'))
         self.resume = self.resume_paths[0] if len(self.resume_paths) > 0 else 'None'
 
-def init_model_parameter(model):
+def init_model_parameter(model, special: Dict[str, Callable[[nn.Module], None]]):
     """
     Initialize the parameters of a given model.
 
@@ -177,6 +177,14 @@ def init_model_parameter(model):
         nn.Module: The initialized model.
     """
     for m in model.modules():
+        is_special = False
+        for k in special.keys():
+            if k == m.__class__.__name__:
+                is_special = True
+                special[k](m)
+                break
+        if is_special:
+            continue
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
             if m.weight is not None:
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leaky_relu')
@@ -302,6 +310,8 @@ class ProgressMeter(object):
         entries += [str(meter) for meter in self.meters]
         if self.mp is None:
             print("\t".join(entries))
+        elif callable(self.mp):
+            self.mp("\t".join(entries))
         else:
             self.mp.mprint("\t".join(entries))
 
