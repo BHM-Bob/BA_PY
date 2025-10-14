@@ -181,7 +181,7 @@ class mutation_weight(Command):
         return args
     
     def process_mutation_args(self):
-        self.seq = Peptide(self.args.seq)
+        self.seq = Peptide(self.args.seq.strip('"').strip('\''))
         def _argvec2intvec(args: argparse.Namespace, vec_name: List[int]):
             each_name, max_name = f'each_{vec_name}', f'max_{vec_name}'
             if getattr(args, each_name):
