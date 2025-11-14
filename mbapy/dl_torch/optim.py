@@ -1,7 +1,7 @@
 '''
 Date: 2023-05-26 09:02:43
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2023-05-30 09:58:26
+LastEditTime: 2025-09-19 18:53:20
 FilePath: /BA_PY/mbapy/dl_torch/optim.py
 Description: 
 '''
@@ -17,7 +17,7 @@ else:
 
 
 def _ConsineDown(lr_0:float, now_epoch:int, T_0:int, sum_epoch:int):
-    return lr_0 * 0.5 * (1. + math.cos(math.pi * now_epoch / sum_epoch))
+    return lr_0 * 0.5 * (1. + math.cos(math.pi * now_epoch / T_0)) if now_epoch <= T_0 else 0
 
 def _ConsineAnnealing(lr_0:float, now_epoch:int, T_0:int, sum_epoch:int):
     return lr_0 * 0.5 * (1. + math.cos(math.pi * now_epoch / T_0))
@@ -61,7 +61,7 @@ class LrScheduler:
     @autoparse
     def __init__(self, optimizer:torch.optim.Optimizer, lr_0:float,
                  now_epoch:int = 0, T_0:int = 100, sum_epoch:int = 5000,
-                 method = 'ConsineDown'):
+                 method = 'ConsineDown', min_lr: float=1e-7):
         assert lr_0 > 0, r'lr_0 <= 0'
         assert now_epoch >= 0, r'now_epoch < 0'
         assert T_0 > 0, 'T_0 <= 0'
@@ -69,6 +69,7 @@ class LrScheduler:
         assert method in str2scheduleF.keys(), 'method not in _str2scheduleF.keys()'
         self.lr = lr_0
         self._get_lr = str2scheduleF[method]
+        self.min_lr = min_lr
     
     def add_epoch(self, n:int):
         self.sum_epoch += n
@@ -90,6 +91,7 @@ class LrScheduler:
         """
         self.now_epoch = epoch
         self.lr = self._get_lr(self.lr_0, self.now_epoch, self.T_0, self.sum_epoch)
+        self.lr = max(self.lr, self.min_lr)
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = self.lr
         return self.lr
@@ -106,10 +108,11 @@ if __name__ == '__main__':
                                  lr = 0.01)
     plt.figure(figsize=(10, 10))
     for i, scheduler_name in enumerate(str2scheduleF.keys()):
-        scheduler = LrScheduler(optimizer, lr_0=0.01, method=scheduler_name)
+        scheduler = LrScheduler(optimizer, lr_0=10*1e-5, T_0=10, sum_epoch=1000, method=scheduler_name, min_lr=0.01*1e-5)
         lr_records = [scheduler.step(i) for i in range(scheduler.sum_epoch)]
         ax = plt.subplot(2, 3, i+1)
         ax.plot(lr_records)
         ax.set_title(scheduler_name)
+        ax.set_yscale('log')
         
     plt.show()
