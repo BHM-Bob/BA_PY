@@ -68,6 +68,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",        
         # "Programming Language :: Python :: 3 :: Only",
     ],
         
@@ -75,7 +76,7 @@ setup(
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',
-    python_requires=">=3.8, <3.13",
+    python_requires=">=3.8, <3.14",
     license = "MIT Licence",
 
     url = __url__,
@@ -109,5 +110,5 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.11.4.tar.gz
+# twine upload dist/mbapy-0.11.5.tar.gz
 # git log --since="2025-02-06 17:00:00" --until="2026-12-31" --pretty=format:'"%H","%an","%ai","%s","%b"' > commits_temp.csv
