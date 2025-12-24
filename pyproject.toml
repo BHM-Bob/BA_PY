@@ -41,6 +41,7 @@ dependencies = [
     "pandas",
     "openpyxl",
     "Pillow",
+    "pygame",
     "requests",
     "scikit-learn",
     "scipy",
@@ -68,7 +69,6 @@ bio = [
     "nicegui[highcharts]",
 ]
 game = [
-    "pygame",
     "opencv-python",
 ]
 full = [
@@ -108,7 +108,7 @@ Changelog = "https://github.com/BHM-Bob/BA_PY/blob/main/docs/release_notes"
 mbapy-cli = "mbapy.scripts:main"
 
 [tool.setuptools]
-packages = ["mbapy"]
+packages = ["mbapy", "mbapy_lite"]
 include-package-data = true
 
 [tool.setuptools.package-data]
