@@ -607,7 +607,7 @@ class TaskPool:
     
     def wait_till_free(self, wait_each_loop: float = 0.01, timeout: float = None, update_result_queue: bool = True):
         """wait till task queue is empty"""
-        self.wait_till(lambda: self.count_waiting_tasks() == 0, wait_each_loop, timeout, update_result_queue)
+        self.wait_till(lambda: self.count_waiting_tasks() == 0, wait_each_loop, timeout, False, update_result_queue)
 
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
                   coro_func: Callable, batch_size: int = None, return_result: bool = True,

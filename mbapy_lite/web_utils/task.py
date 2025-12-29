@@ -450,7 +450,7 @@ class TaskPool:
             - timeout (int, default=3): timeout in seconds.
             
         Returns:
-            - Case 1: all tasks not found or finished, return TaskStatus.ZERO_LEFT.
+            - Case 1: all tasks not found or finished, return TaskStatus.NO_TASK_LEFT.
             - Case 2: all tasks not returned and timeput with block option, return TaskStatus.TIME_OUT.
             - Case 3: all tasks not returned and block is False, return TaskStatus.NOT_FINISHED.
             - Case 4: one or more tasks finished with succeed or failed, return one result.
@@ -474,6 +474,25 @@ class TaskPool:
                 return result
         # Case 3 return
         return self.TASK_NOT_FINISHED
+    
+    def pull_task(self, return_name: bool = False, block: bool = True, timeout: int = 3):
+        """pull a task from result queue
+            - if queue is empty, return TASK_NOT_RETURNED. if is block, wait for timeout seconds.
+            - if get result, return the result.
+        """
+        if not block and self._thread_result_queue.empty():
+            return self.TASK_NOT_RETURNED
+        try:
+            name, result, statue = self._thread_result_queue.get(block, timeout)
+        except queue.Empty:
+            return self.TASK_NOT_RETURNED
+        del self.tasks[name]
+        if statue == TaskStatus.NOT_SUCCEEDED:
+            put_err(f'Task {name} failed with {result}, return {result}')
+            traceback.print_exception(type(result), result, result.__traceback__)
+        if return_name:
+            return name, result
+        return result
 
     def count_waiting_tasks(self):
         """
@@ -498,6 +517,8 @@ class TaskPool:
 
     def start(self):
         """start the thread and event loop"""
+        if self.IS_STARTED:
+            return self
         if self.MODE == "async":
             self._async_loop = asyncio.new_event_loop()
         if self.MODE == "threads":
@@ -573,6 +594,10 @@ class TaskPool:
         self.wait_till(lambda names: names.issubset(set([r[0] for r in self.tasks.values() if r != TaskStatus.NOT_RETURNED])),
                        wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
         return {name: self.query_task(name) for name in task_names}
+    
+    def wait_till_free(self, wait_each_loop: float = 0.01, timeout: float = None, update_result_queue: bool = True):
+        """wait till task queue is empty"""
+        self.wait_till(lambda: self.count_waiting_tasks() == 0, wait_each_loop, timeout, False, update_result_queue)
 
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
                   coro_func: Callable, batch_size: int = None, return_result: bool = True,
