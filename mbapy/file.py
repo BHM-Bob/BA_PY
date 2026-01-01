@@ -163,7 +163,9 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         elif search_name_in_dir and os.path.isdir(path) and name_substr in path:
             file_paths.append(path)
         if recursive and os.path.isdir(path):
-            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr, search_name_in_dir))
+            # sort and c_version param is no need to pass
+            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr,
+                                                       neg_name_substr, search_name_in_dir))
     
     if not sort:
         return file_paths
