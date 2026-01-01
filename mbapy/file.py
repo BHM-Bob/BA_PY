@@ -346,20 +346,32 @@ def get_valid_path_on_exists(path: str, max_retry: int = 10) -> str:
     return None
 
 
+_filetype2ext_ = {
+    'TEXT': ['txt', 'md', 'c', 'h', 'cpp', 'py',
+                  'pdb', 'pdbqt', 'mol2', 'sdf', 'gro', 'top'],
+    'JSON': ['json'],
+    'YAML': ['yml', 'yaml'],
+    'PKL': ['pkl'],
+    'CSV': ['csv'],
+    'EXCEL': ['xlsx', 'xls'],
+    'ZIP': ['zip'],
+    'TAR': ['tar', 'tar.gz'],
+}
+_ext2filetype_ = {ext: filetype for filetype, exts in _filetype2ext_.items() for ext in exts}
+
+
 _filetype2opts_ = {
-    'txt': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
-    'pdb': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
-    'json': {'mode': '', 'way': 'json', 'encoding': 'utf-8'},
-    'yml': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
-    'yaml': {'mode': '', 'way': 'yaml', 'encoding': 'utf-8'},
-    'pkl': {'mode': 'b', 'way': 'pkl', 'encoding': None},
-    'csv': {'mode': '', 'way': 'csv', 'encoding': 'utf-8'},
-    'xlsx': {'mode': 'b', 'way': 'excel', 'encoding': 'utf-8'},
+    'TEXT': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
+    'JSON': {'mode': '', 'way': 'json', 'encoding': 'utf-8'},
+    'YAML': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
+    'PKL': {'mode': 'b', 'way': 'pkl', 'encoding': None},
+    'CSV': {'mode': '', 'way': 'csv', 'encoding': 'utf-8'},
+    'EXCEL': {'mode': 'b', 'way': 'excel', 'encoding': 'utf-8'},
 }
 
 
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
-              way:str = 'str', data = None, kwgs: Dict = None, **kwargs):
+              way:str = 'auto', data = None, kwgs: Dict = None, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
@@ -379,7 +391,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             - 'csv': Read/write the data as a CSV file.
             - 'excel' or 'xlsx' or 'xls': Read/write the data as an Excel file.
             - 'zip': Read/write the data as a ZIP file, return dict: key is file path in zip, value is the data in the file.
-            - '__auto__': Automatically determine the way based on the file extension, support in _filetype2opts_.
+            - 'auto': Automatically determine the way based on the file extension, support in _filetype2opts_.
         - data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
         - kwgs (dict): Additional keyword arguments to be passed to the third-party read/write function.
         - kwargs (dict): Additional arguments to be passed to the open() function.
@@ -404,9 +416,9 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             del kwargs['encoding']
     else:
         open_fn = open
-    if way == '__auto__':
-        opts_kwgs = _filetype2opts_.get(path.split('.')[-1],
-                                        {'mode': 'b', 'way': 'str', 'encoding': None})
+    if way == 'auto':
+        filetype = _ext2filetype_.get(path.split('.')[-1], 'TEXT')
+        opts_kwgs = _filetype2opts_[filetype]
         mode, way, encoding = mode + opts_kwgs['mode'], opts_kwgs['way'], opts_kwgs['encoding']
         if opts_kwgs['encoding'] is None:
             del kwargs['encoding']
