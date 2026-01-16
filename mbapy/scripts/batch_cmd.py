@@ -54,7 +54,7 @@ def main(sys_args: List[str] = None):
         else:
             cmd = f'{args.cmd}'
         if args.change_dir:
-            cmd = f'cd {_dir} && {cmd}'
+            cmd = f'cd "{_dir}" && {cmd}'
         put_log(f'Excuting: {cmd}')
         os.system(cmd)
     return paths
