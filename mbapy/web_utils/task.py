@@ -11,7 +11,7 @@ from enum import Enum
 from functools import partial
 from queue import Queue
 import traceback
-from typing import Any, Callable, Dict, List, Literal, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 from uuid import uuid4
 
 from deprecated import deprecated
@@ -266,8 +266,9 @@ class TaskPool:
     @parameter_checker(mode = lambda mode: mode in ['async', 'thread',
                                                     'threads', 'process',
                                                     'isolated_process'])
-    def __init__(self, mode: str = 'async', n_worker: int = None,
-                 sleep_while_empty: float = 0.1, report_error: bool = False):
+    def __init__(self, mode: str = 'async', n_worker: Optional[int] = None,
+                 sleep_while_empty: float = 0.1, report_error: bool = False,
+                 mp_pool_init_kwargs: Optional[Dict[str, Any]] = None):
         """
         Parameters:
             - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
@@ -282,7 +283,7 @@ class TaskPool:
         if mode in ['async', 'thread', 'isolated_process'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
-        self.N_WORKER = n_worker
+        self.N_WORKER: int = n_worker
         self.IS_STARTED = False
         self.sleep_while_empty = sleep_while_empty
         self.REPORT_ERROR = report_error
@@ -293,8 +294,11 @@ class TaskPool:
         self._condition = threading.Condition()
         self._locker = threading.Lock()
         self._task_elapsed = []
-        self.thread: Union[threading.Thread, List[threading.Thread]] = None  # pyright: ignore[reportAttributeAccessIssue]
+        self.mp_pool_init_kwargs: Dict[str, Any] = mp_pool_init_kwargs or {}
+        self.thread: Union[threading.Thread, List[threading.Thread]] = None
         self.tasks = {}
+        # check args: mp_pool_init_kwargs
+        assert isinstance(self.mp_pool_init_kwargs, dict), f'mp_pool_init_kwargs must be None or dict, but got {type(self.mp_pool_init_kwargs)}'            
 
     def _run_async_loop(self, reprot_error: bool = False):
         asyncio.set_event_loop(self._async_loop)
@@ -329,7 +333,7 @@ class TaskPool:
         tasks_start_time = {}
         running_que = Queue()
         pool_free_condition = threading.Condition()
-        with multiprocessing.Pool(self.N_WORKER) as pool:
+        with multiprocessing.Pool(self.N_WORKER, **self.mp_pool_init_kwargs) as pool:
             while not self._thread_quit_event.is_set():
                 # wait task add signal to be triggered
                 with self._condition:
