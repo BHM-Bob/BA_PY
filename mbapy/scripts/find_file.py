@@ -1,7 +1,7 @@
 '''
 Date: 2024-07-16 13:43:25
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-09 09:18:53
+LastEditTime: 2026-02-01 12:13:34
 Description: 
 '''
 
@@ -132,7 +132,6 @@ def main(sys_args: List[str] = None):
         file_sizes.sort(key=lambda x: x[1], reverse=True)  # 从大到小排序
         paths = [(path, filesize) for path, filesize in file_sizes]
     
-    _print(f'files finded: {len(paths)} in dir: {args.input}', f_handle)
     # show info
     filesizes = []
     for path in paths:
@@ -145,7 +144,7 @@ def main(sys_args: List[str] = None):
             info_str = f'{format_file_size(filesize):>} {path[len(str(args.input)):]}'
             _print(info_str, f_handle)
     total_size = sum(filesizes)
-    _print(f'files finded: {len(paths)} in dir: {args.input}', f_handle) # print again in bottom
+    _print(f'files found: {len(paths)} in dir: {args.input}', f_handle) # print again in bottom
     _print(f'total files size: {format_file_size(total_size)}, avg size: {format_file_size(total_size/len(paths))}', f_handle)
     
     # 如果启用了按大小排序，则添加bincount统计
@@ -160,6 +159,8 @@ def main(sys_args: List[str] = None):
         # 显示bincount统计
         display_size_distribution(size_bins, f_handle)
     
+    if f_handle is not None:
+        f_handle.close()
     return paths
 
 
