@@ -112,6 +112,7 @@ Some helpful command line scripts.
 16. [video](scripts/video.md)  
 
 # Release History
+- [0.11.5](release_notes/0.11.5.md)  
 - [0.11.4](release_notes/0.11.4.md)  
 - [0.11.3](release_notes/0.11.3.md)  
 - [0.11.0](release_notes/0.11.0.md)  

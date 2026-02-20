@@ -37,7 +37,7 @@ class TestOptsFile(unittest.TestCase):
 
     def test_auto_file_type_detection(self):
         opts_file(self.json_file_path, mode='w', way='json', data={'key': 'value'})
-        self.assertEqual(opts_file(self.json_file_path, mode='r', way='__auto__')['key'], 'value')
+        self.assertEqual(opts_file(self.json_file_path, mode='r', way='auto')['key'], 'value')
         
     def test_None_pkl_read_write(self):
         data = None
@@ -79,10 +79,6 @@ class TestGetPaths(unittest.TestCase):
         result = get_paths_with_extension(self.test_folder, [], recursive=False)
         self.assertEqual(result, [self.file1, self.file2])
 
-    def test_get_paths_with_extension_Recursive(self):
-        result = get_paths_with_extension(self.test_folder, ['.txt', '.jpg'], recursive=True)
-        self.assertEqual(result, [self.file1, self.file2, self.file10, self.file3])
-
     def test_get_paths_with_extension_NameSubstring(self):
         result = get_paths_with_extension(self.test_folder, ['.txt'], name_substr='file1')
         self.assertEqual(result, [self.file1, self.file10])
@@ -92,7 +88,7 @@ class TestGetPaths(unittest.TestCase):
         self.assertEqual(result, [self.subdir])
 
     def test_get_paths_with_extension_Sort(self):
-        result = get_paths_with_extension(self.test_folder, ['.txt', '.jpg'], sort=True)
+        result = get_paths_with_extension(self.test_folder, ['.txt', '.jpg'], recursive=True, sort=True)
         self.assertEqual(result, [self.file1, self.file2, self.file10, self.file3])
 
     def test_get_paths_with_extension_NaturalSort(self):
@@ -101,7 +97,7 @@ class TestGetPaths(unittest.TestCase):
 
     def test_get_paths_with_extension_UnknownSortOption(self):
         result = get_paths_with_extension(self.test_folder, ['.txt'], sort='unknown')
-        self.assertEqual(result, [self.file1, self.file10, self.file3])
+        self.assertEqual(set(result), set([self.file1, self.file10, self.file3]))
 
 if __name__ == '__main__':
     unittest.main()

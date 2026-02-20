@@ -7,3 +7,5 @@ include mbapy/storage/libsci.dll
 include mbapy/storage/libsci.so
 include mbapy/storage/mbapy-cli-scripts-list.json
 include mbapy/storage/icons/scripts-hplc-peak.png
+exclude test/*
+exclude test/*/*

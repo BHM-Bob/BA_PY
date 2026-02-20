@@ -1,7 +1,7 @@
 '''
 Date: 2024-02-06 15:41:40
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-06 18:28:54
+LastEditTime: 2025-09-13 22:36:42
 Description: 
 '''
 
@@ -30,6 +30,8 @@ def main(sys_args: List[str] = None):
                             help='format of files to remove, splited by ",". Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
+    args_paser.add_argument('-e', '--exclude', type = str, nargs='+', default=None,
+                            help='sub-string of name of files to exclude. Default is %(default)s')
     args_paser.add_argument('-r', '--recursive', action='store_true', default=False,
                             help='FLAG, recursive search. Default is %(default)s.')
     args_paser.add_argument('--on-exist', type=str, choices=['skip', 'overwrite', 'random'], default='overwrite',
@@ -57,10 +59,10 @@ def main(sys_args: List[str] = None):
     
     # get input paths
     paths = get_paths_with_extension(args.input, args.type,
-                                     args.recursive, args.name)
-    print(f'files to copy: {len(paths)}')
+                                     args.recursive, args.name, neg_name_substr=args.exclude)
     
     # copy
+    copied_count, skip_count, random_count, overwrite_count, err_count = 0, 0, 0, 0, 0
     for path in tqdm(paths):
         try:
             sub_path = os.path.relpath(path, args.input)
@@ -71,16 +73,31 @@ def main(sys_args: List[str] = None):
             if os.path.exists(output_path):
                 if args.on_exist == 'skip':
                     put_err(f'{output_path} exists, skip')
+                    skip_count += 1
                     continue
                 elif args.on_exist == 'random':
                     output_path_new = get_valid_path_on_exists(output_path)
                     if output_path_new is None:
                         put_err(f'Failed to generate unique filename for {output_path}, skip')
+                        skip_count += 1
                         continue
                     output_path = output_path_new
+                    random_count += 1
+                else: # overwrite
+                    overwrite_count += 1
             shutil.copy(path, output_path)
+            copied_count += 1
         except Exception as e:
-            put_err(f'can not move {path}, skip ({e})')
+            put_err(f'can not copy {path}, skip ({e})')
+            err_count += 1
+            
+    # summary
+    print(f'files to copy: {len(paths)}\n', 
+          f'copied: {copied_count}\n', 
+          f'skip: {skip_count}\n', 
+          f'random: {random_count}\n', 
+          f'overwrite: {overwrite_count}\n',
+          f'err: {err_count}')
     return paths
     
     
