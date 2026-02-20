@@ -11,7 +11,7 @@ from enum import Enum
 from functools import partial
 from queue import Queue
 import traceback
-from typing import Any, Callable, Dict, List, Literal, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 from uuid import uuid4
 
 from deprecated import deprecated
@@ -266,8 +266,9 @@ class TaskPool:
     @parameter_checker(mode = lambda mode: mode in ['async', 'thread',
                                                     'threads', 'process',
                                                     'isolated_process'])
-    def __init__(self, mode: str = 'async', n_worker: int = None,
-                 sleep_while_empty: float = 0.1, report_error: bool = False):
+    def __init__(self, mode: str = 'async', n_worker: Optional[int] = None,
+                 sleep_while_empty: float = 0.1, report_error: bool = False,
+                 mp_pool_init_kwargs: Optional[Dict[str, Any]] = None):
         """
         Parameters:
             - mode (str, default='async'): 'async' or 'thread', use asyncio or threading to run a pool.
@@ -282,7 +283,7 @@ class TaskPool:
         if mode in ['async', 'thread', 'isolated_process'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
-        self.N_WORKER = n_worker
+        self.N_WORKER: int = n_worker
         self.IS_STARTED = False
         self.sleep_while_empty = sleep_while_empty
         self.REPORT_ERROR = report_error
@@ -291,8 +292,13 @@ class TaskPool:
         self._thread_result_queue: Queue = Queue()
         self._thread_quit_event: threading.Event = threading.Event()
         self._condition = threading.Condition()
+        self._locker = threading.Lock()
+        self._task_elapsed = []
+        self.mp_pool_init_kwargs: Dict[str, Any] = mp_pool_init_kwargs or {}
         self.thread: Union[threading.Thread, List[threading.Thread]] = None
         self.tasks = {}
+        # check args: mp_pool_init_kwargs
+        assert isinstance(self.mp_pool_init_kwargs, dict), f'mp_pool_init_kwargs must be None or dict, but got {type(self.mp_pool_init_kwargs)}'            
 
     def _run_async_loop(self, reprot_error: bool = False):
         asyncio.set_event_loop(self._async_loop)
@@ -313,17 +319,21 @@ class TaskPool:
             # run task
             task_name, task_func, task_args, task_kwargs = task
             try:
+                task_start_time = time.time()
                 result = task_func(*task_args, **task_kwargs)
                 self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
+                with self._locker:
+                    self._task_elapsed.append(time.time() - task_start_time)
             except Exception as e:
                 if reprot_error:
                     traceback.print_exception(type(result), result, result.__traceback__)
                 self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
 
     def _run_process_loop(self, reprot_error: bool = False):
+        tasks_start_time = {}
         running_que = Queue()
         pool_free_condition = threading.Condition()
-        with multiprocessing.Pool(self.N_WORKER) as pool:
+        with multiprocessing.Pool(self.N_WORKER, **self.mp_pool_init_kwargs) as pool:
             while not self._thread_quit_event.is_set():
                 # wait task add signal to be triggered
                 with self._condition:
@@ -347,22 +357,26 @@ class TaskPool:
                 for task in tasks_to_submit:
                     task_name, task_func, task_args, task_kwargs = task
                     # define callback function, these callback functions will be running in main-process's SOMEONE thread.
-                    def uniform_callback():
+                    def uniform_callback(task_name):
                         running_que.get()
                         with pool_free_condition:
                             pool_free_condition.notify_all()
+                        with self._locker:
+                            self._task_elapsed.append(time.time() - tasks_start_time.pop(task_name))
                     def success_callback(result, tn=task_name):
                         self._thread_result_queue.put((tn, result, TaskStatus.SUCCEED))
-                        uniform_callback()
+                        uniform_callback(task_name)
                     def error_callback(error, tn=task_name):
                         self._thread_result_queue.put((tn, error, TaskStatus.NOT_SUCCEEDED))
                         if reprot_error:
                             traceback.print_exception(type(error), error, error.__traceback__)
-                        uniform_callback()
+                        uniform_callback(task_name)
                     # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
                     pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
                                     callback=success_callback, error_callback=error_callback)
                     running_que.put(None)
+                    with self._locker:
+                        tasks_start_time[task_name] = time.time()
 
     def _run_isolated_process_loop(self, reprot_error: bool = False):
         raise NotImplementedError('isolated process mode is not implemented yet')
@@ -510,6 +524,14 @@ class TaskPool:
         in_que = self._thread_result_queue.qsize()
         in_dict = len([None for task in self.tasks.values() if task != TaskStatus.NOT_RETURNED])
         return in_que + in_dict
+    
+    def get_task_elapsed(self)->Tuple[float, float, float]:
+        """return the elapsed time: tuple[max_elapsed, min_elapsed, avg_elapsed]"""
+        with self._locker:
+            max_elapsed = max(self._task_elapsed)
+            min_elapsed = min(self._task_elapsed)
+            avg_elapsed = sum(self._task_elapsed) / len(self._task_elapsed)
+            return max_elapsed, min_elapsed, avg_elapsed
 
     @deprecated("This method will be deprecated, use start method instead.")
     def run(self):
@@ -707,3 +729,6 @@ if __name__ == '__main__':
     pool = TaskPool().start()
     pool.add_task("task1", example_coroutine, "task1", 2)
     pool.add_task("task2", example_coroutine, "task2", 4)
+    map_result = pool.map_tasks({"task3": (["task3"], {"seconds": 3}), "task4": (["task4"], {"seconds": 5})},
+                                example_coroutine, return_result=False, timeout=9)
+    print(map_result)
