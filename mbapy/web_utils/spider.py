@@ -495,7 +495,7 @@ class Actions(BaseInfo):
         self.k2a = get_default_for_None(k2a, [('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))])
         self.json_path = from_json_path
         self._headers: str = headers
-        self._task_pool: TaskPool = TaskPool(task_pool_mode) # call run in perform() to start async task pool
+        self._task_pool: TaskPool = TaskPool(task_pool_mode, report_error=True) # call run in perform() to start async task pool
         # recover from json file if exists
         if self.json_path is not None and os.path.exists(self.json_path):
             self.from_json(self.json_path)
