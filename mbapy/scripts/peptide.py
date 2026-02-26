@@ -181,21 +181,21 @@ class mutation_weight(Command):
         return args
     
     def process_mutation_args(self):
-        self.seq = Peptide(self.args.seq)
-        def _strvec2intvec(args: argparse.Namespace, vec_name: str):
+        self.seq = Peptide(self.args.seq.strip('"').strip('\''))
+        def _argvec2intvec(args: argparse.Namespace, vec_name: List[int]):
             each_name, max_name = f'each_{vec_name}', f'max_{vec_name}'
             if getattr(args, each_name):
-                intvec = [int(i) for i in getattr(args, each_name).split(',')]
+                intvec = getattr(args, each_name)
                 if len(intvec) != len(self.seq.AAs):
                     raise ValueError(f'--{each_name} must have the same length as the peptide sequence.')
                 return intvec
             else:
                 max_value = getattr(args, max_name)
                 return [max_value if max_value is not None else 1] * len(self.seq.AAs) # None means seq len, that is 1 for each aa
-        self.args.each_repeat = _strvec2intvec(self.args, 'repeat')
-        self.args.each_replace = _strvec2intvec(self.args, 'replace')
-        self.args.each_deletion = _strvec2intvec(self.args, 'deletion')
-        self.args.each_deprotection = _strvec2intvec(self.args, 'deprotection')
+        self.args.each_repeat = _argvec2intvec(self.args, 'repeat')
+        self.args.each_replace = _argvec2intvec(self.args, 'replace')
+        self.args.each_deletion = _argvec2intvec(self.args, 'deletion')
+        self.args.each_deprotection = _argvec2intvec(self.args, 'deprotection')
         self.args.max_deletion = self.args.max_deletion or len(self.seq.AAs)
         self.args.max_deprotection = self.args.max_deprotection or len(self.seq.AAs)
         if self.args.each_replace or self.args.max_replace:
@@ -265,6 +265,7 @@ class fit_mass(mutation_weight):
         self.task_pool: TaskPool = None
         self.mw2pep: Dict[int, List[Peptide]] = {}
         self.mass_dfs: Dict[str, MassData] = None
+        self.ion_mode: Dict[str, Dict[str, float]] = None
         
     @staticmethod
     def make_args(args: argparse.ArgumentParser):
@@ -283,6 +284,8 @@ class fit_mass(mutation_weight):
         args.add_argument('--multi-process', type = int, default = 4,
                           help='number of multi-process to use. Defaults 1, no multi-process.')
         args = mutation_weight.make_mutation_args(args) # add mutation args to args parser, such as --max-repeate, --replace-aa, etc.
+        args.add_argument('--ion-mode', type = str, nargs='+', default = 'all',
+                          help=f'ion mode, default is %(default)s. Avaliable mode are: {list(MassData.ESI_IRON_MODE.keys())}')
         args.add_argument('--batch-size', type = int, default = 500000,
                           help='number of peptides to process in each batch. Defaults %(default)s in a batch.')
         args.add_argument('-eps', '--error-tolerance', type = float, default = 0.1,
@@ -343,6 +346,12 @@ class fit_mass(mutation_weight):
             _, self.mw2pep = calcu_peptide_mutations(self.seq, opts, self.args.mass,
                                                      self.task_pool, self.args.batch_size, None)
         self.printf(f'{len(self.mw2pep)} peptides loaded')
+        # set ion mode
+        if self.args.ion_mode == 'all':
+            self.ion_mode = MassData.ESI_IRON_MODE
+        else:
+            self.ion_mode = {k: v for k, v in MassData.ESI_IRON_MODE.items() if k in self.args.ion_mode}
+        self.printf(f'ion mode: {list(self.ion_mode.keys())}')
         # process argument: mass_file
         mass_manager = plot_mass(self.args)
         if os.path.isfile(self.args.mass_file):
@@ -359,7 +368,7 @@ class fit_mass(mutation_weight):
         self.args.output = clean_path(self.args.output)
         
     def match_single_mass_data(self, candidates: np.ndarray, data_i: MassData, i: int, ms: float, h: float, charge: int, mono: bool):
-        for mode, iron in MassData.ESI_IRON_MODE.items():
+        for mode, iron in self.ion_mode.items():
             if iron['c'] != charge:
                 continue
             transfered_ms = (ms*charge-iron['im'])/iron['m']

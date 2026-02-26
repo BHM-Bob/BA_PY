@@ -1,7 +1,7 @@
 '''
 Date: 2024-05-20 16:52:52
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2024-08-31 10:54:49
+LastEditTime: 2025-08-28 21:04:19
 Description: mbapy.sci_instrument.mass.SCIEX
 '''
 import os
@@ -62,7 +62,7 @@ class SciexPeakListData(MassData):
 
 
 class SciexOriData(MassData):
-    DATA_FILE_SUFFIX: List[str] = ['.txt', '.xlsx']
+    DATA_FILE_SUFFIX: List[str] = ['.txt', 'csv', 'CSV', '.xlsx']
     RECOMENDED_DATA_FILE_SUFFIX: str = '.xlsx'
     @parameter_checker(data_file_path=partial(path_param_checker, suffixs=DATA_FILE_SUFFIX))
     def __init__(self, data_file_path: Optional[str] = None) -> None:
@@ -76,7 +76,7 @@ class SciexOriData(MassData):
         if self.data_file_path.endswith('.txt'):
             self.raw_data = self.load_raw_data_file()
             self.processed_data = self.process_raw_data() if self.raw_data else None # return data_df or None
-        elif self.data_file_path.endswith('.xlsx'):
+        elif any([self.data_file_path.endswith(suffix) for suffix in self.DATA_FILE_SUFFIX]):
             self.processed_data = self.load_processed_data_file(data_file_path) # return data_df
         self.tag = self.make_tag() if not self.check_processed_data_empty() else None
         

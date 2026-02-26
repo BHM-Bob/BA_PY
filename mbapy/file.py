@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 19:09:54
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-06 18:06:58
+LastEditTime: 2025-09-13 22:35:38
 Description: 
 '''
 import collections
@@ -13,9 +13,9 @@ import platform
 import shutil
 import tarfile
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Dict, List, Union
-import uuid
 from zipfile import ZipFile
 
 import natsort
@@ -29,8 +29,7 @@ import pandas as pd
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import (check_parameters_path, format_secs,
-                            get_default_for_bool, parameter_checker, put_err)
+    from mbapy.base import CDLL, get_dll_path_for_sys, put_err
 
     # video and image functions assembly
     try:
@@ -46,8 +45,7 @@ if __name__ == '__main__':
     __all__extend__ = []
 else:
     # release mode
-    from .base import (check_parameters_path, format_secs,
-                       get_default_for_bool, parameter_checker, put_err)
+    from .base import CDLL, get_dll_path_for_sys, put_err
 
     # video and image functions assembly
     try:# mbapy package now does not require cv2 and torch installed forcibly
@@ -71,10 +69,47 @@ else:
         ]
     except:# if cv2 or torch is not installed, skip
         __all__extend__ = []
+        
+
+def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
+                               name_substr: str = '', path_substr: str = '',
+                               case_sensitive: bool = True, recursive: bool = True,
+                               include_dirs: bool = False) -> List[str]:
+    """
+    Returns a list of file paths within a given folder that have a specified extension.
+    C version, faster than python version, but not well tested.
+
+    Args:
+        - folder_path (str): The path of the folder to search for files.
+        - file_extensions (List[str]): A list of file extensions to filter the search by.
+            If it is empty, accept all extensions.
+        - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
+        - path_substr (str, optional): Sub-string in file-path. Defualts to '', means not specific.
+        - case_sensitive (bool, optional): Whether to search case sensitively. Defaults to True.
+        - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
+        - include_dirs (bool, optional): Whether to include directories in the search results. Defaults to False.
+
+    Returns:
+        List[str]: A list of file paths that match the specified file extensions.
+    """
+    dll = CDLL(get_dll_path_for_sys('file'))
+    func = dll.get_func('search_files_c', [dll.STR, dll.STR, dll.STR, dll.STR,
+                                           dll.INT, dll.INT, dll.INT], dll.STR)
+    ret = func(str(folder_path).encode(), ';'.join(file_extensions).encode(),
+               name_substr.encode(), path_substr.encode(),
+               int(case_sensitive), int(recursive), int(include_dirs))
+    if ret:
+        ret = [p for p in ret.decode().strip().split('\n') if p]
+    else:
+        ret = []
+    return ret
+
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
-                             search_name_in_dir: bool = False, sort: Union[bool, str] = False) -> List[str]:
+                             neg_name_substr: Union[str, List[str]] = None, 
+                             search_name_in_dir: bool = False, 
+                             sort: Union[bool, str] = False, c_version: bool = False) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
@@ -84,32 +119,58 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
             If it is empty, accept all extensions.
         - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
         - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
+        - neg_name_substr (Union[str, List[str]], optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX), if find, file will be excluded. Defualts to '', means not specific.
         - search_name_in_dir (bool, optional): Whether to search file names in directory, if find, dir-path will be added to result. Defaults to False.
         - sort (Union[bool, str], optional): Whether to sort the file paths. Defaults to False.
             If True, sort by default order.
             If 'natsort', sort by natural order.
+        - c_version (bool, optional): Whether to use C version. Defaults to False.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
+    def _sort(file_paths: List[str]) -> List[str]:
+        if isinstance(sort, bool):
+            if sort:
+                return sorted(file_paths)
+            return file_paths
+        elif isinstance(sort, str) and sort == 'natsort':
+            return natsort.natsorted(file_paths)
+        else:
+            return put_err(f'Unknown sort option: {sort}, return unsorted list', file_paths)
+
+    if c_version:
+        assert not neg_name_substr, 'neg_name_substr is not supported in C version'
+        file_paths = get_paths_with_extension_c(folder_path, file_extensions, name_substr, '', True, recursive, False)
+        return _sort(file_paths)
+    
+    if neg_name_substr:
+        if isinstance(neg_name_substr, str):
+            neg_name_substr = [neg_name_substr]
+        neg_name_substr = list(filter(lambda x: x, neg_name_substr))
+
     file_paths = []
     for name in os.listdir(folder_path): # do not use os.walk() to avoid FXXK files updates
         path = os.path.join(folder_path, name)
+        # check file extension
         if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
+            # check file name
             if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
+                # check neg name substr
+                if neg_name_substr and any(n in path for n in neg_name_substr):
+                    continue
                 file_paths.append(path)
         elif search_name_in_dir and os.path.isdir(path) and name_substr in path:
             file_paths.append(path)
         if recursive and os.path.isdir(path):
-            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr, search_name_in_dir))
-    if isinstance(sort, bool):
-        if sort:
-            return sorted(file_paths)
+            # sort and c_version param is no need to pass
+            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr,
+                                                       neg_name_substr, search_name_in_dir))
+    
+    if not sort:
         return file_paths
-    elif isinstance(sort, str) and sort == 'natsort':
-        return natsort.natsorted(file_paths)
-    else:
-        return put_err(f'Unknown sort option: {sort}, return unsorted list', file_paths)
+    return _sort(file_paths)
+
 
 def get_dir(root: str, min_item_num: int = 0, max_item_num: int = None,
             file_extensions: List[str] = [],
@@ -287,20 +348,32 @@ def get_valid_path_on_exists(path: str, max_retry: int = 10) -> str:
     return None
 
 
+_filetype2ext_ = {
+    'TEXT': ['txt', 'md', 'c', 'h', 'cpp', 'py',
+                  'pdb', 'pdbqt', 'mol2', 'sdf', 'gro', 'top'],
+    'JSON': ['json'],
+    'YAML': ['yml', 'yaml'],
+    'PKL': ['pkl'],
+    'CSV': ['csv'],
+    'EXCEL': ['xlsx', 'xls'],
+    'ZIP': ['zip'],
+    'TAR': ['tar', 'tar.gz'],
+}
+_ext2filetype_ = {ext: filetype for filetype, exts in _filetype2ext_.items() for ext in exts}
+
+
 _filetype2opts_ = {
-    'txt': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
-    'pdb': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
-    'json': {'mode': '', 'way': 'json', 'encoding': 'utf-8'},
-    'yml': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
-    'yaml': {'mode': '', 'way': 'yaml', 'encoding': 'utf-8'},
-    'pkl': {'mode': 'b', 'way': 'pkl', 'encoding': None},
-    'csv': {'mode': '', 'way': 'csv', 'encoding': 'utf-8'},
-    'xlsx': {'mode': 'b', 'way': 'excel', 'encoding': 'utf-8'},
+    'TEXT': {'mode': '', 'way': 'str', 'encoding': 'utf-8'},
+    'JSON': {'mode': '', 'way': 'json', 'encoding': 'utf-8'},
+    'YAML': {'mode': '', 'way': 'yml', 'encoding': 'utf-8'},
+    'PKL': {'mode': 'b', 'way': 'pkl', 'encoding': None},
+    'CSV': {'mode': '', 'way': 'csv', 'encoding': 'utf-8'},
+    'EXCEL': {'mode': 'b', 'way': 'excel', 'encoding': 'utf-8'},
 }
 
 
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
-              way:str = 'str', data = None, kwgs: Dict = None, **kwargs):
+              way:str = 'auto', data = None, kwgs: Dict = None, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
@@ -320,7 +393,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             - 'csv': Read/write the data as a CSV file.
             - 'excel' or 'xlsx' or 'xls': Read/write the data as an Excel file.
             - 'zip': Read/write the data as a ZIP file, return dict: key is file path in zip, value is the data in the file.
-            - '__auto__': Automatically determine the way based on the file extension, support in _filetype2opts_.
+            - 'auto': Automatically determine the way based on the file extension, support in _filetype2opts_.
         - data (Any, optional): The data to be written to the file. Only applicable in write mode. Defaults to None.
         - kwgs (dict): Additional keyword arguments to be passed to the third-party read/write function.
         - kwargs (dict): Additional arguments to be passed to the open() function.
@@ -345,9 +418,9 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             del kwargs['encoding']
     else:
         open_fn = open
-    if way == '__auto__':
-        opts_kwgs = _filetype2opts_.get(path.split('.')[-1],
-                                        {'mode': 'b', 'way': 'str', 'encoding': None})
+    if way == 'auto':
+        filetype = _ext2filetype_.get(path.split('.')[-1], 'TEXT')
+        opts_kwgs = _filetype2opts_[filetype]
         mode, way, encoding = mode + opts_kwgs['mode'], opts_kwgs['way'], opts_kwgs['encoding']
         if opts_kwgs['encoding'] is None:
             del kwargs['encoding']

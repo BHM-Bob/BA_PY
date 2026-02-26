@@ -6,6 +6,7 @@ import os
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
+from uuid import uuid4
 from typing import Any, Dict, List, Tuple, Union, Callable
 
 import aiohttp
@@ -41,10 +42,10 @@ async def get_web_html_async(url: str, headers: Dict[str, str] = None, encoding:
     try:
         async with aiohttp.request('GET', url, headers=headers, timeout=timeout) as response:
             if response.status != 200:
-                return (TaskStatus.NOT_SUCCEED, f'Web error: {response.status}')
+                return (TaskStatus.NOT_SUCCEEDED, f'Web error: {response.status}')
             return await response.text(encoding=encoding)
     except Exception as e:
-        return (TaskStatus.NOT_SUCCEED, f'Error occurred: {e}')
+        return (TaskStatus.NOT_SUCCEEDED, f'Error occurred: {e}')
 
 async def retrieve_file_async(url: str, file_path: str, headers: Dict[str, str] = None):
     """async version of download_file"""
@@ -52,14 +53,14 @@ async def retrieve_file_async(url: str, file_path: str, headers: Dict[str, str] 
     try:
         async with aiohttp.request('GET', url, headers=headers, timeout=timeout) as response:
             if response.status != 200:
-                return (TaskStatus.NOT_SUCCEED, f'Web error: {response.status}')
+                return (TaskStatus.NOT_SUCCEEDED, f'Web error: {response.status}')
             content = await response.read()
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             with open(file_path, 'wb') as f:
                 f.write(content)
             return file_path
     except Exception as e:
-        return (TaskStatus.NOT_SUCCEED, f'Error occurred: {e}')
+        return (TaskStatus.NOT_SUCCEEDED, f'Error occurred: {e}')
 
 
 @dataclass
@@ -77,7 +78,7 @@ class AsyncResult:
         while self.result == TaskStatus.NOT_FINISHED:
             self.result = self.task_pool.query_task(self.name)
             time.sleep(0.1)
-        # will also return TaskStatus.NOT_SUCCEED
+        # will also return TaskStatus.NOT_SUCCEEDED
         return self.result
         
         
@@ -97,7 +98,7 @@ def text_fn(x: Union[str, List[str], etree._Element, List[etree._Element]]):
     if isinstance(x, etree._Element):
         return x.text.strip()
     elif isinstance(x, list) and len(x) > 0 and isinstance(x[0], etree._Element):
-        return [i.text.strip() for i in x]
+        return [i.text.strip() if i.text else uuid4().hex[:8] for i in x if isinstance(i, etree._Element)]
     else:
         return x
     
@@ -494,7 +495,7 @@ class Actions(BaseInfo):
         self.k2a = get_default_for_None(k2a, [('save', Key2Action('running', statues_que_opts, [statuesQue, "__signal__", "setValue", 'save'], {}))])
         self.json_path = from_json_path
         self._headers: str = headers
-        self._task_pool: TaskPool = TaskPool(task_pool_mode) # call run in perform() to start async task pool
+        self._task_pool: TaskPool = TaskPool(task_pool_mode, report_error=True) # call run in perform() to start async task pool
         # recover from json file if exists
         if self.json_path is not None and os.path.exists(self.json_path):
             self.from_json(self.json_path)
