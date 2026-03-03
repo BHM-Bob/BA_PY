@@ -190,5 +190,13 @@
             "exec_names": ["till"],
             "brief": "wait until a specified condition is met.",
             "detailed":  "This Python script is designed to wait until a specified condition is met."
+        },
+    "extract-pdf-toc":
+        {
+            "name": "extract-pdf-toc",
+            "script name": "extract_pdf_toc",
+            "exec_names": ["extract-pdf-toc", "extract_pdf_toc"],
+            "brief": "extract-pdf-toc",
+            "detailed":  "This Python script is designed to extract the table of contents from a PDF file and format it as a markdown file."
         }
 }
