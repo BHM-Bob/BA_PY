@@ -405,6 +405,8 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
         - return None if the path is not a valid file path for read.
         - return None if the mode or way is not valid.
     """
+    # check path, only convert when it is Path object
+    path = str(path) if isinstance(path, Path) else path
     # check kwgs
     kwgs = {} if kwgs is None else kwgs
     # check mode
