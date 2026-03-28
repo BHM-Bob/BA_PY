@@ -1,7 +1,7 @@
 '''
 Date: 2023-10-02 22:53:27
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-05-06 21:43:24
+LastEditTime: 2026-03-28 23:39:02
 Description: 
 '''
 
@@ -17,7 +17,23 @@ from typing import Callable, Dict, List, Tuple
 import numpy as np
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "True"
-import pygame as pg
+try:
+    import pygame as pg
+except:
+    class pg:
+        class SurfaceType:
+            pass
+        class Rect:
+            pass
+        class Color:
+            pass
+        class event:
+            class Event:
+                pass
+        class SRCALPHA:
+            pass
+        def Surface(size, flags = 0, depth = 0):
+            return pg.SurfaceType()
 
 if __name__ == '__main__':
     # dev mode import

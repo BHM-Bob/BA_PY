@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-06 21:08:10
+LastEditTime: 2026-03-28 23:15:56
 Description: 
 '''
 """
@@ -68,7 +68,8 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",        
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         # "Programming Language :: Python :: 3 :: Only",
     ],
         
@@ -76,7 +77,7 @@ setup(
     description = "MyBA in Python",
     long_description = long_description,
     long_description_content_type='text/markdown',
-    python_requires=">=3.8, <3.14",
+    python_requires=">=3.8, <3.15",
     license = "MIT Licence",
 
     url = __url__,
