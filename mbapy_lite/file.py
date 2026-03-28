@@ -320,7 +320,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                     f.extractall(tmpdirname)
                     files = {}
                     for path in get_paths_with_extension(tmpdirname, []):
-                        sub_kwgs = kwgs.get(Path(path).suffix, {'way': '__auto__'})
+                        sub_kwgs = kwgs.get(Path(path).suffix, {'way': 'auto'})
                         files[path[len(tmpdirname)+1:]] = opts_file(path, **sub_kwgs)
                     return files
         elif ('w' in mode or 'a' in mode) and data is not None\
