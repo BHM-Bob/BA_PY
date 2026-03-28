@@ -5,12 +5,12 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2025-02-06 20:18:07
 Description: 
 '''
+import importlib.util
 import inspect
 import json
 import math
 import os
 import pathlib
-import pkgutil
 import platform
 import time
 from functools import wraps
@@ -95,7 +95,7 @@ class _Config(_ConfigBase):
     def __init__(self) -> None:
         self.err_warning_level: int = 0 # 0: all, no filter, 1: bapy parameter error, 2: bapy inner error... the bigger, the less error
         self.logs = []
-        if pkgutil.find_loader('torch'):
+        if importlib.util.find_spec('torch') is not None:
             self.is_torch_avaliable = True
         else:
             self.is_torch_avaliable = False

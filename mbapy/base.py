@@ -8,6 +8,7 @@ Description:
 import ctypes
 import hashlib
 import importlib
+import importlib.util
 import inspect
 import json
 import math
@@ -100,7 +101,7 @@ class _Config(_ConfigBase):
     def __init__(self) -> None:
         self.err_warning_level: int = 0 # 0: all, no filter, 1: bapy parameter error, 2: bapy inner error... the bigger, the less error
         self.logs = []
-        if pkgutil.find_loader('torch'):
+        if importlib.util.find_spec('torch') is not None:
             self.is_torch_avaliable = True
         else:
             self.is_torch_avaliable = False
@@ -717,6 +718,9 @@ def import_file_as_package(file_path, module_name=None, force_reload=False):
     # create and load module
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module  # register to sys.modules for circular import
+    if spec.loader is None:
+        return put_err(f"Cannot load module {module_name} from file {file_path}, return None")
+    # execute code
     try:
         spec.loader.exec_module(module)
     except Exception as e:
