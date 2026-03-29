@@ -20,6 +20,7 @@
         "scikit_posthocs",
         "pdfminer",
         "PyPDF2",
+        "prompt_toolkit",
         "rispy",
         "lxml",
         "crossref_commons",

@@ -9,9 +9,13 @@ import argparse
 import os
 from typing import Dict, List
 
+from prompt_toolkit import prompt
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import FileHistory
+from tqdm import tqdm
+
 from mbapy.base import put_log
 from mbapy.file import get_paths_with_extension
-from tqdm import tqdm
 
 if __name__ == '__main__':
     from mbapy.scripts._script_utils_ import clean_path, show_args
@@ -19,14 +23,14 @@ else:
     from ._script_utils_ import clean_path, show_args
     
 
-def main(sys_args: List[str] = None):
+def main(sys_args: List[str] = None):  # pyright: ignore[reportArgumentType]
     args_paser = argparse.ArgumentParser(description = 'delete files with specific suffix or sub-string in name')
+    args_paser.add_argument('-i', '--input', type=str,
+                            help='files path or dir path.')
     args_paser.add_argument('-t', '--type', type = str, nargs='+', default=[],
                             help='format of files to remove, splited by ",". Default is %(default)s')
     args_paser.add_argument('-n', '--name', type = str, default='',
                             help='sub-string of name of files to remove. Default is %(default)s')
-    args_paser.add_argument('-i', '--input', type=str,
-                            help='files path or dir path.')
     args_paser.add_argument('-r', '--recursive', action='store_true', default=False,
                             help='FLAG, recursive search. Default is %(default)s.')
     args_paser.add_argument('-c', '--cmd', type=str, default=None,
@@ -45,7 +49,10 @@ def main(sys_args: List[str] = None):
     print(f'{len(paths)} file(s) matched.')
     # manual input cmd if is None
     if args.cmd is None:
-        args.cmd = input('input commad:')
+        history_path = os.path.expanduser('~/.mbapy/batch_cmd_history.txt')
+        os.makedirs(os.path.dirname(history_path), exist_ok=True)
+        args.cmd = prompt('>>>', history=FileHistory(history_path),
+                          auto_suggest=AutoSuggestFromHistory())
     # delete files
     for path in tqdm(paths, total=len(paths), desc='Excute command'):
         _dir = os.path.dirname(path)
