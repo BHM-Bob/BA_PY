@@ -40,7 +40,11 @@ def main(sys_args: List[str] = None):
                                      args.recursive, args.name)
     print(f'files to remove: {len(paths)}')
     # manual confirm
-    inputs = input('Are you sure to delete these files? (y/n) ')
+    inputs = input('Are you sure to delete these files? (y/n/l) (yes/no/list file paths) ')
+    if inputs.lower() == 'l':
+        for path in paths:
+            print(path)
+        inputs = input('Are you sure to delete these files? (y/n) ')
     if inputs.lower() != 'y':
         print('cancel delete files')
         return []
