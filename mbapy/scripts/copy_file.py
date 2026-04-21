@@ -4,20 +4,21 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2025-09-13 22:36:42
 Description: 
 '''
-
 import argparse
 import os
 import shutil
 from typing import Dict, List
 
 from tqdm import tqdm
-from mbapy.base import put_err
-from mbapy.file import get_paths_with_extension, get_valid_path_on_exists
 
-if __name__ == '__main__':
-    from mbapy.scripts._script_utils_ import clean_path, show_args
-else:
-    from ._script_utils_ import clean_path, show_args
+from mbapy.base import put_err
+from mbapy.file import (
+    copy_file_with_progress,
+    get_paths_with_extension,
+    get_valid_path_on_exists,
+)
+from mbapy.scripts._script_utils_ import clean_path, show_args
+
 
 def main(sys_args: List[str] = None):
     # make and parse args
@@ -34,6 +35,8 @@ def main(sys_args: List[str] = None):
                             help='sub-string of name of files to exclude. Default is %(default)s')
     args_paser.add_argument('-r', '--recursive', action='store_true', default=False,
                             help='FLAG, recursive search. Default is %(default)s.')
+    args_paser.add_argument('-sp', '--show-progress', action='store_true', default=False,
+                            help='FLAG, Show progress and speed for each file. Default is %(default)s.')
     args_paser.add_argument('--on-exist', type=str, choices=['skip', 'overwrite', 'random'], default='overwrite',
                             help='What to do if target file exists: skip, overwrite, or random (add random uuid4 suffix). Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
@@ -55,7 +58,10 @@ def main(sys_args: List[str] = None):
                 if output_file is None:
                     put_err(f'Failed to generate unique filename for {args.output}, skip')
                     return
-        return shutil.copy(args.input, output_file)
+        if args.show_progress:
+            copy_file_with_progress(args.input, output_file)
+        else:
+            return shutil.copy(args.input, output_file)
     
     # get input paths
     paths = get_paths_with_extension(args.input, args.type,
@@ -85,7 +91,10 @@ def main(sys_args: List[str] = None):
                     random_count += 1
                 else: # overwrite
                     overwrite_count += 1
-            shutil.copy(path, output_path)
+            if args.show_progress:
+                copy_file_with_progress(path, output_path)
+            else:
+                shutil.copy(path, output_path)
             copied_count += 1
         except Exception as e:
             put_err(f'can not copy {path}, skip ({e})')
