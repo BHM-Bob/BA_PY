@@ -19,6 +19,7 @@ from typing import Dict, List, Union
 from zipfile import ZipFile
 
 import natsort
+from tqdm import tqdm
 
 try:
     import ujson as json
@@ -534,7 +535,42 @@ def decode_bits_to_str(bits:bytes):
         true_text = bits.decode('GB2312', "ignore")
     else:
         true_text = bits.decode('utf-8', "ignore")
-    return true_text   
+    return true_text
+
+
+class ProgressFileWrapper:
+    def __init__(self, file_obj, pbar):
+        self.file = file_obj
+        self.pbar = pbar
+    
+    def read(self, size=-1):
+        data = self.file.read(size)
+        if data:
+            self.pbar.update(len(data))
+        return data
+    
+    def __getattr__(self, attr):
+        return getattr(self.file, attr)
+
+def copy_file_with_progress(src: str, dst: str):
+    """
+    Copy a file with progress bar.
+
+    Args:
+        src (str): The source file path.
+        dst (str): The destination file path.
+
+    Returns:
+        None
+    """
+    file_size = os.path.getsize(src)
+    with tqdm(total=file_size, unit='B', unit_scale=True, 
+                desc=os.path.basename(src), leave=False) as pbar:
+        with open(src, 'rb') as f_src:
+            wrapped_src = ProgressFileWrapper(f_src, pbar)
+            with open(dst, 'wb') as f_dst:
+                shutil.copyfileobj(wrapped_src, f_dst)
+
 
 def is_jsonable(data):
     """
