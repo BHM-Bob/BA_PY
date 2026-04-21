@@ -4,22 +4,19 @@ LastEditors: BHM-Bob 2262029386@qq.com
 LastEditTime: 2025-02-15 11:49:10
 Description: 
 '''
-
 import argparse
 import os
 import platform
 import shutil
-from typing import Dict, List
+from typing import List
 
 from tqdm import tqdm
 
 from mbapy.base import put_err
-from mbapy.file import get_paths_with_extension
+from mbapy.file import copy_file_with_progress, get_paths_with_extension
+from mbapy.scripts._script_utils_ import clean_path, show_args
 
-if __name__ == '__main__':
-    from mbapy.scripts._script_utils_ import clean_path, show_args
-else:
-    from ._script_utils_ import clean_path, show_args
+SYSTEM = platform.system().lower()
     
 
 def main(sys_args: List[str] = None):
@@ -39,16 +36,22 @@ def main(sys_args: List[str] = None):
                             help='FLAG, recursive search. Default is %(default)s.')
     args_paser.add_argument('--just-name', action='store_true', default=False,
                             help='FLAG, Use original name of files instead of sub-path. Default is %(default)s.')
+    args_paser.add_argument('-sp', '--show-progress', action='store_true', default=False,
+                            help='FLAG, Show progress and speed for each file. Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     
     # process args
     args.input = clean_path(args.input)
     args.output = clean_path(args.output)
-    show_args(args, ['input', 'output', 'type', 'name', 'include_dir_name', 'recursive', 'just_name'])
+    show_args(args, ['input', 'output', 'type', 'name', 'include_dir_name', 'recursive', 'just_name', 'show_progress'])
     
     # short cut if only a single file to move
     if os.path.isfile(args.input) and not os.path.isdir(args.output):
-        return shutil.move(args.input, args.output)
+        if args.show_progress:
+            copy_file_with_progress(args.input, args.output)
+            os.remove(args.input)
+        else:
+            return shutil.move(args.input, args.output)
     
     # get input paths
     paths = get_paths_with_extension(args.input, args.type,
@@ -72,10 +75,14 @@ def main(sys_args: List[str] = None):
                 os.makedirs(output_dir)
             # check system permission
             # only in Windows, Ignore Complex Linux!
-            if platform.system().lower() == 'windows':
+            if SYSTEM == 'windows':
                 os.system(f'attrib -r "{path}"')
             # move file
-            shutil.move(path, output_path)
+            if args.show_progress:
+                copy_file_with_progress(path, output_path)
+                os.remove(path)
+            else:
+                shutil.move(path, output_path)
         except Exception as e:
             put_err(f'can not move {path} with error {e}, skip')
     return paths
