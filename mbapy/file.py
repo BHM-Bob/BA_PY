@@ -15,7 +15,7 @@ import tarfile
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 import natsort
@@ -93,7 +93,7 @@ def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
-    dll = CDLL(get_dll_path_for_sys('file'))
+    dll = CDLL(get_dll_path_for_sys('file')) # type: ignore
     func = dll.get_func('search_files_c', [dll.STR, dll.STR, dll.STR, dll.STR,
                                            dll.INT, dll.INT, dll.INT], dll.STR)
     ret = func(str(folder_path).encode(), ';'.join(file_extensions).encode(),
@@ -108,7 +108,7 @@ def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
     
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
-                             neg_name_substr: Union[str, List[str]] = None, 
+                             neg_name_substr: Optional[Union[str, List[str]]] = None, 
                              search_name_in_dir: bool = False, 
                              sort: Union[bool, str] = False, c_version: bool = False) -> List[str]:
     """
@@ -130,7 +130,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
-    def _sort(file_paths: List[str]) -> List[str]:
+    def _sort(file_paths: List[str]) -> Optional[List[str]]:
         if isinstance(sort, bool):
             if sort:
                 return sorted(file_paths)
@@ -143,7 +143,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
     if c_version:
         assert not neg_name_substr, 'neg_name_substr is not supported in C version'
         file_paths = get_paths_with_extension_c(folder_path, file_extensions, name_substr, '', True, recursive, False)
-        return _sort(file_paths)
+        return _sort(file_paths) # type: ignore
     
     if neg_name_substr:
         if isinstance(neg_name_substr, str):
@@ -170,10 +170,10 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
     
     if not sort:
         return file_paths
-    return _sort(file_paths)
+    return _sort(file_paths) # type: ignore
 
 
-def get_dir(root: str, min_item_num: int = 0, max_item_num: int = None,
+def get_dir(root: str, min_item_num: int = 0, max_item_num: Optional[int] = None,
             file_extensions: List[str] = [],
             recursive: bool = True,
             dir_name_substr: str = '', item_name_substr: str = '',) -> List[str]:
@@ -238,7 +238,7 @@ def format_file_size(size_bits: int, return_str: bool = True):
     units = {0: '', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB', 5: 'PB', 6: 'EB', 7: 'ZB', 8: 'YB'}
     
     while size_bits > 1024:
-        size_bits /= 1024
+        size_bits /= 1024 # type: ignore
         n += 1
         
     if return_str:
@@ -246,9 +246,9 @@ def format_file_size(size_bits: int, return_str: bool = True):
     else:
         return size_bits, units[n]
 
-def extract_files_from_dir(root: str, file_extensions: List[str] = None,
+def extract_files_from_dir(root: str, file_extensions: Optional[List[str]] = None,
                            extract_sub_dir: bool = True, join_str:str = ' ',
-                           preffix: str = '', file_result: List[str] = []):
+                           preffix: str = '', file_result: Optional[List[str]] = None):
     """
     Move all files in subdirectories to the root directory and add the subdirectory name as a prefix to the file name.
 
@@ -264,6 +264,9 @@ def extract_files_from_dir(root: str, file_extensions: List[str] = None,
     Returns:
         None
     """
+    if file_result is None:
+        file_result = []
+        
     for dirpath, dirnames, filenames in os.walk(root):
         if not extract_sub_dir or dirpath == root:
             continue
@@ -272,7 +275,7 @@ def extract_files_from_dir(root: str, file_extensions: List[str] = None,
                 preffix += (dirname + join_str)
                 file_result.extend(extract_files_from_dir(
                     os.path.join(root, dirname), file_extensions,
-                    extract_sub_dir, join_str, preffix))
+                    extract_sub_dir, join_str, preffix, file_result))
         for filename in filenames:
             if not file_extensions or any(filename.endswith(extension) for extension in file_extensions):
                 new_filename = preffix + join_str + filename
@@ -326,7 +329,7 @@ def get_valid_file_path(path:str, valid_chrs:str = '_', valid_len:int = 250,
     return path if not return_Path else Path(path)
 
 
-def get_valid_path_on_exists(path: str, max_retry: int = 10) -> str:
+def get_valid_path_on_exists(path: str, max_retry: int = 10) -> Optional[str]:
     """
     Check if a file path exists, and if it does, try to add a random uuid4 suffix to the file name. 
     If the path still exists after multiple attempts, return None.
@@ -374,7 +377,7 @@ _filetype2opts_ = {
 
 
 def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
-              way:str = 'auto', data = None, kwgs: Dict = None, **kwargs):
+              way:str = 'auto', data = None, kwgs: Optional[Dict] = None, **kwargs):
     """
     A function that reads or writes data to a file based on the provided options.
 
@@ -391,6 +394,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
             - 'json': Read/write the data as a JSON object.
             - 'yml'/'yaml': Read/write the data as a YAML file.
             - 'pkl': Read/write the data as a Python object (using pickle).
+            - 'mgp': Read/write the data as a MessagePack file.
             - 'csv': Read/write the data as a CSV file.
             - 'excel' or 'xlsx' or 'xls': Read/write the data as an Excel file.
             - 'zip': Read/write the data as a ZIP file, return dict: key is file path in zip, value is the data in the file.
@@ -452,7 +456,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return pd.read_excel(f, **kwgs)
             elif way in {'zip', 'tar'}:
                 with tempfile.TemporaryDirectory() as tmpdirname:
-                    f.extractall(tmpdirname)
+                    f.extractall(tmpdirname) # type: ignore
                     files = {}
                     for path in get_paths_with_extension(tmpdirname, []):
                         sub_kwgs = kwgs.get(Path(path).suffix, {'way': 'auto'})
@@ -477,9 +481,9 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 import yaml
                 return yaml.dump(data, f, **kwgs)
             elif way == 'csv':
-                return data.to_csv(f, **kwgs)
+                return data.to_csv(f, **kwgs) # type: ignore
             elif way in ['excel', 'xlsx', 'xls']:
-                return data.to_excel(f, **kwgs)
+                return data.to_excel(f, **kwgs) # type: ignore
         else:
             return put_err(f"Invalid mode or way for file {path}. mode={mode}, way={way}.")
 
@@ -584,9 +588,9 @@ def is_jsonable(data):
     """
     if isinstance(data, str) or isinstance(data, int) or isinstance(data, float) or isinstance(data, bool) or data is None:
         return True
-    elif isinstance(data, collections.abc.Mapping):
+    elif isinstance(data, collections.abc.Mapping): # type: ignore
         return all((isinstance(k, str) and is_jsonable(v)) for k, v in data.items())
-    elif isinstance(data, collections.abc.Sequence):
+    elif isinstance(data, collections.abc.Sequence): # type: ignore
         return all(is_jsonable(item) for item in data)
     else:
         return False
@@ -669,7 +673,7 @@ def read_yaml(path:str, encoding:str = 'utf-8', invalidPathReturn = None):
             return yaml.load(fh, Loader=yaml.FullLoader)
     return invalidPathReturn
 
-def save_excel(path:str, obj:List[List[str]], columns:List[str], encoding:str = 'utf-8', forceUpdate = True):
+def save_excel(path:str, obj:List[List[str]], columns:List[str], forceUpdate = True):
     """
     Save a list of lists as an Excel file.
 
@@ -685,7 +689,7 @@ def save_excel(path:str, obj:List[List[str]], columns:List[str], encoding:str = 
     """
     if forceUpdate or not os.path.isfile(path):
         df = pd.DataFrame(obj, columns=columns)
-        df.to_excel(path, encoding = encoding)
+        df.to_excel(path)
         return True
     return False
 
@@ -713,7 +717,7 @@ def read_excel(path:str, sheet_name:Union[None, str, List[str]] = None, ignore_f
     header = None if ignore_first_row else 'infer'
     # read excel
     if os.path.isfile(path):
-        df = pd.read_excel(path, sheet_name, header=header)
+        df = pd.read_excel(path, sheet_name, header=header) # type: ignore
         if isinstance(df, dict):
             return {k:v.iloc[int(ignore_first_row):, int(ignore_first_col):] for k,v in df.items()}
         else:
@@ -737,7 +741,7 @@ def write_sheets(path:str, sheets:Dict[str, pd.DataFrame], writer_kwgs = {}, **k
         for sheet_name, df in sheets.items():
             df.to_excel(writer, sheet_name=sheet_name, **kwargs)
 
-def update_excel(path:str, sheets:Dict[str, pd.DataFrame] = None):
+def update_excel(path: str, sheets: Optional[Dict[str, pd.DataFrame]] = None):
     """
     Updates an Excel file with the given path by adding or modifying sheets.
 
@@ -768,14 +772,14 @@ def update_excel(path:str, sheets:Dict[str, pd.DataFrame] = None):
         print(f'path is not a file : {path:s}, writing sheets to the file of path')
         write_sheets(path, sheets)
         
-def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
+def convert_pdf_to_txt(path: str, backend = 'pypdf') -> Union[str, None]:
     """
     Convert a PDF file to a text file.
 
     Args:
         path: The path to the PDF file.
         backend: The backend library to use for PDF conversion. 
-            - 'PyPDF2' is the default.
+            - 'pypdf' is the default.
             - 'pdfminer'.
 
     Returns:
@@ -786,10 +790,10 @@ def convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str:
     """
     if not os.path.isfile(path):
         return put_err(f'{path:s} does not exist', f'{path:s} does not exist')
-    if backend == 'PyPDF2':
-        import PyPDF2
+    if backend == 'pypdf':
+        import pypdf
         with open(path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
+            reader = pypdf.PdfReader(file)
             return '\n'.join([page.extract_text() for page in reader.pages])
     elif backend == 'pdfminer':
         from pdfminer.high_level import extract_text
