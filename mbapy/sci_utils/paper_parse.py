@@ -10,21 +10,28 @@ import os
 import re
 from typing import Dict, List, Tuple
 
-import PyPDF2
+import pypdf
 import rispy
 from bs4 import BeautifulSoup
 from bs4 import element as bsel
 
 if __name__ == '__main__':
     # dev mode
-    from mbapy.base import (check_parameters_path, get_default_for_None,
-                            parameter_checker, put_err)
-    from mbapy.file import (convert_pdf_to_txt, opts_file,
-                            replace_invalid_path_chr)
+    from mbapy.base import (
+        check_parameters_path,
+        get_default_for_None,
+        parameter_checker,
+        put_err,
+    )
+    from mbapy.file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
 else:
     # release mode
-    from ..base import (check_parameters_path, get_default_for_None,
-                        parameter_checker, put_err)
+    from ..base import (
+        check_parameters_path,
+        get_default_for_None,
+        parameter_checker,
+        put_err,
+    )
     from ..file import convert_pdf_to_txt, opts_file, replace_invalid_path_chr
 
 
@@ -72,7 +79,7 @@ def has_sci_bookmarks(pdf_path:str = None, pdf_obj = None, section_names:List[st
     elif pdf_path is not None and os.path.isfile(pdf_path):
         try:
             with open(pdf_path, 'rb') as file:
-                pdf_obj = PyPDF2.PdfReader(file)
+                pdf_obj = pypdf.PdfReader(file)
                 outlines = _get_outlines(pdf_obj)
         except:
             return put_err(f'Something goes wrong with pdf path:{pdf_path}, return ""', "")
@@ -154,7 +161,7 @@ def get_section_bookmarks(pdf_path:str = None, pdf_obj = None):
     if pdf_obj is None:
         try:
             with open(pdf_path, 'rb') as file:
-                pdf_obj = PyPDF2.PdfReader(file)
+                pdf_obj = pypdf.PdfReader(file)
                 return worker(pdf_obj)
         except:
             return put_err(f'Something goes wrong with pdf path:{pdf_path}, return ""', "")

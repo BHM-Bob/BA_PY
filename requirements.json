@@ -19,7 +19,7 @@
         "statsmodels",
         "scikit_posthocs",
         "pdfminer",
-        "PyPDF2",
+        "pypdf",
         "prompt_toolkit",
         "rispy",
         "lxml",

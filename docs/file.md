@@ -304,13 +304,13 @@ sheets = {'Sheet1': data1, 'Sheet2': data2}
 update_excel('data.xlsx', sheets)
 ```
 
-### convert_pdf_to_txt(path: str, backend = 'PyPDF2') -> str
+### convert_pdf_to_txt(path: str, backend = 'pypdf') -> str
 
 Convert a PDF file to a text file.  
 
 Parameters:  
 - path: The path to the PDF file.  
-- backend: The backend library to use for PDF conversion. Defaults to 'PyPDF2'.  
+- backend: The backend library to use for PDF conversion. Defaults to 'pypdf'.  
 
 Returns:  
 - The extracted text from the PDF file as a string.  
@@ -358,7 +358,7 @@ Convert a PDF file to a text file.
 #### Params
 - path: The path to the PDF file.
 - backend: The backend library to use for PDF conversion. 
-    - 'PyPDF2' is the default.
+    - 'pypdf' is the default.
     - 'pdfminer'.
 
 #### Returns

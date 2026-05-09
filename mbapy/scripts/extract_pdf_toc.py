@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 
-import PyPDF2
+import pypdf
 from tqdm import tqdm
 
 from mbapy.base import put_err
@@ -31,14 +31,14 @@ def get_toc_from_pdf(pdf_path: str) -> List[Tuple[str, int, int]]:
     toc_data = []
     try:
         with open(pdf_path, 'rb') as f:
-            reader = PyPDF2.PdfReader(f)
+            reader = pypdf.PdfReader(f)
             if hasattr(reader, 'outline') and reader.outline:
                 bookmarks = extract_bookmarks(reader.outline)
                 for title, level, dest in bookmarks:
                     page_num = 0
                     if hasattr(dest, 'get') and dest is not None:
                         try:
-                            if isinstance(dest, PyPDF2.generic.Destination):
+                            if isinstance(dest, pypdf.generic.Destination):
                                 page_num = reader.get_destination_page_number(dest)
                             elif isinstance(dest, dict):
                                 if '/D' in dest:
@@ -91,7 +91,7 @@ def get_toc_with_content(pdf_path: str, toc_data: List[Tuple[str, int, int]],
     result = []
     try:
         with open(pdf_path, 'rb') as f:
-            reader = PyPDF2.PdfReader(f)
+            reader = pypdf.PdfReader(f)
             total_pages = len(reader.pages)
             
             for i, (title, level, page_num) in enumerate(tqdm(toc_data, desc='Extracting content')):
