@@ -110,7 +110,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
                              neg_name_substr: Optional[Union[str, List[str]]] = None, 
                              search_name_in_dir: bool = False, 
-                             sort: Union[bool, str] = False, c_version: bool = False) -> List[str]:
+                             sort: Union[bool, str] = False, c_version: bool = True) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
@@ -125,7 +125,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         - sort (Union[bool, str], optional): Whether to sort the file paths. Defaults to False.
             If True, sort by default order.
             If 'natsort', sort by natural order.
-        - c_version (bool, optional): Whether to use C version. Defaults to False.
+        - c_version (bool, optional): Whether to use C version. Defaults to True.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.

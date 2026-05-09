@@ -84,7 +84,9 @@ class TestGetPaths(unittest.TestCase):
         self.assertEqual(result, [self.file1, self.file10])
 
     def test_get_paths_with_extension_SearchNameInDir(self):
-        result = get_paths_with_extension(self.test_folder, ['.txt'], search_name_in_dir=True, name_substr='sub')
+        # default use c_version, but c_version do not support search_name_in_dir
+        # so fallback to python version in this test
+        result = get_paths_with_extension(self.test_folder, ['.txt'], search_name_in_dir=True, name_substr='sub', c_version=False)
         self.assertEqual(result, [self.subdir])
 
     def test_get_paths_with_extension_Sort(self):
