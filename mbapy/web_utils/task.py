@@ -3,14 +3,15 @@ import asyncio
 import multiprocessing
 import os
 import queue
+import random
 import re
 import threading
 import time
+import traceback
 from collections import namedtuple
 from enum import Enum
 from functools import partial
 from queue import Queue
-import traceback
 from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 from uuid import uuid4
 
@@ -713,6 +714,90 @@ class TaskPool:
         self.IS_STARTED = False
 
 
+class MultiQueue:
+    def __init__(self, n_queue: int = 10, maxsize: int = 0) -> None:
+        self._rand = random.Random()
+        self.queues = [multiprocessing.Queue(maxsize=maxsize) for _ in range(n_queue)]
+        self.n_queue = n_queue
+        self._maxsize = maxsize
+
+    def put(self, item, block: bool = True, timeout: float = None,
+            sleep_iter: float = 0.0001):
+        """
+        put an item into the MultiQueue queue.
+        will start from random queue, and iterate all queues until put an item or timeout.
+        
+        Parameters:
+            - item: the item to put into the queue.
+            - block (bool, default=True): if is True, block until put an item or timeout.
+            - timeout (float, default=None): timeout in seconds.
+            - sleep_iter (float, default=0.0001): sleep time in each loop while waiting.
+            
+        Raises:
+            - queue.Full: if the queue is full and block is False.
+            - TimeoutError: if the queue is full and block is True, and timeout is not None, and the timeout is elapsed.
+        """
+        start = self._rand.randint(0, self.n_queue - 1)
+        start_time = time.time()
+        while True:
+            for i in range(self.n_queue):
+                idx = (start + i) % self.n_queue
+                try:
+                    self.queues[idx].put(item, block=False)
+                    return
+                except:
+                    continue
+            if not block:
+                raise queue.Full()
+            elif timeout is not None and time.time() - start_time > timeout:
+                raise TimeoutError()
+            if sleep_iter > 0:
+                time.sleep(sleep_iter)
+
+    def get(self, block: bool = True, timeout: float = None,
+            sleep_iter: float = 0.0001):
+        """
+        get an item from the MultiQueue queue, and return it.
+        will start from random queue, and iterate all queues until get an item or timeout.
+        
+        Parameters:
+            - block (bool, default=True): if is True, block until get an item or timeout.
+            - timeout (float, default=None): timeout in seconds.
+            - sleep_iter (float, default=0.0001): sleep time in each loop while waiting.
+            
+        Returns:
+            - item: the item from the queue.
+            
+        Raises:
+            - queue.Empty: if the queue is empty and block is False.
+            - TimeoutError: if the queue is empty and block is True, and timeout is not None, and the timeout is elapsed.
+        """
+        start = self._rand.randint(0, self.n_queue - 1)
+        start_time = time.time()
+        while True:
+            for i in range(self.n_queue):
+                idx = (start + i) % self.n_queue
+                try:
+                    return self.queues[idx].get(block=False)
+                except:
+                    continue
+            if not block:
+                raise queue.Empty()
+            elif timeout is not None and time.time() - start_time > timeout:
+                raise TimeoutError()
+            if sleep_iter > 0:
+                time.sleep(sleep_iter)
+
+    def qsize(self) -> int:
+        return sum(q.qsize() for q in self.queues)
+
+    def empty(self) -> bool:
+        return all(q.empty() for q in self.queues)
+
+    def full(self) -> bool:
+        return any(q.full() for q in self.queues)
+
+
 __all__ = [
     'Key2Action',
     'statuesQue',
@@ -724,7 +809,8 @@ __all__ = [
     'Timer',
     'ThreadsPool',
     'TaskStatus',
-    'TaskPool'
+    'TaskPool',
+    'MultiQueue',
 ]
 
 
