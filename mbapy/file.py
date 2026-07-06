@@ -431,6 +431,10 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
         mode, way, encoding = mode + opts_kwgs['mode'], opts_kwgs['way'], opts_kwgs['encoding']
         if opts_kwgs['encoding'] is None:
             del kwargs['encoding']
+    # gzip
+    use_gzip = kwargs.get('gzip', False)
+    if kwargs.get('gzip', False):
+        del kwargs['gzip']
     # perform read or write
     with open_fn(path, mode, **kwargs) as f:
         if 'r' in mode and os.path.isfile(path):
@@ -445,7 +449,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 kwgs['Loader'] = kwgs.get('Loader', yaml.FullLoader)
                 return yaml.load(f, **kwgs)
             elif way == 'pkl':
-                if kwargs.get('gzip', False):
+                if use_gzip:
                     f = gzip.GzipFile(fileobj=f)
                 if os.path.getsize(path) == 0:
                     return None
@@ -473,7 +477,7 @@ def opts_file(path:str, mode:str = 'r', encoding:str = 'utf-8',
                 return f.write(json.dumps(data, **kwgs))
             elif way == 'pkl':
                 data = pickle.dumps(data, **kwgs)
-                if kwargs.get('gzip', False):
+                if use_gzip:
                     data = gzip.compress(data)
                 f.write(data)
                 return data
