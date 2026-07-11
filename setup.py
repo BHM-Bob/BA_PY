@@ -2,7 +2,7 @@
 Author: BHM-Bob 2262029386@qq.com
 Date: 2022-11-01 18:30:01
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2026-03-28 23:15:56
+LastEditTime: 2026-07-11 14:42:38
 Description: 
 '''
 """
@@ -111,5 +111,4 @@ setup(
 # pip install .
 
 # python setup.py sdist
-# twine upload dist/mbapy-0.11.5.tar.gz
-# git log --since="2025-02-06 17:00:00" --until="2026-12-31" --pretty=format:'"%H","%an","%ai","%s","%b"' > commits_temp.csv
+# twine upload dist/mbapy-0.11.6.tar.gz
