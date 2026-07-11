@@ -707,6 +707,10 @@ class TaskPool:
         # close thread and join it
         self._thread_quit_event.set()
         if self.MODE in ['async', 'thread', 'process']:
+            if self.MODE in ['thread', 'process']:
+                # active the loop, let them move into the exit check
+                with self._condition:
+                    self._condition.notify()
             self.thread.join(timeout)
         elif self.MODE == 'threads':
             [t.join() for t in self.thread]
