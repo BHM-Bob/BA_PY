@@ -1,7 +1,7 @@
 '''
 Date: 2023-08-16 16:07:51
 LastEditors: BHM-Bob 2262029386@qq.com
-LastEditTime: 2025-08-06 16:53:59
+LastEditTime: 2026-03-03 14:45:08
 Description: convert jpeg to avif
 '''
 import argparse
@@ -79,7 +79,7 @@ def main(sys_args: List[str] = None):
                             help='output file path or dir path, default is %(default)s.')
     args_paser.add_argument('-m', '--multi-process', type=int, default=4,
                             help='number of processes for parallel processing, default is %(default)s.')
-    args_paser.add_argument('-b', '--batch', type=int, default=10,
+    args_paser.add_argument('-b', '--batch', type=int, default=1,
                             help='number of batch size for a processes, default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     
