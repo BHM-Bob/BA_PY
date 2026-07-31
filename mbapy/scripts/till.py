@@ -309,21 +309,85 @@ def wait_till_memory(required_memory_gb: float, check_interval: int = 30, wait_i
         time.sleep(check_interval)
 
 
-def wait_till_file(path: str, check_interval: int = 10):
-    """Wait until file or folder exists at specified path.
+def wait_till_file(path: str, check_interval: int = 10, on_check: str = 'exist',
+                   size_mb: Optional[float] = None, wait_iter: int = 5):
+    """Wait until file condition is met.
     
     Args:
         path: Path to file or folder to wait for
         check_interval: Check interval in seconds
+        on_check: Check condition - 'exist', 'size-bigger-than', 'size-less-than', 'size-change', 'no-size-change'
+        size_mb: Size threshold in MB (required for size-bigger-than/size-less-than)
+        wait_iter: Consecutive checks to confirm condition (for size-bigger-than/size-less-than/no-size-change)
     """
-    print(f'Waiting for file/folder: {path}...')
-    st = time.time()
-    while True:
-        if os.path.exists(path):
-            print(f'\nFile/folder {path} exists after {time.time() - st:.2f} seconds')
-            break
-        print(f'\rWaiting for {path}, total wait: {time.time() - st:.2f} s', end='')
-        time.sleep(check_interval)
+    # For non-exist modes, file must exist immediately
+    if on_check != 'exist' and not os.path.exists(path):
+        print(f'Error: file/folder {path} does not exist')
+        exit(1)
+    
+    if on_check == 'exist':
+        print(f'Waiting for file/folder: {path}...')
+        st = time.time()
+        while True:
+            if os.path.exists(path):
+                print(f'\nFile/folder {path} exists after {time.time() - st:.2f} seconds')
+                break
+            print(f'\rWaiting for {path}, total wait: {time.time() - st:.2f} s', end='')
+            time.sleep(check_interval)
+    elif on_check in ('size-bigger-than', 'size-less-than'):
+        if size_mb is None:
+            print(f'Error: --size-mb is required for {on_check} mode')
+            exit(1)
+        size_bytes = size_mb * 1024 * 1024
+        condition_name = 'bigger than' if on_check == 'size-bigger-than' else 'less than'
+        print(f'Waiting for file {path} size to be {condition_name} {size_mb} MB...')
+        st = time.time()
+        available_iter = 0
+        while True:
+            file_size = os.path.getsize(path)
+            print(f'\rFile {path} size: {file_size / 1024**2:.2f} MB, total wait: {time.time() - st:.2f} s', end='')
+            
+            if (on_check == 'size-bigger-than' and file_size > size_bytes) or \
+               (on_check == 'size-less-than' and file_size < size_bytes):
+                available_iter += 1
+                if available_iter >= wait_iter:
+                    print(f'\nFile size condition met: {file_size / 1024**2:.2f} MB is {condition_name} {size_mb} MB')
+                    break
+            else:
+                available_iter = 0
+            
+            time.sleep(check_interval)
+    elif on_check == 'size-change':
+        initial_size = os.path.getsize(path)
+        print(f'Waiting for file {path} size to change (current: {initial_size / 1024**2:.2f} MB)...')
+        st = time.time()
+        while True:
+            time.sleep(check_interval)
+            current_size = os.path.getsize(path)
+            print(f'\rFile {path} size: {current_size / 1024**2:.2f} MB, total wait: {time.time() - st:.2f} s', end='')
+            if current_size != initial_size:
+                print(f'\nFile size changed from {initial_size / 1024**2:.2f} MB to {current_size / 1024**2:.2f} MB after {time.time() - st:.2f} seconds')
+                break
+    elif on_check == 'no-size-change':
+        initial_size = os.path.getsize(path)
+        print(f'Waiting for file {path} size to stabilize (current: {initial_size / 1024**2:.2f} MB)...')
+        st = time.time()
+        stable_iter = 0
+        last_size = initial_size
+        while True:
+            time.sleep(check_interval)
+            current_size = os.path.getsize(path)
+            print(f'\rFile {path} size: {current_size / 1024**2:.2f} MB, total wait: {time.time() - st:.2f} s', end='')
+            
+            if current_size == last_size:
+                stable_iter += 1
+                if stable_iter >= wait_iter:
+                    print(f'\nFile size stabilized at {current_size / 1024**2:.2f} MB after {time.time() - st:.2f} seconds')
+                    break
+            else:
+                stable_iter = 0
+            
+            last_size = current_size
 
 
 def wait_till_folder_file_count(path: str, min_count: int, check_interval: int = 10):
@@ -384,9 +448,14 @@ def main(sys_args: Optional[List[str]] = None):
     parser_mem.add_argument('--check-interval', type=int, default=30, help='Check interval in seconds (default: 30)')
     parser_mem.add_argument('--wait-iter', type=int, default=5, help='Wait iterations after condition met (default: 5)')
     
-    parser_file = subparsers.add_parser('file', help='Wait until file or folder exists')
+    parser_file = subparsers.add_parser('file', help='Wait until file condition is met')
     parser_file.add_argument('path', type=str, help='Path to file or folder')
+    parser_file.add_argument('--on-check', type=str, default='exist',
+                             choices=['exist', 'size-bigger-than', 'size-less-than', 'size-change', 'no-size-change'],
+                             help='Check condition: exist (default), size-bigger-than, size-less-than, size-change, no-size-change')
+    parser_file.add_argument('--size-mb', type=float, default=None, help='Size threshold in MB (required for size-bigger-than/size-less-than)')
     parser_file.add_argument('--check-interval', type=int, default=30, help='Check interval in seconds (default: 30)')
+    parser_file.add_argument('--wait-iter', type=int, default=5, help='Consecutive checks to confirm condition (default: 5, for size-bigger-than/size-less-than/no-size-change)')
     
     parser_folder = subparsers.add_parser('folder', help='Wait until folder contains minimum number of files')
     parser_folder.add_argument('path', type=str, help='Path to folder')
@@ -410,7 +479,7 @@ def main(sys_args: Optional[List[str]] = None):
     elif args.command == 'mem':
         wait_till_memory(args.memory, args.check_interval, args.wait_iter)
     elif args.command == 'file':
-        wait_till_file(args.path, args.check_interval)
+        wait_till_file(args.path, args.check_interval, args.on_check, args.size_mb, args.wait_iter)
     elif args.command == 'folder':
         wait_till_folder_file_count(args.path, getattr(args, 'min-count'), args.check_interval)
     else:
