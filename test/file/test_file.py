@@ -8,7 +8,7 @@ import os
 import tempfile
 import unittest
 
-from mbapy.file import get_paths_with_extension, opts_file
+from mbapy.file import get_paths_with_extension, get_paths_with_extension_c, opts_file
 
 
 class TestOptsFile(unittest.TestCase):
@@ -100,6 +100,32 @@ class TestGetPaths(unittest.TestCase):
     def test_get_paths_with_extension_UnknownSortOption(self):
         result = get_paths_with_extension(self.test_folder, ['.txt'], sort='unknown')
         self.assertEqual(set(result), set([self.file1, self.file10, self.file3]))
+
+    def test_get_paths_with_extension_ExactMatch_C(self):
+        result = get_paths_with_extension(self.test_folder, ['.txt'], name_substr='file1.txt', exact_match=True)
+        self.assertEqual(result, [self.file1])
+
+    def test_get_paths_with_extension_ExactMatch_Python(self):
+        result = get_paths_with_extension(self.test_folder, ['.txt'], name_substr='file1.txt',
+                                          exact_match=True, c_version=False)
+        self.assertEqual(result, [self.file1])
+
+    def test_get_paths_with_extension_ExactMatch_NoMatch(self):
+        # name_substr without type suffix should not match anything under exact_match
+        result = get_paths_with_extension(self.test_folder, ['.txt'], name_substr='file1',
+                                          exact_match=True, c_version=False)
+        self.assertEqual(result, [])
+
+    def test_get_paths_with_extension_ExactMatch_CaseInsensitive(self):
+        # only get_paths_with_extension_c exposes case_sensitive
+        result = get_paths_with_extension_c(self.test_folder, ['.txt'], name_substr='FILE1.TXT',
+                                            case_sensitive=False, recursive=False, exact_match=True)
+        self.assertEqual(result, [self.file1])
+
+    def test_get_paths_with_extension_ExactMatch_NotSupportDir(self):
+        with self.assertRaises(AssertionError):
+            get_paths_with_extension(self.test_folder, ['.txt'], name_substr='file1.txt',
+                                     search_name_in_dir=True, exact_match=True, c_version=False)
 
 if __name__ == '__main__':
     unittest.main()
