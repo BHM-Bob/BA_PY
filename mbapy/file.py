@@ -75,7 +75,7 @@ else:
 def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
                                name_substr: str = '', path_substr: str = '',
                                case_sensitive: bool = True, recursive: bool = True,
-                               include_dirs: bool = False) -> List[str]:
+                               include_dirs: bool = False, exact_match: bool = False) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
     C version, faster than python version, but not well tested.
@@ -89,16 +89,17 @@ def get_paths_with_extension_c(folder_path: str, file_extensions: List[str],
         - case_sensitive (bool, optional): Whether to search case sensitively. Defaults to True.
         - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
         - include_dirs (bool, optional): Whether to include directories in the search results. Defaults to False.
+        - exact_match (bool, optional): Whether name_substr should exactly match the complete file-name (INCLUDE TYPE SUFFIX). Defaults to False, use sub-string match.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
     dll = CDLL(get_dll_path_for_sys('file')) # type: ignore
     func = dll.get_func('search_files_c', [dll.STR, dll.STR, dll.STR, dll.STR,
-                                           dll.INT, dll.INT, dll.INT], dll.STR)
+                                           dll.INT, dll.INT, dll.INT, dll.INT], dll.STR)
     ret = func(str(folder_path).encode(), ';'.join(file_extensions).encode(),
                name_substr.encode(), path_substr.encode(),
-               int(case_sensitive), int(recursive), int(include_dirs))
+               int(case_sensitive), int(recursive), int(include_dirs), int(exact_match))
     if ret:
         ret = [p for p in ret.decode().strip().split('\n') if p]
     else:
@@ -110,7 +111,8 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
                              neg_name_substr: Optional[Union[str, List[str]]] = None, 
                              search_name_in_dir: bool = False, 
-                             sort: Union[bool, str] = False, c_version: bool = True) -> List[str]:
+                             sort: Union[bool, str] = False, c_version: bool = True,
+                             exact_match: bool = False) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
@@ -122,10 +124,12 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
         - neg_name_substr (Union[str, List[str]], optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX), if find, file will be excluded. Defualts to '', means not specific.
         - search_name_in_dir (bool, optional): Whether to search file names in directory, if find, dir-path will be added to result. Defaults to False.
+            Not supported when exact_match is True.
         - sort (Union[bool, str], optional): Whether to sort the file paths. Defaults to False.
             If True, sort by default order.
             If 'natsort', sort by natural order.
         - c_version (bool, optional): Whether to use C version. Defaults to True.
+        - exact_match (bool, optional): Whether name_substr should exactly match the complete file-name (INCLUDE TYPE SUFFIX). Defaults to False, use sub-string match.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
@@ -140,9 +144,11 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         else:
             return put_err(f'Unknown sort option: {sort}, return unsorted list', file_paths)
 
+    assert not (exact_match and search_name_in_dir), 'search_name_in_dir is not supported when exact_match is True'
+
     if c_version:
         assert not neg_name_substr, 'neg_name_substr is not supported in C version'
-        file_paths = get_paths_with_extension_c(folder_path, file_extensions, name_substr, '', True, recursive, False)
+        file_paths = get_paths_with_extension_c(folder_path, file_extensions, name_substr, '', True, recursive, False, exact_match)
         return _sort(file_paths) # type: ignore
     
     if neg_name_substr:
@@ -156,7 +162,11 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         # check file extension
         if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
             # check file name
-            if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
+            if exact_match:
+                name_matched = (not name_substr) or name_substr == name
+            else:
+                name_matched = (not name_substr) or name_substr in name
+            if name_matched:
                 # check neg name substr
                 if neg_name_substr and any(n in path for n in neg_name_substr):
                     continue
@@ -166,7 +176,7 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         if recursive and os.path.isdir(path):
             # sort and c_version param is no need to pass
             file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr,
-                                                       neg_name_substr, search_name_in_dir))
+                                                       neg_name_substr, search_name_in_dir, exact_match=exact_match))
     
     if not sort:
         return file_paths

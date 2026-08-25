@@ -34,7 +34,8 @@ else:
 
 def get_paths_with_extension(folder_path: str, file_extensions: List[str],
                              recursive: bool = True, name_substr: str = '',
-                             search_name_in_dir: bool = False) -> List[str]:
+                             search_name_in_dir: bool = False,
+                             exact_match: bool = False) -> List[str]:
     """
     Returns a list of file paths within a given folder that have a specified extension.
 
@@ -45,20 +46,28 @@ def get_paths_with_extension(folder_path: str, file_extensions: List[str],
         - recursive (bool, optional): Whether to search subdirectories recursively. Defaults to True.
         - name_substr (str, optional): Sub-string in file-name (NOT INCLUDE TYPE SUFFIX). Defualts to '', means not specific.
         - search_name_in_dir (bool, optional): Whether to search file names in directory. Defaults to False.
+            Not supported when exact_match is True.
+        - exact_match (bool, optional): Whether name_substr should exactly match the complete file-name (INCLUDE TYPE SUFFIX). Defaults to False, use sub-string match.
 
     Returns:
         List[str]: A list of file paths that match the specified file extensions.
     """
+    assert not (exact_match and search_name_in_dir), 'search_name_in_dir is not supported when exact_match is True'
     file_paths = []
     for name in os.listdir(folder_path): # do not use os.walk() to avoid FXXK files updates
         path = os.path.join(folder_path, name)
         if os.path.isfile(path) and (any(path.endswith(extension) for extension in file_extensions) or (not file_extensions)):
-            if (not name_substr) or (name_substr and name_substr in path.split(os.path.sep)[-1]):
+            if exact_match:
+                name_matched = (not name_substr) or name_substr == name
+            else:
+                name_matched = (not name_substr) or name_substr in name
+            if name_matched:
                 file_paths.append(path)
         elif search_name_in_dir and os.path.isdir(path) and name_substr in path:
             file_paths.append(path)
         if recursive and os.path.isdir(path):
-            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr, search_name_in_dir))
+            file_paths.extend(get_paths_with_extension(path, file_extensions, recursive, name_substr,
+                                                       search_name_in_dir, exact_match=exact_match))
     return file_paths
 
 def get_dir(root: str, min_item_num: int = 0, max_item_num: int = None,
