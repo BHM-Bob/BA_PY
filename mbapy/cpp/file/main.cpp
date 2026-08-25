@@ -56,6 +56,7 @@ typedef struct {
     const wchar_t* path_substr;
     int case_sensitive;
     int include_dirs;
+    int exact_match;
     int path_substr_len;
     int name_substr_len;
 } MatchConfig;
@@ -189,7 +190,8 @@ MatchConfig prepare_match_config(const char* extensions,
                                  const char* name_substr, 
                                  const char* path_substr, 
                                  int case_sensitive, 
-                                 int include_dirs) {
+                                 int include_dirs,
+                                 int exact_match) {
     MatchConfig config;
     memset(&config, 0, sizeof(MatchConfig));
     
@@ -252,6 +254,7 @@ MatchConfig prepare_match_config(const char* extensions,
     
     config.case_sensitive = case_sensitive;
     config.include_dirs = include_dirs;
+    config.exact_match = exact_match;
     
     return config;
 }
@@ -313,8 +316,14 @@ int check_name_match(const MatchConfig* config, const wchar_t* filename) {
         filename_to_compare = filename_copy;
     }
     
-    // 检查子串
-    int match = (wcsstr(filename_to_compare, config->name_substr) != NULL);
+    // 检查子串或精确匹配
+    int match;
+    if (config->exact_match) {
+        // 完整文件名（含类型后缀）精确匹配，大小写不敏感时两侧均已 tolower，直接比较即可
+        match = (wcscmp(filename_to_compare, config->name_substr) == 0);
+    } else {
+        match = (wcsstr(filename_to_compare, config->name_substr) != NULL);
+    }
     
     if (filename_copy) free(filename_copy);
     return match;
@@ -557,10 +566,11 @@ WStringList search_files(const wchar_t* root_path,
                          const char* path_substr,
                          int case_sensitive,
                          int recursive,
-                         int include_dirs) {
+                         int include_dirs,
+                         int exact_match) {
     // 预编译匹配配置
     MatchConfig config = prepare_match_config(extensions, name_substr, path_substr, 
-                                            case_sensitive, include_dirs);
+                                            case_sensitive, include_dirs, exact_match);
     
     // 平台特定搜索
 #ifdef _WIN32
@@ -616,14 +626,15 @@ extern "C" {
                         const char* path_substr,
                         int case_sensitive,
                         int recursive,
-                        int include_dirs) {
+                        int include_dirs,
+                        int exact_match) {
         // 转换根路径为宽字符
         wchar_t* wroot_path = utf8_to_wchar(root_path_utf8);
         if (!wroot_path) return NULL;
         
         // 执行搜索
         WStringList results = search_files(wroot_path, extensions, name_substr, path_substr,
-                                        case_sensitive, recursive, include_dirs);
+                                        case_sensitive, recursive, include_dirs, exact_match);
         
         // 清理根路径
         free(wroot_path);
@@ -665,7 +676,8 @@ int main() {
     int case_sensitive = 1;
     int recursive_mode = 1;
     int include_dirs = 0;
-    char* ret = search_files_c(root_path, extensions, name_substr, path_substr, case_sensitive, recursive_mode, include_dirs);
+    int exact_match = 0;
+    char* ret = search_files_c(root_path, extensions, name_substr, path_substr, case_sensitive, recursive_mode, include_dirs, exact_match);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
