@@ -108,8 +108,10 @@ def main(sys_args: List[str] = None):
                             help='FLAG, recursive search. Default is %(default)s.')
     args_paser.add_argument('-s', '--sum', action='store_true', default=False,
                             help='FLAG, sum size of files. Default is %(default)s.')
-    args_paser.add_argument('--sort-by-size', action='store_true', default=False,
-                            help='FLAG, sort files by size. Default is %(default)s.')
+    args_paser.add_argument('--exact-match', action='store_true', default=False,
+                            help='FLAG, name should exactly match the complete file-name (INCLUDE TYPE SUFFIX). Default is %(default)s.')
+    args_paser.add_argument('--sort', type=str, choices=['size', 'nat'], default=None,
+                            help='sort files by size or natural order. Default is %(default)s.')
     args = args_paser.parse_args(sys_args)
     
     # process IO path
@@ -120,13 +122,15 @@ def main(sys_args: List[str] = None):
         args.output = clean_path(args.output)
     f_handle = open(args.output, 'w') if args.output is not None else None
     # show args
-    show_args(args, ['type', 'name', 'input', 'output', 'recursive', 'sort_by_size'])
+    show_args(args, ['type', 'name', 'input', 'output', 'recursive', 'exact_match', 'sort'])
     
     paths = get_paths_with_extension(args.input, args.type,
-                                     args.recursive, args.name, c_version=True)
+                                     args.recursive, args.name, c_version=True,
+                                     exact_match=args.exact_match,
+                                     sort='natsort' if args.sort == 'nat' else False)
     
     # 如果启用了按大小排序，则对文件进行排序
-    if args.sort_by_size:
+    if args.sort == 'size':
         # 获取文件大小并排序
         file_sizes = [(path, os.path.getsize(path)) for path in paths]
         file_sizes.sort(key=lambda x: x[1], reverse=True)  # 从大到小排序
@@ -148,7 +152,7 @@ def main(sys_args: List[str] = None):
     _print(f'total files size: {format_file_size(total_size)}, avg size: {format_file_size(total_size/len(paths))}', f_handle)
     
     # 如果启用了按大小排序，则添加bincount统计
-    if args.sort_by_size:
+    if args.sort == 'size':
         _print('', f_handle)
         _print('File Size Distribution:', f_handle)
         _print('=' * 50, f_handle)
