@@ -297,6 +297,7 @@ class TaskPool:
         self.mp_pool_init_kwargs: Dict[str, Any] = mp_pool_init_kwargs or {}
         self.thread: Union[threading.Thread, List[threading.Thread]] = None
         self.tasks = {}
+        self._running_queue = Queue()
         # check args: mp_pool_init_kwargs
         assert isinstance(self.mp_pool_init_kwargs, dict), f'mp_pool_init_kwargs must be None or dict, but got {type(self.mp_pool_init_kwargs)}'            
 
@@ -319,19 +320,21 @@ class TaskPool:
             # run task
             task_name, task_func, task_args, task_kwargs = task
             try:
+                self._running_queue.put(None)
                 task_start_time = time.time()
                 result = task_func(*task_args, **task_kwargs)
                 self._thread_result_queue.put((task_name, result, TaskStatus.SUCCEED))
                 with self._locker:
                     self._task_elapsed.append(time.time() - task_start_time)
+                self._running_queue.get()
             except Exception as e:
                 if reprot_error:
                     traceback.print_exception(type(result), result, result.__traceback__)
                 self._thread_result_queue.put((task_name, e, TaskStatus.NOT_SUCCEEDED))
+                self._running_queue.get()
 
     def _run_process_loop(self, reprot_error: bool = False):
         tasks_start_time = {}
-        running_que = Queue()
         pool_free_condition = threading.Condition()
         with multiprocessing.Pool(self.N_WORKER, **self.mp_pool_init_kwargs) as pool:
             while not self._thread_quit_event.is_set():
@@ -342,11 +345,11 @@ class TaskPool:
                         # with timeout=None, because the finished-task post process is automatic in callback threads
                         self._condition.wait(timeout=None)
                 # if pool is busy, wait pool free condition to be triggered
-                if self.N_WORKER < running_que.qsize():
+                if self.N_WORKER < self._running_queue.qsize():
                     with pool_free_condition:
                         pool_free_condition.wait(timeout=None)
                 # get newly added tasks upto max N_WORKER tasks
-                tasks_to_submit, available_workers = [], self.N_WORKER - running_que.qsize()
+                tasks_to_submit, available_workers = [], self.N_WORKER - self._running_queue.qsize()
                 for _ in range(available_workers):
                     try:
                         task = self._thread_task_queue.get_nowait()
@@ -358,7 +361,7 @@ class TaskPool:
                     task_name, task_func, task_args, task_kwargs = task
                     # define callback function, these callback functions will be running in main-process's SOMEONE thread.
                     def uniform_callback(task_name):
-                        running_que.get()
+                        self._running_queue.get()
                         with pool_free_condition:
                             pool_free_condition.notify_all()
                         with self._locker:
@@ -374,7 +377,7 @@ class TaskPool:
                     # apply_async returns AsyncResult obj，whose ready() method makes check for tasks，when task is done or error, ready() returns True.
                     pool.apply_async(task_func, args=task_args, kwds=task_kwargs,
                                     callback=success_callback, error_callback=error_callback)
-                    running_que.put(None)
+                    self._running_queue.put(None)
                     with self._locker:
                         tasks_start_time[task_name] = time.time()
 
@@ -573,6 +576,12 @@ class TaskPool:
             return True
         elif self.MODE in ['thread', 'threads', 'process']:
             return self._thread_task_queue.empty()
+        
+    def check_no_running(self):
+        if self.MODE == 'async':
+            return put_err('Async mode is not supported for check_no_running, return False', False)
+        elif self.MODE in ['thread', 'threads', 'process']:
+            return self._running_queue.empty()
 
     def wait_till(self, condition_func, wait_each_loop: float = 0.5,
                   timeout: float = None, verbose: bool = False,
@@ -620,6 +629,10 @@ class TaskPool:
     def wait_till_free(self, wait_each_loop: float = 0.01, timeout: float = None, update_result_queue: bool = True):
         """wait till task queue is empty"""
         self.wait_till(lambda: self.count_waiting_tasks() == 0, wait_each_loop, timeout, False, update_result_queue)
+        
+    def wait_till_all_done(self, wait_each_loop: float = 0.01, timeout: Optional[float] = None, update_result_queue: bool = True):
+        """wait till task queue is empty"""
+        self.wait_till(lambda: self.check_empty() and self.check_no_running(), wait_each_loop, timeout, False, update_result_queue)
 
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
                   coro_func: Callable, batch_size: int = None, return_result: bool = True,
