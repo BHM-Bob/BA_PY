@@ -284,11 +284,11 @@ class TaskPool:
         if mode in ['async', 'thread', 'isolated_process'] and n_worker is not None:
             put_err(f'n_worker should be None when mode is {mode}, skip')
         self.MODE = mode
-        self.N_WORKER: int = n_worker
+        self.N_WORKER: int = n_worker or 1
         self.IS_STARTED = False
         self.sleep_while_empty = sleep_while_empty
         self.REPORT_ERROR = report_error
-        self._async_loop: asyncio.AbstractEventLoop = None
+        self._async_loop: asyncio.AbstractEventLoop
         self._thread_task_queue: Queue = Queue()
         self._thread_result_queue: Queue = Queue()
         self._thread_quit_event: threading.Event = threading.Event()
@@ -296,7 +296,7 @@ class TaskPool:
         self._locker = threading.Lock()
         self._task_elapsed = []
         self.mp_pool_init_kwargs: Dict[str, Any] = mp_pool_init_kwargs or {}
-        self.thread: Union[threading.Thread, List[threading.Thread]] = None
+        self.thread: Union[threading.Thread, List[threading.Thread]]
         self.tasks = {}
         self._running_queue = Queue()
         # check args: mp_pool_init_kwargs
@@ -387,7 +387,7 @@ class TaskPool:
 
     def _add_task_async(self, name: str, coro_func, *args, **kwargs):
         future = asyncio.run_coroutine_threadsafe(coro_func(*args, **kwargs), self._async_loop)
-        future.add_done_callback(partial(self._query_async_task_callback, task_name=name))
+        future.add_done_callback(partial(self._query_async_task_callback, task_name=name)) # type: ignore
         return name
 
     def _add_task_thread(self, name: str, func, *args, **kwargs):
@@ -396,7 +396,7 @@ class TaskPool:
             self._condition.notify()
         return name
 
-    def add_task(self, name: str, coro_func, *args, **kwargs) -> str:
+    def add_task(self, name: Optional[str], coro_func, *args, **kwargs) -> str:
         # check name
         if name == '' or name is None:
             name = f'{coro_func.__name__}-{uuid4()}'
@@ -539,13 +539,16 @@ class TaskPool:
         in_dict = len([None for task in self.tasks.values() if task != TaskStatus.NOT_RETURNED])
         return in_que + in_dict
     
-    def get_task_elapsed(self)->Tuple[float, float, float]:
+    def get_task_elapsed(self, get_stats: bool = True) -> Union[List[float], Tuple[float, float, float]]:
         """return the elapsed time: tuple[max_elapsed, min_elapsed, avg_elapsed]"""
         with self._locker:
-            max_elapsed = max(self._task_elapsed)
-            min_elapsed = min(self._task_elapsed)
-            avg_elapsed = sum(self._task_elapsed) / len(self._task_elapsed)
-            return max_elapsed, min_elapsed, avg_elapsed
+            if get_stats:
+                max_elapsed = max(self._task_elapsed)
+                min_elapsed = min(self._task_elapsed)
+                avg_elapsed = sum(self._task_elapsed) / len(self._task_elapsed)
+                return max_elapsed, min_elapsed, avg_elapsed
+            else:
+                return self._task_elapsed.copy()
 
     @deprecated("This method will be deprecated, use start method instead.")
     def run(self):
@@ -595,7 +598,7 @@ class TaskPool:
             return self._running_queue.empty()
 
     def wait_till(self, condition_func, wait_each_loop: float = 0.5,
-                  timeout: float = None, verbose: bool = False,
+                  timeout: Optional[float] = None, verbose: bool = False,
                   update_result_queue: bool = True, *args, **kwargs):
         """
         wait till condition_func return True, or timeout.
@@ -637,7 +640,7 @@ class TaskPool:
                        wait_each_loop = wait_each_loop, verbose=False, names=set(task_names))
         return {name: self.query_task(name) for name in task_names}
     
-    def wait_till_free(self, wait_each_loop: float = 0.01, timeout: float = None, update_result_queue: bool = True):
+    def wait_till_free(self, wait_each_loop: float = 0.01, timeout: Optional[float] = None, update_result_queue: bool = True):
         """wait till task queue is empty"""
         self.wait_till(lambda: self.count_waiting_tasks() == 0, wait_each_loop, timeout, False, update_result_queue)
         
@@ -646,7 +649,7 @@ class TaskPool:
         self.wait_till(lambda: self.check_empty() and self.check_no_running(), wait_each_loop, timeout, False, update_result_queue)
 
     def map_tasks(self, tasks: Union[List[Tuple[List, Dict]], Dict[str, Tuple[List, Dict]]],
-                  coro_func: Callable, batch_size: int = None, return_result: bool = True,
+                  coro_func: Callable, batch_size: Optional[int] = None, return_result: bool = True,
                   timeout: int = 3, wait_busy: bool = False, **kwargs) -> Union[List[Any], Dict[str, Any]]:
         """
         map tasks to coro_func, and return the results.
@@ -714,7 +717,7 @@ class TaskPool:
             self._running_queue.get()
         return sizes
 
-    def close(self, timeout: float = None):
+    def close(self, timeout: Optional[float] = None):
         """close the thread and event loop, join the thread"""
         # close async pool
         if self.MODE == 'async':
@@ -727,9 +730,9 @@ class TaskPool:
                 # active the loop, let them move into the exit check
                 with self._condition:
                     self._condition.notify()
-            self.thread.join(timeout)
+            self.thread.join(timeout) # type: ignore
         elif self.MODE == 'threads':
-            [t.join() for t in self.thread]
+            [t.join(timeout) for t in self.thread] # type: ignore
         # deactive IS_STARTED Flag
         self.IS_STARTED = False
 
@@ -741,7 +744,7 @@ class MultiQueue:
         self.n_queue = n_queue
         self._maxsize = maxsize
 
-    def put(self, item, block: bool = True, timeout: float = None,
+    def put(self, item, block: bool = True, timeout: Optional[float] = None,
             sleep_iter: float = 0.0001):
         """
         put an item into the MultiQueue queue.
@@ -774,7 +777,7 @@ class MultiQueue:
             if sleep_iter > 0:
                 time.sleep(sleep_iter)
 
-    def get(self, block: bool = True, timeout: float = None,
+    def get(self, block: bool = True, timeout: Optional[float] = None,
             sleep_iter: float = 0.0001):
         """
         get an item from the MultiQueue queue, and return it.
